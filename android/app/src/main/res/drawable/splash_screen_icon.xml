@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Splash icon: tamamen saydam — Android 12+ API bu dosyayı zorunlu kılıyor
+     ama biz ikon göstermek istemiyoruz, sadece düz arka plan olsun -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android">
+    <solid android:color="@android:color/transparent" />
+</shape>

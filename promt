@@ -1,0 +1,75 @@
+
+flutter test -d macos integration_test/app_test.dart
+
+/ui-ux-pro-max
+
+dart tool/unused_translations.dart
+
+git add .
+git commit -m "Initial commit"
+git push -u origin main
+
+
+dart run lib/servisler/veritabani_reset_servisi.dart
+
+
+git reset --hard origin/main
+
+git fetch origin
+>> git reset --hard origin/main
+
+
+open -a Simulator
+
+flutter run -d iphonesimulator
+ 
+sss
+Field-Level Delta Update & Set-Based Operations
+
+
+
+
+2) Emülatörleri aç (TEK TEK)
+Her seferinde 1 emülatör aç, işin bitince kapatıp diğerine geç.
+
+Nexus 7 (2012):
+flutter emulators --launch Nexus_7_2012
+Pixel 7:
+flutter emulators --launch Pixel_7
+Pixel 7 Pro:
+flutter emulators --launch Pixel_7_Pro
+Pixel Tablet:
+flutter emulators --launch Pixel_Tablet
+
+
+& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -list-avds
+& "$env:LOCALAPPDATA\Android\Sdk\emulator\emulator.exe" -avd Pixel_7 -wipe-data -no-snapshot-load
+
+
+
+şimdi reis beni çok iyi dinle bak şimdi C:\Users\Alkmlgun\Desktop\patisyov10 bu asıl projemiz ve bak C:\Users\Alkmlgun\Desktop\lotyazilim buda lisanslama için falan kullandığımız müşteri takip ettiğimiz internet projemiz şimdi bak sana resimlerlede anlatacağım şimdi beni çok iyi dinle bak C:\Users\Alkmlgun\Desktop\lotyazilim\pages\LiteUsersPage.tsx burada mobile yada tablette lite sürümü kullanmak için kullanıcı programı açtığında bu sayfada bilgisayar cihaz adı yada ne oldu mobile dektop table görünmüyor onu düzenle tüm işletim sistemleri için abk düzenle ve tam adı yazsın eksiksiz olarak düzenle çok dikkatli ol bak resimleride incele ios android hepsi için düzenle bakalım tablet ve phone lar için tam profesyonel şekilde yazsın çok dikaktli ol sakın ha başka yeri bozmadan tam profesyonel olarak yap
+
+
+
+
+
+
+
+güzel şimdi ne yapacaksın sen biliyormusun /Users/nasip/Desktop/lotyazilim/pages/LiteUsersPage.tsx
+/Users/nasip/Desktop/lotyazilim/pages/CustomersPage.tsx bu iki yerde de bak supabase ve nanotech e veritabanı oluşturuyoruz şimdi bak oluşturduktan sonra proje flutter projesi bakıyor yeni veritabanında tablolar varmı yoksa oluşturuyor ve çok uzun sürüyor onu şöyle yapacağız bak bu supabase oluşturm ayada nanotech oluşturma butonunun olduğu dialogta bir sql yükleme sadece sql yükleme özelliği koy ve bak kullanıcı onu birkere yükledi kayda alsın ve kullanıcı değiştirene kadar o yüklediğini kullanarak veritabanı oluştukdan sonra full eksiksiz özellikle tabloları oluştursunki sonra daha sonra flutterıda güncelleyeceğizki böyl eçalışacak çok dikaktli ol sakın talimatım dışında başka yere dokunma bozma
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+güzel şimdi ne yapacaksın sen biliyormusun /Users/nasip/Desktop/lotyazilim/pages/LiteUsersPage.tsx
+/Users/nasip/Desktop/lotyazilim/pages/CustomersPage.tsx bu iki yerde de bak supabase ve nanotech e veritabanı oluşturuyoruz şimdi bak oluşturduktan sonra proje flutter projesi bakıyor yeni veritabanında tablolar varmı yoksa oluşturuyor ve çok uzun sürüyor onu şöyle yapacağız bak bu supabase oluşturm ayada nanotech oluşturma butonunun olduğu dialogta bir sql yükleme sadece sql yükleme özelliği koy ve bak kullanıcı onu birkere yükledi kayda alsın ve kullanıcı değiştirene kadar o yüklediğini kullanarak veritabanı oluştukdan sonra full eksiksiz özellikle tabloları oluştursunki sonra daha sonra flutterıda güncelleyeceğizki böyl eçalışacak çok dikaktli ol sakın talimatım dışında başka yere dokunma bozma bak programdan indirdiğimi ekleyecek /Users/nasip/Desktop/patisyov10/patisyo_patisyo2025_schema_20260215_1851.sql.sql bak ve yap sakın ha başk ayeri bozma eksiksiz hatası zyap
