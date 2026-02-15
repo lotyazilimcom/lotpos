@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
+import 'package:nsd/nsd.dart' show Service;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
@@ -19,8 +20,23 @@ class MobilKurulumSayfasi extends StatefulWidget {
 
 class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
   bool _isSearching = false;
-  String? _foundServerIp;
-  String? _foundServerName;
+  List<Service> _foundServers = [];
+  Service? _selectedServer;
+
+  @override
+  void initState() {
+    super.initState();
+    // Giriş ekranından "veritabanı değiştir" ile gelince tek tıkta liste çıksın.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Sadece daha önce "Yerel" seçiliyse (host kayıtlıysa) otomatik aramada hata mesajı göster.
+      // İlk kurulumda (varsayılan cloud) kullanıcıyı gereksiz uyarı ile rahatsız etmeyelim.
+      final showError =
+          VeritabaniYapilandirma.connectionMode == 'local' &&
+          (VeritabaniYapilandirma.discoveredHost ?? '').trim().isNotEmpty;
+      unawaited(_bulVeBaglan(showError: showError));
+    });
+  }
 
   Future<void> _bulutTalebiGonderBestEffort() async {
     try {
@@ -42,48 +58,39 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
     );
   }
 
-  Future<void> _bulVeBaglan() async {
+  Future<void> _bulVeBaglan({bool showError = true}) async {
+    if (!mounted) return;
     setState(() {
       _isSearching = true;
-      _foundServerIp = null;
-      _foundServerName = null;
+      _foundServers = [];
+      _selectedServer = null;
     });
 
     try {
-      final service = await LocalNetworkDiscoveryService().sunucuBul();
+      final servers = await LocalNetworkDiscoveryService().sunuculariBul(
+        timeout: const Duration(seconds: 3),
+      );
 
-      if (service != null && service.host != null) {
+      if (!mounted) return;
+      if (servers.isNotEmpty) {
         setState(() {
-          _foundServerIp = service.host;
-          _foundServerName = service.name;
+          _foundServers = servers;
+          _selectedServer = servers.first;
           _isSearching = false;
         });
-
-        // Host'u yapılandırmaya kaydet (Bellekte)
-        VeritabaniYapilandirma.setDiscoveredHost(service.host);
-
-        // Lisans durumunu devral
-        bool isPro = false;
-        final txt = service.txt;
-        if (txt != null && txt['isPro'] != null) {
-          isPro = utf8.decode(txt['isPro']!) == 'true';
-        }
-        await LisansServisi().setInheritedPro(isPro);
       } else {
         setState(() => _isSearching = false);
-        if (mounted) {
+        if (showError && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                'Sunucu bulunamadı. Lütfen ana bilgisayarda programın açık olduğundan emin olun.',
-              ),
+            SnackBar(
+              content: Text(tr('setup.local.server_not_found_open_app')),
               backgroundColor: Colors.redAccent,
             ),
           );
         }
       }
     } catch (e) {
-      setState(() => _isSearching = false);
+      if (mounted) setState(() => _isSearching = false);
       debugPrint('Arama hatası: $e');
     }
   }
@@ -162,8 +169,8 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
 
                     const Spacer(flex: 2),
 
-                    if (_foundServerIp != null) ...[
-                      // Sunucu Bulundu Kartı
+                    if (_foundServers.isNotEmpty) ...[
+                      // Sunucular Bulundu Kartı
                       Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
@@ -182,7 +189,9 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                             ),
                             const SizedBox(height: 16),
                             Text(
-                              'Sunucu Bulundu!',
+                              _foundServers.length == 1
+                                  ? 'Sunucu Bulundu!'
+                                  : 'Sunucular Bulundu!',
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -190,14 +199,76 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                               ),
                             ),
                             const SizedBox(height: 8),
-                            Text(
-                              '$_foundServerName\n$_foundServerIp',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: Colors.white.withValues(alpha: 0.7),
-                                fontSize: 14,
+                            if (_foundServers.length == 1)
+                              Text(
+                                '${_selectedServer?.name ?? ''}\n${_selectedServer?.host ?? ''}',
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  color: Colors.white.withValues(alpha: 0.7),
+                                  fontSize: 14,
+                                ),
+                              )
+                            else
+                              Container(
+                                width: double.infinity,
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                child: RadioGroup<String>(
+                                  groupValue:
+                                      (_selectedServer?.host ?? '').trim().isEmpty
+                                          ? null
+                                          : (_selectedServer?.host ?? '').trim(),
+                                  onChanged: (v) {
+                                    if (v == null) return;
+                                    final match = _foundServers.firstWhere(
+                                      (s) => (s.host ?? '').trim() == v,
+                                      orElse: () =>
+                                          _selectedServer ?? _foundServers.first,
+                                    );
+                                    setState(() => _selectedServer = match);
+                                  },
+                                  child: Column(
+                                    children: _foundServers.map((s) {
+                                      final host = (s.host ?? '').trim();
+                                      final title = (s.name ?? host).trim();
+                                      final selected = _selectedServer?.host == host;
+                                      return ListTile(
+                                        dense: true,
+                                        visualDensity: const VisualDensity(
+                                          vertical: -2,
+                                        ),
+                                        title: Text(
+                                          title.isEmpty ? host : title,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        subtitle: Text(
+                                          host,
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(
+                                              alpha: 0.7,
+                                            ),
+                                            fontSize: 12,
+                                          ),
+                                        ),
+                                        trailing: Radio<String>(
+                                          value: host,
+                                          activeColor: Colors.greenAccent,
+                                        ),
+                                        onTap: () =>
+                                            setState(() => _selectedServer = s),
+                                        selected: selected,
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
                               ),
-                            ),
                             const SizedBox(height: 24),
                             SizedBox(
                               width: double.infinity,
@@ -212,8 +283,9 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                 ),
-                                onPressed: () =>
-                                    _setupTamamla(context, mode: 'local'),
+                                onPressed: (_selectedServer?.host ?? '').trim().isEmpty
+                                    ? null
+                                    : () => _setupTamamla(context, mode: 'local'),
                                 child: const Text(
                                   'Devam Et',
                                   style: TextStyle(
@@ -225,7 +297,7 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                             ),
                             TextButton(
                               onPressed: () =>
-                                  setState(() => _foundServerIp = null),
+                                  setState(() => _foundServers = []),
                               child: Text(
                                 'Tekrar Ara',
                                 style: TextStyle(
@@ -235,6 +307,16 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                             ),
                           ],
                         ),
+                      ),
+                      const SizedBox(height: 16),
+                      _buildOptionCard(
+                        context,
+                        icon: Icons.public_rounded,
+                        title: 'İnternetten Kullan',
+                        subtitle:
+                            'Bulut altyapısı üzerinden her yerden erişim',
+                        color: const Color(0xFF81C784),
+                        onTap: () => _setupTamamla(context, mode: 'cloud'),
                       ),
                     ] else ...[
                       // Seçenekler
@@ -251,6 +333,17 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                     color: Colors.white.withValues(alpha: 0.8),
                                     fontSize: 16,
                                   ),
+                                ),
+                                const SizedBox(height: 16),
+                                _buildOptionCard(
+                                  context,
+                                  icon: Icons.public_rounded,
+                                  title: 'İnternetten Kullan',
+                                  subtitle:
+                                      'Bulut altyapısı üzerinden her yerden erişim',
+                                  color: const Color(0xFF81C784),
+                                  onTap: () =>
+                                      _setupTamamla(context, mode: 'cloud'),
                                 ),
                               ],
                             )
@@ -296,10 +389,26 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
     BuildContext context, {
     required String mode,
   }) async {
+    final selectedHost = (_selectedServer?.host ?? '').trim();
+    if (mode == 'local' && selectedHost.isEmpty) return;
+
+    if (mode == 'local') {
+      VeritabaniYapilandirma.setDiscoveredHost(selectedHost);
+      // Lisans durumunu devral (mDNS yayını varsa TXT üzerinden gelir).
+      bool isPro = false;
+      final txt = _selectedServer?.txt;
+      if (txt != null && txt['isPro'] != null) {
+        try {
+          isPro = utf8.decode(txt['isPro']!) == 'true';
+        } catch (_) {}
+      }
+      unawaited(LisansServisi().setInheritedPro(isPro));
+    }
+
     // Tercihleri kaydet
     await VeritabaniYapilandirma.saveConnectionPreferences(
       mode,
-      mode == 'local' ? _foundServerIp : null,
+      mode == 'local' ? selectedHost : null,
     );
 
     final prefs = await SharedPreferences.getInstance();

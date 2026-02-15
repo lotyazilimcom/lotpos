@@ -9,6 +9,7 @@ import 'kredi_kartlari_veritabani_servisi.dart';
 import 'personel_islemleri_veritabani_servisi.dart';
 import 'oturum_servisi.dart';
 import 'lisans_yazma_koruma.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'ayarlar_veritabani_servisi.dart';
 
@@ -95,7 +96,17 @@ class KasalarVeritabaniServisi {
         ),
       );
 
-      await _tablolariOlustur();
+      final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+        executor: _pool!,
+        databaseName: targetDatabase,
+      );
+      if (!semaHazir) {
+        await _tablolariOlustur();
+      } else {
+        debugPrint(
+          'KasalarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+        );
+      }
       _isInitialized = true;
       _initializedDatabase = targetDatabase;
       _initializingDatabase = null;

@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:postgres/postgres.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../servisler/ayarlar_veritabani_servisi.dart';
 import '../../servisler/bankalar_veritabani_servisi.dart';
@@ -25,6 +27,8 @@ import '../../servisler/senetler_veritabani_servisi.dart';
 import '../../servisler/veritabani_yapilandirma.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../mobil_kurulum/mobil_kurulum_sayfasi.dart';
+
+enum _YerelDbProbeSonucu { ok, databaseMissing, serverUnreachable, other }
 
 class GirisSayfasi extends StatefulWidget {
   const GirisSayfasi({super.key});
@@ -57,6 +61,112 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     final mode = VeritabaniYapilandirma.connectionMode;
     // Host/port + DB adı ile bağlamı ayırt et (tek cihazda farklı DB'ler).
     return 'patisyo_warmup_done_${mode}_${cfg.host}_${cfg.port}_${OturumServisi().aktifVeritabaniAdi}';
+  }
+
+  Future<_YerelDbProbeSonucu> _yerelDbHazirMi(String dbName) async {
+    final cfg = VeritabaniYapilandirma();
+    Connection? conn;
+    try {
+      conn = await Connection.open(
+        Endpoint(
+          host: cfg.host,
+          port: cfg.port,
+          database: dbName.trim(),
+          username: cfg.username,
+          password: cfg.password,
+        ),
+        settings: ConnectionSettings(
+          sslMode: cfg.sslMode,
+          connectTimeout: const Duration(seconds: 2),
+          onOpen: cfg.tuneConnection,
+        ),
+      );
+      await conn.execute('SELECT 1');
+      return _YerelDbProbeSonucu.ok;
+    } on SocketException {
+      return _YerelDbProbeSonucu.serverUnreachable;
+    } on ServerException catch (e) {
+      if (e.code == '3D000') return _YerelDbProbeSonucu.databaseMissing;
+      return _YerelDbProbeSonucu.other;
+    } catch (_) {
+      return _YerelDbProbeSonucu.other;
+    } finally {
+      try {
+        await conn?.close();
+      } catch (_) {}
+    }
+  }
+
+  String _yerelSirketVeritabaniAdi(SirketAyarlariModel sirket) {
+    final kod = sirket.kod.trim();
+    if (kod == 'patisyo2025') return 'patisyo2025';
+    final safeCode = kod.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
+    return 'patisyo_$safeCode';
+  }
+
+  Future<bool> _mobilYerelSirketVeritabaniniDogrula() async {
+    if (!_isMobilePlatform) return true;
+    if (VeritabaniYapilandirma.connectionMode != 'local') return true;
+    final sirket = _seciliSirket;
+    if (sirket == null) return false;
+
+    final dbName = _yerelSirketVeritabaniAdi(sirket);
+    final probe = await _yerelDbHazirMi(dbName);
+
+    if (probe == _YerelDbProbeSonucu.ok) return true;
+
+    if (probe == _YerelDbProbeSonucu.serverUnreachable) {
+      if (mounted) {
+        MesajYardimcisi.hataGoster(
+          context,
+          tr('setup.local.server_not_found_open_app'),
+        );
+      }
+      return false;
+    }
+
+    if (probe == _YerelDbProbeSonucu.databaseMissing) {
+      // Seçili şirket DB'si yoksa, geçerli ilk şirketi otomatik seçmeye çalış.
+      final List<SirketAyarlariModel> candidates = [
+        ..._sirketler.where((s) => s.kod.trim() == 'patisyo2025'),
+        ..._sirketler.where((s) => s.kod.trim() != 'patisyo2025'),
+      ];
+
+      for (final cand in candidates) {
+        if (cand.kod.trim() == sirket.kod.trim()) continue;
+        final candDb = _yerelSirketVeritabaniAdi(cand);
+        final candProbe = await _yerelDbHazirMi(candDb);
+        if (candProbe == _YerelDbProbeSonucu.ok) {
+          if (mounted) {
+            setState(() => _seciliSirket = cand);
+          }
+          OturumServisi().aktifSirket = cand;
+          return true;
+        }
+        if (candProbe == _YerelDbProbeSonucu.serverUnreachable) {
+          if (mounted) {
+            MesajYardimcisi.hataGoster(
+              context,
+              tr('setup.local.server_not_found_open_app'),
+            );
+          }
+          return false;
+        }
+      }
+
+      if (mounted) {
+        MesajYardimcisi.hataGoster(
+          context,
+          tr('setup.local.company_database_missing'),
+        );
+      }
+      return false;
+    }
+
+    if (mounted) {
+      MesajYardimcisi.hataGoster(context, tr('common.unknown_error'));
+    }
+    return false;
   }
 
   Future<void> _servisleriIsit({bool background = false}) async {
@@ -241,6 +351,14 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
 
           // Oturum Servisine Aktif Şirketi Bildir
           OturumServisi().aktifSirket = _seciliSirket;
+
+          // Mobil/Tablet + Yerel: Seçili şirket DB yoksa (3D000) modüllerde her sayfada hata basmasın.
+          // Bu kontrol login sırasında yapılıp uygun şirkete otomatik düşer veya kullanıcıyı uyarır.
+          final yerelOk = await _mobilYerelSirketVeritabaniniDogrula();
+          if (!yerelOk) {
+            if (mounted) setState(() => _yukleniyor = false);
+            return;
+          }
 
           final bool isCloud = VeritabaniYapilandirma.connectionMode == 'cloud';
 

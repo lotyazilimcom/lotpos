@@ -286,6 +286,10 @@ const Map<String, String> trCeviriler = {
       'Veritabanı modunu değiştirmek veri aktarımı gerektirir. Devam edilsin mi?',
   'settings.database.mobile_local_requires_server':
       'Yerel sunucuyu kullanmak için önce ana bilgisayara bağlanın (Kurulum ekranından sunucu bulun).',
+  'setup.local.server_not_found_open_app':
+      'Yerel ana sunucuya ulaşılamadı. Lütfen ana bilgisayarda Patisyo v10 uygulamasını açın ve tekrar deneyin.',
+  'setup.local.company_database_missing':
+      'Seçili şirket veritabanı sunucuda bulunamadı. Lütfen ana bilgisayarda şirket veritabanının oluşturulduğundan emin olun veya başka bir şirket seçin.',
   'setup.cloud.preparing_title': 'Online Veritabanı Hazırlanıyor',
   'setup.cloud.preparing_message':
       'Uzak/bulut veritabanınız hazırlanıyor. Kurulum tamamlandığında size bildirim gönderilecektir.',

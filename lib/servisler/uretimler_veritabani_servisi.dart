@@ -9,6 +9,7 @@ import 'oturum_servisi.dart';
 import 'depolar_veritabani_servisi.dart';
 import 'urunler_veritabani_servisi.dart';
 import '../sayfalar/urunler_ve_depolar/depolar/sevkiyat_olustur_sayfasi.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'ayarlar_veritabani_servisi.dart';
 import 'lisans_yazma_koruma.dart';
@@ -64,7 +65,17 @@ class UretimlerVeritabaniServisi {
 
     try {
       if (_pool != null) {
-        await _tablolariOlustur();
+        final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+          executor: _pool!,
+          databaseName: OturumServisi().aktifVeritabaniAdi,
+        );
+        if (!semaHazir) {
+          await _tablolariOlustur();
+        } else {
+          debugPrint(
+            'UretimlerVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+          );
+        }
 
         _isInitialized = true;
         debugPrint(

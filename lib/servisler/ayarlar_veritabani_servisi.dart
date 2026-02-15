@@ -10,6 +10,7 @@ import '../sayfalar/ayarlar/kullanicilar/modeller/kullanici_hareket_model.dart';
 import '../sayfalar/ayarlar/roller_ve_izinler/modeller/rol_model.dart';
 import '../sayfalar/ayarlar/sirketayarlari/modeller/sirket_ayarlari_model.dart';
 import '../ayarlar/menu_ayarlari.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'lisans_yazma_koruma.dart';
 
@@ -104,7 +105,22 @@ class AyarlarVeritabaniServisi {
         return;
       }
 
-      await _tablolariOlustur();
+      final bulut = _bulutModundaMi();
+      final semaHazir =
+          bulut
+              ? await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+                  executor: _pool!,
+                  databaseName: _config.database,
+                )
+              : false;
+
+      if (!semaHazir) {
+        await _tablolariOlustur();
+      } else {
+        debugPrint(
+          'AyarlarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+        );
+      }
       _isInitialized = true;
 
       // Varsayılan verileri ekle (Bu da önemli ama tablolar hazırsa uygulama açılabilir)

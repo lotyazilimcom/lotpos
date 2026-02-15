@@ -9,6 +9,7 @@ import '../sayfalar/urunler_ve_depolar/urunler/modeller/urun_model.dart';
 import 'oturum_servisi.dart';
 import 'depolar_veritabani_servisi.dart';
 import '../sayfalar/urunler_ve_depolar/depolar/sevkiyat_olustur_sayfasi.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'ayarlar_veritabani_servisi.dart';
 import '../sayfalar/urunler_ve_depolar/urunler/modeller/cihaz_model.dart';
@@ -93,7 +94,17 @@ class UrunlerVeritabaniServisi {
 
     try {
       if (_pool != null) {
-        await _tablolariOlustur();
+        final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+          executor: _pool!,
+          databaseName: OturumServisi().aktifVeritabaniAdi,
+        );
+        if (!semaHazir) {
+          await _tablolariOlustur();
+        } else {
+          debugPrint(
+            'UrunlerVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+          );
+        }
         // NOT:
         // Global arka plan indeksleme (_verileriIndeksle) ağır bir işlemdir.
         // 1B kayıt senaryosunda bu işlemin uygulama açılışında tetiklenmesi yerine

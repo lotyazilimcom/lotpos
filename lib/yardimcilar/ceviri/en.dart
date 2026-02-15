@@ -275,6 +275,10 @@ const Map<String, String> enCeviriler = {
       'Changing database mode requires data migration. Continue?',
   'settings.database.mobile_local_requires_server':
       'To use a local server, connect to the main computer first (from the setup screen).',
+  'setup.local.server_not_found_open_app':
+      'The local main server is not reachable. Please open Patisyo v10 on the main computer and try again.',
+  'setup.local.company_database_missing':
+      'The selected company database was not found on the server. Please make sure the company database is created on the main computer or select a different company.',
   'setup.cloud.preparing_title': 'Online Database Preparing',
   'setup.cloud.preparing_message':
       'Your remote/cloud database is being prepared. You will be notified when the setup is completed.',

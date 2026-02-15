@@ -11,6 +11,7 @@ import 'alisyap_veritabani_servisleri.dart';
 import 'oturum_servisi.dart';
 import 'perakende_satis_veritabani_servisleri.dart';
 import 'satisyap_veritabani_servisleri.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'uretimler_veritabani_servisi.dart';
 import 'lisans_yazma_koruma.dart';
@@ -73,7 +74,17 @@ class DepolarVeritabaniServisi {
 
     try {
       if (_pool != null) {
-        await _tablolariOlustur();
+        final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+          executor: _pool!,
+          databaseName: OturumServisi().aktifVeritabaniAdi,
+        );
+        if (!semaHazir) {
+          await _tablolariOlustur();
+        } else {
+          debugPrint(
+            'DepolarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+          );
+        }
         // NOT:
         // Depo arama indekslerinin (search_tags) global backfill işlemi
         // yüksek hacimli verilerde ağır bir operasyondur.

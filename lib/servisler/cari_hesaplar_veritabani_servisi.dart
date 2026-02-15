@@ -7,6 +7,7 @@ import 'package:intl/intl.dart';
 
 import '../sayfalar/carihesaplar/modeller/cari_hesap_model.dart';
 import 'oturum_servisi.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'urunler_veritabani_servisi.dart';
 import 'kasalar_veritabani_servisi.dart';
@@ -231,7 +232,17 @@ class CariHesaplarVeritabaniServisi {
 
     try {
       if (_pool != null) {
-        await _tablolariOlustur();
+        final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+          executor: _pool!,
+          databaseName: OturumServisi().aktifVeritabaniAdi,
+        );
+        if (!semaHazir) {
+          await _tablolariOlustur();
+        } else {
+          debugPrint(
+            'CariHesaplarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+          );
+        }
 
         _isInitialized = true;
         debugPrint('Cari Hesaplar veritabanı bağlantısı başarılı (Havuz)');

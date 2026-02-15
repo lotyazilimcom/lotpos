@@ -6,6 +6,7 @@ import 'bankalar_veritabani_servisi.dart';
 import 'kredi_kartlari_veritabani_servisi.dart';
 import '../sayfalar/ayarlar/kullanicilar/modeller/kullanici_model.dart';
 import 'oturum_servisi.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'lisans_yazma_koruma.dart';
 import 'dart:async';
@@ -58,7 +59,17 @@ class PersonelIslemleriVeritabaniServisi {
         ),
       );
 
-      await _tablolariOlustur();
+      final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+        executor: _pool!,
+        databaseName: OturumServisi().aktifVeritabaniAdi,
+      );
+      if (!semaHazir) {
+        await _tablolariOlustur();
+      } else {
+        debugPrint(
+          'PersonelIslemleriVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+        );
+      }
       _isInitialized = true;
       _initCompleter!.complete();
       debugPrint(

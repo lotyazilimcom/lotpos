@@ -141,19 +141,25 @@ class VeritabaniYapilandirma {
     String? host,
   ) async {
     _connectionMode = mode;
-    _discoveredHost = host;
+    final normalizedHost = host?.trim();
+    _discoveredHost =
+        (normalizedHost != null && normalizedHost.isNotEmpty) ? normalizedHost : null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefConnectionMode, mode);
-    if (host != null) {
-      await prefs.setString(_prefLastDiscoveredHost, host);
+    if (_discoveredHost != null) {
+      await prefs.setString(_prefLastDiscoveredHost, _discoveredHost!);
     }
     debugPrint(
-      'VeritabaniYapilandirma: Tercihler kaydedildi. Mod: $mode, Host: $host',
+      'VeritabaniYapilandirma: Tercihler kaydedildi. Mod: $mode, Host: $_discoveredHost',
     );
   }
 
   static String get connectionMode => _connectionMode;
-  static String? get discoveredHost => _discoveredHost;
+  static String? get discoveredHost {
+    final host = _discoveredHost?.trim();
+    if (host == null || host.isEmpty) return null;
+    return host;
+  }
   static bool get cloudCredentialsReady {
     final host = _cloudHost?.trim() ?? '';
     final db = _cloudDatabase?.trim() ?? '';
@@ -531,11 +537,23 @@ class VeritabaniYapilandirma {
     if (!await file.exists()) {
       throw Exception('SQL dosyası oluşturulamadı: $outputPath');
     }
+
+    // pg_dump çıktısından psql meta-komutlarını temizle
+    // (\restrict, \unrestrict, \connect, \encoding vb.)
+    // Bu komutlar sadece psql CLI'da çalışır, SQL motorunda syntax error verir.
+    final rawContent = await file.readAsString();
+    final cleanedLines = rawContent
+        .split('\n')
+        .where((line) => !line.trimLeft().startsWith('\\'))
+        .toList();
+    await file.writeAsString(cleanedLines.join('\n'));
   }
 
   /// Dinamik keşif sonrası host'u günceller
   static void setDiscoveredHost(String? newHost) {
-    _discoveredHost = newHost;
-    debugPrint('VeritabaniYapilandirma: Host güncellendi -> $newHost');
+    final normalizedHost = newHost?.trim();
+    _discoveredHost =
+        (normalizedHost != null && normalizedHost.isNotEmpty) ? normalizedHost : null;
+    debugPrint('VeritabaniYapilandirma: Host güncellendi -> $_discoveredHost');
   }
 }

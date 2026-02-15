@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../sayfalar/giderler/modeller/gider_model.dart';
 import 'oturum_servisi.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'lisans_yazma_koruma.dart';
 
@@ -53,7 +54,17 @@ class GiderlerVeritabaniServisi {
 
     try {
       if (_pool != null) {
-        await _tablolariOlustur();
+        final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+          executor: _pool!,
+          databaseName: OturumServisi().aktifVeritabaniAdi,
+        );
+        if (!semaHazir) {
+          await _tablolariOlustur();
+        } else {
+          debugPrint(
+            'GiderlerVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+          );
+        }
         _isInitialized = true;
         _initCompleter!.complete();
         debugPrint(

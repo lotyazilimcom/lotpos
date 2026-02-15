@@ -7,6 +7,7 @@ import 'bankalar_veritabani_servisi.dart';
 import 'oturum_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'lite_kisitlari.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import '../sayfalar/ceksenet/modeller/cek_model.dart';
 import 'veritabani_yapilandirma.dart';
 import 'kredi_kartlari_veritabani_servisi.dart';
@@ -141,7 +142,17 @@ class CeklerVeritabaniServisi {
         ),
       );
 
-      await _tablolariOlustur();
+      final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+        executor: _pool!,
+        databaseName: targetDatabase,
+      );
+      if (!semaHazir) {
+        await _tablolariOlustur();
+      } else {
+        debugPrint(
+          'CeklerVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+        );
+      }
       _isInitialized = true;
       _initializedDatabase = targetDatabase;
       debugPrint(

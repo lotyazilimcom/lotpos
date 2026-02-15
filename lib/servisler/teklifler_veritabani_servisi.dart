@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../sayfalar/siparisler_teklifler/modeller/teklif_model.dart';
 import '../yardimcilar/format_yardimcisi.dart';
 import 'oturum_servisi.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'depolar_veritabani_servisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
@@ -53,7 +54,17 @@ class TekliflerVeritabaniServisi {
 
     try {
       if (_pool != null) {
-        await _tablolariOlustur();
+        final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+          executor: _pool!,
+          databaseName: OturumServisi().aktifVeritabaniAdi,
+        );
+        if (!semaHazir) {
+          await _tablolariOlustur();
+        } else {
+          debugPrint(
+            'TekliflerVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+          );
+        }
         if (_yapilandirma.allowBackgroundDbMaintenance) {
           _verileriIndeksle();
         }

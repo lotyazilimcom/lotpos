@@ -10,6 +10,7 @@ import '../sayfalar/bankalar/modeller/banka_model.dart';
 import 'oturum_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'lite_kisitlari.dart';
+import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'ayarlar_veritabani_servisi.dart';
 
@@ -96,7 +97,17 @@ class BankalarVeritabaniServisi {
         ),
       );
 
-      await _tablolariOlustur();
+      final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+        executor: _pool!,
+        databaseName: targetDatabase,
+      );
+      if (!semaHazir) {
+        await _tablolariOlustur();
+      } else {
+        debugPrint(
+          'BankalarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
+        );
+      }
       _isInitialized = true;
       _initializedDatabase = targetDatabase;
       _initializingDatabase = null;

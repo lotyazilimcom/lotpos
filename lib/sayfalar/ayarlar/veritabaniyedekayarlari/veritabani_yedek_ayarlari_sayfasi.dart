@@ -1,13 +1,16 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:nsd/nsd.dart' show Service;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../servisler/lite_ayarlar_servisi.dart';
 import '../../../servisler/lite_kisitlari.dart';
 import '../../../servisler/lisans_servisi.dart';
+import '../../../servisler/local_network_discovery_service.dart';
 import '../../../servisler/online_veritabani_servisi.dart';
 import '../../../servisler/oturum_servisi.dart';
 import '../../../servisler/veritabani_yapilandirma.dart';
@@ -160,6 +163,152 @@ class _VeritabaniYedekAyarlariSayfasiState
         ],
       ),
     );
+  }
+
+  Future<void> _uygulaYerelSunucuLisansBestEffort(Service service) async {
+    try {
+      final txt = service.txt;
+      if (txt == null || txt['isPro'] == null) return;
+      final inherited = utf8.decode(txt['isPro']!) == 'true';
+      await LisansServisi().setInheritedPro(inherited);
+    } catch (_) {
+      // Sessiz: yerel keşif lisans bilgisi opsiyonel.
+    }
+  }
+
+  Future<Service?> _yerelSunucuBulVeSec({String? oncekiHost}) async {
+    if (!mounted) return null;
+
+    final navigator = Navigator.of(context, rootNavigator: true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(tr('common.loading')),
+          content: const Row(
+            children: [
+              SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Yerel sunucu aranıyor...',
+                  style: TextStyle(fontSize: 13),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    List<Service> servers = const [];
+    try {
+      servers = await LocalNetworkDiscoveryService().sunuculariBul(
+        timeout: const Duration(seconds: 3),
+      );
+    } catch (_) {
+      servers = const [];
+    } finally {
+      try {
+        if (navigator.canPop()) navigator.pop();
+      } catch (_) {}
+    }
+
+    if (!mounted) return null;
+
+    if (servers.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('settings.database.mobile_local_requires_server')),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return null;
+    }
+
+    if (servers.length == 1) {
+      return servers.first;
+    }
+
+    final preferred = (oncekiHost ?? '').trim();
+    Service selected = servers.first;
+    if (preferred.isNotEmpty) {
+      for (final s in servers) {
+        if ((s.host ?? '').trim() == preferred) {
+          selected = s;
+          break;
+        }
+      }
+    }
+
+    final Service? result = await showDialog<Service>(
+      context: context,
+      builder: (ctx) {
+        Service current = selected;
+        return StatefulBuilder(
+          builder: (ctx, setState) {
+            final host = (current.host ?? '').trim();
+            final groupValue = host.isEmpty ? null : host;
+
+            return AlertDialog(
+              title: const Text('Yerel Sunucu Seç'),
+              content: SizedBox(
+                width: double.maxFinite,
+                child: SingleChildScrollView(
+                  child: RadioGroup<String>(
+                    groupValue: groupValue,
+                    onChanged: (v) {
+                      if (v == null) return;
+                      for (final s in servers) {
+                        final host = (s.host ?? '').trim();
+                        if (host == v) {
+                          setState(() => current = s);
+                          break;
+                        }
+                      }
+                    },
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: servers.map((s) {
+                        final host = (s.host ?? '').trim();
+                        final name = (s.name ?? host).trim();
+                        final isSelected = (current.host ?? '').trim() == host;
+                        return ListTile(
+                          dense: true,
+                          title: Text(name.isEmpty ? host : name),
+                          subtitle: Text(host),
+                          trailing: Radio<String>(value: host),
+                          selected: isSelected,
+                          onTap: () => setState(() => current = s),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(tr('common.cancel')),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(current),
+                  child: Text(tr('common.select')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    return result;
   }
 
   Widget _buildHeader(Color primaryColor, {required bool isMobile}) {
@@ -644,24 +793,50 @@ class _VeritabaniYedekAyarlariSayfasiState
           }
 
           final String oncekiMod = VeritabaniYapilandirma.connectionMode;
+          String? yerelHostKaydi;
 
           if (_seciliMod == 'local') {
-            final host = VeritabaniYapilandirma.discoveredHost;
-            if (host == null || host.trim().isEmpty) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(tr('settings.database.mobile_local_requires_server')),
-                  backgroundColor: Colors.redAccent,
-                  behavior: SnackBarBehavior.floating,
-                ),
+            // Bulut -> Yerel geçişinde: kurulum/giriş ekranındaki gibi
+            // otomatik sunucu tara, tekse seç, çoksa kullanıcıya sor.
+            if (oncekiMod == 'cloud') {
+              final secilen = await _yerelSunucuBulVeSec(
+                oncekiHost: VeritabaniYapilandirma.discoveredHost,
               );
-              return;
+              if (secilen == null) {
+                if (mounted) setState(() => _seciliMod = oncekiMod);
+                return;
+              }
+
+              final host = (secilen.host ?? '').trim();
+              if (host.isEmpty) {
+                if (mounted) setState(() => _seciliMod = oncekiMod);
+                return;
+              }
+
+              yerelHostKaydi = host;
+              VeritabaniYapilandirma.setDiscoveredHost(host);
+              await _uygulaYerelSunucuLisansBestEffort(secilen);
+            } else {
+              final host = VeritabaniYapilandirma.discoveredHost;
+              if (host == null || host.trim().isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      tr('settings.database.mobile_local_requires_server'),
+                    ),
+                    backgroundColor: Colors.redAccent,
+                    behavior: SnackBarBehavior.floating,
+                  ),
+                );
+                return;
+              }
+              yerelHostKaydi = host.trim();
             }
           }
 
           await VeritabaniYapilandirma.saveConnectionPreferences(
             _seciliMod,
-            _seciliMod == 'local' ? VeritabaniYapilandirma.discoveredHost : null,
+            _seciliMod == 'local' ? yerelHostKaydi : null,
           );
 
           if (_seciliMod == 'cloud') {
