@@ -293,6 +293,23 @@ const Map<String, String> trCeviriler = {
   'setup.cloud.preparing_title': 'Online Veritabanı Hazırlanıyor',
   'setup.cloud.preparing_message':
       'Uzak/bulut veritabanınız hazırlanıyor. Kurulum tamamlandığında size bildirim gönderilecektir.',
+  'dbsync.title': 'Veri Aktarımı',
+  'dbsync.local_to_cloud.message':
+      'Yerel veritabanındaki veriler buluta aktarılsın mı?\n\n'
+      '• Tam Aktar: Hedefteki tüm verileri siler ve yereldeki verilerle birebir aynı yapar.\n'
+      '• Birleştir: Hedefteki verileri silmez; eksik kayıtları ekler ve çakışan kayıtları günceller.',
+  'dbsync.cloud_to_local.message':
+      'Bulut veritabanındaki veriler yerele aktarılsın mı?\n\n'
+      '• Tam Aktar: Hedefteki tüm verileri siler ve buluttaki verilerle birebir aynı yapar.\n'
+      '• Birleştir: Hedefteki verileri silmez; eksik kayıtları ekler ve çakışan kayıtları günceller.',
+  'dbsync.not_now': 'Şimdi Değil',
+  'dbsync.merge': 'Birleştir',
+  'dbsync.full': 'Tam Aktar',
+  'dbsync.progress.title': 'Aktarılıyor...',
+  'dbsync.progress.message':
+      'Veriler aktarılıyor. Lütfen uygulamayı kapatmayın.',
+  'dbsync.success': 'Veri aktarımı tamamlandı.',
+  'dbsync.error': 'Veri aktarımı sırasında hata oluştu: {error}',
   'setup.cloud.error_title': 'Online Veritabanı Hatası',
   'setup.cloud.check_now': 'Kontrol Et',
   'setup.cloud.open_setup_options': 'Kurulum Seçenekleri',

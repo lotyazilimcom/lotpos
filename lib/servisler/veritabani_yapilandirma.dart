@@ -168,6 +168,28 @@ class VeritabaniYapilandirma {
     return host.isNotEmpty && db.isNotEmpty && user.isNotEmpty && pass.isNotEmpty;
   }
 
+  // Cloud kimliklerini "mod"a bakmadan okuyabilmek için (ör: local<->cloud veri aktarımı)
+  static String? get cloudHost {
+    final v = _cloudHost?.trim();
+    return (v == null || v.isEmpty) ? null : v;
+  }
+
+  static int? get cloudPort => _cloudPort;
+
+  static String? get cloudUsername {
+    final v = _cloudUsername?.trim();
+    return (v == null || v.isEmpty) ? null : v;
+  }
+
+  static String? get cloudPassword => _cloudPassword;
+
+  static String? get cloudDatabase {
+    final v = _cloudDatabase?.trim();
+    return (v == null || v.isEmpty) ? null : v;
+  }
+
+  static bool? get cloudSslRequired => _cloudSslRequired;
+
   static Future<void> saveCloudDatabaseCredentials({
     required String host,
     required int port,

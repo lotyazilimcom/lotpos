@@ -282,6 +282,22 @@ const Map<String, String> enCeviriler = {
   'setup.cloud.preparing_title': 'Online Database Preparing',
   'setup.cloud.preparing_message':
       'Your remote/cloud database is being prepared. You will be notified when the setup is completed.',
+  'dbsync.title': 'Data Transfer',
+  'dbsync.local_to_cloud.message':
+      'Do you want to transfer the local database data to the cloud?\n\n'
+      '• Full copy: Deletes all data in the target and makes it identical to the local data.\n'
+      '• Merge: Keeps existing target data; adds missing records and updates conflicting records.',
+  'dbsync.cloud_to_local.message':
+      'Do you want to transfer the cloud database data to local?\n\n'
+      '• Full copy: Deletes all data in the target and makes it identical to the cloud data.\n'
+      '• Merge: Keeps existing target data; adds missing records and updates conflicting records.',
+  'dbsync.not_now': 'Not now',
+  'dbsync.merge': 'Merge',
+  'dbsync.full': 'Full copy',
+  'dbsync.progress.title': 'Transferring...',
+  'dbsync.progress.message': 'Transferring data. Please do not close the app.',
+  'dbsync.success': 'Data transfer completed.',
+  'dbsync.error': 'Data transfer failed: {error}',
   'setup.cloud.error_title': 'Online Database Error',
   'setup.cloud.check_now': 'Check Now',
   'setup.cloud.open_setup_options': 'Setup Options',

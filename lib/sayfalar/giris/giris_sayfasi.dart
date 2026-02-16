@@ -24,6 +24,7 @@ import '../ayarlar/sirketayarlari/modeller/sirket_ayarlari_model.dart';
 import '../../main.dart';
 import '../../servisler/oturum_servisi.dart';
 import '../../servisler/senetler_veritabani_servisi.dart';
+import '../../servisler/veritabani_aktarim_servisi.dart';
 import '../../servisler/veritabani_yapilandirma.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../mobil_kurulum/mobil_kurulum_sayfasi.dart';
@@ -50,6 +51,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   List<SirketAyarlariModel> _sirketler = [];
   SirketAyarlariModel? _seciliSirket;
   bool _sirketlerYukleniyor = false;
+  bool _dbAktarimKontrolEdildi = false;
 
   bool get _isMobilePlatform =>
       !kIsWeb &&
@@ -233,6 +235,11 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     super.initState();
     _kayitliBilgileriYukle();
     _varsayilanSirketiYukle();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_bekleyenVeritabaniAktariminiKontrolEt());
+    });
   }
 
   @override
@@ -290,6 +297,111 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
           }
         });
       }
+    }
+  }
+
+  Future<void> _bekleyenVeritabaniAktariminiKontrolEt() async {
+    if (!_isMobilePlatform) return;
+    if (_dbAktarimKontrolEdildi) return;
+    _dbAktarimKontrolEdildi = true;
+
+    final aktarim = VeritabaniAktarimServisi();
+    final niyet = await aktarim.niyetOku();
+    if (niyet == null) return;
+
+    final hazirlik = await aktarim.hazirlikYap(niyet: niyet);
+    if (hazirlik == null) {
+      // Hazır değilse kullanıcıyı bloklama; niyeti sakla, uygun zamanda tekrar denesin.
+      return;
+    }
+
+    if (!mounted) return;
+
+    final bool localToCloud =
+        hazirlik.fromMode == 'local' && hazirlik.toMode == 'cloud';
+
+    final VeritabaniAktarimTipi? secim = await showDialog<VeritabaniAktarimTipi>(
+      context: context,
+      builder: (ctx) {
+        return AlertDialog(
+          title: Text(tr('dbsync.title')),
+          content: Text(
+            localToCloud
+                ? tr('dbsync.local_to_cloud.message')
+                : tr('dbsync.cloud_to_local.message'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: Text(tr('dbsync.not_now')),
+            ),
+            TextButton(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(VeritabaniAktarimTipi.birlestir),
+              child: Text(tr('dbsync.merge')),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(ctx).pop(VeritabaniAktarimTipi.tamAktar),
+              style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFEA4335),
+                foregroundColor: Colors.white,
+              ),
+              child: Text(tr('dbsync.full')),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (secim == null) {
+      await aktarim.niyetTemizle();
+      return;
+    }
+
+    if (!mounted) return;
+
+    final navigator = Navigator.of(context, rootNavigator: true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('dbsync.progress.title')),
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                tr('dbsync.progress.message'),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    try {
+      await aktarim.aktarimYap(hazirlik: hazirlik, tip: secim);
+      await aktarim.niyetTemizle();
+      if (!mounted) return;
+      MesajYardimcisi.basariGoster(context, tr('dbsync.success'));
+    } catch (e) {
+      if (mounted) {
+        MesajYardimcisi.hataGoster(
+          context,
+          tr('dbsync.error', args: {'error': e.toString()}),
+        );
+      }
+    } finally {
+      try {
+        if (navigator.canPop()) navigator.pop();
+      } catch (_) {}
     }
   }
 

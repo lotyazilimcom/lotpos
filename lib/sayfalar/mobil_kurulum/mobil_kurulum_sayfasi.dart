@@ -8,6 +8,7 @@ import '../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../baslangic/bootstrap_sayfasi.dart';
 import '../../servisler/local_network_discovery_service.dart';
 import '../../servisler/online_veritabani_servisi.dart';
+import '../../servisler/veritabani_aktarim_servisi.dart';
 import '../../servisler/veritabani_yapilandirma.dart';
 import '../../servisler/lisans_servisi.dart';
 
@@ -389,6 +390,8 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
     BuildContext context, {
     required String mode,
   }) async {
+    final String oncekiMod = VeritabaniYapilandirma.connectionMode;
+    final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
     final selectedHost = (_selectedServer?.host ?? '').trim();
     if (mode == 'local' && selectedHost.isEmpty) return;
 
@@ -410,6 +413,24 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
       mode,
       mode == 'local' ? selectedHost : null,
     );
+
+    // Local <-> Cloud geçişinde: veri aktarımı sorusu için niyet kaydet (mobil/tablet).
+    final bool modDegisti = oncekiMod != mode;
+    final bool localCloudSwitch =
+        (oncekiMod == 'local' && mode == 'cloud') ||
+        (oncekiMod == 'cloud' && mode == 'local');
+    if (modDegisti && localCloudSwitch) {
+      final localHost = (mode == 'local' ? selectedHost : (oncekiYerelHost ?? '')).trim();
+      await VeritabaniAktarimServisi().niyetKaydet(
+        VeritabaniAktarimNiyeti(
+          fromMode: oncekiMod,
+          toMode: mode,
+          localHost: localHost.isEmpty ? null : localHost,
+          localCompanyDb: null,
+          createdAt: DateTime.now(),
+        ),
+      );
+    }
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('mobil_kurulum_tamamlandi', true);

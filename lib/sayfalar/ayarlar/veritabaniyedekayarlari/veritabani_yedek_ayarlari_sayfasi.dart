@@ -13,6 +13,7 @@ import '../../../servisler/lisans_servisi.dart';
 import '../../../servisler/local_network_discovery_service.dart';
 import '../../../servisler/online_veritabani_servisi.dart';
 import '../../../servisler/oturum_servisi.dart';
+import '../../../servisler/veritabani_aktarim_servisi.dart';
 import '../../../servisler/veritabani_yapilandirma.dart';
 import '../../baslangic/bootstrap_sayfasi.dart';
 
@@ -793,6 +794,9 @@ class _VeritabaniYedekAyarlariSayfasiState
           }
 
           final String oncekiMod = VeritabaniYapilandirma.connectionMode;
+          final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
+          final String? oncekiYerelCompanyDb =
+              oncekiMod == 'local' ? OturumServisi().aktifVeritabaniAdi : null;
           String? yerelHostKaydi;
 
           if (_seciliMod == 'local') {
@@ -839,6 +843,27 @@ class _VeritabaniYedekAyarlariSayfasiState
             _seciliMod == 'local' ? yerelHostKaydi : null,
           );
 
+          // Local <-> Cloud geçişinde: veri aktarımı sorusu için niyet kaydet (mobil/tablet).
+          final bool modDegisti = oncekiMod != _seciliMod;
+          final bool localCloudSwitch =
+              (oncekiMod == 'local' && _seciliMod == 'cloud') ||
+              (oncekiMod == 'cloud' && _seciliMod == 'local');
+          if (modDegisti && localCloudSwitch) {
+            final localHost = (oncekiMod == 'local'
+                    ? (oncekiYerelHost ?? '')
+                    : (yerelHostKaydi ?? ''))
+                .trim();
+            await VeritabaniAktarimServisi().niyetKaydet(
+              VeritabaniAktarimNiyeti(
+                fromMode: oncekiMod,
+                toMode: _seciliMod,
+                localHost: localHost.isEmpty ? null : localHost,
+                localCompanyDb: oncekiYerelCompanyDb,
+                createdAt: DateTime.now(),
+              ),
+            );
+          }
+
           if (_seciliMod == 'cloud') {
             final hardwareId = LisansServisi().hardwareId;
             if (hardwareId != null && hardwareId.trim().isNotEmpty) {
@@ -867,7 +892,6 @@ class _VeritabaniYedekAyarlariSayfasiState
 
           if (!mounted) return;
 
-          final bool modDegisti = oncekiMod != _seciliMod;
           if (modDegisti) {
             Navigator.of(context).pushAndRemoveUntil(
               MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
