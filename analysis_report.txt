@@ -1,0 +1,73 @@
+Analyzing patisyov10...                                         
+
+   info • Unnecessary use of multiple underscores • lib/sayfalar/alimsatimislemleri/alis_tamamla_sayfasi.dart:2307:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/alimsatimislemleri/alis_tamamla_sayfasi.dart:2579:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/alimsatimislemleri/alis_tamamla_sayfasi.dart:2843:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/alimsatimislemleri/alis_tamamla_sayfasi.dart:3103:29 • unnecessary_underscores
+   info • Use the null-aware marker '?' rather than a null check via an 'if' • lib/sayfalar/alimsatimislemleri/alis_yap_sayfasi.dart:3327:11 • use_null_aware_elements
+   info • Unnecessary use of multiple underscores • lib/sayfalar/alimsatimislemleri/perakende_satis_sayfasi.dart:1966:37 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/alimsatimislemleri/satis_tamamla_sayfasi.dart:2438:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/alimsatimislemleri/satis_tamamla_sayfasi.dart:2710:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/alimsatimislemleri/satis_tamamla_sayfasi.dart:2974:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/alimsatimislemleri/satis_tamamla_sayfasi.dart:3234:29 • unnecessary_underscores
+   info • Use the null-aware marker '?' rather than a null check via an 'if' • lib/sayfalar/alimsatimislemleri/satis_yap_sayfasi.dart:3706:11 • use_null_aware_elements
+   info • Unnecessary use of multiple underscores • lib/sayfalar/ayarlar/kullanicilar/kullanici_odeme_yap_sayfasi.dart:1392:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/ayarlar/kullanicilar/kullanici_odeme_yap_sayfasi.dart:1657:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/ayarlar/kullanicilar/kullanici_odeme_yap_sayfasi.dart:1922:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_cik_sayfasi.dart:1593:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_cik_sayfasi.dart:1858:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_cik_sayfasi.dart:2131:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_cik_sayfasi.dart:2370:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_cik_sayfasi.dart:2617:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_gir_sayfasi.dart:1524:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_gir_sayfasi.dart:1789:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_gir_sayfasi.dart:2062:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_gir_sayfasi.dart:2301:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/bankalar/banka_para_gir_sayfasi.dart:2548:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/carihesaplar/cari_karti_sayfasi.dart:8646:33 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/carihesaplar/cari_para_al_ver_sayfasi.dart:1975:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/carihesaplar/cari_para_al_ver_sayfasi.dart:2240:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/carihesaplar/cari_para_al_ver_sayfasi.dart:2505:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/giderler/gider_ekle_sayfasi.dart:1068:57 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/giderler/gider_ekle_sayfasi.dart:1068:61 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_cik_sayfasi.dart:1531:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_cik_sayfasi.dart:1802:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_cik_sayfasi.dart:2067:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_cik_sayfasi.dart:2306:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_cik_sayfasi.dart:2553:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_gir_sayfasi.dart:1554:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_gir_sayfasi.dart:1825:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_gir_sayfasi.dart:2090:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_gir_sayfasi.dart:2329:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kasalar/kasa_para_gir_sayfasi.dart:2576:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_cik_sayfasi.dart:1605:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_cik_sayfasi.dart:1870:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_cik_sayfasi.dart:2135:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_cik_sayfasi.dart:2386:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_cik_sayfasi.dart:2633:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_gir_sayfasi.dart:1558:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_gir_sayfasi.dart:1823:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_gir_sayfasi.dart:2088:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_gir_sayfasi.dart:2339:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/kredikartlari/kredi_karti_para_gir_sayfasi.dart:2586:29 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/siparisler_teklifler/siparis_donustur_dialog.dart:742:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/siparisler_teklifler/siparis_ekle_sayfasi.dart:2691:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/siparisler_teklifler/siparis_ekle_sayfasi.dart:3005:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/siparisler_teklifler/siparisler_sayfasi.dart:5781:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/siparisler_teklifler/teklif_donustur_dialog.dart:738:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/siparisler_teklifler/teklif_ekle_sayfasi.dart:2706:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/siparisler_teklifler/teklif_ekle_sayfasi.dart:3020:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/siparisler_teklifler/teklifler_sayfasi.dart:5808:45 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/urunler_ve_depolar/urunler/hizli_urun_ekle_dialog.dart:1272:51 • unnecessary_underscores
+   info • Unnecessary use of multiple underscores • lib/sayfalar/urunler_ve_depolar/urunler/hizli_urun_ekle_dialog.dart:1339:45 • unnecessary_underscores
+   info • Use a function declaration rather than a variable assignment to bind a function to a name • lib/servisler/taksit_veritabani_servisi.dart:54:11 • prefer_function_declarations_over_variables
+   info • Use a function declaration rather than a variable assignment to bind a function to a name • lib/servisler/taksit_veritabani_servisi.dart:89:11 • prefer_function_declarations_over_variables
+   info • Use a function declaration rather than a variable assignment to bind a function to a name • lib/servisler/taksit_veritabani_servisi.dart:125:11 • prefer_function_declarations_over_variables
+   info • Use a function declaration rather than a variable assignment to bind a function to a name • lib/servisler/taksit_veritabani_servisi.dart:160:11 • prefer_function_declarations_over_variables
+   info • Use a function declaration rather than a variable assignment to bind a function to a name • lib/servisler/taksit_veritabani_servisi.dart:192:11 • prefer_function_declarations_over_variables
+   info • Use the null-aware marker '?' rather than a null check via an 'if' • lib/servisler/uretimler_veritabani_servisi.dart:2578:11 • use_null_aware_elements
+   info • Use the null-aware marker '?' rather than a null check via an 'if' • lib/servisler/uretimler_veritabani_servisi.dart:2688:11 • use_null_aware_elements
+   info • Use the null-aware marker '?' rather than a null check via an 'if' • lib/servisler/urunler_veritabani_servisi.dart:2699:11 • use_null_aware_elements
+   info • Use the null-aware marker '?' rather than a null check via an 'if' • lib/servisler/urunler_veritabani_servisi.dart:2814:11 • use_null_aware_elements
+
+69 issues found. (ran in 3.1s)

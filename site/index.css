@@ -1,0 +1,11 @@
+/* 
+  Bu dosya index.html tarafından referans verilmiştir. 
+  Tümtasarıma dokunulmadan, sadece dosya eksikliği nedeniyle 
+  oluşabilecek 404 hatalarını önlemek için oluşturulmuştur.
+  Tasarım Tailwind CDN üzerinden yönetilmektedir.
+*/
+
+body {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
