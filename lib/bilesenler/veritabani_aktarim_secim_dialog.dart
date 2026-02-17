@@ -2,11 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../yardimcilar/ceviri/ceviri_servisi.dart';
 
-enum DesktopVeritabaniAktarimSecimi {
-  hicbirSeyYapma,
-  tamAktar,
-  birlestir,
-}
+enum DesktopVeritabaniAktarimSecimi { hicbirSeyYapma, tamAktar, birlestir }
 
 Future<DesktopVeritabaniAktarimSecimi?> veritabaniAktarimSecimDialogGoster({
   required BuildContext context,
@@ -57,13 +53,12 @@ Future<DesktopVeritabaniAktarimSecimi?> veritabaniAktarimSecimDialogGoster({
                 value: selected,
                 onChanged: (_) => setState(() => secim = value),
                 controlAffinity: ListTileControlAffinity.leading,
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                title: Text(title, style: titleStyle),
-                subtitle: Text(
-                  subtitle,
-                  style: const TextStyle(height: 1.35),
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
                 ),
+                title: Text(title, style: titleStyle),
+                subtitle: Text(subtitle, style: const TextStyle(height: 1.35)),
               ),
             );
           }
@@ -78,50 +73,129 @@ Future<DesktopVeritabaniAktarimSecimi?> veritabaniAktarimSecimDialogGoster({
               ? 'dbsync.option.merge.desc.local_to_cloud'
               : 'dbsync.option.merge.desc.cloud_to_local';
 
-          return AlertDialog(
-            title: Text(tr('dbsync.title')),
-            content: SizedBox(
+          const primaryColor = Color(0xFF2C3E50);
+          const dialogRadius = 14.0;
+
+          return Dialog(
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 24,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(dialogRadius),
+            ),
+            child: Container(
               width: 560,
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      tr(introKey),
-                      style: const TextStyle(height: 1.45),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(dialogRadius),
+              ),
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr('dbsync.title'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF202124),
                     ),
-                    const SizedBox(height: 14),
-                    secenek(
-                      value: DesktopVeritabaniAktarimSecimi.hicbirSeyYapma,
-                      title: tr('dbsync.option.none.title'),
-                      subtitle: tr(noneDescKey),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    tr(introKey),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF606368),
+                      height: 1.45,
                     ),
-                    secenek(
-                      value: DesktopVeritabaniAktarimSecimi.tamAktar,
-                      title: tr('dbsync.full'),
-                      subtitle: tr(fullDescKey),
-                      destructive: true,
+                  ),
+                  const SizedBox(height: 18),
+                  Flexible(
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          secenek(
+                            value:
+                                DesktopVeritabaniAktarimSecimi.hicbirSeyYapma,
+                            title: tr('dbsync.option.none.title'),
+                            subtitle: tr(noneDescKey),
+                          ),
+                          secenek(
+                            value: DesktopVeritabaniAktarimSecimi.tamAktar,
+                            title: tr('dbsync.full'),
+                            subtitle: tr(fullDescKey),
+                            destructive: true,
+                          ),
+                          secenek(
+                            value: DesktopVeritabaniAktarimSecimi.birlestir,
+                            title: tr('dbsync.merge'),
+                            subtitle: tr(mergeDescKey),
+                          ),
+                        ],
+                      ),
                     ),
-                    secenek(
-                      value: DesktopVeritabaniAktarimSecimi.birlestir,
-                      title: tr('dbsync.merge'),
-                      subtitle: tr(mergeDescKey),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 12,
+                            ),
+                            foregroundColor: primaryColor,
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          child: Text(tr('dbsync.not_now')),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: ElevatedButton(
+                          onPressed: secim == null
+                              ? null
+                              : () => Navigator.of(ctx).pop(secim),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: primaryColor,
+                            foregroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.grey.shade300,
+                            disabledForegroundColor: Colors.grey.shade500,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            elevation: 0,
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          child: Text(tr('common.continue')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(tr('dbsync.not_now')),
-              ),
-              FilledButton(
-                onPressed: secim == null ? null : () => Navigator.of(ctx).pop(secim),
-                child: Text(tr('common.continue')),
-              ),
-            ],
           );
         },
       );

@@ -242,6 +242,54 @@ class BaglantiYoneticisi extends ChangeNotifier {
     // Çeviri
     await CeviriServisi().yukle();
 
+    // Desktop dahil: Bulut modu seçiliyse kimlikler hazır olmalı.
+    // (Aksi halde host/localhost fallback'i ile "yanlışlıkla yerel DB"ye bağlanıp
+    // kullanıcıyı yanıltabilir.)
+    if (VeritabaniYapilandirma.connectionMode == 'cloud' &&
+        !VeritabaniYapilandirma.cloudCredentialsReady) {
+      final hazir = await _bulutKimlikleriniHazirlaBestEffort();
+      if (!hazir) {
+        _durum = BaglantiDurumu.bulutKurulumBekleniyor;
+        notifyListeners();
+        return;
+      }
+    }
+
+    // Bulut bağlantısında uzun connectTimeout beklememek için önce hızlı TCP kontrolü yap.
+    // Port kapalıysa anında hata ekranına düş.
+    if (VeritabaniYapilandirma.connectionMode == 'cloud') {
+      final cfg = VeritabaniYapilandirma();
+      final portOk = await _baglantiTestEt(
+        cfg.host,
+        timeout: const Duration(milliseconds: 1200),
+      );
+      if (!portOk) {
+        _hataMesaji = tr('setup.cloud.access_error_contact_support');
+        _durum = BaglantiDurumu.bulutErisimHatasi;
+        notifyListeners();
+        return;
+      }
+    } else {
+      // Yerel/Hibrit modda uzak bir host'a bağlanılıyorsa (terminal/uzak sunucu),
+      // uzun connectTimeout beklememek için önce hızlı TCP kontrolü yap.
+      final cfg = VeritabaniYapilandirma();
+      final host = cfg.host.trim().toLowerCase();
+      final isLocalHost =
+          host == '127.0.0.1' || host == 'localhost' || host == '::1';
+      if (!isLocalHost) {
+        final portOk = await _baglantiTestEt(
+          cfg.host,
+          timeout: const Duration(milliseconds: 1200),
+        );
+        if (!portOk) {
+          _hataMesaji = tr('setup.local.server_not_found_open_app');
+          _durum = BaglantiDurumu.hata;
+          notifyListeners();
+          return;
+        }
+      }
+    }
+
     // Veritabanı (Burada gerçek bağlantı kurulur)
     await AyarlarVeritabaniServisi().baslat();
 

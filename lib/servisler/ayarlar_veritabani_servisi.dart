@@ -3,6 +3,7 @@ import 'package:crypto/crypto.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
+import '../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../sayfalar/ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../sayfalar/ayarlar/genel_ayarlar/modeller/doviz_kuru_model.dart';
 import '../sayfalar/ayarlar/kullanicilar/modeller/kullanici_model.dart';
@@ -134,7 +135,13 @@ class AyarlarVeritabaniServisi {
         'AyarlarVeritabaniServisi: Database connection and setup successful: ${_config.database}',
       );
     } catch (e) {
-      _sonHata = 'Veritabanı başlatma hatası: $e';
+      // Cloud modda teknik hata detaylarını kullanıcıya yansıtma.
+      // Bu seviyedeki hatalar genelde erişim/kimlik/doğrulama problemleridir.
+      if (_bulutModundaMi()) {
+        _sonHata = tr('setup.cloud.access_error_contact_support');
+      } else {
+        _sonHata = 'Veritabanı başlatma hatası: $e';
+      }
       debugPrint('AyarlarVeritabaniServisi: CRITICAL STARTUP ERROR: $e');
     } finally {
       _baslatiliyor = false;
@@ -186,22 +193,26 @@ class AyarlarVeritabaniServisi {
         // ── Cloud (Supabase) modu: hızlı çıkış ──
         if (bulut) {
           if (isAuthError) {
-            _sonHata =
-                'Veritabanı şifresi yanlış. Admin panelden bağlantı dizesini kontrol edin.';
+            _sonHata = tr('setup.cloud.access_error_contact_support');
             debugPrint(
               'AyarlarVeritabaniServisi: Cloud auth error – credentials are wrong, aborting.',
             );
             return false;
           }
           if (isDatabaseMissing) {
-            _sonHata =
-                'Veritabanı bulunamadı. Admin panelden veritabanı adını kontrol edin.';
+            _sonHata = tr('setup.cloud.access_error_contact_support');
             debugPrint(
               'AyarlarVeritabaniServisi: Cloud database not found, aborting.',
             );
             return false;
           }
-          if (isConnectionRefused) {
+          if (isStartingUp) {
+            debugPrint(
+              'AyarlarVeritabaniServisi: Cloud database is starting up, retrying...',
+            );
+            await Future.delayed(const Duration(milliseconds: 600));
+            // Sunucu ayakta ama hazır değil, pool yenile ve tekrar dene
+          } else if (isConnectionRefused) {
             debugPrint(
               'AyarlarVeritabaniServisi: Cloud connection refused, retrying...',
             );
@@ -210,8 +221,7 @@ class AyarlarVeritabaniServisi {
             // Bağlantı limiti aşıldı, kısa bekle
             await Future.delayed(const Duration(milliseconds: 500));
           } else {
-            _sonHata =
-                'Bulut sunucuya bağlanırken beklenmeyen bir hata oluştu: $e';
+            _sonHata = tr('setup.cloud.access_error_contact_support');
             debugPrint(
               'AyarlarVeritabaniServisi: Cloud unknown error, aborting.',
             );

@@ -283,6 +283,8 @@ const Map<String, String> enCeviriler = {
   'setup.cloud.preparing_title': 'Online Database Preparing',
   'setup.cloud.preparing_message':
       'Your remote/cloud database is being prepared. You will be notified when the setup is completed.',
+  'setup.cloud.access_error_contact_support':
+      'Unable to access the cloud database. Please try again. If the problem persists, contact technical support.',
   'dbsync.desktop.local_to_cloud.intro':
       'Your online database settings are ready. Choose an option below to switch to the cloud.',
   'dbsync.desktop.cloud_to_local.intro':
@@ -3371,4 +3373,22 @@ const Map<String, String> enCeviriler = {
   'expenses.notes.suggestion.cash': 'Cash',
   'expenses.notes.suggestion.company_expense': 'Company Expense',
   'expenses.notes.suggestion.installment': 'Installment',
+
+  // Bootstrap – Local Database Fallback Dialog
+  'bootstrap.local_fallback.title': 'Switch to Local Database',
+  'bootstrap.local_fallback.message':
+      'The cloud database is unreachable. You will be switched to the local database (127.0.0.1).\n\n'
+      'Note: Your local PostgreSQL server must be running on your computer. '
+      'Once your cloud connection is restored, you can switch back from settings.',
+  'bootstrap.local_fallback.cancel': 'Cancel',
+  'bootstrap.local_fallback.confirm': 'Switch to Local',
+  'bootstrap.local_fallback.switching': 'Switching to Local Database...',
+  'bootstrap.local_fallback.button': 'Switch to Local Database',
+  'bootstrap.error.cloud_unreachable': 'Cloud Database Unreachable',
+  'bootstrap.error.connection': 'Connection Error',
+  'bootstrap.error.cloud_hint':
+      'You may not have an internet connection, or the cloud database may have been shut down or deleted.',
+  'bootstrap.retry': 'Retry',
+  'bootstrap.open_setup': 'Open Setup Screen',
+  'bootstrap.loading': 'Preparing System...',
 };

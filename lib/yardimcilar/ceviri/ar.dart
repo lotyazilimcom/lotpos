@@ -223,7 +223,8 @@ const Map<String, String> arCeviriler = {
       'مثالي للأماكن ذات الوصول المحدود للإنترنت.',
 
   // Mobile/Tablet: Local server connection (main computer)
-  'settings.database.mode.local_mobile.title': 'الخادم المحلي (الكمبيوتر الرئيسي)',
+  'settings.database.mode.local_mobile.title':
+      'الخادم المحلي (الكمبيوتر الرئيسي)',
   'settings.database.mode.local_mobile.desc':
       'لا يتطلب الإنترنت. تُخزَّن البيانات على الكمبيوتر الرئيسي (الخادم المحلي)، وهذا الجهاز يتصل عبر الشبكة المحلية.',
   'settings.database.mode.local_mobile.help':
@@ -275,6 +276,8 @@ const Map<String, String> arCeviriler = {
   'setup.cloud.preparing_title': 'يتم إعداد قاعدة البيانات عبر الإنترنت',
   'setup.cloud.preparing_message':
       'يتم إعداد قاعدة البيانات البعيدة/السحابية. سيتم إشعارك عند اكتمال الإعداد.',
+  'setup.cloud.access_error_contact_support':
+      'تعذر الوصول إلى قاعدة البيانات السحابية. يُرجى إعادة المحاولة. إذا استمرت المشكلة، تواصل مع الدعم الفني.',
   'dbsync.desktop.local_to_cloud.intro':
       'إعدادات قاعدة البيانات عبر الإنترنت جاهزة. اختر خيارًا أدناه للانتقال إلى السحابة.',
   'dbsync.desktop.cloud_to_local.intro':
@@ -3319,4 +3322,24 @@ const Map<String, String> arCeviriler = {
   'expenses.notes.suggestion.cash': 'نقداً',
   'expenses.notes.suggestion.company_expense': 'مصروف الشركة',
   'expenses.notes.suggestion.installment': 'بالتقسيط',
+
+  // Bootstrap – حوار التحويل إلى قاعدة البيانات المحلية
+  'bootstrap.local_fallback.title': 'التحويل إلى قاعدة البيانات المحلية',
+  'bootstrap.local_fallback.message':
+      'تعذر الوصول إلى قاعدة البيانات السحابية. سيتم التحويل إلى قاعدة البيانات المحلية (127.0.0.1).\n\n'
+      'ملاحظة: يجب أن يكون خادم PostgreSQL المحلي قيد التشغيل على جهازك. '
+      'بمجرد استعادة اتصال السحابة، يمكنك التبديل مرة أخرى من الإعدادات.',
+  'bootstrap.local_fallback.cancel': 'إلغاء',
+  'bootstrap.local_fallback.confirm': 'التحويل إلى المحلي',
+  'bootstrap.local_fallback.switching':
+      'جارٍ التحويل إلى قاعدة البيانات المحلية...',
+  'bootstrap.local_fallback.button': 'التحويل إلى قاعدة البيانات المحلية',
+  'bootstrap.error.cloud_unreachable':
+      'تعذر الوصول إلى قاعدة البيانات السحابية',
+  'bootstrap.error.connection': 'خطأ في الاتصال',
+  'bootstrap.error.cloud_hint':
+      'قد لا يكون لديك اتصال بالإنترنت، أو ربما تم إيقاف قاعدة البيانات السحابية أو حذفها.',
+  'bootstrap.retry': 'إعادة المحاولة',
+  'bootstrap.open_setup': 'فتح شاشة الإعداد',
+  'bootstrap.loading': 'جارٍ تجهيز النظام...',
 };

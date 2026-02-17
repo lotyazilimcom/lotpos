@@ -294,6 +294,8 @@ const Map<String, String> trCeviriler = {
   'setup.cloud.preparing_title': 'Online Veritabanı Hazırlanıyor',
   'setup.cloud.preparing_message':
       'Uzak/bulut veritabanınız hazırlanıyor. Kurulum tamamlandığında size bildirim gönderilecektir.',
+  'setup.cloud.access_error_contact_support':
+      'Bulut veritabanına erişim sağlanamadı. Lütfen tekrar deneyin. Sorun devam ederse teknik destek ile iletişime geçin.',
   'dbsync.desktop.local_to_cloud.intro':
       'Online veritabanı ayarlarınız hazır. Buluta geçmek için aşağıdan bir seçenek seçin.',
   'dbsync.desktop.cloud_to_local.intro':
@@ -3380,4 +3382,23 @@ const Map<String, String> trCeviriler = {
   'expenses.notes.suggestion.cash': 'Nakit',
   'expenses.notes.suggestion.company_expense': 'Şirket Gideri',
   'expenses.notes.suggestion.installment': 'Taksitli',
+
+  // Bootstrap – Yerel Veritabanına Geçiş Dialogu
+  'bootstrap.local_fallback.title': 'Yerel Veritabanına Geçiş',
+  'bootstrap.local_fallback.message':
+      'Bulut veritabanı erişilemediği için yerel veritabanına (127.0.0.1) '
+      'geçiş yapılacak.\n\n'
+      'Not: Yerel PostgreSQL sunucusunun bilgisayarınızda çalışıyor olması gerekir. '
+      'Bulut bağlantınız düzeldiğinde ayarlardan tekrar buluta geçebilirsiniz.',
+  'bootstrap.local_fallback.cancel': 'Vazgeç',
+  'bootstrap.local_fallback.confirm': 'Yerele Geç',
+  'bootstrap.local_fallback.switching': 'Yerel Veritabanına Geçiliyor...',
+  'bootstrap.local_fallback.button': 'Yerel Veritabanına Geç',
+  'bootstrap.error.cloud_unreachable': 'Bulut Veritabanına Erişilemiyor',
+  'bootstrap.error.connection': 'Bağlantı Hatası',
+  'bootstrap.error.cloud_hint':
+      'İnternet bağlantınız olmayabilir veya bulut veritabanı kapatılmış/silinmiş olabilir.',
+  'bootstrap.retry': 'Tekrar Dene',
+  'bootstrap.open_setup': 'Kurulum Ekranını Aç',
+  'bootstrap.loading': 'Sistem Hazırlanıyor...',
 };

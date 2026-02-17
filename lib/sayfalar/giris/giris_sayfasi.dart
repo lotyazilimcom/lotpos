@@ -115,8 +115,18 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   }
 
   Future<bool> _mobilYerelSirketVeritabaniniDogrula() async {
-    if (!_isMobilePlatform) return true;
-    if (VeritabaniYapilandirma.connectionMode != 'local') return true;
+    // Bu kontrol "terminal/uzak" senaryoları içindir:
+    // - Mobil + Yerel Sunucu (ana bilgisayar)
+    // - Masaüstü + Uzak DB host (sunucuya bağlanan terminal)
+    final mode = VeritabaniYapilandirma.connectionMode;
+    if (mode != 'local' && mode != 'hybrid') return true;
+
+    final cfg = VeritabaniYapilandirma();
+    final host = cfg.host.trim().toLowerCase();
+    final isLocalHost =
+        host == '127.0.0.1' || host == 'localhost' || host == '::1';
+    if (isLocalHost) return true;
+
     final sirket = _seciliSirket;
     if (sirket == null) return false;
 
@@ -342,8 +352,9 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     if (parts.isEmpty) return value;
     return parts
         .map(
-          (p) =>
-              p.length <= 1 ? p.toUpperCase() : '${p[0].toUpperCase()}${p.substring(1)}',
+          (p) => p.length <= 1
+              ? p.toUpperCase()
+              : '${p[0].toUpperCase()}${p.substring(1)}',
         )
         .join(' ');
   }
@@ -380,23 +391,56 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('dbsync.preparing.title')),
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                tr('dbsync.preparing.message'),
-                style: const TextStyle(fontSize: 13),
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        child: Container(
+          width: 450,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tr('dbsync.preparing.title'),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF202124),
+                ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Color(0xFF2C3E50),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      tr('dbsync.preparing.message'),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF606368),
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -431,23 +475,61 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
         showDialog<void>(
           context: context,
           barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            title: Text(tr('setup.cloud.preparing_title')),
-            content: Row(
-              children: [
-                const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    tr('setup.cloud.preparing_message'),
-                    style: const TextStyle(fontSize: 13),
+          builder: (ctx) => Dialog(
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 24,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Container(
+              width: 450,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr('setup.cloud.preparing_title'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF202124),
+                    ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF2C3E50),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          tr('setup.cloud.preparing_message'),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF606368),
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -529,33 +611,120 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
       secim = await showDialog<VeritabaniAktarimTipi>(
         context: context,
         builder: (ctx) {
-          return AlertDialog(
-            title: Text(tr('dbsync.title')),
-            content: Text(
-              localToCloud
-                  ? tr('dbsync.local_to_cloud.message')
-                  : tr('dbsync.cloud_to_local.message'),
+          return Dialog(
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 24,
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: Text(tr('dbsync.not_now')),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Container(
+              width: 450,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
               ),
-              TextButton(
-                onPressed: () =>
-                    Navigator.of(ctx).pop(VeritabaniAktarimTipi.birlestir),
-                child: Text(tr('dbsync.merge')),
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr('dbsync.title'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF202124),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    localToCloud
+                        ? tr('dbsync.local_to_cloud.message')
+                        : tr('dbsync.cloud_to_local.message'),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF606368),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 12,
+                            ),
+                            foregroundColor: const Color(0xFF2C3E50),
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          child: Text(tr('dbsync.not_now')),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: TextButton(
+                          onPressed: () => Navigator.of(
+                            ctx,
+                          ).pop(VeritabaniAktarimTipi.birlestir),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 12,
+                            ),
+                            foregroundColor: const Color(0xFF2C3E50),
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          child: Text(tr('dbsync.merge')),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: ElevatedButton(
+                          onPressed: () => Navigator.of(
+                            ctx,
+                          ).pop(VeritabaniAktarimTipi.tamAktar),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFEA4335),
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 22,
+                              vertical: 14,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            elevation: 0,
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          child: Text(tr('dbsync.full')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              FilledButton(
-                onPressed: () =>
-                    Navigator.of(ctx).pop(VeritabaniAktarimTipi.tamAktar),
-                style: FilledButton.styleFrom(
-                  backgroundColor: const Color(0xFFEA4335),
-                  foregroundColor: Colors.white,
-                ),
-                child: Text(tr('dbsync.full')),
-              ),
-            ],
+            ),
           );
         },
       );
@@ -595,38 +764,84 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
             if (current.isNotEmpty) current,
           ].join(' • ');
 
-          return AlertDialog(
-            title: Text(tr('dbsync.progress.title')),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
+          return Dialog(
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 24,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Container(
+              width: 450,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr('dbsync.progress.title'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF202124),
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        tr('dbsync.progress.message'),
-                        style: const TextStyle(fontSize: 13),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Color(0xFF2C3E50),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          tr('dbsync.progress.message'),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF606368),
+                            height: 1.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: ratio,
+                      backgroundColor: const Color(0xFFE0E0E0),
+                      valueColor: const AlwaysStoppedAnimation<Color>(
+                        Color(0xFF2C3E50),
+                      ),
+                      minHeight: 6,
+                    ),
+                  ),
+                  if (infoText.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      infoText,
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF606368),
                       ),
                     ),
                   ],
-                ),
-                const SizedBox(height: 12),
-                LinearProgressIndicator(value: ratio),
-                if (infoText.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    infoText,
-                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
-                  ),
                 ],
-              ],
+              ),
             ),
           );
         },

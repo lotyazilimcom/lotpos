@@ -168,9 +168,18 @@ class VeritabaniYapilandirma {
 
       _configLoadedOnce = true;
       _syncDesktopCloudPendingWatcher();
-      debugPrint(
-        'VeritabaniYapilandirma: Yapılandırma yüklendi. Mod: $_connectionMode, Host: $_discoveredHost',
-      );
+      if (kDebugMode) {
+        final cfg = VeritabaniYapilandirma();
+        final discovered = (_discoveredHost ?? '').trim();
+        final discoveredLabel = discovered.isEmpty ? '-' : discovered;
+        debugPrint(
+          'VeritabaniYapilandirma: Yapılandırma yüklendi. '
+          'Mod: $_connectionMode, '
+          'Effective: ${cfg.host}:${cfg.port}/${cfg.database}, '
+          'CloudReady: $cloudCredentialsReady, '
+          'DiscoveredHost: $discoveredLabel',
+        );
+      }
     } catch (e) {
       debugPrint('VeritabaniYapilandirma: Yükleme hatası: $e');
     }
