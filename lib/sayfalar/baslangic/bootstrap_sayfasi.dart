@@ -18,6 +18,7 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
   final DateTime _acilisAni = DateTime.now();
   static const Duration _minimumSplashSuresi = Duration(milliseconds: 900);
   bool _yonlendirmeBasladi = false;
+  bool _yereleGeciliyor = false;
 
   @override
   void initState() {
@@ -59,7 +60,8 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
     } else if (yonetici.durum == BaglantiDurumu.kurulumGerekli ||
         yonetici.durum == BaglantiDurumu.sunucuBulunamadi) {
       unawaited(_minimumBeklemeIleYonlendir(const MobilKurulumSayfasi()));
-    } else if (yonetici.durum == BaglantiDurumu.hata) {
+    } else if (yonetici.durum == BaglantiDurumu.hata ||
+        yonetici.durum == BaglantiDurumu.bulutErisimHatasi) {
       setState(() {});
     }
   }
@@ -84,64 +86,232 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
     ).pushReplacement(MaterialPageRoute(builder: (context) => sayfa));
   }
 
+  Future<void> _yereleGecOnay() async {
+    final onay = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        icon: const Icon(
+          Icons.home_rounded,
+          color: Color(0xFF2C3E50),
+          size: 40,
+        ),
+        title: const Text(
+          'Yerel Veritabanına Geçiş',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18),
+        ),
+        content: const Text(
+          'Bulut veritabanı erişilemediği için yerel veritabanına (127.0.0.1) '
+          'geçiş yapılacak.\n\n'
+          'Not: Yerel PostgreSQL sunucusunun bilgisayarınızda çalışıyor olması gerekir. '
+          'Bulut bağlantınız düzeldiğinde ayarlardan tekrar buluta geçebilirsiniz.',
+          style: TextStyle(fontSize: 13, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Vazgeç'),
+          ),
+          FilledButton.icon(
+            onPressed: () => Navigator.pop(ctx, true),
+            icon: const Icon(Icons.swap_horiz_rounded, size: 18),
+            label: const Text('Yerele Geç'),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF2C3E50),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (onay != true || !mounted) return;
+
+    setState(() => _yereleGeciliyor = true);
+    _yonlendirmeBasladi = false; // Tekrar yönlendirme yapılabilsin
+
+    await BaglantiYoneticisi().yereleGec();
+
+    // yereleGec() sistemiBaslat çağıracak ve durumDinleyici tekrar tetiklenecek
+    // Eğer yerel de başarısızsa _durumDinleyici hata durumunu yakalar
+    if (mounted) {
+      setState(() => _yereleGeciliyor = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final yonetici = BaglantiYoneticisi();
-    final hataDurumu = yonetici.durum == BaglantiDurumu.hata;
+    final bulutHatasi = yonetici.durum == BaglantiDurumu.bulutErisimHatasi;
+    final hataDurumu = yonetici.durum == BaglantiDurumu.hata || bulutHatasi;
     final hataMesaji = yonetici.hataMesaji ?? 'Bilinmeyen bağlantı hatası.';
     final mobileMi =
         !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
             defaultTargetPlatform == TargetPlatform.iOS);
+    final masaustuMu = !kIsWeb && !mobileMi;
 
     return Scaffold(
       backgroundColor: const Color(0xFF2C3E50), // Proje ana rengi
       body: Center(
-        child: hataDurumu
+        child: _yereleGeciliyor
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(18),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: const Icon(
+                      Icons.swap_horiz_rounded,
+                      size: 48,
+                      color: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const SizedBox(
+                    width: 36,
+                    height: 36,
+                    child: CircularProgressIndicator(
+                      color: Colors.white,
+                      strokeWidth: 3,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  const Text(
+                    'Yerel Veritabanına Geçiliyor...',
+                    style: TextStyle(
+                      color: Colors.white70,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              )
+            : hataDurumu
             ? Padding(
-                padding: const EdgeInsets.all(24),
+                padding: const EdgeInsets.symmetric(horizontal: 32),
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // İkon
                     Container(
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
-                        color: Colors.redAccent.withValues(alpha: 0.12),
+                        color:
+                            (bulutHatasi
+                                    ? Colors.orangeAccent
+                                    : Colors.redAccent)
+                                .withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(20),
                       ),
-                      child: const Icon(
-                        Icons.error_outline_rounded,
+                      child: Icon(
+                        bulutHatasi
+                            ? Icons.cloud_off_rounded
+                            : Icons.error_outline_rounded,
                         size: 48,
                         color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 18),
-                    const Text(
-                      'Bağlantı Hatası',
-                      style: TextStyle(
+
+                    // Başlık
+                    Text(
+                      bulutHatasi
+                          ? 'Bulut Veritabanına Erişilemiyor'
+                          : 'Bağlantı Hatası',
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                       ),
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      hataMesaji,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 13,
+
+                    // Hata detayı
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        hataMesaji,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Colors.white70,
+                          fontSize: 13,
+                          height: 1.5,
+                        ),
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    ElevatedButton(
-                      onPressed: () => BaglantiYoneticisi().sistemiBaslat(),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF2C3E50),
+
+                    // Cloud hatası bilgi notu
+                    if (bulutHatasi) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        'İnternet bağlantınız olmayabilir veya '
+                        'bulut veritabanı kapatılmış/silinmiş olabilir.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          color: Colors.amber.shade200,
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
                       ),
-                      child: const Text('Tekrar Dene'),
+                    ],
+                    const SizedBox(height: 28),
+
+                    // Butonlar
+                    SizedBox(
+                      width: 260,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          _yonlendirmeBasladi = false;
+                          BaglantiYoneticisi().sistemiBaslat();
+                        },
+                        icon: const Icon(Icons.refresh_rounded, size: 18),
+                        label: const Text('Tekrar Dene'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: const Color(0xFF2C3E50),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
                     ),
+
+                    // Masaüstünde ve bulutu hatası varsa: Yerele Geç butonu
+                    if (bulutHatasi && masaustuMu) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: 260,
+                        child: OutlinedButton.icon(
+                          onPressed: _yereleGecOnay,
+                          icon: const Icon(Icons.home_rounded, size: 18),
+                          label: const Text('Yerel Veritabanına Geç'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.4),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+
+                    // Mobilede kurulum ekranına dönüş
                     if (mobileMi) ...[
                       const SizedBox(height: 10),
                       TextButton(

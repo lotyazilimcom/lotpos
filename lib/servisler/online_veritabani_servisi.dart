@@ -24,8 +24,9 @@ class OnlineVeritabaniKimlikleri {
       port: (row['db_port'] as num?)?.toInt() ?? 5432,
       database: (row['db_name'] as String?)?.trim() ?? '',
       username: (row['db_user'] as String?)?.trim() ?? '',
-      password: (row['db_password'] as String?) ?? '',
-      sslRequired: row['ssl_required'] == true,
+      password: (row['db_password'] as String?)?.trim() ?? '',
+      // Cloud PG genelde SSL ister; alan yoksa/boşsa varsayılanı "true" kabul et.
+      sslRequired: row['ssl_required'] == false ? false : true,
     );
   }
 
@@ -48,15 +49,12 @@ class OnlineVeritabaniServisi {
   }) async {
     try {
       final client = Supabase.instance.client;
-      await client.from('online_db_requests').upsert(
-        {
-          'hardware_id': hardwareId,
-          'status': 'pending',
-          'source': source,
-          'updated_at': DateTime.now().toIso8601String(),
-        },
-        onConflict: 'hardware_id',
-      );
+      await client.from('online_db_requests').upsert({
+        'hardware_id': hardwareId,
+        'status': 'pending',
+        'source': source,
+        'updated_at': DateTime.now().toIso8601String(),
+      }, onConflict: 'hardware_id');
     } catch (e) {
       debugPrint('OnlineVeritabaniServisi: Talep gönderilemedi: $e');
     }
@@ -82,4 +80,3 @@ class OnlineVeritabaniServisi {
     }
   }
 }
-

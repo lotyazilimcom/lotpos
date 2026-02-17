@@ -11,6 +11,7 @@ import 'oturum_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'lite_kisitlari.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
+import 'pg_eklentiler.dart';
 import 'veritabani_yapilandirma.dart';
 import 'ayarlar_veritabani_servisi.dart';
 
@@ -27,6 +28,7 @@ class BankalarVeritabaniServisi {
   static const String _searchTagsVersionPrefix = 'v6';
 
   Completer<void>? _initCompleter;
+  int _initToken = 0;
 
   static const String _defaultCompanyId = 'patisyo2025';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
@@ -73,32 +75,35 @@ class BankalarVeritabaniServisi {
       _initializedDatabase = null;
     }
 
-    _initCompleter = Completer<void>();
+    final initToken = ++_initToken;
+    final initCompleter = Completer<void>();
+    _initCompleter = initCompleter;
     _initializingDatabase = targetDatabase;
 
     try {
-      _pool = LisansKorumaliPool(
+      final Pool createdPool = LisansKorumaliPool(
         Pool.withEndpoints(
-        [
-          Endpoint(
-            host: _config.host,
-            port: _config.port,
-            database: targetDatabase,
-            username: _config.username,
-            password: _config.password,
+          [
+            Endpoint(
+              host: _config.host,
+              port: _config.port,
+              database: targetDatabase,
+              username: _config.username,
+              password: _config.password,
+            ),
+          ],
+          settings: PoolSettings(
+            sslMode: _config.sslMode,
+            connectTimeout: _config.poolConnectTimeout,
+            onOpen: _config.tuneConnection,
+            maxConnectionCount: _config.maxConnections,
           ),
-        ],
-        settings: PoolSettings(
-          sslMode: _config.sslMode,
-          connectTimeout: _config.poolConnectTimeout,
-          onOpen: _config.tuneConnection,
-          maxConnectionCount: _config.maxConnections,
-        ),
         ),
       );
+      _pool = createdPool;
 
       final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
-        executor: _pool!,
+        executor: createdPool,
         databaseName: targetDatabase,
       );
       if (!semaHazir) {
@@ -108,26 +113,62 @@ class BankalarVeritabaniServisi {
           'BankalarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
         );
       }
+      if (initToken != _initToken) {
+        try {
+          await createdPool.close();
+        } catch (_) {}
+        if (!initCompleter.isCompleted) {
+          initCompleter.completeError(StateError('Bağlantı kapatıldı'));
+        }
+        return;
+      }
+
       _isInitialized = true;
       _initializedDatabase = targetDatabase;
       _initializingDatabase = null;
       debugPrint(
         'BankalarVeritabaniServisi: Pool connection established successfully.',
       );
-      _initCompleter!.complete();
+      if (!initCompleter.isCompleted) {
+        initCompleter.complete();
+      }
     } catch (e) {
       debugPrint('BankalarVeritabaniServisi: Connection error: $e');
-      try {
-        await _pool?.close();
-      } catch (_) {}
-      _pool = null;
-      _isInitialized = false;
-      _initializedDatabase = null;
-      if (_initCompleter != null && !_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e);
+      if (initToken == _initToken) {
+        try {
+          await _pool?.close();
+        } catch (_) {}
+        _pool = null;
+        _isInitialized = false;
+        _initializedDatabase = null;
+        _initializingDatabase = null;
+      }
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(e);
+      }
+      if (identical(_initCompleter, initCompleter)) {
         _initCompleter = null;
       }
-      _initializingDatabase = null;
+    }
+  }
+
+  /// Pool bağlantısını güvenli şekilde kapatır ve tüm durum değişkenlerini sıfırlar.
+  Future<void> baglantiyiKapat() async {
+    _initToken++;
+    final pending = _initCompleter;
+    _initCompleter = null;
+    _initializingDatabase = null;
+
+    final pool = _pool;
+    _pool = null;
+    _isInitialized = false;
+    _initializedDatabase = null;
+
+    try {
+      await pool?.close();
+    } catch (_) {}
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('Bağlantı kapatıldı'));
     }
   }
 
@@ -488,27 +529,27 @@ class BankalarVeritabaniServisi {
     if (_config.allowBackgroundDbMaintenance) {
       unawaited(() async {
         try {
-        await _pool!.execute(
-          'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS location TEXT',
-        );
-        await _pool!.execute(
-          'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS location_code TEXT',
-        );
-        await _pool!.execute(
-          'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS location_name TEXT',
-        );
-        await _pool!.execute(
-          'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS integration_ref TEXT',
-        );
-        await _pool!.execute(
-          'ALTER TABLE banks ADD COLUMN IF NOT EXISTS company_id TEXT',
-        );
-        await _pool!.execute(
-          'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS company_id TEXT',
-        );
+          await _pool!.execute(
+            'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS location TEXT',
+          );
+          await _pool!.execute(
+            'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS location_code TEXT',
+          );
+          await _pool!.execute(
+            'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS location_name TEXT',
+          );
+          await _pool!.execute(
+            'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS integration_ref TEXT',
+          );
+          await _pool!.execute(
+            'ALTER TABLE banks ADD COLUMN IF NOT EXISTS company_id TEXT',
+          );
+          await _pool!.execute(
+            'ALTER TABLE bank_transactions ADD COLUMN IF NOT EXISTS company_id TEXT',
+          );
 
-        // Label Fonksiyonu
-        await _pool!.execute('''
+          // Label Fonksiyonu
+          await _pool!.execute('''
           CREATE OR REPLACE FUNCTION get_professional_label(raw_type TEXT, context TEXT DEFAULT '') RETURNS TEXT AS \$\$
           DECLARE
               t TEXT := LOWER(TRIM(raw_type));
@@ -621,7 +662,7 @@ class BankalarVeritabaniServisi {
           \$\$ LANGUAGE plpgsql;
         ''');
 
-        await _pool!.execute('''
+          await _pool!.execute('''
           -- [2026 FIX] Hyper-Optimized Turkish Normalization for 100B+ Rows
           CREATE OR REPLACE FUNCTION normalize_text(val TEXT) RETURNS TEXT AS \$\$
           BEGIN
@@ -638,32 +679,32 @@ class BankalarVeritabaniServisi {
           \$\$ LANGUAGE plpgsql IMMUTABLE;
         ''');
 
-        // İndeksler
-        await _pool!.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm');
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_banks_search_tags_gin ON banks USING GIN (search_tags gin_trgm_ops)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_bt_bank_id ON bank_transactions (bank_id)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_bt_date ON bank_transactions (date)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_bt_type ON bank_transactions (type)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_bt_created_at ON bank_transactions (created_at)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_bt_integration_ref ON bank_transactions (integration_ref)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_bt_created_at_brin ON bank_transactions USING BRIN (created_at) WITH (pages_per_range = 128)',
-        );
+          // İndeksler
+          await PgEklentiler.ensurePgTrgm(_pool!);
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_banks_search_tags_gin ON banks USING GIN (search_tags gin_trgm_ops)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_bt_bank_id ON bank_transactions (bank_id)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_bt_date ON bank_transactions (date)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_bt_type ON bank_transactions (type)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_bt_created_at ON bank_transactions (created_at)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_bt_integration_ref ON bank_transactions (integration_ref)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_bt_created_at_brin ON bank_transactions USING BRIN (created_at) WITH (pages_per_range = 128)',
+          );
 
-        // Trigger
-        await _pool!.execute('''
+          // Trigger
+          await _pool!.execute('''
 	          CREATE OR REPLACE FUNCTION update_bank_search_tags() RETURNS TRIGGER AS \$\$
 	          BEGIN
 	            UPDATE banks b
@@ -720,16 +761,16 @@ class BankalarVeritabaniServisi {
           \$\$ LANGUAGE plpgsql;
         ''');
 
-        final triggerExists = await _pool!.execute(
-          "SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_bank_search_tags'",
-        );
-        if (triggerExists.isEmpty) {
-          await _pool!.execute(
-            'CREATE TRIGGER trg_update_bank_search_tags AFTER INSERT OR DELETE ON bank_transactions FOR EACH ROW EXECUTE FUNCTION update_bank_search_tags()',
+          final triggerExists = await _pool!.execute(
+            "SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_bank_search_tags'",
           );
-        }
-        // Initial Indeksleme: Arka planda çalıştır (Sayfa açılışını bloklama)
-        await verileriIndeksle(forceUpdate: false);
+          if (triggerExists.isEmpty) {
+            await _pool!.execute(
+              'CREATE TRIGGER trg_update_bank_search_tags AFTER INSERT OR DELETE ON bank_transactions FOR EACH ROW EXECUTE FUNCTION update_bank_search_tags()',
+            );
+          }
+          // Initial Indeksleme: Arka planda çalıştır (Sayfa açılışını bloklama)
+          await verileriIndeksle(forceUpdate: false);
         } catch (e) {
           if (e is LisansYazmaEngelliHatasi) return;
           debugPrint('Banka arka plan ek kurulum hatası: $e');

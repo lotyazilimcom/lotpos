@@ -9,6 +9,7 @@ import '../sayfalar/siparisler_teklifler/modeller/teklif_model.dart';
 import '../yardimcilar/format_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
+import 'pg_eklentiler.dart';
 import 'veritabani_yapilandirma.dart';
 import 'depolar_veritabani_servisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
@@ -24,13 +25,16 @@ class TekliflerVeritabaniServisi {
   bool _isInitialized = false;
   final _yapilandirma = VeritabaniYapilandirma();
   Completer<void>? _initCompleter;
+  int _initToken = 0;
   static bool _isIndexingActive = false;
 
   Future<void> baslat() async {
     if (_isInitialized) return;
     if (_initCompleter != null) return _initCompleter!.future;
 
-    _initCompleter = Completer<void>();
+    final initToken = ++_initToken;
+    final initCompleter = Completer<void>();
+    _initCompleter = initCompleter;
 
     try {
       _pool = await _poolOlustur();
@@ -50,6 +54,17 @@ class TekliflerVeritabaniServisi {
       } else {
         debugPrint('Bağlantı hatası: $e');
       }
+    }
+
+    if (_pool == null) {
+      final err = StateError('Teklifler veritabanı bağlantısı kurulamadı.');
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(err);
+      }
+      if (identical(_initCompleter, initCompleter)) {
+        _initCompleter = null;
+      }
+      return;
     }
 
     try {
@@ -79,13 +94,27 @@ class TekliflerVeritabaniServisi {
             }),
           );
         }
+        if (initToken != _initToken) {
+          if (!initCompleter.isCompleted) {
+            initCompleter.completeError(StateError('Bağlantı kapatıldı'));
+          }
+          if (identical(_initCompleter, initCompleter)) {
+            _initCompleter = null;
+          }
+          return;
+        }
+
         _isInitialized = true;
         debugPrint('Teklifler veritabanı bağlantısı başarılı (Havuz)');
-        _initCompleter!.complete();
+        if (!initCompleter.isCompleted) {
+          initCompleter.complete();
+        }
       }
     } catch (e) {
-      if (_initCompleter != null && !_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e);
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(e);
+      }
+      if (identical(_initCompleter, initCompleter)) {
         _initCompleter = null;
       }
       rethrow;
@@ -93,12 +122,19 @@ class TekliflerVeritabaniServisi {
   }
 
   Future<void> baglantiyiKapat() async {
+    _initToken++;
+    final pending = _initCompleter;
+    _initCompleter = null;
+    _isInitialized = false;
+
     final pool = _pool;
     _pool = null;
-    if (pool != null) {
-      await pool.close();
+    try {
+      await pool?.close();
+    } catch (_) {}
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('Bağlantı kapatıldı'));
     }
-    _isInitialized = false;
   }
 
   Future<void> _verileriIndeksle() async {
@@ -266,9 +302,7 @@ class TekliflerVeritabaniServisi {
 
       if (tableCheck.isEmpty) {
         // Tablo yok, sıfırdan oluştur
-        debugPrint(
-          'Teklifler: Tablo yok. Partitioned kurulum yapılıyor...',
-        );
+        debugPrint('Teklifler: Tablo yok. Partitioned kurulum yapılıyor...');
         await _createPartitionedQuotesTable();
       } else {
         final relkind = tableCheck.first[0].toString();
@@ -329,7 +363,7 @@ class TekliflerVeritabaniServisi {
 
     // İndeksler
     try {
-      await _pool!.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+      await PgEklentiler.ensurePgTrgm(_pool!);
       // Partitioned tablolarda unique index partition key içermelidir.
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_quotes_tarih ON quotes(tarih DESC)',
@@ -1744,7 +1778,9 @@ class TekliflerVeritabaniServisi {
     } catch (e) {
       if (e.toString().contains('23514') ||
           e.toString().contains('no partition of relation')) {
-        debugPrint('Teklif güncellerken partition hatası algılandı. Onarılıyor...');
+        debugPrint(
+          'Teklif güncellerken partition hatası algılandı. Onarılıyor...',
+        );
         await _recoverMissingPartition();
         try {
           return await teklifGuncelle(

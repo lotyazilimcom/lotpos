@@ -11,6 +11,7 @@ import 'oturum_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'lite_kisitlari.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
+import 'pg_eklentiler.dart';
 import 'veritabani_yapilandirma.dart';
 import 'ayarlar_veritabani_servisi.dart';
 
@@ -27,6 +28,7 @@ class KrediKartlariVeritabaniServisi {
   static const String _searchTagsVersionPrefix = 'v6';
 
   Completer<void>? _initCompleter;
+  int _initToken = 0;
 
   static const String _defaultCompanyId = 'patisyo2025';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
@@ -73,32 +75,35 @@ class KrediKartlariVeritabaniServisi {
       _initializedDatabase = null;
     }
 
-    _initCompleter = Completer<void>();
+    final initToken = ++_initToken;
+    final initCompleter = Completer<void>();
+    _initCompleter = initCompleter;
     _initializingDatabase = targetDatabase;
 
     try {
-      _pool = LisansKorumaliPool(
+      final Pool createdPool = LisansKorumaliPool(
         Pool.withEndpoints(
-        [
-          Endpoint(
-            host: _config.host,
-            port: _config.port,
-            database: targetDatabase,
-            username: _config.username,
-            password: _config.password,
+          [
+            Endpoint(
+              host: _config.host,
+              port: _config.port,
+              database: targetDatabase,
+              username: _config.username,
+              password: _config.password,
+            ),
+          ],
+          settings: PoolSettings(
+            sslMode: _config.sslMode,
+            connectTimeout: _config.poolConnectTimeout,
+            onOpen: _config.tuneConnection,
+            maxConnectionCount: _config.maxConnections,
           ),
-        ],
-        settings: PoolSettings(
-          sslMode: _config.sslMode,
-          connectTimeout: _config.poolConnectTimeout,
-          onOpen: _config.tuneConnection,
-          maxConnectionCount: _config.maxConnections,
-        ),
         ),
       );
+      _pool = createdPool;
 
       final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
-        executor: _pool!,
+        executor: createdPool,
         databaseName: targetDatabase,
       );
       if (!semaHazir) {
@@ -108,26 +113,62 @@ class KrediKartlariVeritabaniServisi {
           'KrediKartlariVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
         );
       }
+      if (initToken != _initToken) {
+        try {
+          await createdPool.close();
+        } catch (_) {}
+        if (!initCompleter.isCompleted) {
+          initCompleter.completeError(StateError('Bağlantı kapatıldı'));
+        }
+        return;
+      }
+
       _isInitialized = true;
       _initializedDatabase = targetDatabase;
       _initializingDatabase = null;
       debugPrint(
         'KrediKartlariVeritabaniServisi: Pool connection established successfully.',
       );
-      _initCompleter!.complete();
+      if (!initCompleter.isCompleted) {
+        initCompleter.complete();
+      }
     } catch (e) {
       debugPrint('KrediKartlariVeritabaniServisi: Connection error: $e');
-      try {
-        await _pool?.close();
-      } catch (_) {}
-      _pool = null;
-      _isInitialized = false;
-      _initializedDatabase = null;
-      if (_initCompleter != null && !_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e);
+      if (initToken == _initToken) {
+        try {
+          await _pool?.close();
+        } catch (_) {}
+        _pool = null;
+        _isInitialized = false;
+        _initializedDatabase = null;
+        _initializingDatabase = null;
+      }
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(e);
+      }
+      if (identical(_initCompleter, initCompleter)) {
         _initCompleter = null;
       }
-      _initializingDatabase = null;
+    }
+  }
+
+  /// Pool bağlantısını güvenli şekilde kapatır ve tüm durum değişkenlerini sıfırlar.
+  Future<void> baglantiyiKapat() async {
+    _initToken++;
+    final pending = _initCompleter;
+    _initCompleter = null;
+    _initializingDatabase = null;
+
+    final pool = _pool;
+    _pool = null;
+    _isInitialized = false;
+    _initializedDatabase = null;
+
+    try {
+      await pool?.close();
+    } catch (_) {}
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('Bağlantı kapatıldı'));
     }
   }
 
@@ -616,18 +657,18 @@ class KrediKartlariVeritabaniServisi {
     if (_config.allowBackgroundDbMaintenance) {
       unawaited(() async {
         try {
-        await _pool!.execute(
-          'ALTER TABLE credit_cards ADD COLUMN IF NOT EXISTS company_id TEXT',
-        );
-        await _pool!.execute(
-          'ALTER TABLE credit_card_transactions ADD COLUMN IF NOT EXISTS company_id TEXT',
-        );
-        await _pool!.execute(
-          'ALTER TABLE credit_card_transactions ADD COLUMN IF NOT EXISTS integration_ref TEXT',
-        );
+          await _pool!.execute(
+            'ALTER TABLE credit_cards ADD COLUMN IF NOT EXISTS company_id TEXT',
+          );
+          await _pool!.execute(
+            'ALTER TABLE credit_card_transactions ADD COLUMN IF NOT EXISTS company_id TEXT',
+          );
+          await _pool!.execute(
+            'ALTER TABLE credit_card_transactions ADD COLUMN IF NOT EXISTS integration_ref TEXT',
+          );
 
-        // Label Fonksiyonu
-        await _pool!.execute('''
+          // Label Fonksiyonu
+          await _pool!.execute('''
           CREATE OR REPLACE FUNCTION get_professional_label(raw_type TEXT, context TEXT DEFAULT '') RETURNS TEXT AS \$\$
           DECLARE
               t TEXT := LOWER(TRIM(raw_type));
@@ -748,7 +789,7 @@ class KrediKartlariVeritabaniServisi {
           \$\$ LANGUAGE plpgsql;
         ''');
 
-        await _pool!.execute('''
+          await _pool!.execute('''
           -- [2026 FIX] Hyper-Optimized Turkish Normalization for 100B+ Rows
           CREATE OR REPLACE FUNCTION normalize_text(val TEXT) RETURNS TEXT AS \$\$
           BEGIN
@@ -765,29 +806,29 @@ class KrediKartlariVeritabaniServisi {
           \$\$ LANGUAGE plpgsql IMMUTABLE;
         ''');
 
-        // İndeksler
-        await _pool!.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm');
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_credit_cards_search_tags_gin ON credit_cards USING GIN (search_tags gin_trgm_ops)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_cct_integration_ref ON credit_card_transactions (integration_ref)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_cct_credit_card_id ON credit_card_transactions (credit_card_id)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_cct_date ON credit_card_transactions (date)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_cct_type ON credit_card_transactions (type)',
-        );
-        await _pool!.execute(
-          'CREATE INDEX IF NOT EXISTS idx_cct_created_at ON credit_card_transactions (created_at)',
-        );
+          // İndeksler
+          await PgEklentiler.ensurePgTrgm(_pool!);
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_credit_cards_search_tags_gin ON credit_cards USING GIN (search_tags gin_trgm_ops)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_cct_integration_ref ON credit_card_transactions (integration_ref)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_cct_credit_card_id ON credit_card_transactions (credit_card_id)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_cct_date ON credit_card_transactions (date)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_cct_type ON credit_card_transactions (type)',
+          );
+          await _pool!.execute(
+            'CREATE INDEX IF NOT EXISTS idx_cct_created_at ON credit_card_transactions (created_at)',
+          );
 
-        // Trigger
-        await _pool!.execute('''
+          // Trigger
+          await _pool!.execute('''
           CREATE OR REPLACE FUNCTION update_credit_card_search_tags() RETURNS TRIGGER AS \$\$
           BEGIN
             UPDATE credit_cards cc
@@ -844,16 +885,16 @@ class KrediKartlariVeritabaniServisi {
           \$\$ LANGUAGE plpgsql;
         ''');
 
-        final triggerExists = await _pool!.execute(
-          "SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_credit_card_search_tags'",
-        );
-        if (triggerExists.isEmpty) {
-          await _pool!.execute(
-            'CREATE TRIGGER trg_update_credit_card_search_tags AFTER INSERT OR DELETE ON credit_card_transactions FOR EACH ROW EXECUTE FUNCTION update_credit_card_search_tags()',
+          final triggerExists = await _pool!.execute(
+            "SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_credit_card_search_tags'",
           );
-        }
-        // Initial Indeksleme: Arka planda çalıştır (Sayfa açılışını bloklama)
-        await verileriIndeksle(forceUpdate: false);
+          if (triggerExists.isEmpty) {
+            await _pool!.execute(
+              'CREATE TRIGGER trg_update_credit_card_search_tags AFTER INSERT OR DELETE ON credit_card_transactions FOR EACH ROW EXECUTE FUNCTION update_credit_card_search_tags()',
+            );
+          }
+          // Initial Indeksleme: Arka planda çalıştır (Sayfa açılışını bloklama)
+          await verileriIndeksle(forceUpdate: false);
         } catch (e) {
           if (e is LisansYazmaEngelliHatasi) return;
           debugPrint('Kredi kartı arka plan ek kurulum hatası: $e');

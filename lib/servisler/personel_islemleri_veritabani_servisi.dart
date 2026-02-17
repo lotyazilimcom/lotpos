@@ -21,6 +21,7 @@ class PersonelIslemleriVeritabaniServisi {
   Pool? _pool;
   bool _isInitialized = false;
   Completer<void>? _initCompleter;
+  int _initToken = 0;
 
   static const String _defaultCompanyId = 'patisyo2025';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
@@ -36,10 +37,12 @@ class PersonelIslemleriVeritabaniServisi {
     if (_isInitialized) return;
     if (_initCompleter != null) return _initCompleter!.future;
 
-    _initCompleter = Completer<void>();
+    final initToken = ++_initToken;
+    final initCompleter = Completer<void>();
+    _initCompleter = initCompleter;
 
     try {
-      _pool = LisansKorumaliPool(
+      final Pool createdPool = LisansKorumaliPool(
         Pool.withEndpoints(
           [
             Endpoint(
@@ -58,9 +61,10 @@ class PersonelIslemleriVeritabaniServisi {
           ),
         ),
       );
+      _pool = createdPool;
 
       final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
-        executor: _pool!,
+        executor: createdPool,
         databaseName: OturumServisi().aktifVeritabaniAdi,
       );
       if (!semaHazir) {
@@ -70,14 +74,35 @@ class PersonelIslemleriVeritabaniServisi {
           'PersonelIslemleriVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
         );
       }
+      if (initToken != _initToken) {
+        try {
+          await createdPool.close();
+        } catch (_) {}
+        if (!initCompleter.isCompleted) {
+          initCompleter.completeError(StateError('Bağlantı kapatıldı'));
+        }
+        return;
+      }
+
       _isInitialized = true;
-      _initCompleter!.complete();
+      if (!initCompleter.isCompleted) {
+        initCompleter.complete();
+      }
       debugPrint(
         'PersonelIslemleriVeritabaniServisi: Pool bağlantısı başarılı.',
       );
     } catch (e) {
-      if (_initCompleter != null && !_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e);
+      if (initToken == _initToken) {
+        try {
+          await _pool?.close();
+        } catch (_) {}
+        _pool = null;
+        _isInitialized = false;
+      }
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(e);
+      }
+      if (identical(_initCompleter, initCompleter)) {
         _initCompleter = null;
       }
       debugPrint('PersonelIslemleriVeritabaniServisi: Connection error: $e');
@@ -85,12 +110,19 @@ class PersonelIslemleriVeritabaniServisi {
   }
 
   Future<void> baglantiyiKapat() async {
-    if (_pool != null) {
-      await _pool!.close();
-    }
-    _pool = null;
-    _isInitialized = false;
+    _initToken++;
+    final pending = _initCompleter;
     _initCompleter = null;
+    _isInitialized = false;
+
+    final pool = _pool;
+    _pool = null;
+    try {
+      await pool?.close();
+    } catch (_) {}
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('Bağlantı kapatıldı'));
+    }
   }
 
   Future<void> _tablolariOlustur() async {
@@ -325,10 +357,7 @@ class PersonelIslemleriVeritabaniServisi {
     _checkedDefaultPartition = true;
   }
 
-  Future<void> _ensurePartitionExists(
-    int year, {
-    TxSession? session,
-  }) async {
+  Future<void> _ensurePartitionExists(int year, {TxSession? session}) async {
     if (_checkedPartitions.contains(year) && _checkedDefaultPartition) return;
     try {
       await _createUserTransactionPartitions(year, session: session);
@@ -395,10 +424,14 @@ class PersonelIslemleriVeritabaniServisi {
           final legacyName =
               '${defaultTable}_legacy_${DateTime.now().millisecondsSinceEpoch}';
           try {
-            await executor.execute('ALTER TABLE $defaultTable RENAME TO $legacyName');
+            await executor.execute(
+              'ALTER TABLE $defaultTable RENAME TO $legacyName',
+            );
           } catch (_) {
             // Son çare: attach olamıyorsa ve rename de olmazsa, insertlerin çalışması için drop gerekir
-            await executor.execute('DROP TABLE IF EXISTS $defaultTable CASCADE');
+            await executor.execute(
+              'DROP TABLE IF EXISTS $defaultTable CASCADE',
+            );
           }
           await executor.execute(
             'CREATE TABLE IF NOT EXISTS $defaultTable PARTITION OF user_transactions DEFAULT',
@@ -433,7 +466,9 @@ class PersonelIslemleriVeritabaniServisi {
           final legacyName =
               '${yearTable}_legacy_${DateTime.now().millisecondsSinceEpoch}';
           try {
-            await executor.execute('ALTER TABLE $yearTable RENAME TO $legacyName');
+            await executor.execute(
+              'ALTER TABLE $yearTable RENAME TO $legacyName',
+            );
             renamed = true;
           } catch (_) {
             // Rename olmazsa: aynı yıl için farklı isimle yeni partition oluştur (veri kaybı yok)

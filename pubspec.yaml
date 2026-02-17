@@ -78,6 +78,9 @@ dependency_overrides:
   # tetikleyen `path_provider_foundation` 2.6.x FFI sürümü yerine,
   # özellik kaybı olmadan çalışan CocoaPods tabanlı sürümü sabitliyoruz.
   path_provider_foundation: 2.5.1
+  # Windows: nsd plugin callbacks must run on platform thread.
+  nsd_windows:
+    path: packages/nsd_windows
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

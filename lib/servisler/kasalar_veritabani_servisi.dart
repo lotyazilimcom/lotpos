@@ -10,6 +10,7 @@ import 'personel_islemleri_veritabani_servisi.dart';
 import 'oturum_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
+import 'pg_eklentiler.dart';
 import 'veritabani_yapilandirma.dart';
 import 'ayarlar_veritabani_servisi.dart';
 
@@ -26,6 +27,7 @@ class KasalarVeritabaniServisi {
   static const String _searchTagsVersionPrefix = 'v4';
 
   Completer<void>? _initCompleter;
+  int _initToken = 0;
 
   static const String _defaultCompanyId = 'patisyo2025';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
@@ -72,32 +74,35 @@ class KasalarVeritabaniServisi {
       _initializedDatabase = null;
     }
 
-    _initCompleter = Completer<void>();
+    final initToken = ++_initToken;
+    final initCompleter = Completer<void>();
+    _initCompleter = initCompleter;
     _initializingDatabase = targetDatabase;
 
     try {
-      _pool = LisansKorumaliPool(
+      final Pool createdPool = LisansKorumaliPool(
         Pool.withEndpoints(
-        [
-          Endpoint(
-            host: _config.host,
-            port: _config.port,
-            database: targetDatabase,
-            username: _config.username,
-            password: _config.password,
+          [
+            Endpoint(
+              host: _config.host,
+              port: _config.port,
+              database: targetDatabase,
+              username: _config.username,
+              password: _config.password,
+            ),
+          ],
+          settings: PoolSettings(
+            sslMode: _config.sslMode,
+            connectTimeout: _config.poolConnectTimeout,
+            onOpen: _config.tuneConnection,
+            maxConnectionCount: _config.maxConnections,
           ),
-        ],
-        settings: PoolSettings(
-          sslMode: _config.sslMode,
-          connectTimeout: _config.poolConnectTimeout,
-          onOpen: _config.tuneConnection,
-          maxConnectionCount: _config.maxConnections,
-        ),
         ),
       );
+      _pool = createdPool;
 
       final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
-        executor: _pool!,
+        executor: createdPool,
         databaseName: targetDatabase,
       );
       if (!semaHazir) {
@@ -107,26 +112,62 @@ class KasalarVeritabaniServisi {
           'KasalarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
         );
       }
+      if (initToken != _initToken) {
+        try {
+          await createdPool.close();
+        } catch (_) {}
+        if (!initCompleter.isCompleted) {
+          initCompleter.completeError(StateError('Bağlantı kapatıldı'));
+        }
+        return;
+      }
+
       _isInitialized = true;
       _initializedDatabase = targetDatabase;
       _initializingDatabase = null;
       debugPrint(
         'KasalarVeritabaniServisi: Pool connection established successfully.',
       );
-      _initCompleter!.complete();
+      if (!initCompleter.isCompleted) {
+        initCompleter.complete();
+      }
     } catch (e) {
       debugPrint('KasalarVeritabaniServisi: Connection error: $e');
-      try {
-        await _pool?.close();
-      } catch (_) {}
-      _pool = null;
-      _isInitialized = false;
-      _initializedDatabase = null;
-      if (_initCompleter != null && !_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e);
+      if (initToken == _initToken) {
+        try {
+          await _pool?.close();
+        } catch (_) {}
+        _pool = null;
+        _isInitialized = false;
+        _initializedDatabase = null;
+        _initializingDatabase = null;
+      }
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(e);
+      }
+      if (identical(_initCompleter, initCompleter)) {
         _initCompleter = null;
       }
-      _initializingDatabase = null;
+    }
+  }
+
+  /// Pool bağlantısını güvenli şekilde kapatır ve tüm durum değişkenlerini sıfırlar.
+  Future<void> baglantiyiKapat() async {
+    _initToken++;
+    final pending = _initCompleter;
+    _initCompleter = null;
+    _initializingDatabase = null;
+
+    final pool = _pool;
+    _pool = null;
+    _isInitialized = false;
+    _initializedDatabase = null;
+
+    try {
+      await pool?.close();
+    } catch (_) {}
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('Bağlantı kapatıldı'));
     }
   }
 
@@ -555,7 +596,7 @@ class KasalarVeritabaniServisi {
       unawaited(() async {
         try {
           // 1 Milyar Kayıt İçin GIN İndeksi (Trigram)
-          await _pool!.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+          await PgEklentiler.ensurePgTrgm(_pool!);
           await _pool!.execute(
             'CREATE INDEX IF NOT EXISTS idx_cash_registers_search_tags_gin ON cash_registers USING GIN (search_tags gin_trgm_ops)',
           );
@@ -640,14 +681,14 @@ class KasalarVeritabaniServisi {
           \$\$ LANGUAGE plpgsql;
         ''');
 
-        final triggerExists = await _pool!.execute(
-          "SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_cash_register_search_tags'",
-        );
-        if (triggerExists.isEmpty) {
-          await _pool!.execute(
-            'CREATE TRIGGER trg_update_cash_register_search_tags AFTER INSERT OR DELETE ON cash_register_transactions FOR EACH ROW EXECUTE FUNCTION update_cash_register_search_tags()',
+          final triggerExists = await _pool!.execute(
+            "SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_cash_register_search_tags'",
           );
-        }
+          if (triggerExists.isEmpty) {
+            await _pool!.execute(
+              'CREATE TRIGGER trg_update_cash_register_search_tags AFTER INSERT OR DELETE ON cash_register_transactions FOR EACH ROW EXECUTE FUNCTION update_cash_register_search_tags()',
+            );
+          }
           // Initial İndeksleme: Arka planda çalıştır (sayfa açılışını bloklama)
           await verileriIndeksle(forceUpdate: false);
         } catch (e) {
@@ -1961,9 +2002,7 @@ class KasalarVeritabaniServisi {
         parameters: {'code': q, 'companyId': _companyId, 'limit': limit},
       );
       if (byCode.isNotEmpty) {
-        return byCode
-            .map((row) => _mapToKasaModel(row.toColumnMap()))
-            .toList();
+        return byCode.map((row) => _mapToKasaModel(row.toColumnMap())).toList();
       }
     } catch (_) {}
 
@@ -2446,7 +2485,11 @@ class KasalarVeritabaniServisi {
       currentKasa = kasalar.firstOrNull;
       // For recursive cash transfer
       if (locationType == 'cash' && cariKodu.isNotEmpty) {
-        final hedefKasalar = await kasaAra(cariKodu, limit: 1, session: session);
+        final hedefKasalar = await kasaAra(
+          cariKodu,
+          limit: 1,
+          session: session,
+        );
         if (hedefKasalar.isNotEmpty) {
           targetKasa = hedefKasalar.first;
         }

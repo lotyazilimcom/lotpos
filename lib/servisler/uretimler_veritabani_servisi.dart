@@ -10,6 +10,7 @@ import 'depolar_veritabani_servisi.dart';
 import 'urunler_veritabani_servisi.dart';
 import '../sayfalar/urunler_ve_depolar/depolar/sevkiyat_olustur_sayfasi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
+import 'pg_eklentiler.dart';
 import 'veritabani_yapilandirma.dart';
 import 'ayarlar_veritabani_servisi.dart';
 import 'lisans_yazma_koruma.dart';
@@ -27,12 +28,15 @@ class UretimlerVeritabaniServisi {
   final _yapilandirma = VeritabaniYapilandirma();
 
   Completer<void>? _initCompleter;
+  int _initToken = 0;
 
   Future<void> baslat() async {
     if (_isInitialized) return;
     if (_initCompleter != null) return _initCompleter!.future;
 
-    _initCompleter = Completer<void>();
+    final initToken = ++_initToken;
+    final initCompleter = Completer<void>();
+    _initCompleter = initCompleter;
 
     try {
       _pool = await _poolOlustur();
@@ -63,6 +67,17 @@ class UretimlerVeritabaniServisi {
       }
     }
 
+    if (_pool == null) {
+      final err = StateError('Üretimler veritabanı bağlantısı kurulamadı.');
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(err);
+      }
+      if (identical(_initCompleter, initCompleter)) {
+        _initCompleter = null;
+      }
+      return;
+    }
+
     try {
       if (_pool != null) {
         final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
@@ -77,26 +92,48 @@ class UretimlerVeritabaniServisi {
           );
         }
 
+        if (initToken != _initToken) {
+          if (!initCompleter.isCompleted) {
+            initCompleter.completeError(StateError('Bağlantı kapatıldı'));
+          }
+          if (identical(_initCompleter, initCompleter)) {
+            _initCompleter = null;
+          }
+          return;
+        }
+
         _isInitialized = true;
         debugPrint(
           'Üretimler veritabanı bağlantısı başarılı (Havuz): ${OturumServisi().aktifVeritabaniAdi}',
         );
-        _initCompleter!.complete();
+        if (!initCompleter.isCompleted) {
+          initCompleter.complete();
+        }
       }
     } catch (e) {
-      if (_initCompleter != null && !_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e);
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(e);
+      }
+      if (identical(_initCompleter, initCompleter)) {
         _initCompleter = null;
       }
     }
   }
 
   Future<void> baglantiyiKapat() async {
-    if (_pool != null) {
-      await _pool!.close();
-    }
-    _pool = null;
+    _initToken++;
+    final pending = _initCompleter;
+    _initCompleter = null;
     _isInitialized = false;
+
+    final pool = _pool;
+    _pool = null;
+    try {
+      await pool?.close();
+    } catch (_) {}
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('Bağlantı kapatıldı'));
+    }
   }
 
   Future<Pool> _poolOlustur() async {
@@ -228,7 +265,7 @@ class UretimlerVeritabaniServisi {
 
     // 50 Milyon Veri İçin Performans İndeksleri
     try {
-      await _pool!.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+      await PgEklentiler.ensurePgTrgm(_pool!);
 
       // Üretimler tablosu için Trigram Indexler (Metin Arama)
       await _pool!.execute(
@@ -1338,11 +1375,13 @@ class UretimlerVeritabaniServisi {
 
     final result = await _pool!.execute(Sql.named(query), parameters: params);
 
-    final List<Map<String, dynamic>> dataList = result.map((row) {
-      final map = row.toColumnMap();
-      _makeIsolateSafeMapInPlace(map);
-      return map;
-    }).toList(growable: false);
+    final List<Map<String, dynamic>> dataList = result
+        .map((row) {
+          final map = row.toColumnMap();
+          _makeIsolateSafeMapInPlace(map);
+          return map;
+        })
+        .toList(growable: false);
 
     try {
       return await compute(_parseUretimlerIsolate, dataList);

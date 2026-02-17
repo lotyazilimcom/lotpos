@@ -6,6 +6,7 @@ import 'kasalar_veritabani_servisi.dart';
 import 'bankalar_veritabani_servisi.dart';
 import 'oturum_servisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
+import 'pg_eklentiler.dart';
 import '../sayfalar/ceksenet/modeller/senet_model.dart';
 import 'veritabani_yapilandirma.dart';
 import 'kredi_kartlari_veritabani_servisi.dart';
@@ -162,6 +163,16 @@ class SenetlerVeritabaniServisi {
     }
   }
 
+  /// Pool bağlantısını güvenli şekilde kapatır ve tüm durum değişkenlerini sıfırlar.
+  Future<void> baglantiyiKapat() async {
+    try {
+      await _pool?.close();
+    } catch (_) {}
+    _pool = null;
+    _isInitialized = false;
+    _initializedDatabase = null;
+  }
+
   Future<void> _tablolariOlustur() async {
     if (_pool == null) return;
 
@@ -251,7 +262,7 @@ class SenetlerVeritabaniServisi {
 
     // 1 Milyar Kayıt İçin Performans İndeksleri (GIN Trigram)
     try {
-      await _pool!.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+      await PgEklentiler.ensurePgTrgm(_pool!);
 
       // Senetler için trigram indeksleri
       await _pool!.execute(

@@ -8,6 +8,7 @@ import 'oturum_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'lite_kisitlari.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
+import 'pg_eklentiler.dart';
 import '../sayfalar/ceksenet/modeller/cek_model.dart';
 import 'veritabani_yapilandirma.dart';
 import 'kredi_kartlari_veritabani_servisi.dart';
@@ -124,21 +125,21 @@ class CeklerVeritabaniServisi {
 
       _pool = LisansKorumaliPool(
         Pool.withEndpoints(
-        [
-          Endpoint(
-            host: _config.host,
-            port: _config.port,
-            database: targetDatabase,
-            username: _config.username,
-            password: _config.password,
+          [
+            Endpoint(
+              host: _config.host,
+              port: _config.port,
+              database: targetDatabase,
+              username: _config.username,
+              password: _config.password,
+            ),
+          ],
+          settings: PoolSettings(
+            sslMode: _config.sslMode,
+            connectTimeout: _config.poolConnectTimeout,
+            onOpen: _config.tuneConnection,
+            maxConnectionCount: _config.maxConnections,
           ),
-        ],
-        settings: PoolSettings(
-          sslMode: _config.sslMode,
-          connectTimeout: _config.poolConnectTimeout,
-          onOpen: _config.tuneConnection,
-          maxConnectionCount: _config.maxConnections,
-        ),
         ),
       );
 
@@ -161,6 +162,16 @@ class CeklerVeritabaniServisi {
     } catch (e) {
       debugPrint('CeklerVeritabaniServisi: Connection error: $e');
     }
+  }
+
+  /// Pool bağlantısını güvenli şekilde kapatır ve tüm durum değişkenlerini sıfırlar.
+  Future<void> baglantiyiKapat() async {
+    try {
+      await _pool?.close();
+    } catch (_) {}
+    _pool = null;
+    _isInitialized = false;
+    _initializedDatabase = null;
   }
 
   Future<void> _tablolariOlustur() async {
@@ -258,7 +269,7 @@ class CeklerVeritabaniServisi {
 
     // 1 Milyar Kayıt İçin Performans İndeksleri (GIN Trigram)
     try {
-      await _pool!.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+      await PgEklentiler.ensurePgTrgm(_pool!);
 
       // Çekler için arama indeksleri
       await _pool!.execute(

@@ -12,6 +12,7 @@ import 'oturum_servisi.dart';
 import 'perakende_satis_veritabani_servisleri.dart';
 import 'satisyap_veritabani_servisleri.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
+import 'pg_eklentiler.dart';
 import 'veritabani_yapilandirma.dart';
 import 'uretimler_veritabani_servisi.dart';
 import 'lisans_yazma_koruma.dart';
@@ -30,12 +31,15 @@ class DepolarVeritabaniServisi {
   final _yapilandirma = VeritabaniYapilandirma();
 
   Completer<void>? _initCompleter;
+  int _initToken = 0;
 
   Future<void> baslat() async {
     if (_isInitialized) return;
     if (_initCompleter != null) return _initCompleter!.future;
 
-    _initCompleter = Completer<void>();
+    final initToken = ++_initToken;
+    final initCompleter = Completer<void>();
+    _initCompleter = initCompleter;
 
     try {
       _pool = await _poolOlustur();
@@ -72,6 +76,17 @@ class DepolarVeritabaniServisi {
       }
     }
 
+    if (_pool == null) {
+      final err = StateError('Depolar veritabanı bağlantısı kurulamadı.');
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(err);
+      }
+      if (identical(_initCompleter, initCompleter)) {
+        _initCompleter = null;
+      }
+      return;
+    }
+
     try {
       if (_pool != null) {
         final semaHazir = await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
@@ -91,14 +106,24 @@ class DepolarVeritabaniServisi {
         // Uygulama açılışında otomatik tetiklemek yerine,
         // bakım / CLI komutu ile manuel çağrılması daha güvenlidir.
         //
+        if (initToken != _initToken) {
+          if (!initCompleter.isCompleted) {
+            initCompleter.completeError(StateError('Bağlantı kapatıldı'));
+          }
+          if (identical(_initCompleter, initCompleter)) {
+            _initCompleter = null;
+          }
+          return;
+        }
+
         _isInitialized = true;
         debugPrint(
           'Depolar veritabanı bağlantısı başarılı (Havuz): ${OturumServisi().aktifVeritabaniAdi}',
         );
 
         // Initialization Completer - BAŞARILI
-        if (_initCompleter != null && !_initCompleter!.isCompleted) {
-          _initCompleter!.complete();
+        if (!initCompleter.isCompleted) {
+          initCompleter.complete();
         }
 
         // Arka plan görevlerini başlat (İndeksleme vb.)
@@ -108,8 +133,10 @@ class DepolarVeritabaniServisi {
         }
       }
     } catch (e) {
-      if (_initCompleter != null && !_initCompleter!.isCompleted) {
-        _initCompleter!.completeError(e);
+      if (!initCompleter.isCompleted) {
+        initCompleter.completeError(e);
+      }
+      if (identical(_initCompleter, initCompleter)) {
         _initCompleter = null;
       }
       rethrow;
@@ -200,11 +227,19 @@ class DepolarVeritabaniServisi {
   }
 
   Future<void> baglantiyiKapat() async {
-    if (_pool != null) {
-      await _pool!.close();
-    }
-    _pool = null;
+    _initToken++;
+    final pending = _initCompleter;
+    _initCompleter = null;
     _isInitialized = false;
+
+    final pool = _pool;
+    _pool = null;
+    try {
+      await pool?.close();
+    } catch (_) {}
+    if (pending != null && !pending.isCompleted) {
+      pending.completeError(StateError('Bağlantı kapatıldı'));
+    }
   }
 
   Future<Pool> _poolOlustur() async {
@@ -557,7 +592,7 @@ class DepolarVeritabaniServisi {
               }
 
               // 50 Milyon Veri İçin Performans İndeksleri
-              await _pool!.execute('CREATE EXTENSION IF NOT EXISTS pg_trgm');
+              await PgEklentiler.ensurePgTrgm(_pool!);
               await _pool!.execute(
                 'ALTER TABLE depots ADD COLUMN IF NOT EXISTS search_tags TEXT',
               );
@@ -956,11 +991,13 @@ class DepolarVeritabaniServisi {
 
     final result = await _pool!.execute(Sql.named(query), parameters: params);
 
-    final List<Map<String, dynamic>> dataList = result.map((row) {
-      final map = row.toColumnMap();
-      _makeIsolateSafeMapInPlace(map);
-      return map;
-    }).toList(growable: false);
+    final List<Map<String, dynamic>> dataList = result
+        .map((row) {
+          final map = row.toColumnMap();
+          _makeIsolateSafeMapInPlace(map);
+          return map;
+        })
+        .toList(growable: false);
 
     try {
       return await compute(_parseDepolarIsolate, dataList);
@@ -4017,9 +4054,7 @@ class DepolarVeritabaniServisi {
             "ALTER TABLE stock_movements ATTACH PARTITION $partitionName FOR VALUES FROM ('$startStr') TO ('$endStr')",
           );
         } catch (e) {
-          debugPrint(
-            'Stok attach failed ($partitionName): $e. Recreating...',
-          );
+          debugPrint('Stok attach failed ($partitionName): $e. Recreating...');
           await executor.execute('DROP TABLE IF EXISTS $partitionName CASCADE');
           await executor.execute(
             "CREATE TABLE $partitionName PARTITION OF stock_movements FOR VALUES FROM ('$startStr') TO ('$endStr')",

@@ -226,6 +226,11 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
       await PersonelIslemleriVeritabaniServisi().baglantiyiKapat();
       await SiparislerVeritabaniServisi().baglantiyiKapat();
       await TekliflerVeritabaniServisi().baglantiyiKapat();
+      await KasalarVeritabaniServisi().baglantiyiKapat();
+      await BankalarVeritabaniServisi().baglantiyiKapat();
+      await KrediKartlariVeritabaniServisi().baglantiyiKapat();
+      await CeklerVeritabaniServisi().baglantiyiKapat();
+      await SenetlerVeritabaniServisi().baglantiyiKapat();
     } catch (e) {
       debugPrint('Veritabanı seçimine geçiş uyarısı: $e');
     } finally {
@@ -294,7 +299,9 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
             } catch (_) {
               _seciliSirket = sirketler.first;
             }
-          } else if (VeritabaniYapilandirma.connectionMode == 'cloud') {
+          } else if (VeritabaniYapilandirma.connectionMode == 'cloud' ||
+              VeritabaniYapilandirma.connectionMode ==
+                  VeritabaniYapilandirma.cloudPendingMode) {
             // Cloud modda şirket bulunamazsa otomatik ata
             _seciliSirket = _bulutVarsayilanSirket();
           }
@@ -307,13 +314,38 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
         setState(() {
           _sirketlerYukleniyor = false;
           // Cloud modda hata olursa bile varsayılan şirketle devam et
-          if (VeritabaniYapilandirma.connectionMode == 'cloud' &&
+          if ((VeritabaniYapilandirma.connectionMode == 'cloud' ||
+                  VeritabaniYapilandirma.connectionMode ==
+                      VeritabaniYapilandirma.cloudPendingMode) &&
               _seciliSirket == null) {
             _seciliSirket = _bulutVarsayilanSirket();
           }
         });
       }
     }
+  }
+
+  String _aktarimTabloEtiketi(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return '';
+
+    final base = trimmed.contains('.') ? trimmed.split('.').last : trimmed;
+    final key = 'dbsync.table.$base';
+    final translated = tr(key);
+    if (translated != key) return translated;
+
+    return _snakeToTitleCase(base);
+  }
+
+  String _snakeToTitleCase(String value) {
+    final parts = value.split('_').where((p) => p.isNotEmpty).toList();
+    if (parts.isEmpty) return value;
+    return parts
+        .map(
+          (p) =>
+              p.length <= 1 ? p.toUpperCase() : '${p[0].toUpperCase()}${p.substring(1)}',
+        )
+        .join(' ');
   }
 
   Future<void> _bekleyenVeritabaniAktariminiKontrolEt() async {
@@ -326,20 +358,72 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     final niyet = await aktarim.niyetOku();
     if (niyet == null) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    final savedChoice =
-        prefs.getString(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+    // Cloud tarafını içeren aktarım niyeti varsa ama cloud kimlikler hazır değilse,
+    // bağlantı denemek yerine erken çık. Kullanıcıya gereksiz hata snackbar'ı gösterme.
+    final fromMode = niyet.fromMode.trim();
+    final toMode = niyet.toMode.trim();
+    if ((fromMode == 'cloud' || toMode == 'cloud') &&
+        !VeritabaniYapilandirma.cloudCredentialsReady) {
+      debugPrint(
+        'DB aktarım kontrolü: Cloud kimlikler hazır değil, atlanıyor.',
+      );
+      return;
+    }
 
-    VeritabaniAktarimHazirlik? hazirlik = await aktarim.hazirlikYap(
-      niyet: niyet,
+    final prefs = await SharedPreferences.getInstance();
+    final savedChoice = prefs.getString(
+      VeritabaniYapilandirma.prefPendingTransferChoiceKey,
     );
+
+    if (!mounted) return;
+    final prepNavigator = Navigator.of(context, rootNavigator: true);
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr('dbsync.preparing.title')),
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 18,
+              height: 18,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                tr('dbsync.preparing.message'),
+                style: const TextStyle(fontSize: 13),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    VeritabaniAktarimHazirlik? hazirlik;
+    try {
+      hazirlik = await aktarim.hazirlikYap(niyet: niyet);
+    } catch (e) {
+      try {
+        if (prepNavigator.canPop()) prepNavigator.pop();
+      } catch (_) {}
+      debugPrint('DB aktarım hazırlık hatası: $e');
+      // Bağlantı hatası olabilir — kullanıcıyı rahatsız etme, sessizce çık.
+      return;
+    }
+
+    try {
+      if (prepNavigator.canPop()) prepNavigator.pop();
+    } catch (_) {}
+
     if (hazirlik == null) {
       // Desktop'ta kullanıcı daha önce seçim yaptıysa (full/merge) ve hedef bulut ise,
       // önce bulut tarafındaki şemayı/tabloları bootstrap edip tekrar dene.
       final bool shouldBootstrapCloudTarget =
           (niyet.toMode.trim() == 'cloud' &&
-              VeritabaniYapilandirma.connectionMode == 'cloud' &&
-              VeritabaniYapilandirma.cloudCredentialsReady);
+          VeritabaniYapilandirma.connectionMode == 'cloud' &&
+          VeritabaniYapilandirma.cloudCredentialsReady);
 
       if (shouldBootstrapCloudTarget) {
         if (!mounted) return;
@@ -376,16 +460,26 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
           } catch (_) {}
         }
 
-        hazirlik = await aktarim.hazirlikYap(niyet: niyet);
+        try {
+          hazirlik = await aktarim.hazirlikYap(niyet: niyet);
+        } catch (e) {
+          debugPrint('DB aktarım ikinci hazırlık hatası: $e');
+        }
       }
 
       // Hazır değilse kullanıcıyı bloklama; niyeti sakla, uygun zamanda tekrar denesin.
       // Ancak kullanıcı masaüstünde daha önce bir seçim yaptıysa (full/merge),
-      // sessizce geçmek "çalışmadı" gibi görünür. Bu durumda bilgilendir.
+      // sessizce geçmek "çalışmadı" gibi görünür. Bu durumda bilgilendir —
+      // AMA cloud bağlantı sorunu varsa snackbar gösterme (zaten bootstrap sayfasında
+      // gösterildi veya kullanıcı bilerek yerele geçti).
       if (hazirlik == null && _isDesktopPlatform) {
         if (savedChoice != null) {
-          if (!mounted) return;
-          MesajYardimcisi.hataGoster(context, tr('dbsync.prepare_failed'));
+          // Cloud tarafı sorunluysa sessiz kal, kullanıcı zaten bilgilendirildi
+          final cloudInvolved = fromMode == 'cloud' || toMode == 'cloud';
+          if (!cloudInvolved) {
+            if (!mounted) return;
+            MesajYardimcisi.hataGoster(context, tr('dbsync.prepare_failed'));
+          }
         }
       }
       return;
@@ -424,7 +518,9 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
           ? VeritabaniAktarimTipi.birlestir
           : VeritabaniAktarimTipi.tamAktar;
 
-      final stored = secim == VeritabaniAktarimTipi.birlestir ? 'merge' : 'full';
+      final stored = secim == VeritabaniAktarimTipi.birlestir
+          ? 'merge'
+          : 'full';
       await prefs.setString(
         VeritabaniYapilandirma.prefPendingTransferChoiceKey,
         stored,
@@ -474,32 +570,75 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     if (!mounted) return;
 
     final navigator = Navigator.of(context, rootNavigator: true);
+    final progress = ValueNotifier<VeritabaniAktarimIlerleme?>(null);
     showDialog<void>(
       context: context,
       barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        title: Text(tr('dbsync.progress.title')),
-        content: Row(
-          children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2),
+      builder: (ctx) => ValueListenableBuilder<VeritabaniAktarimIlerleme?>(
+        valueListenable: progress,
+        builder: (context, value, _) {
+          final ratio = value?.oran;
+          final pct = value?.yuzde;
+          final currentRaw = (value?.mevcut ?? '').trim();
+          final hideCurrent =
+              currentRaw == 'truncate' ||
+              currentRaw == 'sequences' ||
+              currentRaw.endsWith('.truncate') ||
+              currentRaw.endsWith('.sequences');
+          final current = hideCurrent ? '' : _aktarimTabloEtiketi(currentRaw);
+          final detail = (pct != null && value!.toplamAdim > 0)
+              ? '$pct% (${value.tamamlananAdim}/${value.toplamAdim})'
+              : '';
+
+          final infoText = <String>[
+            if (detail.isNotEmpty) detail,
+            if (current.isNotEmpty) current,
+          ].join(' • ');
+
+          return AlertDialog(
+            title: Text(tr('dbsync.progress.title')),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        tr('dbsync.progress.message'),
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                LinearProgressIndicator(value: ratio),
+                if (infoText.isNotEmpty) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    infoText,
+                    style: TextStyle(fontSize: 12, color: Colors.grey[700]),
+                  ),
+                ],
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                tr('dbsync.progress.message'),
-                style: const TextStyle(fontSize: 13),
-              ),
-            ),
-          ],
-        ),
+          );
+        },
       ),
     );
 
     try {
-      await aktarim.aktarimYap(hazirlik: hazirlik, tip: secim);
+      await aktarim.aktarimYap(
+        hazirlik: hazirlik,
+        tip: secim,
+        onIlerleme: (p) => progress.value = p,
+      );
       await aktarim.niyetTemizle();
       await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
       if (!mounted) return;
@@ -515,6 +654,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
       try {
         if (navigator.canPop()) navigator.pop();
       } catch (_) {}
+      progress.dispose();
     }
   }
 
@@ -534,6 +674,25 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
 
   Future<void> _girisYap() async {
     if (!_formKey.currentState!.validate()) return;
+
+    if (_seciliSirket == null && _sirketler.isNotEmpty) {
+      try {
+        _seciliSirket = _sirketler.firstWhere((s) => s.varsayilanMi);
+      } catch (_) {
+        _seciliSirket = _sirketler.first;
+      }
+    }
+
+    if (_seciliSirket == null) {
+      final mode = VeritabaniYapilandirma.connectionMode;
+      final isCloudLike =
+          mode == 'cloud' || mode == VeritabaniYapilandirma.cloudPendingMode;
+
+      if (isCloudLike) {
+        _seciliSirket = _bulutVarsayilanSirket();
+      }
+    }
+
     if (_seciliSirket == null) {
       MesajYardimcisi.hataGoster(context, tr('login.company.required'));
       return;
@@ -659,8 +818,8 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     final mode = VeritabaniYapilandirma.connectionMode;
     final dbModeLabel =
         (mode == 'cloud' || mode == VeritabaniYapilandirma.cloudPendingMode)
-            ? 'Bulut'
-            : 'Yerel';
+        ? 'Bulut'
+        : 'Yerel';
 
     return CallbackShortcuts(
       bindings: {

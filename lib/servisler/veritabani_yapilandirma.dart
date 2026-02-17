@@ -136,7 +136,8 @@ class VeritabaniYapilandirma {
         // İlk kurulum varsayılanı:
         // - Desktop: Yerel (kullanıcı ilk açılışta direkt çalışsın).
         // - Mobil/Tablet: Bulut (kurulum ekranı bunu yönetiyor).
-        if (!kIsWeb && (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
+        if (!kIsWeb &&
+            (Platform.isWindows || Platform.isLinux || Platform.isMacOS)) {
           _connectionMode = 'local';
         } else {
           _connectionMode = 'cloud';
@@ -147,6 +148,9 @@ class VeritabaniYapilandirma {
       _cloudPort = prefs.getInt(_prefCloudPort);
       _cloudUsername = prefs.getString(_prefCloudUsername);
       _cloudPassword = prefs.getString(_prefCloudPassword);
+      if (_cloudPassword != null) {
+        _cloudPassword = _cloudPassword!.trim();
+      }
       _cloudDatabase = prefs.getString(_prefCloudDatabase);
       _cloudSslRequired = prefs.getBool(_prefCloudSslRequired);
 
@@ -179,8 +183,9 @@ class VeritabaniYapilandirma {
   ) async {
     _connectionMode = mode;
     final normalizedHost = host?.trim();
-    _discoveredHost =
-        (normalizedHost != null && normalizedHost.isNotEmpty) ? normalizedHost : null;
+    _discoveredHost = (normalizedHost != null && normalizedHost.isNotEmpty)
+        ? normalizedHost
+        : null;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefConnectionMode, mode);
     if (_discoveredHost != null) {
@@ -199,12 +204,16 @@ class VeritabaniYapilandirma {
     if (host == null || host.isEmpty) return null;
     return host;
   }
+
   static bool get cloudCredentialsReady {
     final host = _cloudHost?.trim() ?? '';
     final db = _cloudDatabase?.trim() ?? '';
     final user = _cloudUsername?.trim() ?? '';
-    final pass = _cloudPassword ?? '';
-    return host.isNotEmpty && db.isNotEmpty && user.isNotEmpty && pass.isNotEmpty;
+    final pass = (_cloudPassword ?? '').trim();
+    return host.isNotEmpty &&
+        db.isNotEmpty &&
+        user.isNotEmpty &&
+        pass.isNotEmpty;
   }
 
   /// Desktop `cloud_pending` modunda: admin panelden gelen bulut kimlikleri kaydedilmiş olabilir,
@@ -245,7 +254,7 @@ class VeritabaniYapilandirma {
     _cloudHost = host.trim();
     _cloudPort = port;
     _cloudUsername = username.trim();
-    _cloudPassword = password;
+    _cloudPassword = password.trim();
     _cloudDatabase = database.trim();
     _cloudSslRequired = sslRequired;
 
@@ -279,6 +288,7 @@ class VeritabaniYapilandirma {
     debugPrint('VeritabaniYapilandirma: Bulut kimlikleri temizlendi.');
     _syncDesktopCloudPendingWatcher();
   }
+
   static String get _legacyPassword =>
       String.fromCharCodes(_legacyPasswordBytes);
 
@@ -463,7 +473,8 @@ class VeritabaniYapilandirma {
       // 2) Common install locations
       final versions = ['18', '17', '16', '15', '14', '13', '12'];
       final candidates = <String>[
-        for (final v in versions) 'C:\\Program Files\\PostgreSQL\\$v\\bin\\pg_dump.exe',
+        for (final v in versions)
+          'C:\\Program Files\\PostgreSQL\\$v\\bin\\pg_dump.exe',
         for (final v in versions)
           'C:\\Program Files (x86)\\PostgreSQL\\$v\\bin\\pg_dump.exe',
       ];
@@ -544,7 +555,9 @@ class VeritabaniYapilandirma {
       throw UnsupportedError('Web platformunda desteklenmiyor.');
     }
     if (!isDesktopPlatform) {
-      throw UnsupportedError('Bu özellik sadece desktop platformlarda çalışır.');
+      throw UnsupportedError(
+        'Bu özellik sadece desktop platformlarda çalışır.',
+      );
     }
     if (VeritabaniYapilandirma.connectionMode != 'local') {
       throw StateError(
@@ -621,8 +634,9 @@ class VeritabaniYapilandirma {
   /// Dinamik keşif sonrası host'u günceller
   static void setDiscoveredHost(String? newHost) {
     final normalizedHost = newHost?.trim();
-    _discoveredHost =
-        (normalizedHost != null && normalizedHost.isNotEmpty) ? normalizedHost : null;
+    _discoveredHost = (normalizedHost != null && normalizedHost.isNotEmpty)
+        ? normalizedHost
+        : null;
     debugPrint('VeritabaniYapilandirma: Host güncellendi -> $_discoveredHost');
   }
 
@@ -736,7 +750,9 @@ class VeritabaniYapilandirma {
     final db = _cloudDatabase?.trim() ?? '';
     final user = _cloudUsername?.trim() ?? '';
     final pass = _cloudPassword ?? '';
-    if (host.isEmpty || db.isEmpty || user.isEmpty || pass.isEmpty) return false;
+    if (host.isEmpty || db.isEmpty || user.isEmpty || pass.isEmpty) {
+      return false;
+    }
 
     final port = _cloudPort ?? _defaultPort;
     final requiredSsl = _cloudSslRequired ?? true;

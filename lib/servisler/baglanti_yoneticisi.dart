@@ -22,6 +22,9 @@ enum BaglantiDurumu {
   sunucuBulunamadi,
   basarili,
   hata,
+
+  /// Cloud mod'da DB erişilemediğinde (internet yok, DB silinmiş, şifre yanlış vb.)
+  bulutErisimHatasi,
 }
 
 class BaglantiYoneticisi extends ChangeNotifier {
@@ -242,12 +245,25 @@ class BaglantiYoneticisi extends ChangeNotifier {
     // Veritabanı (Burada gerçek bağlantı kurulur)
     await AyarlarVeritabaniServisi().baslat();
 
-    // Veritabanı bağlantısı başarısızsa hata durumuna geç
+    // Veritabanı bağlantısı başarısızsa
     if (!AyarlarVeritabaniServisi().baslatildiMi) {
+      final sonHata = AyarlarVeritabaniServisi().sonHata ?? '';
+
+      // Cloud modda: özel durum — kullanıcıya "Yerele geç" seçeneği sun
+      if (VeritabaniYapilandirma.connectionMode == 'cloud') {
+        _hataMesaji = sonHata.isNotEmpty
+            ? sonHata
+            : 'Bulut veritabanına bağlanılamadı. İnternet bağlantınızı kontrol edin.';
+        _durum = BaglantiDurumu.bulutErisimHatasi;
+        notifyListeners();
+        return;
+      }
+
+      // Lokal mod: mevcut davranış
       _durum = BaglantiDurumu.hata;
-      _hataMesaji =
-          AyarlarVeritabaniServisi().sonHata ??
-          'Veritabanı bağlantısı kurulamadı. Lütfen bağlantı bilgilerinizi kontrol edin.';
+      _hataMesaji = sonHata.isNotEmpty
+          ? sonHata
+          : 'Veritabanı bağlantısı kurulamadı. Lütfen bağlantı bilgilerinizi kontrol edin.';
       notifyListeners();
       return;
     }
@@ -258,6 +274,22 @@ class BaglantiYoneticisi extends ChangeNotifier {
 
     _durum = BaglantiDurumu.basarili;
     notifyListeners();
+  }
+
+  /// Cloud erişim hatası sonrası yerel veritabanına geçiş yapar.
+  /// Kullanıcı onay verdikten sonra çağrılmalıdır.
+  Future<void> yereleGec() async {
+    debugPrint('BaglantiYoneticisi: Kullanıcı isteğiyle yerele geçiliyor...');
+    // Modu local'e çevir ve 127.0.0.1'e bağlan
+    await VeritabaniYapilandirma.saveConnectionPreferences(
+      'local',
+      '127.0.0.1',
+    );
+    // Var olan cloud pool'larını temizle
+    await VeritabaniBaglantiSifirlayici().tumunuKapat();
+    // Yapılandırmayı yeniden yükle ve sistemi yeniden başlat
+    await VeritabaniYapilandirma.loadPersistedConfig(force: true);
+    await sistemiBaslat();
   }
 
   Future<void> _mdnsLisansBilgisiniUygula(Service service) async {
