@@ -6,6 +6,7 @@ const Map<String, String> trCeviriler = {
   'common.add': 'Ekle',
   'common.save': 'Kaydet',
   'common.cancel': 'İptal',
+  'common.continue': 'Devam Et',
   'common.search': 'Ara...',
   'common.active': 'Aktif',
   'common.passive': 'Pasif',
@@ -293,6 +294,23 @@ const Map<String, String> trCeviriler = {
   'setup.cloud.preparing_title': 'Online Veritabanı Hazırlanıyor',
   'setup.cloud.preparing_message':
       'Uzak/bulut veritabanınız hazırlanıyor. Kurulum tamamlandığında size bildirim gönderilecektir.',
+  'dbsync.desktop.local_to_cloud.intro':
+      'Online veritabanı ayarlarınız hazır. Buluta geçmek için aşağıdan bir seçenek seçin.',
+  'dbsync.desktop.cloud_to_local.intro':
+      'Yerel veritabanına geçmek için aşağıdan bir seçenek seçin.',
+  'dbsync.option.none.title': 'Hiçbir şey yapma',
+  'dbsync.option.none.desc.local_to_cloud':
+      'Buluta geçiş yapılır ancak yerel veriler buluta aktarılmaz. Buluttaki mevcut veriler (varsa) olduğu gibi kullanılır.',
+  'dbsync.option.none.desc.cloud_to_local':
+      'Yerel moda geçiş yapılır ancak bulut verileri yerele aktarılmaz. Yereldeki mevcut veriler olduğu gibi kullanılır.',
+  'dbsync.option.full.desc.local_to_cloud':
+      'Bulut veritabanındaki tüm verileri siler ve yereldeki verileri birebir kopyalar. (Geri alınamaz)',
+  'dbsync.option.full.desc.cloud_to_local':
+      'Yerel veritabanındaki tüm verileri siler ve buluttaki verileri birebir kopyalar. (Geri alınamaz)',
+  'dbsync.option.merge.desc.local_to_cloud':
+      'Buluttaki verileri silmez; yerelde olup bulutta olmayan kayıtları ekler ve çakışan kayıtları günceller.',
+  'dbsync.option.merge.desc.cloud_to_local':
+      'Yereldeki verileri silmez; bulutta olup yerelde olmayan kayıtları ekler ve çakışan kayıtları günceller.',
   'dbsync.title': 'Veri Aktarımı',
   'dbsync.local_to_cloud.message':
       'Yerel veritabanındaki veriler buluta aktarılsın mı?\n\n'
@@ -310,6 +328,8 @@ const Map<String, String> trCeviriler = {
       'Veriler aktarılıyor. Lütfen uygulamayı kapatmayın.',
   'dbsync.success': 'Veri aktarımı tamamlandı.',
   'dbsync.error': 'Veri aktarımı sırasında hata oluştu: {error}',
+  'dbsync.prepare_failed':
+      'Aktarım hazırlığı yapılamadı. Lütfen veritabanı bağlantılarını kontrol edip tekrar deneyin.',
   'setup.cloud.error_title': 'Online Veritabanı Hatası',
   'setup.cloud.check_now': 'Kontrol Et',
   'setup.cloud.open_setup_options': 'Kurulum Seçenekleri',

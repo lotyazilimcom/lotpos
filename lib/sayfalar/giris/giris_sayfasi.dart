@@ -27,7 +27,9 @@ import '../../servisler/senetler_veritabani_servisi.dart';
 import '../../servisler/veritabani_aktarim_servisi.dart';
 import '../../servisler/veritabani_yapilandirma.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
+import '../../bilesenler/veritabani_aktarim_secim_dialog.dart';
 import '../mobil_kurulum/mobil_kurulum_sayfasi.dart';
+import '../ayarlar/veritabaniyedekayarlari/veritabani_yedek_ayarlari_sayfasi.dart';
 
 enum _YerelDbProbeSonucu { ok, databaseMissing, serverUnreachable, other }
 
@@ -57,6 +59,12 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
       !kIsWeb &&
       (defaultTargetPlatform == TargetPlatform.android ||
           defaultTargetPlatform == TargetPlatform.iOS);
+
+  bool get _isDesktopPlatform =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.windows ||
+          defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.linux);
 
   String _warmupPrefsKey() {
     final cfg = VeritabaniYapilandirma();
@@ -230,6 +238,14 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     );
   }
 
+  Future<void> _masaustuVeritabaniSeciminiAc() async {
+    if (_yukleniyor) return;
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const VeritabaniYedekAyarlariSayfasi()),
+    );
+  }
+
   @override
   void initState() {
     super.initState();
@@ -301,17 +317,77 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   }
 
   Future<void> _bekleyenVeritabaniAktariminiKontrolEt() async {
-    if (!_isMobilePlatform) return;
     if (_dbAktarimKontrolEdildi) return;
     _dbAktarimKontrolEdildi = true;
+
+    if (!_isMobilePlatform && !_isDesktopPlatform) return;
 
     final aktarim = VeritabaniAktarimServisi();
     final niyet = await aktarim.niyetOku();
     if (niyet == null) return;
 
-    final hazirlik = await aktarim.hazirlikYap(niyet: niyet);
+    final prefs = await SharedPreferences.getInstance();
+    final savedChoice =
+        prefs.getString(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+
+    VeritabaniAktarimHazirlik? hazirlik = await aktarim.hazirlikYap(
+      niyet: niyet,
+    );
     if (hazirlik == null) {
+      // Desktop'ta kullanıcı daha önce seçim yaptıysa (full/merge) ve hedef bulut ise,
+      // önce bulut tarafındaki şemayı/tabloları bootstrap edip tekrar dene.
+      final bool shouldBootstrapCloudTarget =
+          (niyet.toMode.trim() == 'cloud' &&
+              VeritabaniYapilandirma.connectionMode == 'cloud' &&
+              VeritabaniYapilandirma.cloudCredentialsReady);
+
+      if (shouldBootstrapCloudTarget) {
+        if (!mounted) return;
+        final navigator = Navigator.of(context, rootNavigator: true);
+        showDialog<void>(
+          context: context,
+          barrierDismissible: false,
+          builder: (ctx) => AlertDialog(
+            title: Text(tr('setup.cloud.preparing_title')),
+            content: Row(
+              children: [
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    tr('setup.cloud.preparing_message'),
+                    style: const TextStyle(fontSize: 13),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+
+        try {
+          await _servisleriIsit(background: false);
+        } finally {
+          try {
+            if (navigator.canPop()) navigator.pop();
+          } catch (_) {}
+        }
+
+        hazirlik = await aktarim.hazirlikYap(niyet: niyet);
+      }
+
       // Hazır değilse kullanıcıyı bloklama; niyeti sakla, uygun zamanda tekrar denesin.
+      // Ancak kullanıcı masaüstünde daha önce bir seçim yaptıysa (full/merge),
+      // sessizce geçmek "çalışmadı" gibi görünür. Bu durumda bilgilendir.
+      if (hazirlik == null && _isDesktopPlatform) {
+        if (savedChoice != null) {
+          if (!mounted) return;
+          MesajYardimcisi.hataGoster(context, tr('dbsync.prepare_failed'));
+        }
+      }
       return;
     }
 
@@ -320,41 +396,77 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     final bool localToCloud =
         hazirlik.fromMode == 'local' && hazirlik.toMode == 'cloud';
 
-    final VeritabaniAktarimTipi? secim = await showDialog<VeritabaniAktarimTipi>(
-      context: context,
-      builder: (ctx) {
-        return AlertDialog(
-          title: Text(tr('dbsync.title')),
-          content: Text(
-            localToCloud
-                ? tr('dbsync.local_to_cloud.message')
-                : tr('dbsync.cloud_to_local.message'),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(tr('dbsync.not_now')),
+    if (!mounted) return;
+
+    VeritabaniAktarimTipi? secim;
+    if (_isDesktopPlatform && savedChoice != null) {
+      if (savedChoice == 'merge') {
+        secim = VeritabaniAktarimTipi.birlestir;
+      } else if (savedChoice == 'full') {
+        secim = VeritabaniAktarimTipi.tamAktar;
+      }
+    }
+
+    if (secim == null && _isDesktopPlatform) {
+      final desktopSecim = await veritabaniAktarimSecimDialogGoster(
+        context: context,
+        localToCloud: localToCloud,
+        barrierDismissible: false,
+      );
+      if (desktopSecim == null ||
+          desktopSecim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+        await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+        await aktarim.niyetTemizle();
+        return;
+      }
+
+      secim = desktopSecim == DesktopVeritabaniAktarimSecimi.birlestir
+          ? VeritabaniAktarimTipi.birlestir
+          : VeritabaniAktarimTipi.tamAktar;
+
+      final stored = secim == VeritabaniAktarimTipi.birlestir ? 'merge' : 'full';
+      await prefs.setString(
+        VeritabaniYapilandirma.prefPendingTransferChoiceKey,
+        stored,
+      );
+    } else if (!_isDesktopPlatform) {
+      secim = await showDialog<VeritabaniAktarimTipi>(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            title: Text(tr('dbsync.title')),
+            content: Text(
+              localToCloud
+                  ? tr('dbsync.local_to_cloud.message')
+                  : tr('dbsync.cloud_to_local.message'),
             ),
-            TextButton(
-              onPressed: () =>
-                  Navigator.of(ctx).pop(VeritabaniAktarimTipi.birlestir),
-              child: Text(tr('dbsync.merge')),
-            ),
-            FilledButton(
-              onPressed: () =>
-                  Navigator.of(ctx).pop(VeritabaniAktarimTipi.tamAktar),
-              style: FilledButton.styleFrom(
-                backgroundColor: const Color(0xFFEA4335),
-                foregroundColor: Colors.white,
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: Text(tr('dbsync.not_now')),
               ),
-              child: Text(tr('dbsync.full')),
-            ),
-          ],
-        );
-      },
-    );
+              TextButton(
+                onPressed: () =>
+                    Navigator.of(ctx).pop(VeritabaniAktarimTipi.birlestir),
+                child: Text(tr('dbsync.merge')),
+              ),
+              FilledButton(
+                onPressed: () =>
+                    Navigator.of(ctx).pop(VeritabaniAktarimTipi.tamAktar),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFFEA4335),
+                  foregroundColor: Colors.white,
+                ),
+                child: Text(tr('dbsync.full')),
+              ),
+            ],
+          );
+        },
+      );
+    }
 
     if (secim == null) {
+      await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
       await aktarim.niyetTemizle();
       return;
     }
@@ -389,6 +501,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     try {
       await aktarim.aktarimYap(hazirlik: hazirlik, tip: secim);
       await aktarim.niyetTemizle();
+      await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
       if (!mounted) return;
       MesajYardimcisi.basariGoster(context, tr('dbsync.success'));
     } catch (e) {
@@ -543,8 +656,11 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 900;
+    final mode = VeritabaniYapilandirma.connectionMode;
     final dbModeLabel =
-        VeritabaniYapilandirma.connectionMode == 'cloud' ? 'Bulut' : 'Yerel';
+        (mode == 'cloud' || mode == VeritabaniYapilandirma.cloudPendingMode)
+            ? 'Bulut'
+            : 'Yerel';
 
     return CallbackShortcuts(
       bindings: {
@@ -1013,7 +1129,8 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
                                                   ),
                                           ),
                                         ),
-                                        if (_isMobilePlatform) ...[
+                                        if (_isMobilePlatform ||
+                                            _isDesktopPlatform) ...[
                                           const SizedBox(height: 12),
                                           SizedBox(
                                             width: double.infinity,
@@ -1021,7 +1138,9 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
                                             child: OutlinedButton(
                                               onPressed: _yukleniyor
                                                   ? null
-                                                  : _veritabaniSeciminiAc,
+                                                  : (_isMobilePlatform
+                                                        ? _veritabaniSeciminiAc
+                                                        : _masaustuVeritabaniSeciminiAc),
                                               style: OutlinedButton.styleFrom(
                                                 foregroundColor: const Color(
                                                   0xFF2C3E50,

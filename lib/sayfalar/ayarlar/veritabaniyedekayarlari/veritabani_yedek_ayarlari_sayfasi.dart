@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:nsd/nsd.dart' show Service;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../bilesenler/veritabani_aktarim_secim_dialog.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../servisler/lite_ayarlar_servisi.dart';
 import '../../../servisler/lite_kisitlari.dart';
@@ -36,7 +38,11 @@ class _VeritabaniYedekAyarlariSayfasiState
   void initState() {
     super.initState();
     // Tüm platformlarda gerçek mod tercihini ekranda doğru göster.
-    _seciliMod = VeritabaniYapilandirma.connectionMode;
+    final persistedMode = VeritabaniYapilandirma.connectionMode;
+    _seciliMod =
+        persistedMode == VeritabaniYapilandirma.cloudPendingMode
+            ? 'cloud'
+            : persistedMode;
     if (_seciliMod != 'local' && _seciliMod != 'hybrid' && _seciliMod != 'cloud') {
       _seciliMod = 'local';
     }
@@ -780,9 +786,14 @@ class _VeritabaniYedekAyarlariSayfasiState
           final bool isMobilePlatform =
               defaultTargetPlatform == TargetPlatform.iOS ||
               defaultTargetPlatform == TargetPlatform.android;
+          final bool isDesktopPlatform =
+              !kIsWeb &&
+              (defaultTargetPlatform == TargetPlatform.windows ||
+                  defaultTargetPlatform == TargetPlatform.macOS ||
+                  defaultTargetPlatform == TargetPlatform.linux);
 
-          if (!isMobilePlatform) {
-            // Desktop/Web davranışını hiç bozma
+          if (!isMobilePlatform && !isDesktopPlatform) {
+            // Web: Mevcut davranışı koru
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(tr('settings.ai.save_success')),
@@ -790,6 +801,11 @@ class _VeritabaniYedekAyarlariSayfasiState
                 behavior: SnackBarBehavior.floating,
               ),
             );
+            return;
+          }
+
+          if (isDesktopPlatform) {
+            await _handleDesktopSave();
             return;
           }
 
@@ -927,6 +943,266 @@ class _VeritabaniYedekAyarlariSayfasiState
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<bool> _desktopBulutKimlikleriniHazirlaBestEffort() async {
+    try {
+      await Supabase.initialize(url: LisansServisi.u, anonKey: LisansServisi.k);
+    } catch (_) {
+      // Zaten başlatılmış olabilir.
+    }
+
+    try {
+      await LisansServisi().baslat();
+    } catch (_) {}
+
+    final hardwareId = LisansServisi().hardwareId;
+    if (hardwareId == null || hardwareId.trim().isEmpty) return false;
+
+    final creds = await OnlineVeritabaniServisi().kimlikleriGetir(
+      hardwareId.trim(),
+    );
+    if (creds == null) {
+      await OnlineVeritabaniServisi().talepGonder(
+        hardwareId: hardwareId.trim(),
+        source: 'desktop_settings',
+      );
+      return false;
+    }
+
+    await VeritabaniYapilandirma.saveCloudDatabaseCredentials(
+      host: creds.host,
+      port: creds.port,
+      username: creds.username,
+      password: creds.password,
+      database: creds.database,
+      sslRequired: creds.sslRequired,
+    );
+
+    if (!VeritabaniYapilandirma.cloudCredentialsReady) return false;
+
+    // Kimlikler kaydedilmiş olsa bile, Postgres gerçekten erişilebilir olmayabilir
+    // (yanlış şifre/db adı, geçici ağ sorunu vb.). Desktop akışında "hazır" saymadan önce
+    // bağlantıyı doğrula.
+    return VeritabaniYapilandirma.testSavedCloudDatabaseConnection(
+      timeout: const Duration(seconds: 6),
+    );
+  }
+
+  Future<void> _savePendingTransferChoiceValue(String value) async {
+    final normalized = value.trim();
+    if (normalized.isEmpty) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      VeritabaniYapilandirma.prefPendingTransferChoiceKey,
+      normalized,
+    );
+  }
+
+  Future<void> _clearPendingTransferChoice() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+  }
+
+  Future<void> _handleDesktopSave() async {
+    final String oncekiMod = VeritabaniYapilandirma.connectionMode;
+    final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
+
+    String normalizeMode(String mode) =>
+        mode == 'cloud' ? 'cloud' : 'local';
+    final String previousUiMode =
+        oncekiMod == VeritabaniYapilandirma.cloudPendingMode
+            ? 'cloud'
+            : oncekiMod;
+
+    // Desktop: sadece Yerel <-> Bulut akışı (Bulut: sadece internet).
+    // Hibrit ve diğer ayarlar: mevcut davranışı bozma.
+    if (_seciliMod != 'local' && _seciliMod != 'cloud') {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('settings.ai.save_success')),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Cloud Pending -> Local: beklemeyi iptal et, yerelden devam et.
+    if (_seciliMod == 'local' &&
+        oncekiMod == VeritabaniYapilandirma.cloudPendingMode) {
+      await VeritabaniYapilandirma.saveConnectionPreferences(
+        'local',
+        oncekiYerelHost,
+      );
+      await VeritabaniAktarimServisi().niyetTemizle();
+      await _clearPendingTransferChoice();
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('settings.ai.save_success')),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Local/Hybrid -> Cloud
+    if (_seciliMod == 'cloud' && oncekiMod != 'cloud') {
+      // Desktop: her seferinde admin tarafını kontrol et (cache'e güvenme).
+      // Hazır değilse "Online Veritabanı Hazırlanıyor" akışına düş.
+      final bool credsReady = await _desktopBulutKimlikleriniHazirlaBestEffort();
+
+      final localHost =
+          ((oncekiYerelHost ?? '').trim().isNotEmpty
+                  ? oncekiYerelHost!
+                  : '127.0.0.1')
+              .trim();
+      final localCompanyDb = OturumServisi().aktifVeritabaniAdi;
+
+      // Cloud kimlikleri yoksa: cloud_pending kaydet, yerelden devam et.
+      if (!credsReady) {
+        // Eski/stale kimlikler varsa: pending modda yanlışlıkla "hazır" sayılmasın.
+        await VeritabaniYapilandirma.clearCloudDatabaseCredentials();
+        await _clearPendingTransferChoice();
+
+        await VeritabaniAktarimServisi().niyetKaydet(
+          VeritabaniAktarimNiyeti(
+            fromMode: normalizeMode(oncekiMod),
+            toMode: 'cloud',
+            localHost: localHost.isEmpty ? null : localHost,
+            localCompanyDb: localCompanyDb,
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        await VeritabaniYapilandirma.saveConnectionPreferences(
+          VeritabaniYapilandirma.cloudPendingMode,
+          oncekiYerelHost,
+        );
+
+        if (mounted) {
+          await showDialog<void>(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              title: Text(tr('setup.cloud.preparing_title')),
+              content: Text(tr('setup.cloud.preparing_message')),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(ctx).pop(),
+                  child: Text(tr('common.ok')),
+                ),
+              ],
+            ),
+          );
+        }
+
+        return;
+      }
+
+      if (!mounted) return;
+      final secim = await veritabaniAktarimSecimDialogGoster(
+        context: context,
+        localToCloud: true,
+      );
+      if (secim == null) {
+        if (mounted) setState(() => _seciliMod = previousUiMode);
+        return;
+      }
+
+      if (secim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+        await VeritabaniAktarimServisi().niyetTemizle();
+        await _clearPendingTransferChoice();
+      } else {
+        final choiceValue = secim == DesktopVeritabaniAktarimSecimi.birlestir
+            ? 'merge'
+            : 'full';
+        await _savePendingTransferChoiceValue(choiceValue);
+        await VeritabaniAktarimServisi().niyetKaydet(
+          VeritabaniAktarimNiyeti(
+            fromMode: normalizeMode(oncekiMod),
+            toMode: 'cloud',
+            localHost: localHost.isEmpty ? null : localHost,
+            localCompanyDb: localCompanyDb,
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+
+      await VeritabaniYapilandirma.saveConnectionPreferences(
+        'cloud',
+        oncekiYerelHost,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
+        (_) => false,
+      );
+      return;
+    }
+
+    // Cloud -> Local
+    if (_seciliMod == 'local' && oncekiMod == 'cloud') {
+      final secim = await veritabaniAktarimSecimDialogGoster(
+        context: context,
+        localToCloud: false,
+      );
+      if (secim == null) {
+        if (mounted) setState(() => _seciliMod = 'cloud');
+        return;
+      }
+
+      if (secim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+        await VeritabaniAktarimServisi().niyetTemizle();
+        await _clearPendingTransferChoice();
+      } else {
+        final choiceValue = secim == DesktopVeritabaniAktarimSecimi.birlestir
+            ? 'merge'
+            : 'full';
+        await _savePendingTransferChoiceValue(choiceValue);
+        final localHost =
+            ((oncekiYerelHost ?? '').trim().isNotEmpty
+                    ? oncekiYerelHost!
+                    : '127.0.0.1')
+                .trim();
+
+        await VeritabaniAktarimServisi().niyetKaydet(
+          VeritabaniAktarimNiyeti(
+            fromMode: 'cloud',
+            toMode: 'local',
+            localHost: localHost.isEmpty ? null : localHost,
+            localCompanyDb: null,
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+
+      await VeritabaniYapilandirma.saveConnectionPreferences(
+        'local',
+        oncekiYerelHost,
+      );
+
+      if (!mounted) return;
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
+        (_) => false,
+      );
+      return;
+    }
+
+    // Diğer durumlar: mevcut davranış (başka özelliği bozma).
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(tr('settings.ai.save_success')),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

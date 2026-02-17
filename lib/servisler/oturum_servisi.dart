@@ -12,15 +12,25 @@ class OturumServisi {
   OturumServisi._internal();
 
   SirketAyarlariModel? _aktifSirket;
+  String? _sonVeritabaniAdi;
 
   SirketAyarlariModel? get aktifSirket => _aktifSirket;
 
   set aktifSirket(SirketAyarlariModel? sirket) {
+    final oncekiDb = aktifVeritabaniAdi;
     _aktifSirket = sirket;
     debugPrint('Aktif Şirket Değişti: ${sirket?.ad} (DB: $aktifVeritabaniAdi)');
 
-    // Şirket değiştiğinde diğer servislerin bağlantılarını sıfırla
-    _servisleriYenidenBaslat();
+    final yeniDb = aktifVeritabaniAdi;
+    _sonVeritabaniAdi ??= oncekiDb;
+
+    // Şirket değişse bile efektif veritabanı aynıysa (özellikle Bulut modunda)
+    // pool'ları kapatmak gereksiz ve arka plandaki işler sırasında "closed pool" hatasına
+    // sebep olabiliyor. Sadece DB adı gerçekten değiştiğinde sıfırla.
+    if (_sonVeritabaniAdi != yeniDb) {
+      _sonVeritabaniAdi = yeniDb;
+      _servisleriYenidenBaslat();
+    }
   }
 
   String get aktifVeritabaniAdi {

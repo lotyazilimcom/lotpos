@@ -1,7 +1,12 @@
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+import 'lisans_servisi.dart';
+import 'online_veritabani_servisi.dart';
 
 /// Veritabanı Yapılandırma Servisi
 class VeritabaniYapilandirma {
@@ -12,7 +17,7 @@ class VeritabaniYapilandirma {
 
   // SharedPreferences Keys
   static const String _prefConnectionMode =
-      'patisyo_connection_mode'; // 'local' or 'cloud'
+      'patisyo_connection_mode'; // 'local' | 'hybrid' | 'cloud' | 'cloud_pending'
   static const String _prefLastDiscoveredHost = 'patisyo_last_host';
   static const String _prefCloudHost = 'patisyo_cloud_db_host';
   static const String _prefCloudPort = 'patisyo_cloud_db_port';
@@ -20,6 +25,24 @@ class VeritabaniYapilandirma {
   static const String _prefCloudPassword = 'patisyo_cloud_db_password';
   static const String _prefCloudDatabase = 'patisyo_cloud_db_name';
   static const String _prefCloudSslRequired = 'patisyo_cloud_db_ssl_required';
+
+  // Veritabanı aktarımında (desktop) kullanıcı seçimini saklamak için.
+  // Değerler: 'merge' | 'full'
+  static const String prefPendingTransferChoiceKey =
+      'patisyo_pending_db_transfer_choice';
+
+  // Desktop: kullanıcı cloud istedi ama admin ayarı/kimlikleri hazır değil.
+  // Bu modda uygulama yerelden çalışmaya devam eder, kimlikler hazır olunca kullanıcıya sorulur.
+  static const String cloudPendingMode = 'cloud_pending';
+
+  // Desktop: cloud pending hazır olunca UI tetikleyicisi (global dialog için).
+  static final ValueNotifier<int> desktopCloudReadyTick = ValueNotifier<int>(0);
+
+  static Timer? _desktopCloudPendingTimer;
+  static bool _desktopCloudPendingCheckInFlight = false;
+  static bool _desktopCloudPendingRequestSent = false;
+  static bool _desktopCloudReadyEmitted = false;
+  static bool _desktopCloudConnectionReady = false;
 
   // Environment Variable Keys
   static const String _hostKey = 'PATISYO_DB_HOST';
@@ -126,7 +149,21 @@ class VeritabaniYapilandirma {
       _cloudPassword = prefs.getString(_prefCloudPassword);
       _cloudDatabase = prefs.getString(_prefCloudDatabase);
       _cloudSslRequired = prefs.getBool(_prefCloudSslRequired);
+
+      // Desktop "cloud_pending" modunda: uygulama yerelden çalışmaya devam eder.
+      // Bu modda cache'lenmiş kimliklere güvenmeyip, hazır olunca server'dan tekrar çekip
+      // kullanıcıya soracağız. (Aksi halde stale cache ile yanlışlıkla "hazır" dialogu açılabilir.)
+      if (_connectionMode == cloudPendingMode) {
+        _cloudHost = null;
+        _cloudPort = null;
+        _cloudUsername = null;
+        _cloudPassword = null;
+        _cloudDatabase = null;
+        _cloudSslRequired = null;
+      }
+
       _configLoadedOnce = true;
+      _syncDesktopCloudPendingWatcher();
       debugPrint(
         'VeritabaniYapilandirma: Yapılandırma yüklendi. Mod: $_connectionMode, Host: $_discoveredHost',
       );
@@ -149,12 +186,14 @@ class VeritabaniYapilandirma {
     if (_discoveredHost != null) {
       await prefs.setString(_prefLastDiscoveredHost, _discoveredHost!);
     }
+    _syncDesktopCloudPendingWatcher();
     debugPrint(
       'VeritabaniYapilandirma: Tercihler kaydedildi. Mod: $mode, Host: $_discoveredHost',
     );
   }
 
   static String get connectionMode => _connectionMode;
+  static bool get isCloudPending => _connectionMode == cloudPendingMode;
   static String? get discoveredHost {
     final host = _discoveredHost?.trim();
     if (host == null || host.isEmpty) return null;
@@ -167,6 +206,11 @@ class VeritabaniYapilandirma {
     final pass = _cloudPassword ?? '';
     return host.isNotEmpty && db.isNotEmpty && user.isNotEmpty && pass.isNotEmpty;
   }
+
+  /// Desktop `cloud_pending` modunda: admin panelden gelen bulut kimlikleri kaydedilmiş olabilir,
+  /// ama Postgres bağlantısı henüz gerçek anlamda hazır olmayabilir (yanlış şifre/db adı vb.).
+  /// Bu flag sadece "bağlanabilirlik" kontrolü başarılı olunca true olur.
+  static bool get desktopCloudConnectionReady => _desktopCloudConnectionReady;
 
   // Cloud kimliklerini "mod"a bakmadan okuyabilmek için (ör: local<->cloud veri aktarımı)
   static String? get cloudHost {
@@ -214,6 +258,7 @@ class VeritabaniYapilandirma {
     await prefs.setBool(_prefCloudSslRequired, sslRequired);
 
     debugPrint('VeritabaniYapilandirma: Bulut kimlikleri kaydedildi.');
+    _syncDesktopCloudPendingWatcher();
   }
 
   static Future<void> clearCloudDatabaseCredentials() async {
@@ -223,6 +268,7 @@ class VeritabaniYapilandirma {
     _cloudPassword = null;
     _cloudDatabase = null;
     _cloudSslRequired = null;
+    _desktopCloudConnectionReady = false;
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefCloudHost);
     await prefs.remove(_prefCloudPort);
@@ -231,6 +277,7 @@ class VeritabaniYapilandirma {
     await prefs.remove(_prefCloudDatabase);
     await prefs.remove(_prefCloudSslRequired);
     debugPrint('VeritabaniYapilandirma: Bulut kimlikleri temizlendi.');
+    _syncDesktopCloudPendingWatcher();
   }
   static String get _legacyPassword =>
       String.fromCharCodes(_legacyPasswordBytes);
@@ -577,5 +624,151 @@ class VeritabaniYapilandirma {
     _discoveredHost =
         (normalizedHost != null && normalizedHost.isNotEmpty) ? normalizedHost : null;
     debugPrint('VeritabaniYapilandirma: Host güncellendi -> $_discoveredHost');
+  }
+
+  static void _syncDesktopCloudPendingWatcher() {
+    if (kIsWeb) return;
+    if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return;
+
+    // Pending değilse dinlemeyi durdur.
+    if (!isCloudPending) {
+      _desktopCloudPendingTimer?.cancel();
+      _desktopCloudPendingTimer = null;
+      _desktopCloudPendingCheckInFlight = false;
+      _desktopCloudPendingRequestSent = false;
+      _desktopCloudReadyEmitted = false;
+      _desktopCloudConnectionReady = false;
+      return;
+    }
+
+    // Pending + bağlantı hazırsa: tek seferlik UI sinyali üret.
+    if (cloudCredentialsReady && _desktopCloudConnectionReady) {
+      if (!_desktopCloudReadyEmitted) {
+        _desktopCloudReadyEmitted = true;
+        desktopCloudReadyTick.value = desktopCloudReadyTick.value + 1;
+      }
+      _desktopCloudPendingTimer?.cancel();
+      _desktopCloudPendingTimer = null;
+      return;
+    }
+
+    // Pending + hazır değil: timer yoksa başlat.
+    if (_desktopCloudPendingTimer != null) return;
+    _desktopCloudPendingTimer = Timer.periodic(
+      const Duration(seconds: 12),
+      (_) => unawaited(_checkDesktopCloudPendingCredentials()),
+    );
+
+    // İlk kontrolü geciktirmeden yap.
+    unawaited(_checkDesktopCloudPendingCredentials());
+  }
+
+  static Future<void> _ensureSupabaseInitialized() async {
+    try {
+      await Supabase.initialize(url: LisansServisi.u, anonKey: LisansServisi.k);
+    } catch (_) {
+      // Zaten başlatılmış olabilir.
+    }
+  }
+
+  static Future<void> _checkDesktopCloudPendingCredentials() async {
+    if (_desktopCloudPendingCheckInFlight) return;
+    if (kIsWeb) return;
+    if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return;
+    if (!isCloudPending) return;
+
+    _desktopCloudPendingCheckInFlight = true;
+    try {
+      await _ensureSupabaseInitialized();
+
+      try {
+        await LisansServisi().baslat();
+      } catch (_) {}
+
+      final hardwareId = LisansServisi().hardwareId;
+      if (hardwareId == null || hardwareId.trim().isEmpty) return;
+
+      final creds = await OnlineVeritabaniServisi().kimlikleriGetir(
+        hardwareId.trim(),
+      );
+      if (creds == null) {
+        _desktopCloudConnectionReady = false;
+        // Admin panel görünürlüğü için talebi upsert et (best-effort, tek sefer).
+        if (!_desktopCloudPendingRequestSent) {
+          _desktopCloudPendingRequestSent = true;
+          unawaited(
+            OnlineVeritabaniServisi().talepGonder(
+              hardwareId: hardwareId.trim(),
+              source: 'desktop_pending',
+            ),
+          );
+        }
+        return;
+      }
+
+      await saveCloudDatabaseCredentials(
+        host: creds.host,
+        port: creds.port,
+        username: creds.username,
+        password: creds.password,
+        database: creds.database,
+        sslRequired: creds.sslRequired,
+      );
+
+      final ok = await testSavedCloudDatabaseConnection(
+        timeout: const Duration(seconds: 6),
+      );
+      _desktopCloudConnectionReady = ok;
+    } catch (e) {
+      debugPrint('VeritabaniYapilandirma: Desktop pending kontrol hatası: $e');
+    } finally {
+      _desktopCloudPendingCheckInFlight = false;
+      _syncDesktopCloudPendingWatcher();
+    }
+  }
+
+  static Future<bool> testSavedCloudDatabaseConnection({
+    Duration timeout = const Duration(seconds: 6),
+  }) async {
+    if (!cloudCredentialsReady) return false;
+
+    final host = _cloudHost?.trim() ?? '';
+    final db = _cloudDatabase?.trim() ?? '';
+    final user = _cloudUsername?.trim() ?? '';
+    final pass = _cloudPassword ?? '';
+    if (host.isEmpty || db.isEmpty || user.isEmpty || pass.isEmpty) return false;
+
+    final port = _cloudPort ?? _defaultPort;
+    final requiredSsl = _cloudSslRequired ?? true;
+
+    Connection? conn;
+    try {
+      conn = await Connection.open(
+        Endpoint(
+          host: host,
+          port: port,
+          database: db,
+          username: user,
+          password: pass,
+        ),
+        settings: ConnectionSettings(
+          sslMode: requiredSsl ? SslMode.require : SslMode.disable,
+          connectTimeout: timeout,
+        ),
+      );
+      await conn.execute('SELECT 1');
+      return true;
+    } on SocketException {
+      return false;
+    } on ServerException {
+      return false;
+    } catch (e) {
+      debugPrint('VeritabaniYapilandirma: Bulut bağlantı testi hatası: $e');
+      return false;
+    } finally {
+      try {
+        await conn?.close();
+      } catch (_) {}
+    }
   }
 }

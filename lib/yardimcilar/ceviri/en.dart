@@ -14,6 +14,7 @@ const Map<String, String> enCeviriler = {
   'common.save': 'Save',
   'common.save_as': 'Save As',
   'common.cancel': 'Cancel',
+  'common.continue': 'Continue',
   'common.search': 'Search...',
   'common.active': 'Active',
   'common.passive': 'Passive',
@@ -282,6 +283,23 @@ const Map<String, String> enCeviriler = {
   'setup.cloud.preparing_title': 'Online Database Preparing',
   'setup.cloud.preparing_message':
       'Your remote/cloud database is being prepared. You will be notified when the setup is completed.',
+  'dbsync.desktop.local_to_cloud.intro':
+      'Your online database settings are ready. Choose an option below to switch to the cloud.',
+  'dbsync.desktop.cloud_to_local.intro':
+      'Choose an option below to switch to the local database.',
+  'dbsync.option.none.title': 'Do nothing',
+  'dbsync.option.none.desc.local_to_cloud':
+      'Switch to the cloud without transferring local data. Existing cloud data (if any) stays as is.',
+  'dbsync.option.none.desc.cloud_to_local':
+      'Switch to local without transferring cloud data. Existing local data stays as is.',
+  'dbsync.option.full.desc.local_to_cloud':
+      'Deletes all data in the cloud database and copies local data exactly. (Cannot be undone)',
+  'dbsync.option.full.desc.cloud_to_local':
+      'Deletes all data in the local database and copies cloud data exactly. (Cannot be undone)',
+  'dbsync.option.merge.desc.local_to_cloud':
+      'Keeps existing cloud data; adds missing records from local and updates conflicting records.',
+  'dbsync.option.merge.desc.cloud_to_local':
+      'Keeps existing local data; adds missing records from cloud and updates conflicting records.',
   'dbsync.title': 'Data Transfer',
   'dbsync.local_to_cloud.message':
       'Do you want to transfer the local database data to the cloud?\n\n'
@@ -298,6 +316,8 @@ const Map<String, String> enCeviriler = {
   'dbsync.progress.message': 'Transferring data. Please do not close the app.',
   'dbsync.success': 'Data transfer completed.',
   'dbsync.error': 'Data transfer failed: {error}',
+  'dbsync.prepare_failed':
+      'Transfer preparation failed. Please check database connections and try again.',
   'setup.cloud.error_title': 'Online Database Error',
   'setup.cloud.check_now': 'Check Now',
   'setup.cloud.open_setup_options': 'Setup Options',

@@ -123,7 +123,18 @@ class UrunlerVeritabaniServisi {
         // Arka plan görevlerini başlat (İndeksleme vb.)
         // Mobil+Bulut'ta kullanıcı işlemlerini bloklamamak için ağır bakım işleri kapalı.
         if (_yapilandirma.allowBackgroundDbMaintenance) {
-          _verileriIndeksle();
+          // Arka plan işi: asla uygulamayı çökertmesin.
+          unawaited(
+            Future<void>.delayed(const Duration(seconds: 2), () async {
+              try {
+                await _verileriIndeksle();
+              } catch (e) {
+                debugPrint(
+                  'UrunlerVeritabaniServisi: Arka plan indeksleme hatası (yutuldu): $e',
+                );
+              }
+            }),
+          );
         }
       }
     } catch (e) {
@@ -151,9 +162,13 @@ class UrunlerVeritabaniServisi {
     _isIndexingActive = true;
 
     try {
+      final pool = _pool;
+      if (pool == null || !pool.isOpen) return;
+
       // 1. AŞAMA: Sadece Eksik Olan Ürün Bilgilerini İndeksle (Batch Loop)
       while (true) {
-        final result = await _pool!.execute('''
+        if (!pool.isOpen) break;
+        final result = await pool.execute('''
            WITH batch AS (
              SELECT id FROM products 
              WHERE search_tags IS NULL 
@@ -191,16 +206,19 @@ class UrunlerVeritabaniServisi {
 
       // 2. AŞAMA: Sevkiyat Geçmişini Üzerine Ekle (Batch Loop)
       // Sadece 'search_tags' içinde 'sevkiyat' ibaresi geçmeyenleri işle
-      final depsOk = await _pool!.execute(
+      if (!pool.isOpen) return;
+      final depsOk = await pool.execute(
         "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'depots' LIMIT 1",
       );
-      final shipsOk = await _pool!.execute(
+      if (!pool.isOpen) return;
+      final shipsOk = await pool.execute(
         "SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'shipments' LIMIT 1",
       );
 
       if (depsOk.isNotEmpty && shipsOk.isNotEmpty) {
         while (true) {
-          final result = await _pool!.execute('''
+          if (!pool.isOpen) break;
+          final result = await pool.execute('''
         WITH targets AS (
             SELECT kod FROM products 
             WHERE search_tags NOT LIKE '%sevkiyat%' AND search_tags NOT LIKE '%devir%'
@@ -258,7 +276,8 @@ class UrunlerVeritabaniServisi {
       // 3. AŞAMA: Cihaz Bilgilerini (Seri No, IMEI) Üzerine Ekle (Batch Loop)
       // Sadece 'search_tags' içinde 'seri_no' veya 'imei' ibaresi geçmeyenleri işle
       while (true) {
-        final result = await _pool!.execute('''
+        if (!pool.isOpen) break;
+        final result = await pool.execute('''
         WITH targets AS (
             SELECT id FROM products 
             WHERE search_tags NOT LIKE '%cihaz_kimlik%'
@@ -292,10 +311,11 @@ class UrunlerVeritabaniServisi {
   }
 
   Future<void> baglantiyiKapat() async {
-    if (_pool != null) {
-      await _pool!.close();
-    }
+    final pool = _pool;
     _pool = null;
+    if (pool != null) {
+      await pool.close();
+    }
     _isInitialized = false;
   }
 

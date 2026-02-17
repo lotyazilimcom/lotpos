@@ -32,6 +32,7 @@ import 'package:patisyov10/sayfalar/alimsatimislemleri/perakende_satis_sayfasi.d
 import 'package:patisyov10/sayfalar/alimsatimislemleri/hizli_satis_sayfasi.dart';
 import 'sayfalar/urunler_ve_depolar/urunler/urunler_sayfasi.dart';
 import 'sayfalar/urunler_ve_depolar/uretimler/uretimler_sayfasi.dart';
+import 'bilesenler/veritabani_aktarim_secim_dialog.dart';
 import 'sayfalar/carihesaplar/cari_hesaplar_sayfasi.dart';
 import 'sayfalar/kasalar/kasalar_sayfasi.dart';
 import 'sayfalar/bankalar/bankalar_sayfasi.dart';
@@ -49,7 +50,10 @@ import 'sayfalar/ayarlar/moduller/moduller_sayfasi.dart';
 import 'sayfalar/urunler_ve_depolar/urunler/urun_karti_sayfasi.dart';
 import 'sayfalar/urunler_ve_depolar/urunler/modeller/urun_model.dart';
 import 'servisler/lisans_servisi.dart';
+import 'servisler/veritabani_aktarim_servisi.dart';
 import 'sayfalar/baslangic/bootstrap_sayfasi.dart';
+import 'servisler/veritabani_yapilandirma.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -115,6 +119,8 @@ class _MyAppState extends State<MyApp>
   Timer? _heartbeatTimer;
   final GlobalKey<NavigatorState> _rootNavigatorKey =
       GlobalKey<NavigatorState>();
+  bool _desktopCloudReadyDialogOpen = false;
+  bool _desktopCloudReadyRetryScheduled = false;
 
   @override
   void initState() {
@@ -122,6 +128,14 @@ class _MyAppState extends State<MyApp>
     WidgetsBinding.instance.addObserver(this);
     windowManager.addListener(this);
     _initWindow();
+
+    VeritabaniYapilandirma.desktopCloudReadyTick.addListener(
+      _onDesktopCloudCredentialsReady,
+    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_maybePromptDesktopCloudReady());
+    });
 
     // Heartbeat başlatan timer (Her 5 dakikada bir)
     _heartbeatTimer = Timer.periodic(const Duration(minutes: 5), (timer) {
@@ -141,8 +155,111 @@ class _MyAppState extends State<MyApp>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     windowManager.removeListener(this);
+    VeritabaniYapilandirma.desktopCloudReadyTick.removeListener(
+      _onDesktopCloudCredentialsReady,
+    );
     _heartbeatTimer?.cancel();
     super.dispose();
+  }
+
+  void _onDesktopCloudCredentialsReady() {
+    if (!mounted) return;
+    unawaited(_maybePromptDesktopCloudReady());
+  }
+
+  Future<void> _maybePromptDesktopCloudReady() async {
+    if (_desktopCloudReadyDialogOpen) return;
+    if (kIsWeb) return;
+    if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) return;
+    if (!CeviriServisi().yuklendi) {
+      if (_desktopCloudReadyRetryScheduled) return;
+      _desktopCloudReadyRetryScheduled = true;
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
+        _desktopCloudReadyRetryScheduled = false;
+        if (!mounted) return;
+        unawaited(_maybePromptDesktopCloudReady());
+      });
+      return;
+    }
+
+    final isPending = VeritabaniYapilandirma.connectionMode ==
+        VeritabaniYapilandirma.cloudPendingMode;
+    if (!isPending) return;
+    if (!VeritabaniYapilandirma.cloudCredentialsReady) return;
+    if (!VeritabaniYapilandirma.desktopCloudConnectionReady) return;
+
+    final ctx = _rootNavigatorKey.currentContext;
+    if (ctx == null) return;
+
+    _desktopCloudReadyDialogOpen = true;
+    try {
+      final secim = await veritabaniAktarimSecimDialogGoster(
+        context: ctx,
+        localToCloud: true,
+        barrierDismissible: false,
+      );
+
+      if (secim == null) return;
+
+      if (secim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+        await VeritabaniAktarimServisi().niyetTemizle();
+
+        await VeritabaniYapilandirma.saveConnectionPreferences(
+          'cloud',
+          VeritabaniYapilandirma.discoveredHost,
+        );
+
+        final nav = _rootNavigatorKey.currentState;
+        if (nav == null) return;
+        nav.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
+          (_) => false,
+        );
+        return;
+      }
+
+      final choiceValue =
+          secim == DesktopVeritabaniAktarimSecimi.birlestir ? 'merge' : 'full';
+
+      // Güvenlik: niyet kaydı yoksa oluştur (best-effort)
+      final aktarim = VeritabaniAktarimServisi();
+      final niyet = await aktarim.niyetOku();
+      if (niyet == null) {
+        final localHost =
+            (VeritabaniYapilandirma.discoveredHost ?? '127.0.0.1').trim();
+        await aktarim.niyetKaydet(
+          VeritabaniAktarimNiyeti(
+            fromMode: 'local',
+            toMode: 'cloud',
+            localHost: localHost.isEmpty ? null : localHost,
+            localCompanyDb: OturumServisi().aktifVeritabaniAdi,
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        VeritabaniYapilandirma.prefPendingTransferChoiceKey,
+        choiceValue,
+      );
+
+      await VeritabaniYapilandirma.saveConnectionPreferences(
+        'cloud',
+        VeritabaniYapilandirma.discoveredHost,
+      );
+
+      final nav = _rootNavigatorKey.currentState;
+      if (nav == null) return;
+      nav.pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
+        (_) => false,
+      );
+    } finally {
+      _desktopCloudReadyDialogOpen = false;
+    }
   }
 
   @override

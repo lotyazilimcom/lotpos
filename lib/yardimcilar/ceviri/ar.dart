@@ -7,6 +7,7 @@ const Map<String, String> arCeviriler = {
   'common.save': 'حفظ',
   'common.save_as': 'حفظ باسم',
   'common.cancel': 'إلغاء',
+  'common.continue': 'متابعة',
   'common.search': 'بحث...',
   'common.active': 'نشط',
   'common.passive': 'غير نشط',
@@ -274,6 +275,23 @@ const Map<String, String> arCeviriler = {
   'setup.cloud.preparing_title': 'يتم إعداد قاعدة البيانات عبر الإنترنت',
   'setup.cloud.preparing_message':
       'يتم إعداد قاعدة البيانات البعيدة/السحابية. سيتم إشعارك عند اكتمال الإعداد.',
+  'dbsync.desktop.local_to_cloud.intro':
+      'إعدادات قاعدة البيانات عبر الإنترنت جاهزة. اختر خيارًا أدناه للانتقال إلى السحابة.',
+  'dbsync.desktop.cloud_to_local.intro':
+      'اختر خيارًا أدناه للانتقال إلى قاعدة البيانات المحلية.',
+  'dbsync.option.none.title': 'لا تفعل شيئًا',
+  'dbsync.option.none.desc.local_to_cloud':
+      'الانتقال إلى السحابة دون نقل بياناتك المحلية. تبقى بيانات السحابة الحالية (إن وجدت) كما هي.',
+  'dbsync.option.none.desc.cloud_to_local':
+      'الانتقال إلى المحلي دون نقل بيانات السحابة. تبقى بيانات المحلي الحالية كما هي.',
+  'dbsync.option.full.desc.local_to_cloud':
+      'يحذف جميع البيانات في قاعدة بيانات السحابة ثم ينسخ بيانات المحلي بالكامل. (لا يمكن التراجع)',
+  'dbsync.option.full.desc.cloud_to_local':
+      'يحذف جميع البيانات في قاعدة البيانات المحلية ثم ينسخ بيانات السحابة بالكامل. (لا يمكن التراجع)',
+  'dbsync.option.merge.desc.local_to_cloud':
+      'يحافظ على بيانات السحابة؛ يضيف السجلات الناقصة من المحلي ويحدّث السجلات المتعارضة.',
+  'dbsync.option.merge.desc.cloud_to_local':
+      'يحافظ على بيانات المحلي؛ يضيف السجلات الناقصة من السحابة ويحدّث السجلات المتعارضة.',
   'dbsync.title': 'نقل البيانات',
   'dbsync.local_to_cloud.message':
       'هل تريد نقل بيانات قاعدة البيانات المحلية إلى السحابة؟\n\n'
@@ -290,6 +308,8 @@ const Map<String, String> arCeviriler = {
   'dbsync.progress.message': 'يتم نقل البيانات. يرجى عدم إغلاق التطبيق.',
   'dbsync.success': 'اكتمل نقل البيانات.',
   'dbsync.error': 'فشل نقل البيانات: {error}',
+  'dbsync.prepare_failed':
+      'فشل تجهيز النقل. يرجى التحقق من اتصالات قاعدة البيانات والمحاولة مرة أخرى.',
   'setup.cloud.error_title': 'خطأ في قاعدة البيانات عبر الإنترنت',
   'setup.cloud.check_now': 'تحقق الآن',
   'setup.cloud.open_setup_options': 'خيارات الإعداد',

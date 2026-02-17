@@ -66,7 +66,18 @@ class TekliflerVeritabaniServisi {
           );
         }
         if (_yapilandirma.allowBackgroundDbMaintenance) {
-          _verileriIndeksle();
+          // Arka plan işi: asla uygulamayı çökertmesin.
+          unawaited(
+            Future<void>.delayed(const Duration(seconds: 2), () async {
+              try {
+                await _verileriIndeksle();
+              } catch (e) {
+                debugPrint(
+                  'TekliflerVeritabaniServisi: Arka plan indeksleme hatası (yutuldu): $e',
+                );
+              }
+            }),
+          );
         }
         _isInitialized = true;
         debugPrint('Teklifler veritabanı bağlantısı başarılı (Havuz)');
@@ -82,10 +93,11 @@ class TekliflerVeritabaniServisi {
   }
 
   Future<void> baglantiyiKapat() async {
-    if (_pool != null) {
-      await _pool!.close();
-    }
+    final pool = _pool;
     _pool = null;
+    if (pool != null) {
+      await pool.close();
+    }
     _isInitialized = false;
   }
 
@@ -94,8 +106,12 @@ class TekliflerVeritabaniServisi {
     _isIndexingActive = true;
 
     try {
+      final pool = _pool;
+      if (pool == null || !pool.isOpen) return;
+
       while (true) {
-        final result = await _pool!.execute('''
+        if (!pool.isOpen) break;
+        final result = await pool.execute('''
            WITH batch AS (
              SELECT id FROM quotes 
              WHERE search_tags IS NULL OR search_tags NOT LIKE '%|v6|%'

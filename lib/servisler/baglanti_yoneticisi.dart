@@ -10,6 +10,7 @@ import 'local_network_discovery_service.dart';
 import 'lisans_servisi.dart';
 import 'online_veritabani_servisi.dart';
 import 'ayarlar_veritabani_servisi.dart';
+import 'veritabani_baglanti_sifirlayici.dart';
 import '../yardimcilar/ceviri/ceviri_servisi.dart';
 import 'doviz_guncelleme_servisi.dart';
 
@@ -42,6 +43,12 @@ class BaglantiYoneticisi extends ChangeNotifier {
     notifyListeners();
 
     try {
+      // Mod değişimi / yeniden başlatma senaryolarında eski pool'lar açık kalırsa,
+      // yeni bağlantılar yanlış endpoint'e gidebilir veya arka plan işler sırasında
+      // "closed pool / pool lock" hataları tetiklenebilir. Bu yüzden her başlatmada
+      // mevcut havuzları best-effort kapat.
+      await VeritabaniBaglantiSifirlayici().tumunuKapat();
+
       // 1. Temel yapılandırmayı yükle (Zaten main'de yüklendi ama burada garantiye alıyoruz)
       await VeritabaniYapilandirma.loadPersistedConfig();
 
@@ -199,7 +206,13 @@ class BaglantiYoneticisi extends ChangeNotifier {
       sslRequired: creds.sslRequired,
     );
 
-    return VeritabaniYapilandirma.cloudCredentialsReady;
+    if (!VeritabaniYapilandirma.cloudCredentialsReady) return false;
+
+    // Kimlikler kaydedilmiş olsa bile Postgres erişilemeyebilir (yanlış şifre/db adı vb.).
+    // Mobil akışında da "hazır" saymadan önce bağlantıyı doğrula.
+    return VeritabaniYapilandirma.testSavedCloudDatabaseConnection(
+      timeout: const Duration(seconds: 8),
+    );
   }
 
   /// Masaüstü başlatma

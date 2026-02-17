@@ -104,11 +104,24 @@ class VeritabaniAktarimServisi {
     if (!isLocalCloudSwitch) return null;
 
     // Cloud kimlikleri yoksa hazır değil.
-    if ((from == 'cloud' || to == 'cloud') && !VeritabaniYapilandirma.cloudCredentialsReady) {
+    if ((from == 'cloud' || to == 'cloud') &&
+        !VeritabaniYapilandirma.cloudCredentialsReady) {
       return null;
     }
 
-    final localHost = (niyet.localHost ?? VeritabaniYapilandirma.discoveredHost ?? '').trim();
+    // Yerel host:
+    // - Önce niyet içindeki explicit localHost
+    // - Sonra discoveredHost (mobil/tablet)
+    // - Desktop fallback: 127.0.0.1 (discoveredHost null olabilir)
+    String localHost =
+        (niyet.localHost ?? VeritabaniYapilandirma.discoveredHost ?? '').trim();
+    if (localHost.isEmpty && !kIsWeb) {
+      try {
+        if (Platform.isWindows || Platform.isMacOS || Platform.isLinux) {
+          localHost = '127.0.0.1';
+        }
+      } catch (_) {}
+    }
     if ((from == 'local' || to == 'local') && localHost.isEmpty) return null;
 
     final localSettings = _buildLocalConnection(
@@ -185,6 +198,15 @@ class VeritabaniAktarimServisi {
     required _DbConn cloud,
     required VeritabaniAktarimTipi tip,
   }) async {
+    // Güvenlik: kaynak/hedef aynı görünüyorsa asla truncate/aktarim yapma.
+    if (_isSameEndpoint(cloud, localSettings) ||
+        _isSameEndpoint(cloud, localCompany)) {
+      throw StateError(
+        'Veri aktarımı iptal edildi: Kaynak ve hedef veritabanı aynı görünüyor. '
+        'Bağlantı ayarlarını kontrol edin.',
+      );
+    }
+
     Connection? sSettings;
     Connection? sCompany;
     Connection? tCloud;
@@ -194,9 +216,13 @@ class VeritabaniAktarimServisi {
       sCompany = await _open(localCompany);
       tCloud = await _open(cloud);
 
-      final targetTables = await _listTables(tCloud);
-      final settingsTables = await _listTables(sSettings);
-      final companyTables = await _listTables(sCompany);
+      final Connection sSettingsConn = sSettings!;
+      final Connection sCompanyConn = sCompany!;
+      final Connection tCloudConn = tCloud!;
+
+      final targetTables = await _listTables(tCloudConn);
+      final settingsTables = await _listTables(sSettingsConn);
+      final companyTables = await _listTables(sCompanyConn);
 
       final Set<String> tableSet = <String>{};
       for (final t in targetTables) {
@@ -207,28 +233,91 @@ class VeritabaniAktarimServisi {
       final tables = tableSet.toList()..sort();
       if (tables.isEmpty) return;
 
-      final insertOrder = await _topologicalInsertOrder(tCloud, tables);
+      final insertOrder = await _topologicalInsertOrder(tCloudConn, tables);
 
+      // Tam aktarımda veri kaybını önlemek için: truncate öncesi şema ön-kontrolü.
+      // Her tabloda en az bir kaynakla ortak kolon yoksa copy aşamasında tablo boş kalır.
       if (tip == VeritabaniAktarimTipi.tamAktar) {
-        await _truncateTables(tCloud, tables);
+        final cloudColsCache = <String, List<String>>{};
+        final settingsColsCache = <String, List<String>>{};
+        final companyColsCache = <String, List<String>>{};
+
+        Future<List<String>> colsCached(
+          Connection conn,
+          Map<String, List<String>> cache,
+          String table,
+        ) async {
+          final existing = cache[table];
+          if (existing != null) return existing;
+          final cols = await _columns(conn, table);
+          cache[table] = cols;
+          return cols;
+        }
+
+        bool hasAnyCommon(List<String> a, List<String> b) {
+          if (a.isEmpty || b.isEmpty) return false;
+          final setB = b.toSet();
+          for (final c in a) {
+            if (setB.contains(c)) return true;
+          }
+          return false;
+        }
+
+        final issues = <String>[];
+        for (final table in insertOrder) {
+          final targetCols = await colsCached(tCloudConn, cloudColsCache, table);
+          var ok = false;
+          if (settingsTables.contains(table)) {
+            final srcCols =
+                await colsCached(sSettingsConn, settingsColsCache, table);
+            ok = ok || hasAnyCommon(targetCols, srcCols);
+          }
+          if (companyTables.contains(table)) {
+            final srcCols =
+                await colsCached(sCompanyConn, companyColsCache, table);
+            ok = ok || hasAnyCommon(targetCols, srcCols);
+          }
+          if (!ok) issues.add(table);
+        }
+
+        if (issues.isNotEmpty) {
+          final shown = issues.take(12).join(', ');
+          final extra = issues.length > 12 ? ' (+${issues.length - 12})' : '';
+          throw StateError(
+            'Tam aktarım yapılamadı: Şema uyumsuzluğu. '
+            'Aşağıdaki tablolar için ortak kolon bulunamadı: $shown$extra',
+          );
+        }
       }
 
-      for (final table in insertOrder) {
-        final List<_DbSource> sources = <_DbSource>[];
-        // Önce settings, sonra company (çakışmada company kazansın).
-        if (settingsTables.contains(table)) sources.add(_DbSource(sSettings, 'settings'));
-        if (companyTables.contains(table)) sources.add(_DbSource(sCompany, 'company'));
-        if (sources.isEmpty) continue;
+      await _withTransaction(tCloudConn, () async {
+        if (tip == VeritabaniAktarimTipi.tamAktar) {
+          // Tam aktarım: sadece aktaracağımız tabloları temizle (CASCADE kullanma).
+          // Böylece hedefte olup kaynakta olmayan tablolar yanlışlıkla boşaltılmaz.
+          await _truncateTables(tCloudConn, tables);
+        }
 
-        await _copyTableFromMultipleSources(
-          sources: sources,
-          target: tCloud,
-          table: table,
-          tip: tip,
-        );
-      }
+        for (final table in insertOrder) {
+          final List<_DbSource> sources = <_DbSource>[];
+          // Önce settings, sonra company (çakışmada company kazansın).
+          if (settingsTables.contains(table)) {
+            sources.add(_DbSource(sSettingsConn, 'settings'));
+          }
+          if (companyTables.contains(table)) {
+            sources.add(_DbSource(sCompanyConn, 'company'));
+          }
+          if (sources.isEmpty) continue;
 
-      await _fixSequences(tCloud, tables);
+          await _copyTableFromMultipleSources(
+            sources: sources,
+            target: tCloudConn,
+            table: table,
+            tip: tip,
+          );
+        }
+
+        await _fixSequences(tCloudConn, tables);
+      });
     } finally {
       await _safeClose(sSettings);
       await _safeClose(sCompany);
@@ -242,6 +331,16 @@ class VeritabaniAktarimServisi {
     required _DbConn localCompany,
     required VeritabaniAktarimTipi tip,
   }) async {
+    // Güvenlik: kaynak/hedef aynı görünüyorsa asla truncate/aktarim yapma.
+    if (_isSameEndpoint(cloud, localSettings) ||
+        _isSameEndpoint(cloud, localCompany) ||
+        _isSameEndpoint(localSettings, localCompany)) {
+      throw StateError(
+        'Veri aktarımı iptal edildi: Kaynak ve hedef veritabanı aynı görünüyor. '
+        'Bağlantı ayarlarını kontrol edin.',
+      );
+    }
+
     Connection? sCloud;
     Connection? tSettings;
     Connection? tCompany;
@@ -251,9 +350,13 @@ class VeritabaniAktarimServisi {
       tSettings = await _open(localSettings);
       tCompany = await _open(localCompany);
 
-      final sourceTables = await _listTables(sCloud);
-      final settingsTables = await _listTables(tSettings);
-      final companyTables = await _listTables(tCompany);
+      final Connection sCloudConn = sCloud!;
+      final Connection tSettingsConn = tSettings!;
+      final Connection tCompanyConn = tCompany!;
+
+      final sourceTables = await _listTables(sCloudConn);
+      final settingsTables = await _listTables(tSettingsConn);
+      final companyTables = await _listTables(tCompanyConn);
 
       final Set<String> settingsCopy = <String>{};
       final Set<String> companyCopy = <String>{};
@@ -265,38 +368,124 @@ class VeritabaniAktarimServisi {
 
       final settingsList = settingsCopy.toList()..sort();
       final companyList = companyCopy.toList()..sort();
+      if (settingsList.isEmpty && companyList.isEmpty) return;
 
       final settingsOrder = settingsList.isEmpty
           ? const <String>[]
-          : await _topologicalInsertOrder(tSettings, settingsList);
+          : await _topologicalInsertOrder(tSettingsConn, settingsList);
       final companyOrder = companyList.isEmpty
           ? const <String>[]
-          : await _topologicalInsertOrder(tCompany, companyList);
+          : await _topologicalInsertOrder(tCompanyConn, companyList);
 
+      // Tam aktarımda veri kaybını önlemek için: truncate öncesi şema ön-kontrolü.
       if (tip == VeritabaniAktarimTipi.tamAktar) {
-        if (settingsList.isNotEmpty) await _truncateTables(tSettings, settingsList);
-        if (companyList.isNotEmpty) await _truncateTables(tCompany, companyList);
+        final cloudColsCache = <String, List<String>>{};
+        final settingsColsCache = <String, List<String>>{};
+        final companyColsCache = <String, List<String>>{};
+
+        Future<List<String>> colsCached(
+          Connection conn,
+          Map<String, List<String>> cache,
+          String table,
+        ) async {
+          final existing = cache[table];
+          if (existing != null) return existing;
+          final cols = await _columns(conn, table);
+          cache[table] = cols;
+          return cols;
+        }
+
+        bool hasAnyCommon(List<String> a, List<String> b) {
+          if (a.isEmpty || b.isEmpty) return false;
+          final setB = b.toSet();
+          for (final c in a) {
+            if (setB.contains(c)) return true;
+          }
+          return false;
+        }
+
+        final issues = <String>[];
+        for (final table in settingsOrder) {
+          final targetCols =
+              await colsCached(tSettingsConn, settingsColsCache, table);
+          final srcCols = await colsCached(sCloudConn, cloudColsCache, table);
+          if (!hasAnyCommon(targetCols, srcCols)) {
+            issues.add('settings.$table');
+          }
+        }
+        for (final table in companyOrder) {
+          final targetCols =
+              await colsCached(tCompanyConn, companyColsCache, table);
+          final srcCols = await colsCached(sCloudConn, cloudColsCache, table);
+          if (!hasAnyCommon(targetCols, srcCols)) {
+            issues.add('company.$table');
+          }
+        }
+
+        if (issues.isNotEmpty) {
+          final shown = issues.take(12).join(', ');
+          final extra = issues.length > 12 ? ' (+${issues.length - 12})' : '';
+          throw StateError(
+            'Tam aktarım yapılamadı: Şema uyumsuzluğu. '
+            'Aşağıdaki tablolar için ortak kolon bulunamadı: $shown$extra',
+          );
+        }
       }
 
-      for (final table in settingsOrder) {
-        await _copyTableFromMultipleSources(
-          sources: <_DbSource>[_DbSource(sCloud, 'cloud')],
-          target: tSettings,
-          table: table,
-          tip: tip,
-        );
-      }
-      for (final table in companyOrder) {
-        await _copyTableFromMultipleSources(
-          sources: <_DbSource>[_DbSource(sCloud, 'cloud')],
-          target: tCompany,
-          table: table,
-          tip: tip,
-        );
-      }
+      // Cloud -> Local: iki ayrı DB var. Partial state bırakmamak için mümkün olduğunca
+      // iki hedefi de transaction içinde güncelle (TRUNCATE dahil rollback edilebilir).
+      await tSettingsConn.execute('BEGIN');
+      await tCompanyConn.execute('BEGIN');
+      try {
+        try {
+          await tSettingsConn.execute('SET CONSTRAINTS ALL DEFERRED');
+        } catch (_) {}
+        try {
+          await tCompanyConn.execute('SET CONSTRAINTS ALL DEFERRED');
+        } catch (_) {}
 
-      if (settingsList.isNotEmpty) await _fixSequences(tSettings, settingsList);
-      if (companyList.isNotEmpty) await _fixSequences(tCompany, companyList);
+        if (tip == VeritabaniAktarimTipi.tamAktar) {
+          // Tam aktarım: sadece aktaracağımız tabloları temizle (CASCADE kullanma).
+          // Böylece hedefte olup kaynakta olmayan tablolar yanlışlıkla boşaltılmaz.
+          await _truncateTables(tSettingsConn, settingsList);
+          await _truncateTables(tCompanyConn, companyList);
+        }
+
+        for (final table in settingsOrder) {
+          await _copyTableFromMultipleSources(
+            sources: <_DbSource>[_DbSource(sCloudConn, 'cloud')],
+            target: tSettingsConn,
+            table: table,
+            tip: tip,
+          );
+        }
+        for (final table in companyOrder) {
+          await _copyTableFromMultipleSources(
+            sources: <_DbSource>[_DbSource(sCloudConn, 'cloud')],
+            target: tCompanyConn,
+            table: table,
+            tip: tip,
+          );
+        }
+
+        if (settingsList.isNotEmpty) {
+          await _fixSequences(tSettingsConn, settingsList);
+        }
+        if (companyList.isNotEmpty) {
+          await _fixSequences(tCompanyConn, companyList);
+        }
+
+        await tSettingsConn.execute('COMMIT');
+        await tCompanyConn.execute('COMMIT');
+      } catch (_) {
+        try {
+          await tSettingsConn.execute('ROLLBACK');
+        } catch (_) {}
+        try {
+          await tCompanyConn.execute('ROLLBACK');
+        } catch (_) {}
+        rethrow;
+      }
     } finally {
       await _safeClose(sCloud);
       await _safeClose(tSettings);
@@ -351,6 +540,8 @@ class VeritabaniAktarimServisi {
   }) async {
     // Cursor ile batch oku, batch insert.
     final cursorName = 'cur_${DateTime.now().microsecondsSinceEpoch}';
+    // Parametre limiti (65535) ve SQL boyutu için güvenli batch boyutu.
+    final batchSize = _safeBatchSize(columns.length);
     final selectSql =
         'SELECT ${columns.map(_qi).join(', ')} FROM ${_qt(table)}';
 
@@ -359,7 +550,9 @@ class VeritabaniAktarimServisi {
       await source.execute('DECLARE $cursorName NO SCROLL CURSOR FOR $selectSql');
 
       while (true) {
-        final batch = await source.execute('FETCH FORWARD 200 FROM $cursorName');
+        final batch = await source.execute(
+          'FETCH FORWARD $batchSize FROM $cursorName',
+        );
         if (batch.isEmpty) break;
 
         final rows = <List<dynamic>>[];
@@ -399,7 +592,10 @@ class VeritabaniAktarimServisi {
 
     final params = <String, dynamic>{};
     final sb = StringBuffer();
-    sb.write('INSERT INTO ${_qt(table)} (${columns.map(_qi).join(', ')}) VALUES ');
+    sb.write(
+      'INSERT INTO ${_qt(table)} (${columns.map(_qi).join(', ')}) '
+      'OVERRIDING SYSTEM VALUE VALUES ',
+    );
 
     for (var i = 0; i < rows.length; i++) {
       final row = rows[i];
@@ -588,7 +784,43 @@ class VeritabaniAktarimServisi {
     if (tables.isEmpty) return;
     final list = tables.map(_qt).join(', ');
     // RESTART IDENTITY: serial/identity alanlar sıfırlansın.
-    await conn.execute('TRUNCATE TABLE $list RESTART IDENTITY CASCADE');
+    // NOT: CASCADE kullanma. Aksi halde listede olmayan tablolar da boşalabilir ve veri kaybına yol açar.
+    await conn.execute('TRUNCATE TABLE $list RESTART IDENTITY');
+  }
+
+  static bool _isSameEndpoint(_DbConn a, _DbConn b) {
+    final ah = a.host.trim().toLowerCase();
+    final bh = b.host.trim().toLowerCase();
+    final ad = a.database.trim().toLowerCase();
+    final bd = b.database.trim().toLowerCase();
+    return ah == bh && a.port == b.port && ad == bd;
+  }
+
+  static int _safeBatchSize(int columnCount) {
+    if (columnCount <= 0) return 200;
+    const int maxParams = 60000;
+    final rows = maxParams ~/ columnCount;
+    if (rows <= 0) return 1;
+    return rows > 500 ? 500 : rows;
+  }
+
+  Future<void> _withTransaction(
+    Connection conn,
+    Future<void> Function() work,
+  ) async {
+    await conn.execute('BEGIN');
+    try {
+      try {
+        await conn.execute('SET CONSTRAINTS ALL DEFERRED');
+      } catch (_) {}
+      await work();
+      await conn.execute('COMMIT');
+    } catch (_) {
+      try {
+        await conn.execute('ROLLBACK');
+      } catch (_) {}
+      rethrow;
+    }
   }
 
   Future<void> _fixSequences(Connection conn, List<String> tables) async {
@@ -709,7 +941,8 @@ class VeritabaniAktarimServisi {
       ),
       settings: ConnectionSettings(
         sslMode: info.sslMode,
-        connectTimeout: const Duration(seconds: 4),
+        connectTimeout:
+            info.isCloud ? const Duration(seconds: 20) : const Duration(seconds: 6),
         onOpen: (c) async {
           // Var olan tuneConnection sadece "current mode cloud" iken çalışıyor olabilir.
           // Burada bağlantı tipine göre güvenli ayar uygula.

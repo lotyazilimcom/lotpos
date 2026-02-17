@@ -67,7 +67,18 @@ class SiparislerVeritabaniServisi {
         }
         // Arka planda eksik indeksleri tamamla
         if (_yapilandirma.allowBackgroundDbMaintenance) {
-          _verileriIndeksle();
+          // Arka plan işi: asla uygulamayı çökertmesin.
+          unawaited(
+            Future<void>.delayed(const Duration(seconds: 2), () async {
+              try {
+                await _verileriIndeksle();
+              } catch (e) {
+                debugPrint(
+                  'SiparislerVeritabaniServisi: Arka plan indeksleme hatası (yutuldu): $e',
+                );
+              }
+            }),
+          );
         }
         _isInitialized = true;
         debugPrint('Siparisler veritabanı bağlantısı başarılı (Havuz)');
@@ -83,10 +94,11 @@ class SiparislerVeritabaniServisi {
   }
 
   Future<void> baglantiyiKapat() async {
-    if (_pool != null) {
-      await _pool!.close();
-    }
+    final pool = _pool;
     _pool = null;
+    if (pool != null) {
+      await pool.close();
+    }
     _isInitialized = false;
   }
 
@@ -99,8 +111,12 @@ class SiparislerVeritabaniServisi {
     _isIndexingActive = true;
 
     try {
+      final pool = _pool;
+      if (pool == null || !pool.isOpen) return;
+
       while (true) {
-        final result = await _pool!.execute('''
+        if (!pool.isOpen) break;
+        final result = await pool.execute('''
            WITH batch AS (
              SELECT id FROM orders 
              WHERE search_tags IS NULL OR search_tags NOT LIKE '%|v2026|%'
