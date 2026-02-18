@@ -66,8 +66,9 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
       }
       if (!seen.contains(selectedModel)) normalizedModels.add(selectedModel);
 
-      final List<String> finalModels =
-          normalizedModels.isNotEmpty ? normalizedModels : defaultModels;
+      final List<String> finalModels = normalizedModels.isNotEmpty
+          ? normalizedModels
+          : defaultModels;
 
       if (mounted) {
         setState(() {
@@ -302,6 +303,7 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
       primaryText: tr('common.save'),
       onPrimaryPressed: _kaydet,
       primaryLoading: _isLoading,
+      alignment: Alignment.centerRight,
     );
   }
 

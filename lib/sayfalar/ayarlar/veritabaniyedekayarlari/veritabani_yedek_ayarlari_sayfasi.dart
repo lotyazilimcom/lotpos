@@ -310,6 +310,7 @@ class _VeritabaniYedekAyarlariSayfasiState
       primaryText: tr('common.save'),
       onPrimaryPressed: _buildSaveButtonOnPressed,
       textColor: primaryColor,
+      alignment: Alignment.centerRight,
     );
   }
 

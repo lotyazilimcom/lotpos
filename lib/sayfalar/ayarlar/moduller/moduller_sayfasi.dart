@@ -147,6 +147,7 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
                     onSecondaryPressed: _iptalEt,
                     primaryText: tr('common.save'),
                     onPrimaryPressed: _kaydet,
+                    alignment: Alignment.centerRight,
                   ),
                 ],
               ),

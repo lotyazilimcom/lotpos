@@ -15,6 +15,7 @@ class StandartAltAksiyonBar extends StatelessWidget {
     this.maxWidthWide = 850,
     this.primaryColor = const Color(0xFFEA4335),
     this.textColor = const Color(0xFF2C3E50),
+    this.alignment = Alignment.center,
   });
 
   final bool isCompact;
@@ -33,6 +34,7 @@ class StandartAltAksiyonBar extends StatelessWidget {
 
   final Color primaryColor;
   final Color textColor;
+  final AlignmentGeometry alignment;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +52,8 @@ class StandartAltAksiyonBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Center(
+      child: Align(
+        alignment: alignment,
         child: ConstrainedBox(
           constraints: BoxConstraints(
             maxWidth: isCompact ? maxWidthCompact : maxWidthWide,
@@ -65,8 +68,9 @@ class StandartAltAksiyonBar extends StatelessWidget {
     if (isCompact) {
       return LayoutBuilder(
         builder: (context, constraints) {
-          final double maxRowWidth =
-              constraints.maxWidth > 320 ? 320 : constraints.maxWidth;
+          final double maxRowWidth = constraints.maxWidth > 320
+              ? 320
+              : constraints.maxWidth;
           const double gap = 10;
           final double buttonWidth = (maxRowWidth - gap) / 2;
 

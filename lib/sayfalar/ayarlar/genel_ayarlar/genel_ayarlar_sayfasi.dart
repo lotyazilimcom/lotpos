@@ -254,6 +254,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
       onSecondaryPressed: _iptalEt,
       primaryText: tr('settings.general.actions.save'),
       onPrimaryPressed: _kaydet,
+      alignment: Alignment.centerRight,
     );
   }
 
