@@ -213,6 +213,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
             child: Scaffold(
               backgroundColor: Colors.white,
               body: SafeArea(
+                bottom: false,
                 child: Column(
                   children: [
                     _buildHeader(isMobile: isMobile),

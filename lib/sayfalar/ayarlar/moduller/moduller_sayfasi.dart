@@ -130,6 +130,7 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
           child: Scaffold(
             backgroundColor: Colors.white,
             body: SafeArea(
+              bottom: false,
               child: Column(
                 children: [
                   _buildHeader(isMobile: isMobile),
