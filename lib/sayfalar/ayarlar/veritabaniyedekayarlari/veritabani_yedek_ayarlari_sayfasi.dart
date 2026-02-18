@@ -4,10 +4,12 @@ import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:nsd/nsd.dart' show Service;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../bilesenler/veritabani_aktarim_secim_dialog.dart';
+import '../../../bilesenler/standart_alt_aksiyon_bar.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../servisler/lite_ayarlar_servisi.dart';
 import '../../../servisler/lite_kisitlari.dart';
@@ -20,7 +22,15 @@ import '../../../servisler/veritabani_yapilandirma.dart';
 import '../../baslangic/bootstrap_sayfasi.dart';
 
 class VeritabaniYedekAyarlariSayfasi extends StatefulWidget {
-  const VeritabaniYedekAyarlariSayfasi({super.key});
+  const VeritabaniYedekAyarlariSayfasi({
+    super.key,
+    this.standalone = false,
+  });
+
+  /// Bu sayfa ana uygulama menüsünde gömülü olarak da kullanılıyor.
+  /// `standalone: true` olduğunda (örn. giriş ekranından açıldığında) geri/ESC ve
+  /// altta Kaydet/İptal aksiyon barı gösterilir.
+  final bool standalone;
 
   @override
   State<VeritabaniYedekAyarlariSayfasi> createState() =>
@@ -33,6 +43,10 @@ class _VeritabaniYedekAyarlariSayfasiState
   bool _yedeklemeAcik = true;
   String _yedeklemePeriyodu = '15days'; // 15days, monthly, 3months, 6months
   bool _semaIndiriliyor = false;
+
+  late String _kayitliMod;
+  late bool _kayitliYedeklemeAcik;
+  late String _kayitliYedeklemePeriyodu;
 
   @override
   void initState() {
@@ -47,6 +61,10 @@ class _VeritabaniYedekAyarlariSayfasiState
         _seciliMod != 'cloud') {
       _seciliMod = 'local';
     }
+
+    _kayitliMod = _seciliMod;
+    _kayitliYedeklemeAcik = _yedeklemeAcik;
+    _kayitliYedeklemePeriyodu = _yedeklemePeriyodu;
   }
 
   @override
@@ -72,91 +90,254 @@ class _VeritabaniYedekAyarlariSayfasiState
           WidgetsBinding.instance.addPostFrameCallback((_) {
             if (!mounted) return;
             if (_seciliMod == 'hybrid') setState(() => _seciliMod = 'local');
+            if (_kayitliMod == 'hybrid') _kayitliMod = 'local';
           });
         }
 
-        return Scaffold(
-          backgroundColor: Colors.grey.shade50,
-          body: SafeArea(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.all(isMobile ? 14.0 : 24.0),
+        final content = _buildIcerik(
+          primaryColor,
+          isLiteBackupKapali: isLiteBackupKapali,
+          isMobile: isMobile,
+          isMobilePlatform: isMobilePlatform,
+          isDesktopPlatform: isDesktopPlatform,
+          showSaveButton: false,
+        );
+
+        if (!widget.standalone) {
+          final bool isCompactLayout = MediaQuery.sizeOf(context).width < 860;
+          return Scaffold(
+            backgroundColor: Colors.grey.shade50,
+            body: SafeArea(
               child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  _buildHeader(primaryColor, isMobile: isMobile),
-                  if (isLiteBackupKapali) ...[
-                    const SizedBox(height: 16),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: primaryColor.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: primaryColor.withValues(alpha: 0.18),
-                        ),
-                      ),
-                      child: Text(
-                        tr('settings.backup.lite_cloud_hybrid_disabled_banner'),
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w800,
-                          color: primaryColor.withValues(alpha: 0.9),
-                        ),
-                      ),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      padding: EdgeInsets.all(isMobile ? 14.0 : 24.0),
+                      child: content,
                     ),
-                  ],
-                  SizedBox(height: isMobile ? 24 : 32),
-                  _buildSectionTitle(
-                    tr('settings.database.title'),
-                    Icons.storage_rounded,
-                    primaryColor,
-                    isMobile: isMobile,
                   ),
-                  const SizedBox(height: 16),
-                  _buildDatabaseModes(
+                  _buildMenuActionBar(
                     primaryColor,
-                    isLite: isLiteBackupKapali,
-                    isMobile: isMobile,
-                    hideHybridMode: isMobilePlatform,
+                    isCompact: isCompactLayout,
                   ),
-                  SizedBox(height: isMobile ? 24 : 32),
-                  _buildSectionTitle(
-                    tr('settings.backup.title'),
-                    Icons.cloud_upload_rounded,
-                    primaryColor,
-                    isMobile: isMobile,
-                  ),
-                  const SizedBox(height: 16),
-                  _buildBackupSettings(
-                    primaryColor,
-                    isLite: isLiteBackupKapali,
-                    isMobile: isMobile,
-                  ),
-                  if (isDesktopPlatform) ...[
-                    SizedBox(height: isMobile ? 24 : 32),
-                    _buildSectionTitle(
-                      tr('settings.database.schema_export.title'),
-                      Icons.download_rounded,
-                      primaryColor,
-                      isMobile: isMobile,
-                    ),
-                    const SizedBox(height: 16),
-                    _buildYerelSemaIndirmeCard(
-                      primaryColor,
-                      isMobile: isMobile,
-                    ),
-                  ],
-                  SizedBox(height: isMobile ? 32 : 48),
-                  _buildSaveButton(),
                 ],
               ),
+            ),
+          );
+        }
+
+        final theme = Theme.of(context);
+        final bool isCompactLayout = MediaQuery.sizeOf(context).width < 900;
+
+        return Scaffold(
+          backgroundColor: Colors.white,
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                  onPressed: _handleCancel,
+                ),
+                if (isDesktopPlatform)
+                  Text(
+                    tr('common.esc'),
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 11,
+                    ),
+                  ),
+              ],
+            ),
+            leadingWidth: isDesktopPlatform ? 80 : 56,
+            title: Text(
+              tr('nav.settings.database_backup'),
+              style: theme.textTheme.titleLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                fontSize: 21,
+              ),
+            ),
+            centerTitle: false,
+          ),
+          body: FocusScope(
+            autofocus: true,
+            onKeyEvent: _handleKeyEvent,
+            child: Column(
+              children: [
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(16),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 1200),
+                        child: content,
+                      ),
+                    ),
+                  ),
+                ),
+                _buildStandaloneActionBar(
+                  primaryColor,
+                  isCompact: isCompactLayout,
+                ),
+              ],
             ),
           ),
         );
       },
     );
   }
+
+  Widget _buildIcerik(
+    Color primaryColor, {
+    required bool isLiteBackupKapali,
+    required bool isMobile,
+    required bool isMobilePlatform,
+    required bool isDesktopPlatform,
+    required bool showSaveButton,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildHeader(
+          primaryColor,
+          isMobile: isMobile,
+          standalone: widget.standalone,
+        ),
+        if (isLiteBackupKapali) ...[
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: primaryColor.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: primaryColor.withValues(alpha: 0.18),
+              ),
+            ),
+            child: Text(
+              tr('settings.backup.lite_cloud_hybrid_disabled_banner'),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+                color: primaryColor.withValues(alpha: 0.9),
+              ),
+            ),
+          ),
+        ],
+        SizedBox(height: isMobile ? 24 : 32),
+        _buildSectionTitle(
+          tr('settings.database.title'),
+          Icons.storage_rounded,
+          primaryColor,
+          isMobile: isMobile,
+        ),
+        const SizedBox(height: 16),
+        _buildDatabaseModes(
+          primaryColor,
+          isLite: isLiteBackupKapali,
+          isMobile: isMobile,
+          hideHybridMode: isMobilePlatform,
+        ),
+        SizedBox(height: isMobile ? 24 : 32),
+        _buildSectionTitle(
+          tr('settings.backup.title'),
+          Icons.cloud_upload_rounded,
+          primaryColor,
+          isMobile: isMobile,
+        ),
+        const SizedBox(height: 16),
+        _buildBackupSettings(
+          primaryColor,
+          isLite: isLiteBackupKapali,
+          isMobile: isMobile,
+        ),
+        if (isDesktopPlatform) ...[
+          SizedBox(height: isMobile ? 24 : 32),
+          _buildSectionTitle(
+            tr('settings.database.schema_export.title'),
+            Icons.download_rounded,
+            primaryColor,
+            isMobile: isMobile,
+          ),
+          const SizedBox(height: 16),
+          _buildYerelSemaIndirmeCard(
+            primaryColor,
+            isMobile: isMobile,
+          ),
+        ],
+        if (showSaveButton) ...[
+          SizedBox(height: isMobile ? 32 : 48),
+          _buildSaveButton(),
+        ] else ...[
+          const SizedBox(height: 24),
+        ],
+      ],
+    );
+  }
+
+  void _handleCancel() {
+    if (!mounted) return;
+    Navigator.of(context).maybePop();
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+      _handleCancel();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  void _kayitliDegerleriGuncelle() {
+    _kayitliMod = _seciliMod;
+    _kayitliYedeklemeAcik = _yedeklemeAcik;
+    _kayitliYedeklemePeriyodu = _yedeklemePeriyodu;
+  }
+
+  void _iptalEt() {
+    setState(() {
+      _seciliMod = _kayitliMod;
+      _yedeklemeAcik = _kayitliYedeklemeAcik;
+      _yedeklemePeriyodu = _kayitliYedeklemePeriyodu;
+    });
+  }
+
+  Widget _buildMenuActionBar(
+    Color primaryColor, {
+    required bool isCompact,
+  }) {
+    return StandartAltAksiyonBar(
+      isCompact: isCompact,
+      secondaryText: tr('common.cancel'),
+      onSecondaryPressed: _iptalEt,
+      primaryText: tr('common.save'),
+      onPrimaryPressed: _buildSaveButtonOnPressed,
+      textColor: primaryColor,
+    );
+  }
+
+  Widget _buildStandaloneActionBar(
+    Color primaryColor, {
+    required bool isCompact,
+  }) {
+    return StandartAltAksiyonBar(
+      isCompact: isCompact,
+      secondaryText: tr('common.cancel'),
+      onSecondaryPressed: _handleCancel,
+      primaryText: tr('common.save'),
+      onPrimaryPressed: _buildSaveButtonOnPressed,
+      textColor: primaryColor,
+    );
+  }
+
+  Future<void> _buildSaveButtonOnPressed() async => _handleSavePressed();
 
   void _showProGerekiyor() {
     showDialog<void>(
@@ -320,24 +501,71 @@ class _VeritabaniYedekAyarlariSayfasiState
     return result;
   }
 
-  Widget _buildHeader(Color primaryColor, {required bool isMobile}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildHeader(
+    Color primaryColor, {
+    required bool isMobile,
+    bool standalone = false,
+  }) {
+    if (!standalone) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            tr('nav.settings.database_backup'),
+            style: TextStyle(
+              fontSize: isMobile ? 20 : 24,
+              fontWeight: FontWeight.bold,
+              color: const Color(0xFF202124),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            tr('settings.database.subtitle'),
+            style: TextStyle(
+              fontSize: isMobile ? 13 : 14,
+              color: Colors.grey.shade600,
+            ),
+          ),
+        ],
+      );
+    }
+
+    final theme = Theme.of(context);
+    return Row(
       children: [
-        Text(
-          tr('nav.settings.database_backup'),
-          style: TextStyle(
-            fontSize: isMobile ? 20 : 24,
-            fontWeight: FontWeight.bold,
-            color: const Color(0xFF202124),
+        Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: primaryColor.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(
+            Icons.storage_rounded,
+            color: primaryColor,
+            size: 28,
           ),
         ),
-        const SizedBox(height: 8),
-        Text(
-          tr('settings.database.subtitle'),
-          style: TextStyle(
-            fontSize: isMobile ? 13 : 14,
-            color: Colors.grey.shade600,
+        const SizedBox(width: 16),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tr('nav.settings.database_backup'),
+                style: theme.textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: theme.colorScheme.onSurface,
+                  fontSize: isMobile ? 20 : 23,
+                ),
+              ),
+              Text(
+                tr('settings.database.subtitle'),
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontSize: isMobile ? 13 : 16,
+                ),
+              ),
+            ],
           ),
         ),
       ],
@@ -782,206 +1010,7 @@ class _VeritabaniYedekAyarlariSayfasiState
       width: double.infinity,
       height: 54,
       child: ElevatedButton(
-        onPressed: () async {
-          final bool isMobilePlatform =
-              defaultTargetPlatform == TargetPlatform.iOS ||
-              defaultTargetPlatform == TargetPlatform.android;
-          final bool isDesktopPlatform =
-              !kIsWeb &&
-              (defaultTargetPlatform == TargetPlatform.windows ||
-                  defaultTargetPlatform == TargetPlatform.macOS ||
-                  defaultTargetPlatform == TargetPlatform.linux);
-
-          if (!isMobilePlatform && !isDesktopPlatform) {
-            // Web: Mevcut davranışı koru
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(tr('settings.ai.save_success')),
-                backgroundColor: Colors.green.shade700,
-                behavior: SnackBarBehavior.floating,
-              ),
-            );
-            return;
-          }
-
-          if (isDesktopPlatform) {
-            await _handleDesktopSave();
-            return;
-          }
-
-          final String oncekiMod = VeritabaniYapilandirma.connectionMode;
-          final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
-          final String? oncekiYerelCompanyDb = oncekiMod == 'local'
-              ? OturumServisi().aktifVeritabaniAdi
-              : null;
-          String? yerelHostKaydi;
-
-          if (_seciliMod == 'local') {
-            // Bulut -> Yerel geçişinde: kurulum/giriş ekranındaki gibi
-            // otomatik sunucu tara, tekse seç, çoksa kullanıcıya sor.
-            if (oncekiMod == 'cloud') {
-              final secilen = await _yerelSunucuBulVeSec(
-                oncekiHost: VeritabaniYapilandirma.discoveredHost,
-              );
-              if (secilen == null) {
-                if (mounted) setState(() => _seciliMod = oncekiMod);
-                return;
-              }
-
-              final host = (secilen.host ?? '').trim();
-              if (host.isEmpty) {
-                if (mounted) setState(() => _seciliMod = oncekiMod);
-                return;
-              }
-
-              yerelHostKaydi = host;
-              VeritabaniYapilandirma.setDiscoveredHost(host);
-              await _uygulaYerelSunucuLisansBestEffort(secilen);
-            } else {
-              final host = VeritabaniYapilandirma.discoveredHost;
-              if (host == null || host.trim().isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      tr('settings.database.mobile_local_requires_server'),
-                    ),
-                    backgroundColor: Colors.redAccent,
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-                return;
-              }
-              yerelHostKaydi = host.trim();
-            }
-          }
-
-          await VeritabaniYapilandirma.saveConnectionPreferences(
-            _seciliMod,
-            _seciliMod == 'local' ? yerelHostKaydi : null,
-          );
-
-          // Local <-> Cloud geçişinde: veri aktarımı sorusu için niyet kaydet (mobil/tablet).
-          final bool modDegisti = oncekiMod != _seciliMod;
-          final bool localCloudSwitch =
-              (oncekiMod == 'local' && _seciliMod == 'cloud') ||
-              (oncekiMod == 'cloud' && _seciliMod == 'local');
-          if (modDegisti && localCloudSwitch) {
-            final localHost =
-                (oncekiMod == 'local'
-                        ? (oncekiYerelHost ?? '')
-                        : (yerelHostKaydi ?? ''))
-                    .trim();
-            await VeritabaniAktarimServisi().niyetKaydet(
-              VeritabaniAktarimNiyeti(
-                fromMode: oncekiMod,
-                toMode: _seciliMod,
-                localHost: localHost.isEmpty ? null : localHost,
-                localCompanyDb: oncekiYerelCompanyDb,
-                createdAt: DateTime.now(),
-              ),
-            );
-          }
-
-          if (_seciliMod == 'cloud') {
-            final hardwareId = LisansServisi().hardwareId;
-            if (hardwareId != null && hardwareId.trim().isNotEmpty) {
-              await OnlineVeritabaniServisi().talepGonder(
-                hardwareId: hardwareId.trim(),
-                source: 'database_settings',
-              );
-            }
-
-            if (mounted) {
-              await showDialog<void>(
-                context: context,
-                builder: (ctx) => Dialog(
-                  backgroundColor: Colors.white,
-                  insetPadding: const EdgeInsets.symmetric(
-                    horizontal: 32,
-                    vertical: 24,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Container(
-                    width: 450,
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.all(28),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          tr('setup.cloud.preparing_title'),
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF202124),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        Text(
-                          tr('setup.cloud.preparing_message'),
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w500,
-                            color: Color(0xFF606368),
-                            height: 1.5,
-                          ),
-                        ),
-                        const SizedBox(height: 24),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            MouseRegion(
-                              cursor: SystemMouseCursors.click,
-                              child: TextButton(
-                                onPressed: () => Navigator.of(ctx).pop(),
-                                style: TextButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 18,
-                                    vertical: 12,
-                                  ),
-                                  foregroundColor: const Color(0xFF2C3E50),
-                                  textStyle: const TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                                child: Text(tr('common.ok')),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }
-          }
-
-          if (!mounted) return;
-
-          if (modDegisti) {
-            Navigator.of(context).pushAndRemoveUntil(
-              MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
-              (_) => false,
-            );
-            return;
-          }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(tr('settings.ai.save_success')),
-              backgroundColor: Colors.green.shade700,
-              behavior: SnackBarBehavior.floating,
-            ),
-          );
-        },
+        onPressed: _buildSaveButtonOnPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFFEA4335),
           foregroundColor: Colors.white,
@@ -1001,6 +1030,243 @@ class _VeritabaniYedekAyarlariSayfasiState
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Future<void> _handleSavePressed() async {
+    final bool isMobilePlatform =
+        defaultTargetPlatform == TargetPlatform.iOS ||
+        defaultTargetPlatform == TargetPlatform.android;
+    final bool isDesktopPlatform =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.windows ||
+            defaultTargetPlatform == TargetPlatform.macOS ||
+            defaultTargetPlatform == TargetPlatform.linux);
+
+    if (!isMobilePlatform && !isDesktopPlatform) {
+      // Web: Mevcut davranışı koru
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('settings.ai.save_success')),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      _kayitliDegerleriGuncelle();
+      return;
+    }
+
+    if (isDesktopPlatform) {
+      await _handleDesktopSave();
+      return;
+    }
+
+    final String oncekiMod = VeritabaniYapilandirma.connectionMode;
+    final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
+    final String? oncekiYerelCompanyDb =
+        oncekiMod == 'local' ? OturumServisi().aktifVeritabaniAdi : null;
+    String? yerelHostKaydi;
+
+    if (_seciliMod == 'local') {
+      // Bulut -> Yerel geçişinde: kurulum/giriş ekranındaki gibi
+      // otomatik sunucu tara, tekse seç, çoksa kullanıcıya sor.
+      if (oncekiMod == 'cloud') {
+        final secilen = await _yerelSunucuBulVeSec(
+          oncekiHost: VeritabaniYapilandirma.discoveredHost,
+        );
+        if (secilen == null) {
+          if (mounted) setState(() => _seciliMod = oncekiMod);
+          return;
+        }
+
+        final host = (secilen.host ?? '').trim();
+        if (host.isEmpty) {
+          if (mounted) setState(() => _seciliMod = oncekiMod);
+          return;
+        }
+
+        yerelHostKaydi = host;
+        VeritabaniYapilandirma.setDiscoveredHost(host);
+        await _uygulaYerelSunucuLisansBestEffort(secilen);
+      } else {
+        final host = VeritabaniYapilandirma.discoveredHost;
+        if (host == null || host.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(tr('settings.database.mobile_local_requires_server')),
+              backgroundColor: Colors.redAccent,
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+          return;
+        }
+        yerelHostKaydi = host.trim();
+      }
+    }
+
+    final String previousUiMode =
+        oncekiMod == VeritabaniYapilandirma.cloudPendingMode
+        ? 'cloud'
+        : oncekiMod;
+    final String normalizedOncekiMod =
+        oncekiMod == VeritabaniYapilandirma.cloudPendingMode
+        ? 'cloud'
+        : oncekiMod;
+
+    // Local <-> Cloud geçişinde: her seferinde veri aktarımı sor.
+    final bool modDegisti = normalizedOncekiMod != _seciliMod;
+    final bool localCloudSwitch =
+        (normalizedOncekiMod == 'local' && _seciliMod == 'cloud') ||
+        (normalizedOncekiMod == 'cloud' && _seciliMod == 'local');
+
+    DesktopVeritabaniAktarimSecimi? transferSecim;
+    if (modDegisti && localCloudSwitch) {
+      if (!mounted) return;
+      final localToCloud =
+          normalizedOncekiMod == 'local' && _seciliMod == 'cloud';
+      transferSecim = await veritabaniAktarimSecimDialogGoster(
+        context: context,
+        localToCloud: localToCloud,
+        barrierDismissible: false,
+      );
+      if (transferSecim == null) {
+        if (mounted) setState(() => _seciliMod = previousUiMode);
+        return;
+      }
+    }
+
+    await VeritabaniYapilandirma.saveConnectionPreferences(
+      _seciliMod,
+      _seciliMod == 'local' ? yerelHostKaydi : null,
+    );
+
+    if (modDegisti && localCloudSwitch) {
+      if (transferSecim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+        await VeritabaniAktarimServisi().niyetTemizle();
+        await _clearPendingTransferChoice();
+      } else {
+        final choiceValue =
+            transferSecim == DesktopVeritabaniAktarimSecimi.birlestir
+            ? 'merge'
+            : 'full';
+        await _savePendingTransferChoiceValue(choiceValue);
+
+        final localHost = (normalizedOncekiMod == 'local'
+                ? (oncekiYerelHost ?? '')
+                : (yerelHostKaydi ?? ''))
+            .trim();
+        await VeritabaniAktarimServisi().niyetKaydet(
+          VeritabaniAktarimNiyeti(
+            fromMode: normalizedOncekiMod,
+            toMode: _seciliMod,
+            localHost: localHost.isEmpty ? null : localHost,
+            localCompanyDb: oncekiYerelCompanyDb,
+            createdAt: DateTime.now(),
+          ),
+        );
+      }
+    }
+
+    if (_seciliMod == 'cloud') {
+      final hardwareId = LisansServisi().hardwareId;
+      if (hardwareId != null && hardwareId.trim().isNotEmpty) {
+        await OnlineVeritabaniServisi().talepGonder(
+          hardwareId: hardwareId.trim(),
+          source: 'database_settings',
+        );
+      }
+
+      if (mounted) {
+        await showDialog<void>(
+          context: context,
+          builder: (ctx) => Dialog(
+            backgroundColor: Colors.white,
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 24,
+            ),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Container(
+              width: 450,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr('setup.cloud.preparing_title'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF202124),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    tr('setup.cloud.preparing_message'),
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w500,
+                      color: Color(0xFF606368),
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        child: TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 12,
+                            ),
+                            foregroundColor: const Color(0xFF2C3E50),
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          child: Text(tr('common.ok')),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    if (!mounted) return;
+
+    if (modDegisti) {
+      _kayitliDegerleriGuncelle();
+      Navigator.of(context).pushAndRemoveUntil(
+        MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
+        (_) => false,
+      );
+      return;
+    }
+
+    _kayitliDegerleriGuncelle();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(tr('settings.ai.save_success')),
+        backgroundColor: Colors.green.shade700,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }
@@ -1078,6 +1344,7 @@ class _VeritabaniYedekAyarlariSayfasiState
     // Hibrit ve diğer ayarlar: mevcut davranışı bozma.
     if (_seciliMod != 'local' && _seciliMod != 'cloud') {
       if (!mounted) return;
+      _kayitliDegerleriGuncelle();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(tr('settings.ai.save_success')),
@@ -1099,6 +1366,7 @@ class _VeritabaniYedekAyarlariSayfasiState
       await _clearPendingTransferChoice();
 
       if (!mounted) return;
+      _kayitliDegerleriGuncelle();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(tr('settings.ai.save_success')),
@@ -1125,19 +1393,40 @@ class _VeritabaniYedekAyarlariSayfasiState
 
       // Cloud kimlikleri yoksa: cloud_pending kaydet, yerelden devam et.
       if (!credsReady) {
+        if (!mounted) return;
+        final secim = await veritabaniAktarimSecimDialogGoster(
+          context: context,
+          localToCloud: true,
+          barrierDismissible: false,
+        );
+        if (secim == null) {
+          if (mounted) setState(() => _seciliMod = previousUiMode);
+          return;
+        }
+
         // Eski/stale kimlikler varsa: pending modda yanlışlıkla "hazır" sayılmasın.
         await VeritabaniYapilandirma.clearCloudDatabaseCredentials();
-        await _clearPendingTransferChoice();
 
-        await VeritabaniAktarimServisi().niyetKaydet(
-          VeritabaniAktarimNiyeti(
-            fromMode: normalizeMode(oncekiMod),
-            toMode: 'cloud',
-            localHost: localHost.isEmpty ? null : localHost,
-            localCompanyDb: localCompanyDb,
-            createdAt: DateTime.now(),
-          ),
-        );
+        if (secim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+          // Kullanıcı seçim yaptı: tekrar sorma. Cloud hazır olunca direkt geç.
+          await _savePendingTransferChoiceValue('none');
+          await VeritabaniAktarimServisi().niyetTemizle();
+        } else {
+          final choiceValue = secim == DesktopVeritabaniAktarimSecimi.birlestir
+              ? 'merge'
+              : 'full';
+          await _savePendingTransferChoiceValue(choiceValue);
+
+          await VeritabaniAktarimServisi().niyetKaydet(
+            VeritabaniAktarimNiyeti(
+              fromMode: normalizeMode(oncekiMod),
+              toMode: 'cloud',
+              localHost: localHost.isEmpty ? null : localHost,
+              localCompanyDb: localCompanyDb,
+              createdAt: DateTime.now(),
+            ),
+          );
+        }
 
         await VeritabaniYapilandirma.saveConnectionPreferences(
           VeritabaniYapilandirma.cloudPendingMode,
@@ -1216,6 +1505,7 @@ class _VeritabaniYedekAyarlariSayfasiState
           );
         }
 
+        _kayitliDegerleriGuncelle();
         return;
       }
 
@@ -1312,6 +1602,7 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     // Diğer durumlar: mevcut davranış (başka özelliği bozma).
     if (!mounted) return;
+    _kayitliDegerleriGuncelle();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(tr('settings.ai.save_success')),

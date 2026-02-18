@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/standart_alt_aksiyon_bar.dart';
 import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
 import 'package:patisyov10/servisler/ayarlar_veritabani_servisi.dart';
 import 'package:patisyov10/sayfalar/ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
@@ -13,6 +16,7 @@ class ModullerSayfasi extends StatefulWidget {
 
 class _ModullerSayfasiState extends State<ModullerSayfasi> {
   late GenelAyarlarModel _ayarlar;
+  GenelAyarlarModel? _kayitliAyarlar;
   bool _yukleniyor = true;
 
   final List<Map<String, dynamic>> _sidebarModulleri = [
@@ -70,13 +74,28 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
     if (mounted) {
       setState(() {
         _ayarlar = ayarlar;
+        _kayitliAyarlar = _cloneAyarlar(ayarlar);
         _yukleniyor = false;
       });
     }
   }
 
+  GenelAyarlarModel _cloneAyarlar(GenelAyarlarModel source) {
+    final jsonMap =
+        jsonDecode(jsonEncode(source.toMap())) as Map<String, dynamic>;
+    return GenelAyarlarModel.fromMap(jsonMap);
+  }
+
+  void _iptalEt() {
+    final kayitli = _kayitliAyarlar;
+    if (kayitli == null) return;
+
+    setState(() => _ayarlar = _cloneAyarlar(kayitli));
+  }
+
   Future<void> _kaydet() async {
     await AyarlarVeritabaniServisi().genelAyarlariKaydet(_ayarlar);
+    _kayitliAyarlar = _cloneAyarlar(_ayarlar);
 
     // Yan menüyü tetikle
     SayfaSenkronizasyonServisi().veriDegisti('moduller');
@@ -110,9 +129,6 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
           length: 1,
           child: Scaffold(
             backgroundColor: const Color(0xFFF8FAFC),
-            floatingActionButtonLocation: isMobile
-                ? FloatingActionButtonLocation.centerFloat
-                : FloatingActionButtonLocation.endFloat,
             body: SafeArea(
               child: Column(
                 children: [
@@ -122,24 +138,14 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
                       children: [_buildModullerTab(isMobile: isMobile)],
                     ),
                   ),
+                  StandartAltAksiyonBar(
+                    isCompact: isMobile,
+                    secondaryText: tr('common.cancel'),
+                    onSecondaryPressed: _iptalEt,
+                    primaryText: tr('common.save'),
+                    onPrimaryPressed: _kaydet,
+                  ),
                 ],
-              ),
-            ),
-            floatingActionButton: FloatingActionButton.extended(
-              onPressed: _kaydet,
-              backgroundColor: const Color(0xFFEA4335),
-              foregroundColor: Colors.white,
-              elevation: 2,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(14),
-              ),
-              icon: const Icon(Icons.save_rounded, size: 20),
-              label: Text(
-                tr('common.save'),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
               ),
             ),
           ),
@@ -217,7 +223,7 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
             },
           ),
           _buildSidebarModuleGrid(isMobile: isMobile),
-          const SizedBox(height: 100),
+          const SizedBox(height: 40),
         ],
       ),
     );

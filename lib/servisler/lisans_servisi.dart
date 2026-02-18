@@ -1032,6 +1032,19 @@ class LisansServisi extends ChangeNotifier {
           };
         }
       }
+    } on HandshakeException {
+      // Bazı ağlarda/operatörlerde bu endpoint TLS yönlendirmesi veya filtre nedeniyle
+      // handshake hatası verebilir. Sessizce fallback'e düş.
+    } on http.ClientException catch (e) {
+      final msg = e.message.toLowerCase();
+      final isTlsIssue =
+          msg.contains('handshake') ||
+          msg.contains('wrong_version_number') ||
+          msg.contains('tls');
+      if (isTlsIssue) return null;
+      debugPrint('Geo Info (freeipapi) Hatası: $e');
+    } on TimeoutException {
+      // Sessizce fallback'e düş.
     } catch (e) {
       debugPrint('Geo Info (freeipapi) Hatası: $e');
     }

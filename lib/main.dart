@@ -188,11 +188,57 @@ class _MyAppState extends State<MyApp>
     if (!VeritabaniYapilandirma.cloudCredentialsReady) return;
     if (!VeritabaniYapilandirma.desktopCloudConnectionReady) return;
 
-    final ctx = _rootNavigatorKey.currentContext;
-    if (ctx == null) return;
-
     _desktopCloudReadyDialogOpen = true;
     try {
+      final prefs = await SharedPreferences.getInstance();
+      final storedChoice =
+          (prefs.getString(VeritabaniYapilandirma.prefPendingTransferChoiceKey) ??
+                  '')
+              .trim()
+              .toLowerCase();
+
+      // Kullanıcı daha önce (ayarlar ekranında) seçim yaptıysa yeniden sorma.
+      if (storedChoice == 'merge' || storedChoice == 'full' || storedChoice == 'none') {
+        if (storedChoice == 'none') {
+          await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+          await VeritabaniAktarimServisi().niyetTemizle();
+        } else {
+          // Güvenlik: niyet kaydı yoksa oluştur (best-effort)
+          final aktarim = VeritabaniAktarimServisi();
+          final niyet = await aktarim.niyetOku();
+          if (niyet == null) {
+            final localHost =
+                (VeritabaniYapilandirma.discoveredHost ?? '127.0.0.1').trim();
+            await aktarim.niyetKaydet(
+              VeritabaniAktarimNiyeti(
+                fromMode: 'local',
+                toMode: 'cloud',
+                localHost: localHost.isEmpty ? null : localHost,
+                localCompanyDb: OturumServisi().aktifVeritabaniAdi,
+                createdAt: DateTime.now(),
+              ),
+            );
+          }
+        }
+
+        await VeritabaniYapilandirma.saveConnectionPreferences(
+          'cloud',
+          VeritabaniYapilandirma.discoveredHost,
+        );
+
+        final nav = _rootNavigatorKey.currentState;
+        if (nav == null) return;
+        nav.pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
+          (_) => false,
+        );
+        return;
+      }
+
+      final ctx = _rootNavigatorKey.currentContext;
+      if (ctx == null) return;
+      if (!ctx.mounted) return;
+
       final secim = await veritabaniAktarimSecimDialogGoster(
         context: ctx,
         localToCloud: true,
@@ -202,7 +248,6 @@ class _MyAppState extends State<MyApp>
       if (secim == null) return;
 
       if (secim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
-        final prefs = await SharedPreferences.getInstance();
         await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
         await VeritabaniAktarimServisi().niyetTemizle();
 
@@ -240,7 +285,6 @@ class _MyAppState extends State<MyApp>
         );
       }
 
-      final prefs = await SharedPreferences.getInstance();
       await prefs.setString(
         VeritabaniYapilandirma.prefPendingTransferChoiceKey,
         choiceValue,

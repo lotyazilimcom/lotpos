@@ -11,6 +11,7 @@ import '../../servisler/online_veritabani_servisi.dart';
 import '../../servisler/veritabani_aktarim_servisi.dart';
 import '../../servisler/veritabani_yapilandirma.dart';
 import '../../servisler/lisans_servisi.dart';
+import '../../bilesenler/veritabani_aktarim_secim_dialog.dart';
 
 class MobilKurulumSayfasi extends StatefulWidget {
   const MobilKurulumSayfasi({super.key});
@@ -408,19 +409,49 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
       unawaited(LisansServisi().setInheritedPro(isPro));
     }
 
+    // Local <-> Cloud geçişinde: her seferinde veri aktarımı sor (mobil/tablet).
+    final bool modDegisti = oncekiMod != mode;
+    final bool localCloudSwitch =
+        (oncekiMod == 'local' && mode == 'cloud') ||
+        (oncekiMod == 'cloud' && mode == 'local');
+
+    DesktopVeritabaniAktarimSecimi? transferSecim;
+    if (modDegisti && localCloudSwitch && context.mounted) {
+      transferSecim = await veritabaniAktarimSecimDialogGoster(
+        context: context,
+        localToCloud: oncekiMod == 'local' && mode == 'cloud',
+        barrierDismissible: false,
+      );
+      if (transferSecim == null) return;
+
+      final prefs = await SharedPreferences.getInstance();
+      if (transferSecim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+        await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+        await VeritabaniAktarimServisi().niyetTemizle();
+      } else {
+        final stored = transferSecim == DesktopVeritabaniAktarimSecimi.birlestir
+            ? 'merge'
+            : 'full';
+        await prefs.setString(
+          VeritabaniYapilandirma.prefPendingTransferChoiceKey,
+          stored,
+        );
+      }
+    }
+
     // Tercihleri kaydet
     await VeritabaniYapilandirma.saveConnectionPreferences(
       mode,
       mode == 'local' ? selectedHost : null,
     );
 
-    // Local <-> Cloud geçişinde: veri aktarımı sorusu için niyet kaydet (mobil/tablet).
-    final bool modDegisti = oncekiMod != mode;
-    final bool localCloudSwitch =
-        (oncekiMod == 'local' && mode == 'cloud') ||
-        (oncekiMod == 'cloud' && mode == 'local');
-    if (modDegisti && localCloudSwitch) {
-      final localHost = (mode == 'local' ? selectedHost : (oncekiYerelHost ?? '')).trim();
+    // Local <-> Cloud geçişinde: seçime göre niyet kaydet (mobil/tablet).
+    if (modDegisti &&
+        localCloudSwitch &&
+        transferSecim != null &&
+        transferSecim != DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+      final localHost =
+          (mode == 'local' ? selectedHost : (oncekiYerelHost ?? '')).trim();
       await VeritabaniAktarimServisi().niyetKaydet(
         VeritabaniAktarimNiyeti(
           fromMode: oncekiMod,
@@ -439,15 +470,66 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
       unawaited(_bulutTalebiGonderBestEffort());
       await showDialog<void>(
         context: context,
-        builder: (ctx) => AlertDialog(
-          title: Text(tr('setup.cloud.preparing_title')),
-          content: Text(tr('setup.cloud.preparing_message')),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(),
-              child: Text(tr('common.ok')),
+        builder: (ctx) => Dialog(
+          backgroundColor: Colors.white,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          child: Container(
+            width: 450,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
             ),
-          ],
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('setup.cloud.preparing_title'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF202124),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  tr('setup.cloud.preparing_message'),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF606368),
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 12,
+                          ),
+                          foregroundColor: const Color(0xFF2C3E50),
+                          textStyle: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        child: Text(tr('common.ok')),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       );
     }

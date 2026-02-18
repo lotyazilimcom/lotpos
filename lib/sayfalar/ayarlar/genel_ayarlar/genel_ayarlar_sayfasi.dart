@@ -13,6 +13,7 @@ import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
 import 'modeller/doviz_kuru_model.dart';
 import 'package:patisyov10/servisler/ayarlar_veritabani_servisi.dart';
 import 'package:patisyov10/servisler/doviz_guncelleme_servisi.dart';
+import 'package:patisyov10/bilesenler/standart_alt_aksiyon_bar.dart';
 import 'package:intl/intl.dart';
 
 class GenelAyarlarSayfasi extends StatefulWidget {
@@ -33,6 +34,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
 
   final GenelAyarlarVeriKaynagi _veriKaynagi = GenelAyarlarVeriKaynagi();
   GenelAyarlarModel _ayarlar = GenelAyarlarModel();
+  GenelAyarlarModel? _kayitliAyarlar;
   bool _yukleniyor = true;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
@@ -81,6 +83,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
       await _kurlariYukle();
       setState(() {
         _ayarlar = ayarlar;
+        _kayitliAyarlar = _cloneAyarlar(ayarlar);
         _initControllers();
         _yukleniyor = false;
       });
@@ -88,6 +91,32 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
       debugPrint('Ayarlar yüklenirken hata: $e');
       setState(() => _yukleniyor = false);
     }
+  }
+
+  GenelAyarlarModel _cloneAyarlar(GenelAyarlarModel source) {
+    final jsonMap =
+        jsonDecode(jsonEncode(source.toMap())) as Map<String, dynamic>;
+    return GenelAyarlarModel.fromMap(jsonMap);
+  }
+
+  void _controllersFromModel(GenelAyarlarModel model) {
+    _nakit1Controller.text = model.nakit1;
+    _nakit2Controller.text = model.nakit2;
+    _nakit3Controller.text = model.nakit3;
+    _nakit4Controller.text = model.nakit4;
+    _nakit5Controller.text = model.nakit5;
+    _nakit6Controller.text = model.nakit6;
+    _kopyaSayisiController.text = model.kopyaSayisi;
+  }
+
+  void _iptalEt() {
+    final kayitli = _kayitliAyarlar;
+    if (kayitli == null) return;
+
+    setState(() {
+      _ayarlar = _cloneAyarlar(kayitli);
+      _controllersFromModel(_ayarlar);
+    });
   }
 
   Future<void> _kurlariYukle() async {
@@ -138,6 +167,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
 
     try {
       await _veriKaynagi.ayarlariKaydet(_ayarlar);
+      _kayitliAyarlar = _cloneAyarlar(_ayarlar);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -182,9 +212,6 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
             autofocus: true,
             child: Scaffold(
               backgroundColor: _bgColor,
-              floatingActionButtonLocation: isMobile
-                  ? FloatingActionButtonLocation.centerFloat
-                  : FloatingActionButtonLocation.endFloat,
               body: SafeArea(
                 child: Column(
                   children: [
@@ -206,30 +233,24 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                               ],
                             ),
                     ),
+                    _buildBottomActionBar(isCompact: isMobile),
                   ],
-                ),
-              ),
-              floatingActionButton: FloatingActionButton.extended(
-                onPressed: _kaydet,
-                backgroundColor: const Color(0xFFEA4335),
-                foregroundColor: Colors.white,
-                elevation: 2,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                icon: const Icon(Icons.save_rounded, size: 20),
-                label: Text(
-                  tr('settings.general.actions.save'),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
                 ),
               ),
             ),
           ),
         );
       },
+    );
+  }
+
+  Widget _buildBottomActionBar({required bool isCompact}) {
+    return StandartAltAksiyonBar(
+      isCompact: isCompact,
+      secondaryText: tr('common.cancel'),
+      onSecondaryPressed: _iptalEt,
+      primaryText: tr('settings.general.actions.save'),
+      onPrimaryPressed: _kaydet,
     );
   }
 
@@ -378,7 +399,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
             first: _buildSayisalAyarlarCard(),
             second: _buildDovizKurlariCard(),
           ),
-          const SizedBox(height: 80),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -388,7 +409,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     return SingleChildScrollView(
       padding: _contentPadding(isMobile),
       child: Column(
-        children: [_buildVergiAyarlariCard(), const SizedBox(height: 80)],
+        children: [_buildVergiAyarlariCard(), const SizedBox(height: 40)],
       ),
     );
   }
@@ -403,7 +424,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
             first: _buildUrunAyarlariCard(),
             second: _buildStokAyarlariCard(),
           ),
-          const SizedBox(height: 80),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -413,7 +434,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     return SingleChildScrollView(
       padding: _contentPadding(isMobile),
       child: Column(
-        children: [_buildKodUretimiCard(), const SizedBox(height: 80)],
+        children: [_buildKodUretimiCard(), const SizedBox(height: 40)],
       ),
     );
   }
@@ -422,7 +443,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     return SingleChildScrollView(
       padding: _contentPadding(isMobile),
       child: Column(
-        children: [_buildYazdirmaCard(), const SizedBox(height: 80)],
+        children: [_buildYazdirmaCard(), const SizedBox(height: 40)],
       ),
     );
   }
@@ -436,7 +457,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
           mobileOrTabletPlatform
               ? _buildYaziciAyarlariCard()
               : _buildBaglantiAyarlariCard(),
-          const SizedBox(height: 80),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -470,7 +491,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
           (Platform.isAndroid || Platform.isIOS)
               ? _buildYaziciAyarlariCard()
               : _buildBaglantiAyarlariCard(),
-          const SizedBox(height: 80),
+          const SizedBox(height: 40),
         ],
       ),
     );
@@ -2079,6 +2100,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     String Function(String)? labelBuilder,
   }) {
     return DropdownButtonFormField<String>(
+      key: ValueKey('ga_dropdown_${label}_${value}_${items.length}'),
       initialValue: items.contains(value) ? value : items.first,
       decoration: InputDecoration(
         labelText: label,

@@ -257,7 +257,9 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     if (_yukleniyor) return;
     if (!mounted) return;
     Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const VeritabaniYedekAyarlariSayfasi()),
+      MaterialPageRoute(
+        builder: (_) => const VeritabaniYedekAyarlariSayfasi(standalone: true),
+      ),
     );
   }
 
@@ -575,7 +577,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     if (!mounted) return;
 
     VeritabaniAktarimTipi? secim;
-    if (_isDesktopPlatform && savedChoice != null) {
+    if (savedChoice != null) {
       if (savedChoice == 'merge') {
         secim = VeritabaniAktarimTipi.birlestir;
       } else if (savedChoice == 'full') {
@@ -607,127 +609,23 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
         VeritabaniYapilandirma.prefPendingTransferChoiceKey,
         stored,
       );
-    } else if (!_isDesktopPlatform) {
-      secim = await showDialog<VeritabaniAktarimTipi>(
+    } else if (secim == null && !_isDesktopPlatform) {
+      final mobileSecim = await veritabaniAktarimSecimDialogGoster(
         context: context,
-        builder: (ctx) {
-          return Dialog(
-            backgroundColor: Colors.white,
-            insetPadding: const EdgeInsets.symmetric(
-              horizontal: 32,
-              vertical: 24,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Container(
-              width: 450,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tr('dbsync.title'),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF202124),
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    localToCloud
-                        ? tr('dbsync.local_to_cloud.message')
-                        : tr('dbsync.cloud_to_local.message'),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF606368),
-                      height: 1.5,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 12,
-                            ),
-                            foregroundColor: const Color(0xFF2C3E50),
-                            textStyle: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          child: Text(tr('dbsync.not_now')),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: TextButton(
-                          onPressed: () => Navigator.of(
-                            ctx,
-                          ).pop(VeritabaniAktarimTipi.birlestir),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 12,
-                            ),
-                            foregroundColor: const Color(0xFF2C3E50),
-                            textStyle: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          child: Text(tr('dbsync.merge')),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: ElevatedButton(
-                          onPressed: () => Navigator.of(
-                            ctx,
-                          ).pop(VeritabaniAktarimTipi.tamAktar),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFEA4335),
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 22,
-                              vertical: 14,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            elevation: 0,
-                            textStyle: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
-                          child: Text(tr('dbsync.full')),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          );
-        },
+        localToCloud: localToCloud,
+        barrierDismissible: false,
       );
+
+      if (mobileSecim == null ||
+          mobileSecim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+        await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+        await aktarim.niyetTemizle();
+        return;
+      }
+
+      secim = mobileSecim == DesktopVeritabaniAktarimSecimi.birlestir
+          ? VeritabaniAktarimTipi.birlestir
+          : VeritabaniAktarimTipi.tamAktar;
     }
 
     if (secim == null) {

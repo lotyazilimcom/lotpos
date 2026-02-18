@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
+import '../bilesenler/standart_alt_aksiyon_bar.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../servisler/yapay_zeka_servisi.dart';
 
@@ -16,6 +17,13 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
   final _formKey = GlobalKey<FormState>();
   late TextEditingController _apiKeyController;
   String _selectedModel = 'gemini-pro';
+  String _savedApiKey = '';
+  String _savedModel = 'gemini-pro';
+  List<String> _savedModels = [
+    'gemini-pro',
+    'gemini-1.5-flash',
+    'gemini-1.5-pro',
+  ];
   bool _isLoading = false;
   bool _isTesting = false;
 
@@ -36,27 +44,40 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
     setState(() => _isLoading = true);
     try {
       final settings = await YapayZekaServisi().ayarlariGetir();
+      final String apiKey = (settings['apiKey'] ?? '').toString();
+      final String rawModel = (settings['model'] ?? '').toString().trim();
+      final String selectedModel = rawModel.isEmpty ? 'gemini-pro' : rawModel;
+
+      final List<String> defaultModels = [
+        'gemini-pro',
+        'gemini-1.5-flash',
+        'gemini-1.5-pro',
+      ];
+      final List<String> loadedModels = settings['models'] != null
+          ? List<String>.from(settings['models'])
+          : defaultModels;
+
+      final Set<String> seen = <String>{};
+      final List<String> normalizedModels = <String>[];
+      for (final m in loadedModels) {
+        final trimmed = m.toString().trim();
+        if (trimmed.isEmpty) continue;
+        if (seen.add(trimmed)) normalizedModels.add(trimmed);
+      }
+      if (!seen.contains(selectedModel)) normalizedModels.add(selectedModel);
+
+      final List<String> finalModels =
+          normalizedModels.isNotEmpty ? normalizedModels : defaultModels;
+
       if (mounted) {
         setState(() {
-          if (settings['apiKey'] != null) {
-            _apiKeyController.text = settings['apiKey']!;
-          }
-          if (settings['models'] != null) {
-            final List<String> loadedModels = List<String>.from(
-              settings['models'],
-            );
-            for (var m in loadedModels) {
-              if (!_geminiModels.contains(m)) {
-                _geminiModels.add(m);
-              }
-            }
-          }
-          if (settings['model'] != null) {
-            _selectedModel = settings['model']!;
-            if (!_geminiModels.contains(_selectedModel)) {
-              _geminiModels.add(_selectedModel);
-            }
-          }
+          _savedApiKey = apiKey;
+          _savedModel = selectedModel;
+          _savedModels = List<String>.from(finalModels);
+
+          _apiKeyController.text = _savedApiKey;
+          _selectedModel = _savedModel;
+          _geminiModels = List<String>.from(_savedModels);
         });
       }
     } catch (e) {
@@ -167,6 +188,10 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
           models: _geminiModels,
         );
 
+        _savedApiKey = _apiKeyController.text.trim();
+        _savedModel = _selectedModel;
+        _savedModels = List<String>.from(_geminiModels);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -194,6 +219,15 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
     }
   }
 
+  void _iptalEt() {
+    if (_isLoading) return;
+    setState(() {
+      _apiKeyController.text = _savedApiKey;
+      _selectedModel = _savedModel;
+      _geminiModels = List<String>.from(_savedModels);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return CallbackShortcuts(
@@ -205,9 +239,6 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
         autofocus: true,
         child: Scaffold(
           backgroundColor: Colors.white,
-          floatingActionButtonLocation: MediaQuery.of(context).size.width < 800
-              ? FloatingActionButtonLocation.centerFloat
-              : FloatingActionButtonLocation.endFloat,
           body: SafeArea(
             child: LayoutBuilder(
               builder: (context, constraints) {
@@ -246,49 +277,31 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
                               ),
                               const SizedBox(height: 24),
                               _buildGeminiInputs(constraints.maxWidth),
-                              const SizedBox(height: 80),
+                              const SizedBox(height: 40),
                             ],
                           ),
                         ),
                       ),
                     ),
+                    _buildBottomActionBar(isCompact: isMobile),
                   ],
                 );
               },
             ),
           ),
-          floatingActionButton: Container(
-            margin: const EdgeInsets.only(bottom: 16),
-            child: FloatingActionButton.extended(
-              onPressed: _isLoading ? null : _kaydet,
-              backgroundColor: const Color(0xFFEA4335),
-              foregroundColor: Colors.white,
-              elevation: 4,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              icon: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Icon(Icons.save_rounded, size: 20),
-              label: Text(
-                tr('common.save'),
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-          ),
         ),
       ),
+    );
+  }
+
+  Widget _buildBottomActionBar({required bool isCompact}) {
+    return StandartAltAksiyonBar(
+      isCompact: isCompact,
+      secondaryText: tr('common.cancel'),
+      onSecondaryPressed: _isLoading ? null : _iptalEt,
+      primaryText: tr('common.save'),
+      onPrimaryPressed: _kaydet,
+      primaryLoading: _isLoading,
     );
   }
 
@@ -508,6 +521,7 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
           // En temiz çözüm: key vererek widget'i yeniden oluşturmak veya sadece initialValue kullanmak.
           // Burada basitçe value -> initialValue yaparsak form resetlenince sorun olabilir.
           // Fakat deprecation warning'e göre 'initialValue' kullanmalıyız.
+          key: ValueKey('ai_model_${effectiveValue}_${items.length}'),
           initialValue: effectiveValue,
           onChanged: onChanged,
           icon: const Icon(Icons.arrow_drop_down, color: Color(0xFFBDC1C6)),
