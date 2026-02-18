@@ -62,9 +62,7 @@ void main() async {
   // (portrait) kilitli kullan. (Perakende Satış sayfası tablette landscape'i
   // sayfa özelinde açar.)
   if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
-    await SystemChrome.setPreferredOrientations([
-      DeviceOrientation.portraitUp,
-    ]);
+    await SystemChrome.setPreferredOrientations([DeviceOrientation.portraitUp]);
   }
 
   // Desktop pencere yönetimi kodlarını birebir koruyoruz (User Rule: "Cerrah Titizliği")
@@ -182,7 +180,8 @@ class _MyAppState extends State<MyApp>
       return;
     }
 
-    final isPending = VeritabaniYapilandirma.connectionMode ==
+    final isPending =
+        VeritabaniYapilandirma.connectionMode ==
         VeritabaniYapilandirma.cloudPendingMode;
     if (!isPending) return;
     if (!VeritabaniYapilandirma.cloudCredentialsReady) return;
@@ -192,15 +191,21 @@ class _MyAppState extends State<MyApp>
     try {
       final prefs = await SharedPreferences.getInstance();
       final storedChoice =
-          (prefs.getString(VeritabaniYapilandirma.prefPendingTransferChoiceKey) ??
+          (prefs.getString(
+                    VeritabaniYapilandirma.prefPendingTransferChoiceKey,
+                  ) ??
                   '')
               .trim()
               .toLowerCase();
 
       // Kullanıcı daha önce (ayarlar ekranında) seçim yaptıysa yeniden sorma.
-      if (storedChoice == 'merge' || storedChoice == 'full' || storedChoice == 'none') {
+      if (storedChoice == 'merge' ||
+          storedChoice == 'full' ||
+          storedChoice == 'none') {
         if (storedChoice == 'none') {
-          await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+          await prefs.remove(
+            VeritabaniYapilandirma.prefPendingTransferChoiceKey,
+          );
           await VeritabaniAktarimServisi().niyetTemizle();
         } else {
           // Güvenlik: niyet kaydı yoksa oluştur (best-effort)
@@ -265,15 +270,16 @@ class _MyAppState extends State<MyApp>
         return;
       }
 
-      final choiceValue =
-          secim == DesktopVeritabaniAktarimSecimi.birlestir ? 'merge' : 'full';
+      final choiceValue = secim == DesktopVeritabaniAktarimSecimi.birlestir
+          ? 'merge'
+          : 'full';
 
       // Güvenlik: niyet kaydı yoksa oluştur (best-effort)
       final aktarim = VeritabaniAktarimServisi();
       final niyet = await aktarim.niyetOku();
       if (niyet == null) {
-        final localHost =
-            (VeritabaniYapilandirma.discoveredHost ?? '127.0.0.1').trim();
+        final localHost = (VeritabaniYapilandirma.discoveredHost ?? '127.0.0.1')
+            .trim();
         await aktarim.niyetKaydet(
           VeritabaniAktarimNiyeti(
             fromMode: 'local',
@@ -365,13 +371,13 @@ class _MyAppState extends State<MyApp>
             onError: Colors.white,
           );
 
-	          return MaterialApp(
-	            navigatorKey: _rootNavigatorKey,
-	            navigatorObservers: [appRouteObserver],
-	            debugShowCheckedModeBanner: false,
-	            title: tr('app.title'),
-	            theme: ThemeData(
-	              useMaterial3: true,
+          return MaterialApp(
+            navigatorKey: _rootNavigatorKey,
+            navigatorObservers: [appRouteObserver],
+            debugShowCheckedModeBanner: false,
+            title: tr('app.title'),
+            theme: ThemeData(
+              useMaterial3: true,
               colorScheme: scheme,
               primaryColor: const Color(0xFF2C3E50),
               fontFamily: 'Inter',
@@ -730,14 +736,16 @@ class _HomePageState extends State<HomePage> {
           final isTablet =
               isMobilePlatform &&
               MediaQuery.sizeOf(context).shortestSide >= 600;
-          final double bottomInset =
-              isTablet ? MediaQuery.paddingOf(context).bottom : 0.0;
+          final double bottomInset = isTablet
+              ? MediaQuery.paddingOf(context).bottom
+              : 0.0;
 
           Widget layout;
 
           // Wide desktop/web layout (mevcut yapı korunuyor)
           if (isWide && !isMobilePlatform) {
-            final bool isSidebarExpanded = _isSidebarPinned || _isSidebarHovered;
+            final bool isSidebarExpanded =
+                _isSidebarPinned || _isSidebarHovered;
             final sidebarWidth = isSidebarExpanded ? 248.0 : 56.0;
 
             final sidebar = MouseRegion(
@@ -829,12 +837,30 @@ class _HomePageState extends State<HomePage> {
                     refreshKey: _refreshKey,
                   ),
                   Expanded(
-                    child: Container(
-                      color: Colors.white,
-                      padding: _acikTablar.isNotEmpty && _aktifTabIndex >= 0
-                          ? const EdgeInsets.fromLTRB(16, 12, 16, 16)
-                          : const EdgeInsets.all(16),
-                      child: _buildContent(),
+                    child: Builder(
+                      builder: (context) {
+                        // Ayar sayfaları tam genişlik kullanır (padding yok)
+                        final bool isAyarSayfasi =
+                            _acikTablar.isNotEmpty &&
+                            _aktifTabIndex >= 0 &&
+                            _aktifTabIndex < _acikTablar.length &&
+                            const {
+                              4,
+                              20,
+                              22,
+                              50,
+                            }.contains(_acikTablar[_aktifTabIndex].menuIndex);
+
+                        return Container(
+                          color: Colors.white,
+                          padding: isAyarSayfasi
+                              ? EdgeInsets.zero
+                              : (_acikTablar.isNotEmpty && _aktifTabIndex >= 0
+                                    ? const EdgeInsets.fromLTRB(16, 12, 16, 16)
+                                    : const EdgeInsets.all(16)),
+                          child: _buildContent(),
+                        );
+                      },
                     ),
                   ),
                 ],
@@ -923,8 +949,8 @@ class _HomePageState extends State<HomePage> {
                               isExpanded: true,
                               selectedIndex:
                                   _selectedIndex == TabAciciScope.cariKartiIndex
-                                      ? 9
-                                      : _selectedIndex,
+                                  ? 9
+                                  : _selectedIndex,
                               onToggle: () {
                                 if (!mounted) return;
                                 setState(() {
@@ -956,7 +982,8 @@ class _HomePageState extends State<HomePage> {
                                 if (!mounted) return;
                                 setState(() {
                                   _isSidebarExpanded = false;
-                                  _currentCompany = OturumServisi().aktifSirket!;
+                                  _currentCompany =
+                                      OturumServisi().aktifSirket!;
                                   _selectedIndex = 0;
                                   _refreshKey++;
                                   // Şirket değiştiğinde tüm tabları kapat
@@ -1037,8 +1064,8 @@ class _HomePageState extends State<HomePage> {
                     isExpanded: true,
                     selectedIndex:
                         _selectedIndex == TabAciciScope.cariKartiIndex
-                            ? 9
-                            : _selectedIndex,
+                        ? 9
+                        : _selectedIndex,
                     onToggle: () {
                       if (!mounted) return;
                       setState(() {
@@ -1081,10 +1108,7 @@ class _HomePageState extends State<HomePage> {
                 )
               : layout;
 
-          return SafeArea(
-            bottom: !isTablet,
-            child: safeChild,
-          );
+          return SafeArea(bottom: !isTablet, child: safeChild);
         },
       ),
     );

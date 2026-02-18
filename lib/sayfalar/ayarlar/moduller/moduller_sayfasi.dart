@@ -128,14 +128,17 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
         return DefaultTabController(
           length: 1,
           child: Scaffold(
-            backgroundColor: const Color(0xFFF8FAFC),
+            backgroundColor: Colors.white,
             body: SafeArea(
               child: Column(
                 children: [
                   _buildHeader(isMobile: isMobile),
                   Expanded(
-                    child: TabBarView(
-                      children: [_buildModullerTab(isMobile: isMobile)],
+                    child: Container(
+                      color: const Color(0xFFF8FAFC),
+                      child: TabBarView(
+                        children: [_buildModullerTab(isMobile: isMobile)],
+                      ),
                     ),
                   ),
                   StandartAltAksiyonBar(

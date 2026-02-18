@@ -22,10 +22,7 @@ import '../../../servisler/veritabani_yapilandirma.dart';
 import '../../baslangic/bootstrap_sayfasi.dart';
 
 class VeritabaniYedekAyarlariSayfasi extends StatefulWidget {
-  const VeritabaniYedekAyarlariSayfasi({
-    super.key,
-    this.standalone = false,
-  });
+  const VeritabaniYedekAyarlariSayfasi({super.key, this.standalone = false});
 
   /// Bu sayfa ana uygulama menüsünde gömülü olarak da kullanılıyor.
   /// `standalone: true` olduğunda (örn. giriş ekranından açıldığında) geri/ESC ve
@@ -106,20 +103,20 @@ class _VeritabaniYedekAyarlariSayfasiState
         if (!widget.standalone) {
           final bool isCompactLayout = MediaQuery.sizeOf(context).width < 860;
           return Scaffold(
-            backgroundColor: Colors.grey.shade50,
+            backgroundColor: Colors.white,
             body: SafeArea(
               child: Column(
                 children: [
                   Expanded(
-                    child: SingleChildScrollView(
-                      padding: EdgeInsets.all(isMobile ? 14.0 : 24.0),
-                      child: content,
+                    child: Container(
+                      color: Colors.grey.shade50,
+                      child: SingleChildScrollView(
+                        padding: EdgeInsets.all(isMobile ? 14.0 : 24.0),
+                        child: content,
+                      ),
                     ),
                   ),
-                  _buildMenuActionBar(
-                    primaryColor,
-                    isCompact: isCompactLayout,
-                  ),
+                  _buildMenuActionBar(primaryColor, isCompact: isCompactLayout),
                 ],
               ),
             ),
@@ -217,9 +214,7 @@ class _VeritabaniYedekAyarlariSayfasiState
             decoration: BoxDecoration(
               color: primaryColor.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: primaryColor.withValues(alpha: 0.18),
-              ),
+              border: Border.all(color: primaryColor.withValues(alpha: 0.18)),
             ),
             child: Text(
               tr('settings.backup.lite_cloud_hybrid_disabled_banner'),
@@ -267,10 +262,7 @@ class _VeritabaniYedekAyarlariSayfasiState
             isMobile: isMobile,
           ),
           const SizedBox(height: 16),
-          _buildYerelSemaIndirmeCard(
-            primaryColor,
-            isMobile: isMobile,
-          ),
+          _buildYerelSemaIndirmeCard(primaryColor, isMobile: isMobile),
         ],
         if (showSaveButton) ...[
           SizedBox(height: isMobile ? 32 : 48),
@@ -288,7 +280,8 @@ class _VeritabaniYedekAyarlariSayfasiState
   }
 
   KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
-    if (event is KeyDownEvent && event.logicalKey == LogicalKeyboardKey.escape) {
+    if (event is KeyDownEvent &&
+        event.logicalKey == LogicalKeyboardKey.escape) {
       _handleCancel();
       return KeyEventResult.handled;
     }
@@ -309,10 +302,7 @@ class _VeritabaniYedekAyarlariSayfasiState
     });
   }
 
-  Widget _buildMenuActionBar(
-    Color primaryColor, {
-    required bool isCompact,
-  }) {
+  Widget _buildMenuActionBar(Color primaryColor, {required bool isCompact}) {
     return StandartAltAksiyonBar(
       isCompact: isCompact,
       secondaryText: tr('common.cancel'),
@@ -539,11 +529,7 @@ class _VeritabaniYedekAyarlariSayfasiState
             color: primaryColor.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: Icon(
-            Icons.storage_rounded,
-            color: primaryColor,
-            size: 28,
-          ),
+          child: Icon(Icons.storage_rounded, color: primaryColor, size: 28),
         ),
         const SizedBox(width: 16),
         Expanded(
@@ -1064,8 +1050,9 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     final String oncekiMod = VeritabaniYapilandirma.connectionMode;
     final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
-    final String? oncekiYerelCompanyDb =
-        oncekiMod == 'local' ? OturumServisi().aktifVeritabaniAdi : null;
+    final String? oncekiYerelCompanyDb = oncekiMod == 'local'
+        ? OturumServisi().aktifVeritabaniAdi
+        : null;
     String? yerelHostKaydi;
 
     if (_seciliMod == 'local') {
@@ -1094,7 +1081,9 @@ class _VeritabaniYedekAyarlariSayfasiState
         if (host == null || host.trim().isEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(tr('settings.database.mobile_local_requires_server')),
+              content: Text(
+                tr('settings.database.mobile_local_requires_server'),
+              ),
               backgroundColor: Colors.redAccent,
               behavior: SnackBarBehavior.floating,
             ),
@@ -1152,10 +1141,11 @@ class _VeritabaniYedekAyarlariSayfasiState
             : 'full';
         await _savePendingTransferChoiceValue(choiceValue);
 
-        final localHost = (normalizedOncekiMod == 'local'
-                ? (oncekiYerelHost ?? '')
-                : (yerelHostKaydi ?? ''))
-            .trim();
+        final localHost =
+            (normalizedOncekiMod == 'local'
+                    ? (oncekiYerelHost ?? '')
+                    : (yerelHostKaydi ?? ''))
+                .trim();
         await VeritabaniAktarimServisi().niyetKaydet(
           VeritabaniAktarimNiyeti(
             fromMode: normalizedOncekiMod,

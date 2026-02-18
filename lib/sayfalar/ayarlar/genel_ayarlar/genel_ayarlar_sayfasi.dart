@@ -211,7 +211,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
           child: Focus(
             autofocus: true,
             child: Scaffold(
-              backgroundColor: _bgColor,
+              backgroundColor: Colors.white,
               body: SafeArea(
                 child: Column(
                   children: [
@@ -219,19 +219,22 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                     if (_searchQuery.isEmpty)
                       _buildModernTabBar(isMobile: isMobile),
                     Expanded(
-                      child: _searchQuery.isNotEmpty
-                          ? _buildSearchResults(isMobile: isMobile)
-                          : TabBarView(
-                              controller: _tabController,
-                              children: [
-                                _buildGenelTab(isMobile: isMobile),
-                                _buildVergiTab(isMobile: isMobile),
-                                _buildUrunStokTab(isMobile: isMobile),
-                                _buildKodUretimiTab(isMobile: isMobile),
-                                _buildYazdirmaTab(isMobile: isMobile),
-                                _buildBaglantiTab(isMobile: isMobile),
-                              ],
-                            ),
+                      child: Container(
+                        color: _bgColor,
+                        child: _searchQuery.isNotEmpty
+                            ? _buildSearchResults(isMobile: isMobile)
+                            : TabBarView(
+                                controller: _tabController,
+                                children: [
+                                  _buildGenelTab(isMobile: isMobile),
+                                  _buildVergiTab(isMobile: isMobile),
+                                  _buildUrunStokTab(isMobile: isMobile),
+                                  _buildKodUretimiTab(isMobile: isMobile),
+                                  _buildYazdirmaTab(isMobile: isMobile),
+                                  _buildBaglantiTab(isMobile: isMobile),
+                                ],
+                              ),
+                      ),
                     ),
                     _buildBottomActionBar(isCompact: isMobile),
                   ],
