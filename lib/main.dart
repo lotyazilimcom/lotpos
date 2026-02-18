@@ -889,21 +889,33 @@ class _HomePageState extends State<HomePage> {
                         },
                       ),
                       Expanded(
-                        child: Container(
-                          color: Colors.white,
-                          padding: EdgeInsets.fromLTRB(
-                            16,
-                            16,
-                            16,
-                            16 + bottomInset,
-                          ),
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 250),
-                            child: KeyedSubtree(
-                              key: ValueKey<int>(_selectedIndex),
-                              child: _pageForIndex(_selectedIndex),
-                            ),
-                          ),
+                        child: Builder(
+                          builder: (context) {
+                            final bool isAyarSayfasiMobile = const {
+                              4,
+                              20,
+                              22,
+                              50,
+                            }.contains(_selectedIndex);
+                            return Container(
+                              color: Colors.white,
+                              padding: isAyarSayfasiMobile
+                                  ? EdgeInsets.only(bottom: bottomInset)
+                                  : EdgeInsets.fromLTRB(
+                                      16,
+                                      16,
+                                      16,
+                                      16 + bottomInset,
+                                    ),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 250),
+                                child: KeyedSubtree(
+                                  key: ValueKey<int>(_selectedIndex),
+                                  child: _pageForIndex(_selectedIndex),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
@@ -1024,16 +1036,28 @@ class _HomePageState extends State<HomePage> {
                         },
                       ),
                       Expanded(
-                        child: Container(
-                          color: Colors.white,
-                          padding: const EdgeInsets.all(16),
-                          child: AnimatedSwitcher(
-                            duration: const Duration(milliseconds: 250),
-                            child: KeyedSubtree(
-                              key: ValueKey<int>(_selectedIndex),
-                              child: _pageForIndex(_selectedIndex),
-                            ),
-                          ),
+                        child: Builder(
+                          builder: (context) {
+                            final bool isAyarSayfasiMobile = const {
+                              4,
+                              20,
+                              22,
+                              50,
+                            }.contains(_selectedIndex);
+                            return Container(
+                              color: Colors.white,
+                              padding: isAyarSayfasiMobile
+                                  ? EdgeInsets.zero
+                                  : const EdgeInsets.all(16),
+                              child: AnimatedSwitcher(
+                                duration: const Duration(milliseconds: 250),
+                                child: KeyedSubtree(
+                                  key: ValueKey<int>(_selectedIndex),
+                                  child: _pageForIndex(_selectedIndex),
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ],
