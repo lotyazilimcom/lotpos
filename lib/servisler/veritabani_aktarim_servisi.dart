@@ -352,7 +352,8 @@ class VeritabaniAktarimServisi {
       final totalSteps =
           insertOrder.length +
           1 +
-          (tip == VeritabaniAktarimTipi.tamAktar ? 1 : 0);
+          (tip == VeritabaniAktarimTipi.tamAktar ? 1 : 0) +
+          (tip == VeritabaniAktarimTipi.birlestir ? 1 : 0);
       var doneSteps = 0;
       void emit(String? current) {
         onIlerleme?.call(
@@ -367,6 +368,10 @@ class VeritabaniAktarimServisi {
       emit(null);
 
       await _withTransaction(tCloudConn, () async {
+        final snapshots = tip == VeritabaniAktarimTipi.birlestir
+            ? await _captureMergeSnapshots(target: tCloudConn, tables: tableSet)
+            : null;
+
         if (tip == VeritabaniAktarimTipi.tamAktar) {
           emit('truncate');
           // Tam aktarım: sadece aktaracağımız tabloları temizle (CASCADE kullanma).
@@ -402,6 +407,17 @@ class VeritabaniAktarimServisi {
         await _fixSequences(tCloudConn, tables);
         doneSteps++;
         emit('sequences');
+
+        if (tip == VeritabaniAktarimTipi.birlestir) {
+          emit('maintenance');
+          await _postMergeMaintenance(
+            target: tCloudConn,
+            tables: tableSet,
+            snapshots: snapshots,
+          );
+          doneSteps++;
+          emit('maintenance');
+        }
       });
     } finally {
       await _safeClose(sSettings);
@@ -468,7 +484,8 @@ class VeritabaniAktarimServisi {
           totalTables +
           (tip == VeritabaniAktarimTipi.tamAktar ? 2 : 0) +
           (settingsList.isNotEmpty ? 1 : 0) +
-          (companyList.isNotEmpty ? 1 : 0);
+          (companyList.isNotEmpty ? 1 : 0) +
+          (tip == VeritabaniAktarimTipi.birlestir ? 1 : 0);
       var doneSteps = 0;
       void emit(String? current) {
         onIlerleme?.call(
@@ -559,6 +576,13 @@ class VeritabaniAktarimServisi {
       await tSettingsConn.execute('BEGIN');
       await tCompanyConn.execute('BEGIN');
       try {
+        final snapshots = tip == VeritabaniAktarimTipi.birlestir
+            ? await _captureMergeSnapshots(
+                target: tCompanyConn,
+                tables: companyCopy,
+              )
+            : null;
+
         await _bestEffortInTransaction(
           tSettingsConn,
           'SET CONSTRAINTS ALL DEFERRED',
@@ -623,6 +647,17 @@ class VeritabaniAktarimServisi {
           emit('company.sequences');
         }
 
+        if (tip == VeritabaniAktarimTipi.birlestir) {
+          emit('company.maintenance');
+          await _postMergeMaintenance(
+            target: tCompanyConn,
+            tables: companyCopy,
+            snapshots: snapshots,
+          );
+          doneSteps++;
+          emit('company.maintenance');
+        }
+
         // Transaction'ları commit et (iki hedef DB)
         await tSettingsConn.execute('COMMIT');
         await tCompanyConn.execute('COMMIT');
@@ -660,6 +695,541 @@ class VeritabaniAktarimServisi {
   // ──────────────────────────────────────────────────────────────────────────
   // Copy helpers
   // ──────────────────────────────────────────────────────────────────────────
+
+  Future<_MergeSnapshots?> _captureMergeSnapshots({
+    required Connection target,
+    required Set<String> tables,
+  }) async {
+    if (tables.isEmpty) return null;
+    final suffix = DateTime.now().microsecondsSinceEpoch;
+
+    String? bankOpenings;
+    String? cashOpenings;
+    String? creditOpenings;
+
+    // Açılış bakiyeleri: (mevcut bakiye) - (işlem toplamı)
+    // Not: ON COMMIT DROP => commit/rollback sonrası temizlik otomatik.
+    if (tables.contains('banks') && tables.contains('bank_transactions')) {
+      bankOpenings = 'tmp_bank_openings_$suffix';
+      await target.execute('''
+        CREATE TEMP TABLE $bankOpenings ON COMMIT DROP AS
+        SELECT
+          b.id,
+          COALESCE(b.balance, 0) - COALESCE(t.delta, 0) AS opening
+        FROM public.banks b
+        LEFT JOIN (
+          SELECT
+            bank_id,
+            SUM(
+              CASE WHEN type = 'Tahsilat'
+              THEN COALESCE(amount, 0)
+              ELSE -COALESCE(amount, 0)
+              END
+            ) AS delta
+          FROM public.bank_transactions
+          WHERE bank_id IS NOT NULL
+          GROUP BY bank_id
+        ) t ON t.bank_id = b.id
+      ''');
+    }
+
+    if (tables.contains('cash_registers') &&
+        tables.contains('cash_register_transactions')) {
+      cashOpenings = 'tmp_cash_openings_$suffix';
+      await target.execute('''
+        CREATE TEMP TABLE $cashOpenings ON COMMIT DROP AS
+        SELECT
+          cr.id,
+          COALESCE(cr.balance, 0) - COALESCE(t.delta, 0) AS opening
+        FROM public.cash_registers cr
+        LEFT JOIN (
+          SELECT
+            cash_register_id,
+            SUM(
+              CASE WHEN type IN ('Tahsilat', 'Para Alındı')
+              THEN COALESCE(amount, 0)
+              ELSE -COALESCE(amount, 0)
+              END
+            ) AS delta
+          FROM public.cash_register_transactions
+          WHERE cash_register_id IS NOT NULL
+          GROUP BY cash_register_id
+        ) t ON t.cash_register_id = cr.id
+      ''');
+    }
+
+    if (tables.contains('credit_cards') &&
+        tables.contains('credit_card_transactions')) {
+      creditOpenings = 'tmp_credit_openings_$suffix';
+      await target.execute('''
+        CREATE TEMP TABLE $creditOpenings ON COMMIT DROP AS
+        SELECT
+          cc.id,
+          COALESCE(cc.balance, 0) - COALESCE(t.delta, 0) AS opening
+        FROM public.credit_cards cc
+        LEFT JOIN (
+          SELECT
+            credit_card_id,
+            SUM(
+              CASE WHEN type IN ('Çıkış', 'Harcama')
+              THEN -COALESCE(amount, 0)
+              ELSE COALESCE(amount, 0)
+              END
+            ) AS delta
+          FROM public.credit_card_transactions
+          WHERE credit_card_id IS NOT NULL
+          GROUP BY credit_card_id
+        ) t ON t.credit_card_id = cc.id
+      ''');
+    }
+
+    if (bankOpenings == null &&
+        cashOpenings == null &&
+        creditOpenings == null) {
+      return null;
+    }
+
+    return _MergeSnapshots(
+      bankOpeningsTable: bankOpenings,
+      cashOpeningsTable: cashOpenings,
+      creditOpeningsTable: creditOpenings,
+    );
+  }
+
+  Future<void> _postMergeMaintenance({
+    required Connection target,
+    required Set<String> tables,
+    required _MergeSnapshots? snapshots,
+  }) async {
+    if (tables.isEmpty) return;
+
+    // 1) Stok + maliyet (kronolojik): stock_movements.running_* + products.stok/alis_fiyati
+    if (tables.contains('stock_movements') && tables.contains('products')) {
+      await _recalculateProductStocksAndCosts(target);
+
+      // 2) Depo stoklarını yeniden üret (warehouse_stocks.quantity)
+      if (tables.contains('warehouse_stocks')) {
+        await _rebuildWarehouseStocks(target);
+      }
+    }
+
+    // 3) Cari bakiye ve hareket bakiyeleri (kümülatif)
+    if (tables.contains('current_accounts') &&
+        tables.contains('current_account_transactions')) {
+      await _recalculateCurrentAccountBalances(target);
+    }
+
+    // 4) Banka/Kasa/Kart bakiyeleri (açılış + işlem toplamı)
+    await _restoreFinancialBalancesFromSnapshots(
+      target: target,
+      snapshots: snapshots,
+    );
+  }
+
+  Future<void> _recalculateProductStocksAndCosts(Connection conn) async {
+    final smCols = await _columns(conn, 'stock_movements');
+    final prodCols = await _columns(conn, 'products');
+
+    const requiredSmCols = <String>{
+      'id',
+      'product_id',
+      'quantity',
+      'is_giris',
+      'unit_price',
+      'currency_rate',
+      'movement_date',
+      'running_stock',
+      'running_cost',
+    };
+    const requiredProdCols = <String>{'id', 'stok', 'alis_fiyati'};
+    if (!requiredSmCols.every(smCols.contains) ||
+        !requiredProdCols.every(prodCols.contains)) {
+      return;
+    }
+
+    final hasProductUpdatedAt = prodCols.contains('updated_at');
+
+    // Weighted Average Cost (WAC) + running stock, per product, chronologically.
+    // Bu işlem "Birleştir" sonrasında zorunlu: iki kaynağın hareketleri zaman içinde
+    // iç içe geçebilir; mevcut running_* alanları tek başına güvenilir değildir.
+    if (hasProductUpdatedAt) {
+      await conn.execute(r'''
+        DO $$
+        DECLARE
+          v_product_id INTEGER;
+          v_move RECORD;
+          current_stock NUMERIC := 0;
+          current_total_value NUMERIC := 0;
+          current_avg_cost NUMERIC := 0;
+          qty NUMERIC := 0;
+          local_price NUMERIC := 0;
+        BEGIN
+          FOR v_product_id IN
+            SELECT DISTINCT product_id
+            FROM public.stock_movements
+            WHERE product_id IS NOT NULL
+            ORDER BY product_id
+          LOOP
+            current_stock := 0;
+            current_total_value := 0;
+            current_avg_cost := 0;
+
+            FOR v_move IN
+              SELECT id, quantity, is_giris, unit_price, currency_rate
+              FROM public.stock_movements
+              WHERE product_id = v_product_id
+              ORDER BY movement_date ASC, id ASC
+            LOOP
+              qty := COALESCE(v_move.quantity, 0);
+              local_price := COALESCE(v_move.unit_price, 0) * COALESCE(v_move.currency_rate, 1);
+
+              IF v_move.is_giris THEN
+                current_total_value := current_total_value + (qty * local_price);
+                current_stock := current_stock + qty;
+                IF current_stock > 0 THEN
+                  current_avg_cost := current_total_value / current_stock;
+                END IF;
+              ELSE
+                current_stock := current_stock - qty;
+                current_total_value := current_stock * current_avg_cost;
+                IF current_stock <= 0 THEN
+                  current_total_value := 0;
+                END IF;
+              END IF;
+
+              UPDATE public.stock_movements
+              SET running_stock = current_stock,
+                  running_cost = current_avg_cost
+              WHERE id = v_move.id;
+            END LOOP;
+
+            UPDATE public.products
+            SET stok = current_stock,
+                alis_fiyati = current_avg_cost,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = v_product_id;
+          END LOOP;
+        END $$;
+      ''');
+      return;
+    }
+
+    await conn.execute(r'''
+      DO $$
+      DECLARE
+        v_product_id INTEGER;
+        v_move RECORD;
+        current_stock NUMERIC := 0;
+        current_total_value NUMERIC := 0;
+        current_avg_cost NUMERIC := 0;
+        qty NUMERIC := 0;
+        local_price NUMERIC := 0;
+      BEGIN
+        FOR v_product_id IN
+          SELECT DISTINCT product_id
+          FROM public.stock_movements
+          WHERE product_id IS NOT NULL
+          ORDER BY product_id
+        LOOP
+          current_stock := 0;
+          current_total_value := 0;
+          current_avg_cost := 0;
+
+          FOR v_move IN
+            SELECT id, quantity, is_giris, unit_price, currency_rate
+            FROM public.stock_movements
+            WHERE product_id = v_product_id
+            ORDER BY movement_date ASC, id ASC
+          LOOP
+            qty := COALESCE(v_move.quantity, 0);
+            local_price := COALESCE(v_move.unit_price, 0) * COALESCE(v_move.currency_rate, 1);
+
+            IF v_move.is_giris THEN
+              current_total_value := current_total_value + (qty * local_price);
+              current_stock := current_stock + qty;
+              IF current_stock > 0 THEN
+                current_avg_cost := current_total_value / current_stock;
+              END IF;
+            ELSE
+              current_stock := current_stock - qty;
+              current_total_value := current_stock * current_avg_cost;
+              IF current_stock <= 0 THEN
+                current_total_value := 0;
+              END IF;
+            END IF;
+
+            UPDATE public.stock_movements
+            SET running_stock = current_stock,
+                running_cost = current_avg_cost
+            WHERE id = v_move.id;
+          END LOOP;
+
+          UPDATE public.products
+          SET stok = current_stock,
+              alis_fiyati = current_avg_cost
+          WHERE id = v_product_id;
+        END LOOP;
+      END $$;
+    ''');
+  }
+
+  Future<void> _rebuildWarehouseStocks(Connection conn) async {
+    final wsCols = await _columns(conn, 'warehouse_stocks');
+    if (!wsCols.contains('warehouse_id') ||
+        !wsCols.contains('product_code') ||
+        !wsCols.contains('quantity')) {
+      return;
+    }
+
+    final hasUpdatedAt = wsCols.contains('updated_at');
+
+    // 1) Eski miktarları sıfırla (reserved_quantity korunur)
+    if (hasUpdatedAt) {
+      await conn.execute(
+        'UPDATE public.warehouse_stocks SET quantity = 0, updated_at = CURRENT_TIMESTAMP',
+      );
+    } else {
+      await conn.execute('UPDATE public.warehouse_stocks SET quantity = 0');
+    }
+
+    // 2) stock_movements üzerinden tekrar üret
+    final updateClause = hasUpdatedAt
+        ? 'quantity = EXCLUDED.quantity, updated_at = CURRENT_TIMESTAMP'
+        : 'quantity = EXCLUDED.quantity';
+
+    await conn.execute('''
+      INSERT INTO public.warehouse_stocks (warehouse_id, product_code, quantity${hasUpdatedAt ? ', updated_at' : ''})
+      SELECT
+        sm.warehouse_id,
+        p.kod AS product_code,
+        SUM(
+          CASE WHEN sm.is_giris
+          THEN COALESCE(sm.quantity, 0)
+          ELSE -COALESCE(sm.quantity, 0)
+          END
+        ) AS quantity
+        ${hasUpdatedAt ? ', CURRENT_TIMESTAMP' : ''}
+      FROM public.stock_movements sm
+      JOIN public.products p ON p.id = sm.product_id
+      WHERE sm.warehouse_id IS NOT NULL AND sm.product_id IS NOT NULL
+      GROUP BY sm.warehouse_id, p.kod
+      ON CONFLICT (warehouse_id, product_code)
+      DO UPDATE SET $updateClause
+    ''');
+  }
+
+  Future<void> _recalculateCurrentAccountBalances(Connection conn) async {
+    final catCols = await _columns(conn, 'current_account_transactions');
+    final caCols = await _columns(conn, 'current_accounts');
+
+    const requiredCat = <String>{
+      'id',
+      'date',
+      'current_account_id',
+      'amount',
+      'type',
+      'para_birimi',
+      'kur',
+      'bakiye_borc',
+      'bakiye_alacak',
+    };
+    const requiredCa = <String>{
+      'id',
+      'bakiye_borc',
+      'bakiye_alacak',
+      'para_birimi',
+    };
+    if (!requiredCat.every(catCols.contains) ||
+        !requiredCa.every(caCols.contains)) {
+      return;
+    }
+
+    final hasBalanceStatus = caCols.contains('bakiye_durumu');
+
+    // 1) Hareket bakiyelerini (kümülatif) güncelle — döviz dönüşümü dahil
+    await conn.execute(r'''
+      WITH base AS (
+        SELECT
+          cat.id,
+          cat.date,
+          cat.current_account_id,
+          cat.type,
+          CASE
+            WHEN cat.amount IS NULL THEN 0
+            WHEN cat.para_birimi IS NULL OR ca.para_birimi IS NULL OR cat.para_birimi = ca.para_birimi THEN cat.amount
+            WHEN cat.kur IS NULL OR cat.kur <= 0 THEN cat.amount
+            WHEN ca.para_birimi = 'TRY' THEN cat.amount * cat.kur
+            WHEN cat.para_birimi = 'TRY' THEN cat.amount / cat.kur
+            ELSE cat.amount * cat.kur
+          END AS amount_conv
+        FROM public.current_account_transactions cat
+        JOIN public.current_accounts ca ON ca.id = cat.current_account_id
+      ),
+      ordered AS (
+        SELECT
+          id,
+          date,
+          current_account_id,
+          SUM(CASE WHEN type = 'Borç' THEN amount_conv ELSE 0 END)
+            OVER (PARTITION BY current_account_id ORDER BY date ASC, id ASC) AS run_borc,
+          SUM(CASE WHEN type = 'Alacak' THEN amount_conv ELSE 0 END)
+            OVER (PARTITION BY current_account_id ORDER BY date ASC, id ASC) AS run_alacak
+        FROM base
+      )
+      UPDATE public.current_account_transactions cat
+      SET bakiye_borc = ordered.run_borc,
+          bakiye_alacak = ordered.run_alacak
+      FROM ordered
+      WHERE cat.id = ordered.id AND cat.date = ordered.date
+    ''');
+
+    // 2) Cari kart bakiyelerini yeniden üret — döviz dönüşümü dahil
+    if (hasBalanceStatus) {
+      await conn.execute(r'''
+        WITH base AS (
+          SELECT
+            cat.current_account_id,
+            cat.type,
+            CASE
+              WHEN cat.amount IS NULL THEN 0
+              WHEN cat.para_birimi IS NULL OR ca.para_birimi IS NULL OR cat.para_birimi = ca.para_birimi THEN cat.amount
+              WHEN cat.kur IS NULL OR cat.kur <= 0 THEN cat.amount
+              WHEN ca.para_birimi = 'TRY' THEN cat.amount * cat.kur
+              WHEN cat.para_birimi = 'TRY' THEN cat.amount / cat.kur
+              ELSE cat.amount * cat.kur
+            END AS amount_conv
+          FROM public.current_account_transactions cat
+          JOIN public.current_accounts ca ON ca.id = cat.current_account_id
+        ),
+        sums AS (
+          SELECT
+            current_account_id,
+            SUM(CASE WHEN type = 'Borç' THEN amount_conv ELSE 0 END) AS borc,
+            SUM(CASE WHEN type = 'Alacak' THEN amount_conv ELSE 0 END) AS alacak
+          FROM base
+          GROUP BY current_account_id
+        )
+        UPDATE public.current_accounts ca
+        SET bakiye_borc = COALESCE(sums.borc, 0),
+            bakiye_alacak = COALESCE(sums.alacak, 0),
+            bakiye_durumu = CASE
+              WHEN COALESCE(sums.borc, 0) > COALESCE(sums.alacak, 0) THEN 'Borç'
+              WHEN COALESCE(sums.alacak, 0) > COALESCE(sums.borc, 0) THEN 'Alacak'
+              ELSE 'Dengeli'
+            END
+        FROM sums
+        WHERE ca.id = sums.current_account_id
+      ''');
+      return;
+    }
+
+    await conn.execute(r'''
+      WITH base AS (
+        SELECT
+          cat.current_account_id,
+          cat.type,
+          CASE
+            WHEN cat.amount IS NULL THEN 0
+            WHEN cat.para_birimi IS NULL OR ca.para_birimi IS NULL OR cat.para_birimi = ca.para_birimi THEN cat.amount
+            WHEN cat.kur IS NULL OR cat.kur <= 0 THEN cat.amount
+            WHEN ca.para_birimi = 'TRY' THEN cat.amount * cat.kur
+            WHEN cat.para_birimi = 'TRY' THEN cat.amount / cat.kur
+            ELSE cat.amount * cat.kur
+          END AS amount_conv
+        FROM public.current_account_transactions cat
+        JOIN public.current_accounts ca ON ca.id = cat.current_account_id
+      ),
+      sums AS (
+        SELECT
+          current_account_id,
+          SUM(CASE WHEN type = 'Borç' THEN amount_conv ELSE 0 END) AS borc,
+          SUM(CASE WHEN type = 'Alacak' THEN amount_conv ELSE 0 END) AS alacak
+        FROM base
+        GROUP BY current_account_id
+      )
+      UPDATE public.current_accounts ca
+      SET bakiye_borc = COALESCE(sums.borc, 0),
+          bakiye_alacak = COALESCE(sums.alacak, 0)
+      FROM sums
+      WHERE ca.id = sums.current_account_id
+    ''');
+  }
+
+  Future<void> _restoreFinancialBalancesFromSnapshots({
+    required Connection target,
+    required _MergeSnapshots? snapshots,
+  }) async {
+    if (snapshots == null) return;
+
+    if (snapshots.bankOpeningsTable != null) {
+      final o = snapshots.bankOpeningsTable!;
+      await target.execute('''
+        UPDATE public.banks b
+        SET balance = o.opening + COALESCE(t.delta, 0)
+        FROM $o o
+        LEFT JOIN (
+          SELECT
+            bank_id,
+            SUM(
+              CASE WHEN type = 'Tahsilat'
+              THEN COALESCE(amount, 0)
+              ELSE -COALESCE(amount, 0)
+              END
+            ) AS delta
+          FROM public.bank_transactions
+          WHERE bank_id IS NOT NULL
+          GROUP BY bank_id
+        ) t ON t.bank_id = o.id
+        WHERE b.id = o.id
+      ''');
+    }
+
+    if (snapshots.cashOpeningsTable != null) {
+      final o = snapshots.cashOpeningsTable!;
+      await target.execute('''
+        UPDATE public.cash_registers cr
+        SET balance = o.opening + COALESCE(t.delta, 0)
+        FROM $o o
+        LEFT JOIN (
+          SELECT
+            cash_register_id,
+            SUM(
+              CASE WHEN type IN ('Tahsilat', 'Para Alındı')
+              THEN COALESCE(amount, 0)
+              ELSE -COALESCE(amount, 0)
+              END
+            ) AS delta
+          FROM public.cash_register_transactions
+          WHERE cash_register_id IS NOT NULL
+          GROUP BY cash_register_id
+        ) t ON t.cash_register_id = o.id
+        WHERE cr.id = o.id
+      ''');
+    }
+
+    if (snapshots.creditOpeningsTable != null) {
+      final o = snapshots.creditOpeningsTable!;
+      await target.execute('''
+        UPDATE public.credit_cards cc
+        SET balance = o.opening + COALESCE(t.delta, 0)
+        FROM $o o
+        LEFT JOIN (
+          SELECT
+            credit_card_id,
+            SUM(
+              CASE WHEN type IN ('Çıkış', 'Harcama')
+              THEN -COALESCE(amount, 0)
+              ELSE COALESCE(amount, 0)
+              END
+            ) AS delta
+          FROM public.credit_card_transactions
+          WHERE credit_card_id IS NOT NULL
+          GROUP BY credit_card_id
+        ) t ON t.credit_card_id = o.id
+        WHERE cc.id = o.id
+      ''');
+    }
+  }
 
   Future<void> _copyTableFromMultipleSources({
     required List<_DbSource> sources,
@@ -1472,6 +2042,18 @@ class _FkEdge {
   final String child;
   final String parent;
   const _FkEdge({required this.child, required this.parent});
+}
+
+class _MergeSnapshots {
+  final String? bankOpeningsTable;
+  final String? cashOpeningsTable;
+  final String? creditOpeningsTable;
+
+  const _MergeSnapshots({
+    required this.bankOpeningsTable,
+    required this.cashOpeningsTable,
+    required this.creditOpeningsTable,
+  });
 }
 
 class VeritabaniAktarimHazirlik {

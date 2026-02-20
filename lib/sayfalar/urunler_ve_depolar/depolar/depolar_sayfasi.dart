@@ -106,6 +106,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   // Transactions
   // Transactions
   List<Map<String, dynamic>> _transactions = [];
+  bool _isTransactionsLoading = false;
   final Map<int, List<int>> _visibleTransactionIds = {}; // depoId -> [id]
   final Map<int, Set<int>> _selectedDetailIds = {};
   // Cache for detail futures to prevent reloading on selection changes
@@ -160,6 +161,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     _loadAvailableUsers();
     _loadAvailableTransactionTypes();
     _fetchDepolar();
+    _fetchTransactions();
     _searchController.addListener(() {
       if (_debounce?.isActive ?? false) _debounce!.cancel();
       _debounce = Timer(const Duration(milliseconds: 500), () {
@@ -310,13 +312,20 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
   Future<void> _fetchTransactions() async {
     try {
+      if (mounted) {
+        setState(() => _isTransactionsLoading = true);
+      }
       final transactions = await DepolarVeritabaniServisi().sonIslemleriGetir();
       if (mounted) {
         setState(() {
           _transactions = transactions;
+          _isTransactionsLoading = false;
         });
       }
     } catch (e) {
+      if (mounted) {
+        setState(() => _isTransactionsLoading = false);
+      }
       debugPrint('Sevkiyatlar yüklenirken hata: $e');
     }
   }
@@ -1352,8 +1361,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final bool forceMobile =
-                      ResponsiveYardimcisi.tabletMi(context);
+                  final bool forceMobile = ResponsiveYardimcisi.tabletMi(
+                    context,
+                  );
                   if (forceMobile || constraints.maxWidth < 800) {
                     return _buildMobileView(filteredDepolar);
                   } else {
@@ -5597,6 +5607,12 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   }
 
   Widget _buildMobileDetails(DepoModel depo) {
+    final depotTransactions = _transactions.where((tx) {
+      final sourceId = tx['source_warehouse_id'];
+      final destId = tx['dest_warehouse_id'];
+      return sourceId == depo.id || destId == depo.id;
+    }).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -5609,18 +5625,26 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           ),
         ),
         const SizedBox(height: 8),
-        ..._transactions.map((tx) {
-          return _buildMobileTransactionRow(
-            isIncoming: tx['isIncoming'] == true,
-            product: tx['product']?.toString() ?? '',
-            quantity: tx['quantity']?.toString() ?? '',
-            date: tx['date']?.toString() ?? '',
-            user: tx['user']?.toString() ?? '',
-            description: tx['description']?.toString() ?? '',
-            customTypeLabel: tx['customTypeLabel']?.toString(),
-            sourceSuffix: tx['sourceSuffix']?.toString(),
-          );
-        }),
+        if (_isTransactionsLoading)
+          const Center(child: CircularProgressIndicator())
+        else if (depotTransactions.isEmpty)
+          Text(
+            tr('common.no_data'),
+            style: TextStyle(color: Colors.grey.shade500),
+          )
+        else
+          ...depotTransactions.map((tx) {
+            return _buildMobileTransactionRow(
+              isIncoming: tx['isIncoming'] == true,
+              product: tx['product']?.toString() ?? '',
+              quantity: tx['quantity']?.toString() ?? '',
+              date: tx['date']?.toString() ?? '',
+              user: tx['user']?.toString() ?? '',
+              description: tx['description']?.toString() ?? '',
+              customTypeLabel: tx['customTypeLabel']?.toString(),
+              sourceSuffix: tx['sourceSuffix']?.toString(),
+            );
+          }),
       ],
     );
   }

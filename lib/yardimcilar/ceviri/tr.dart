@@ -296,6 +296,18 @@ const Map<String, String> trCeviriler = {
       'Uzak/bulut veritabanınız hazırlanıyor. Kurulum tamamlandığında size bildirim gönderilecektir.',
   'setup.cloud.access_error_contact_support':
       'Bulut veritabanına erişim sağlanamadı. Lütfen tekrar deneyin. Sorun devam ederse teknik destek ile iletişime geçin.',
+  'setup.cloud.cross_device_choice.title': 'Online Veritabanı Seçimi',
+  'setup.cloud.cross_device_choice.message':
+      'Mevcut {device} adlı cihazınız online veritabanı kullanıyor. Bu veritabanına bağlanmak ister misiniz?\n\nYoksa tamamen yeni bir online veritabanı mı oluşturmak istersiniz?',
+  'setup.cloud.cross_device_choice.use_existing_title':
+      'Mevcut veritabanına bağlan',
+  'setup.cloud.cross_device_choice.use_existing_desc':
+      'Diğer cihazınızın kullandığı online veritabanını kullanır. (Ortak veritabanı)',
+  'setup.cloud.cross_device_choice.source_label': 'Veritabanı Kaynağı',
+  'setup.cloud.cross_device_choice.create_new_title':
+      'Yeni online veritabanı oluştur',
+  'setup.cloud.cross_device_choice.create_new_desc':
+      'Bu cihaz için ayrı bir online veritabanı hazırlanır.',
   'dbsync.desktop.local_to_cloud.intro':
       'Online veritabanı ayarlarınız hazır. Buluta geçmek için aşağıdan bir seçenek seçin.',
   'dbsync.desktop.cloud_to_local.intro':
@@ -373,6 +385,7 @@ const Map<String, String> trCeviriler = {
   'dbsync.table.roles': 'Roller',
   'dbsync.table.saved_descriptions': 'Kaydedilmiş Açıklamalar',
   'dbsync.table.sequences': 'Sekanslar',
+  'dbsync.table.maintenance': 'Bakım',
   'dbsync.table.shipments': 'Sevkiyatlar',
   'dbsync.table.stock_movements': 'Stok Hareketleri',
   'dbsync.table.sync_outbox': 'Senkron Kuyruğu',

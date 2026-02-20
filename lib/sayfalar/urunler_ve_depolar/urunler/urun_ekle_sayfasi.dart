@@ -18,10 +18,18 @@ import 'package:intl/intl.dart';
 import '../../../bilesenler/tek_tarih_secici_dialog.dart';
 
 class UrunEkleSayfasi extends StatefulWidget {
-  const UrunEkleSayfasi({super.key, this.urun, this.focusOnStock = false});
+  const UrunEkleSayfasi({
+    super.key,
+    this.urun,
+    this.focusOnStock = false,
+    this.initialCode,
+    this.initialBarcode,
+  });
 
   final UrunModel? urun;
   final bool focusOnStock;
+  final String? initialCode;
+  final String? initialBarcode;
 
   @override
   State<UrunEkleSayfasi> createState() => _UrunEkleSayfasiState();
@@ -115,6 +123,15 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
         }
       });
     } else {
+      final initialCode = widget.initialCode?.trim();
+      final initialBarcode = widget.initialBarcode?.trim();
+      if (initialCode != null && initialCode.isNotEmpty) {
+        _codeController.text = initialCode;
+      }
+      if (initialBarcode != null && initialBarcode.isNotEmpty) {
+        _barcodeController.text = initialBarcode;
+      }
+
       // Add one default sales price row for new product
       _addSalesPriceRow();
       _requestInitialFocusForNewProduct();
@@ -482,9 +499,32 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
     try {
       final service = UrunlerVeritabaniServisi();
 
-      if (_genelAyarlar.otoStokKodu) {
-        // Son ürün kodunu al ve bir artır
-        final lastCode = await service.sonUrunKoduGetir();
+      final shouldGenerateCode =
+          _genelAyarlar.otoStokKodu && _codeController.text.trim().isEmpty;
+      final shouldGenerateBarcode =
+          _genelAyarlar.otoStokBarkodu &&
+          _barcodeController.text.trim().isEmpty;
+      if (!shouldGenerateCode && !shouldGenerateBarcode) return;
+
+      // Kod ve barkodu aynı anda başlat; ama kodu barkodu beklemeden UI'ya yaz.
+      final lastCodeFuture = shouldGenerateCode
+          ? service.sonUrunKoduGetir()
+          : null;
+      final lastBarcodeFuture = shouldGenerateBarcode
+          ? service.sonBarkodGetir()
+          : null;
+
+      String? lastCode;
+      if (lastCodeFuture != null) {
+        try {
+          lastCode = await lastCodeFuture;
+        } catch (e) {
+          debugPrint('Ürün kodu alınamadı: $e');
+        }
+      }
+
+      if (!mounted) return;
+      if (shouldGenerateCode && _codeController.text.trim().isEmpty) {
         int nextCode = 1;
         if (lastCode != null) {
           nextCode = (int.tryParse(lastCode) ?? 0) + 1;
@@ -494,16 +534,24 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
             ? 'STK-${nextCode.toString().padLeft(6, '0')}'
             : nextCode.toString();
 
-        if (mounted && _codeController.text.isEmpty) {
-          setState(() {
+        setState(() {
+          if (_codeController.text.trim().isEmpty) {
             _codeController.text = newCode;
-          });
+          }
+        });
+      }
+
+      String? lastBarcode;
+      if (lastBarcodeFuture != null) {
+        try {
+          lastBarcode = await lastBarcodeFuture;
+        } catch (e) {
+          debugPrint('Ürün barkodu alınamadı: $e');
         }
       }
 
-      if (_genelAyarlar.otoStokBarkodu) {
-        // Son barkodu al ve bir artır
-        final lastBarcode = await service.sonBarkodGetir();
+      if (!mounted) return;
+      if (shouldGenerateBarcode && _barcodeController.text.trim().isEmpty) {
         int nextBarcode = 1;
         if (lastBarcode != null) {
           nextBarcode = (int.tryParse(lastBarcode) ?? 0) + 1;
@@ -513,11 +561,11 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
             ? 'STB-${nextBarcode.toString().padLeft(8, '0')}'
             : nextBarcode.toString();
 
-        if (mounted && _barcodeController.text.isEmpty) {
-          setState(() {
+        setState(() {
+          if (_barcodeController.text.trim().isEmpty) {
             _barcodeController.text = newBarcode;
-          });
-        }
+          }
+        });
       }
     } catch (e) {
       debugPrint('Kod oluşturulurken hata: $e');

@@ -1450,6 +1450,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
                                           ),
                                         ],
                                         const Spacer(),
+                                        const SizedBox(height: 16),
 
                                         // Güvenlik Bilgisi
                                         Center(

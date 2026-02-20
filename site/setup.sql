@@ -69,6 +69,7 @@ CREATE TABLE public.licenses (
 CREATE TABLE public.program_deneme (
   id uuid NOT NULL DEFAULT gen_random_uuid(),
   hardware_id text NOT NULL UNIQUE,
+  license_id text DEFAULT upper(encode(gen_random_bytes(4), 'hex')),
   ip_address text,
   city text,
   install_date timestamp with time zone DEFAULT now(),

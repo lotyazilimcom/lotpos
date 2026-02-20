@@ -278,6 +278,18 @@ const Map<String, String> arCeviriler = {
       'يتم إعداد قاعدة البيانات البعيدة/السحابية. سيتم إشعارك عند اكتمال الإعداد.',
   'setup.cloud.access_error_contact_support':
       'تعذر الوصول إلى قاعدة البيانات السحابية. يُرجى إعادة المحاولة. إذا استمرت المشكلة، تواصل مع الدعم الفني.',
+  'setup.cloud.cross_device_choice.title': 'اختيار قاعدة البيانات عبر الإنترنت',
+  'setup.cloud.cross_device_choice.message':
+      'يستخدم جهازك "{device}" قاعدة بيانات عبر الإنترنت. هل تريد الاتصال بهذه القاعدة؟\n\nأم تريد إنشاء قاعدة بيانات عبر الإنترنت جديدة تمامًا؟',
+  'setup.cloud.cross_device_choice.use_existing_title':
+      'الاتصال بقاعدة بيانات موجودة',
+  'setup.cloud.cross_device_choice.use_existing_desc':
+      'استخدم قاعدة البيانات عبر الإنترنت التي يستخدمها جهاز آخر. (قاعدة بيانات مشتركة)',
+  'setup.cloud.cross_device_choice.source_label': 'مصدر قاعدة البيانات',
+  'setup.cloud.cross_device_choice.create_new_title':
+      'إنشاء قاعدة بيانات جديدة عبر الإنترنت',
+  'setup.cloud.cross_device_choice.create_new_desc':
+      'سيتم إعداد قاعدة بيانات عبر الإنترنت منفصلة لهذا الجهاز.',
   'dbsync.desktop.local_to_cloud.intro':
       'إعدادات قاعدة البيانات عبر الإنترنت جاهزة. اختر خيارًا أدناه للانتقال إلى السحابة.',
   'dbsync.desktop.cloud_to_local.intro':
@@ -354,6 +366,7 @@ const Map<String, String> arCeviriler = {
   'dbsync.table.roles': 'الأدوار',
   'dbsync.table.saved_descriptions': 'الأوصاف المحفوظة',
   'dbsync.table.sequences': 'المتسلسلات',
+  'dbsync.table.maintenance': 'صيانة',
   'dbsync.table.shipments': 'الشحنات',
   'dbsync.table.stock_movements': 'حركات المخزون',
   'dbsync.table.sync_outbox': 'قائمة انتظار المزامنة',

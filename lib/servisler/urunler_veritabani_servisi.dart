@@ -2992,9 +2992,9 @@ class UrunlerVeritabaniServisi {
 
     // Products table check
     final prodResult = await _pool!.execute(
-      "SELECT kod FROM products WHERE kod ~ '^[0-9]+\$' ORDER BY CAST(kod AS BIGINT) DESC LIMIT 1",
+      "SELECT MAX((substring(trim(kod) from '([0-9]+)\$'))::BIGINT) FROM products WHERE trim(kod) ~ '[0-9]+\$'",
     );
-    if (prodResult.isNotEmpty) {
+    if (prodResult.isNotEmpty && prodResult[0][0] != null) {
       final pc = int.tryParse(prodResult[0][0].toString());
       if (pc != null && pc > maxCode) maxCode = pc;
     }
@@ -3002,9 +3002,9 @@ class UrunlerVeritabaniServisi {
     // Productions table check (Üretimler de aynı havuzdan kod alıyorsa)
     try {
       final uretimResult = await _pool!.execute(
-        "SELECT kod FROM productions WHERE kod ~ '^[0-9]+\$' ORDER BY CAST(kod AS BIGINT) DESC LIMIT 1",
+        "SELECT MAX((substring(trim(kod) from '([0-9]+)\$'))::BIGINT) FROM productions WHERE trim(kod) ~ '[0-9]+\$'",
       );
-      if (uretimResult.isNotEmpty) {
+      if (uretimResult.isNotEmpty && uretimResult[0][0] != null) {
         final uc = int.tryParse(uretimResult[0][0].toString());
         if (uc != null && uc > maxCode) maxCode = uc;
       }
@@ -3013,17 +3013,17 @@ class UrunlerVeritabaniServisi {
       debugPrint('Productions kod kontrolü atlandı: $e');
     }
 
-    if (maxCode > 0) {
-      // Sequence'i başlat
-      await _pool!.execute(
-        Sql.named(
-          "INSERT INTO sequences (name, current_value) VALUES ('product_code', @val)",
-        ),
-        parameters: {'val': maxCode},
-      );
-      return maxCode.toString();
-    }
-    return null;
+    // Sequence'i başlat / güncelle (yarış durumlarını önlemek için ON CONFLICT)
+    await _pool!.execute(
+      Sql.named(
+        "INSERT INTO sequences (name, current_value) VALUES ('product_code', @val) "
+        "ON CONFLICT (name) DO UPDATE "
+        "SET current_value = GREATEST(sequences.current_value, @val)",
+      ),
+      parameters: {'val': maxCode},
+    );
+
+    return maxCode.toString();
   }
 
   Future<String?> sonBarkodGetir() async {
@@ -3039,22 +3039,27 @@ class UrunlerVeritabaniServisi {
       return seqResult[0][0].toString();
     }
 
-    // 2. Fallback (Init)
+    // 2. Fallback (Init) - Sort yerine MAX kullan (online DB'de çok daha hızlı)
     final result = await _pool!.execute(
-      "SELECT barkod FROM products WHERE barkod ~ '^[0-9]+\$' ORDER BY CAST(barkod AS BIGINT) DESC LIMIT 1",
+      "SELECT MAX((substring(trim(barkod) from '([0-9]+)\$'))::BIGINT) FROM products WHERE trim(barkod) ~ '[0-9]+\$'",
     );
 
-    if (result.isNotEmpty) {
-      final lastBarcode = result[0][0] as String;
-      await _pool!.execute(
-        Sql.named(
-          "INSERT INTO sequences (name, current_value) VALUES ('barcode', @val)",
-        ),
-        parameters: {'val': int.parse(lastBarcode)},
-      );
-      return lastBarcode;
-    }
-    return null;
+    final maxBarcode =
+        (result.isNotEmpty && result[0][0] != null)
+        ? (int.tryParse(result[0][0].toString()) ?? 0)
+        : 0;
+
+    // Sequence'i başlat / güncelle (yarış durumlarını önlemek için ON CONFLICT)
+    await _pool!.execute(
+      Sql.named(
+        "INSERT INTO sequences (name, current_value) VALUES ('barcode', @val) "
+        "ON CONFLICT (name) DO UPDATE "
+        "SET current_value = GREATEST(sequences.current_value, @val)",
+      ),
+      parameters: {'val': maxBarcode},
+    );
+
+    return maxBarcode.toString();
   }
 
   Future<Map<String, double>> acilisStoguDetayGetir(

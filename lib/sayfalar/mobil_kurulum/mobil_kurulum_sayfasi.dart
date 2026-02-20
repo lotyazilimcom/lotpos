@@ -393,6 +393,9 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
   }) async {
     final String oncekiMod = VeritabaniYapilandirma.connectionMode;
     final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
+    final prefs = await SharedPreferences.getInstance();
+    final bool kurulumTamamlandi =
+        prefs.getBool('mobil_kurulum_tamamlandi') ?? false;
     final selectedHost = (_selectedServer?.host ?? '').trim();
     if (mode == 'local' && selectedHost.isEmpty) return;
 
@@ -416,7 +419,11 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
         (oncekiMod == 'cloud' && mode == 'local');
 
     DesktopVeritabaniAktarimSecimi? transferSecim;
-    if (modDegisti && localCloudSwitch && context.mounted) {
+    if (!kurulumTamamlandi && modDegisti && localCloudSwitch) {
+      // İlk kurulumda veri aktarımı sormayız. Bekleyen bir seçim/niyet varsa temizle (best-effort).
+      await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+      await VeritabaniAktarimServisi().niyetTemizle();
+    } else if (modDegisti && localCloudSwitch && context.mounted) {
       transferSecim = await veritabaniAktarimSecimDialogGoster(
         context: context,
         localToCloud: oncekiMod == 'local' && mode == 'cloud',
@@ -424,7 +431,6 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
       );
       if (transferSecim == null) return;
 
-      final prefs = await SharedPreferences.getInstance();
       if (transferSecim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
         await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
         await VeritabaniAktarimServisi().niyetTemizle();
@@ -463,7 +469,6 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
       );
     }
 
-    final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('mobil_kurulum_tamamlandi', true);
 
     if (mode == 'cloud' && context.mounted) {

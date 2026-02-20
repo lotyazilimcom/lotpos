@@ -10,6 +10,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'lisans_kasasi.dart';
 import 'lite_ayarlar_servisi.dart';
+import 'online_veritabani_servisi.dart';
 
 /// Patisyo Lisans Servisi (CIA Level Security & Supabase SDK Implementation)
 ///
@@ -43,18 +44,22 @@ class LisansServisi extends ChangeNotifier {
 
   static const Duration _clockRollbackTolerance = Duration(minutes: 10);
   static const Duration _kasasiTouchInterval = Duration(minutes: 15);
+  static const Duration _licenseIdSyncInterval = Duration(minutes: 10);
 
   String get _vaultSecret => '$_licenseSecret|$_secKey|LOT-LICENSE-VAULT-V1';
 
   String? _hardwareId;
+  String? _licenseId;
   bool _isLicensed = false;
   DateTime? _licenseEndDate;
   bool _isInitialized = false;
   bool? _lastOnlineStatus; // Durum önbelleği (Caching)
   bool _inheritedPro = false; // Sunucudan devralınan lisans durumu
   bool _noOnlineLicenseLogged = false;
+  DateTime? _licenseIdLastSyncUtc;
 
   String? get hardwareId => _hardwareId;
+  String? get licenseId => _licenseId;
   bool get isLicensed => _isLicensed || _inheritedPro;
   bool get isLiteMode => !isLicensed;
   bool get inheritedPro => _inheritedPro;
@@ -101,6 +106,7 @@ class LisansServisi extends ChangeNotifier {
   String get _prefsLicenseKeyKey => 'license_key_${_requireHardwareId()}';
   String get _prefsLicenseEndDateKey =>
       'license_end_date_${_requireHardwareId()}';
+  String get _prefsLicenseIdKey => 'license_id_${_requireHardwareId()}';
 
   DateTime _nowUtc() => DateTime.now().toUtc();
 
@@ -140,6 +146,11 @@ class LisansServisi extends ChangeNotifier {
       // Not: Lisans kararı online-first yapılır; yerel lisans sadece online erişilemiyorsa devreye girer.
       final prefs = await SharedPreferences.getInstance();
       _inheritedPro = prefs.getBool(_prefsInheritedProKey) ?? false;
+      final cachedLicenseId = prefs.getString(_prefsLicenseIdKey);
+      if (cachedLicenseId != null) {
+        final normalized = cachedLicenseId.trim().toUpperCase();
+        _licenseId = normalized.isNotEmpty ? normalized : null;
+      }
 
       // Açılışta lisansı doğrula:
       // - Online erişilebiliyorsa: sadece online kayıt belirleyicidir (yerel lisansa bakılmaz).
@@ -171,6 +182,7 @@ class LisansServisi extends ChangeNotifier {
 
     // Admin panel görünürlüğü için cihaz kaydı (best-effort) + geo (best-effort)
     unawaited(_ensureProgramDenemeRowExistsBestEffort());
+    unawaited(_syncLicenseIdFromServerBestEffort(force: true));
     unawaited(_updateGeoInfo());
 
     // Online işareti (best-effort)
@@ -183,6 +195,7 @@ class LisansServisi extends ChangeNotifier {
       // Cache bypass: heartbeat her zaman gönderilmeli
       _lastOnlineStatus = null;
       unawaited(durumGuncelle(true));
+      unawaited(_syncLicenseIdFromServerBestEffort());
     });
   }
 
@@ -515,6 +528,28 @@ class LisansServisi extends ChangeNotifier {
     unawaited(_persistKasasiBestEffort());
   }
 
+  Future<void> _setLicenseIdLocal(String? licenseId) async {
+    if (_hardwareId == null) return;
+
+    final normalized = licenseId?.toString().trim().toUpperCase();
+    final cleaned = (normalized != null && normalized.trim().isNotEmpty)
+        ? normalized
+        : null;
+    if (_licenseId == cleaned) return;
+
+    _licenseId = cleaned;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (cleaned == null) {
+        await prefs.remove(_prefsLicenseIdKey);
+      } else {
+        await prefs.setString(_prefsLicenseIdKey, cleaned);
+      }
+    } catch (_) {}
+
+    notifyListeners();
+  }
+
   bool _isExpiredByDate(DateTime endDate) {
     final today = _secureTodayUtc();
     final end = DateTime.utc(endDate.year, endDate.month, endDate.day);
@@ -785,6 +820,83 @@ class LisansServisi extends ChangeNotifier {
     }
   }
 
+  Future<void> _syncLicenseIdFromServerBestEffort({bool force = false}) async {
+    final hid = _hardwareId;
+    if (hid == null || hid.trim().isEmpty) return;
+
+    final now = _nowUtc();
+    final last = _licenseIdLastSyncUtc;
+    if (!force &&
+        last != null &&
+        now.difference(last) < _licenseIdSyncInterval) {
+      return;
+    }
+    _licenseIdLastSyncUtc = now;
+
+    try {
+      final supabase = Supabase.instance.client;
+      final data = await supabase
+          .from('program_deneme')
+          .select('license_id')
+          .eq('hardware_id', hid)
+          .maybeSingle();
+
+      if (data is Map<String, dynamic>) {
+        final serverLicenseId = data['license_id']?.toString().trim();
+        if (serverLicenseId != null && serverLicenseId.isNotEmpty) {
+          unawaited(_setLicenseIdLocal(serverLicenseId));
+        }
+      }
+    } on PostgrestException catch (e) {
+      final msg = (e.message).toLowerCase();
+      final licenseIdColumnMissing =
+          msg.contains('license_id') &&
+          (msg.contains('column') || msg.contains('schema'));
+      if (licenseIdColumnMissing) return;
+      debugPrint('Lisans Servisi: license_id senkron hatası: $e');
+    } catch (e) {
+      debugPrint('Lisans Servisi: license_id senkron hatası: $e');
+    }
+  }
+
+  /// Cihazı verilen Lisans Kimliği'ne (License ID) bağlar.
+  ///
+  /// Not: Bu işlem sadece `program_deneme.license_id` alanını günceller.
+  /// (Cihazın kendi `hardware_id` kimliği değişmez.)
+  Future<bool> lisansKimligiGuncelle(String licenseId) async {
+    final hid = _hardwareId;
+    final normalized = licenseId.trim().toUpperCase();
+    if (hid == null || hid.trim().isEmpty) return false;
+    if (normalized.isEmpty) return false;
+
+    try {
+      // Satır yoksa önce oluşturmayı dene (best-effort).
+      await _ensureProgramDenemeRowExistsBestEffort();
+
+      final supabase = Supabase.instance.client;
+      await supabase
+          .from('program_deneme')
+          .update({'license_id': normalized})
+          .eq('hardware_id', hid);
+
+      _licenseIdLastSyncUtc = _nowUtc();
+      await _setLicenseIdLocal(normalized);
+      return true;
+    } on PostgrestException catch (e) {
+      final msg = (e.message).toLowerCase();
+      final licenseIdColumnMissing =
+          msg.contains('license_id') &&
+          (msg.contains('column') || msg.contains('schema'));
+      if (licenseIdColumnMissing) return false;
+
+      debugPrint('Lisans Servisi: license_id güncelleme hatası: $e');
+      return false;
+    } catch (e) {
+      debugPrint('Lisans Servisi: license_id güncelleme hatası: $e');
+      return false;
+    }
+  }
+
   Future<void> _updateGeoInfo() async {
     if (_hardwareId == null) return;
     try {
@@ -877,7 +989,7 @@ class LisansServisi extends ChangeNotifier {
   }) async {
     if (_hardwareId == null) return null;
     final supabase = Supabase.instance.client;
-    final data = await supabase
+    final direct = await supabase
         .from('licenses')
         .select()
         .eq('hardware_id', _hardwareId!)
@@ -885,7 +997,26 @@ class LisansServisi extends ChangeNotifier {
         .limit(1)
         .maybeSingle()
         .timeout(timeout);
-    return data;
+
+    // Eğer cihaz bir lisans grubuna (license_id) bağlıysa, lisans bilgisini grup bazında al.
+    // Böylece kullanıcı farklı cihazda PRO lisans aldıysa, birleşen tüm cihazlarda PRO görünür.
+    final groupId = _licenseId?.trim().toUpperCase();
+    if (groupId == null || groupId.isEmpty) return direct;
+
+    final hwIds = await OnlineVeritabaniServisi().cihazlariGetirByLisansKimligi(
+      groupId,
+    );
+    if (hwIds.isEmpty) return direct;
+
+    final inherited = await supabase
+        .from('licenses')
+        .select()
+        .inFilter('hardware_id', hwIds)
+        .order('end_date', ascending: false)
+        .limit(1)
+        .maybeSingle()
+        .timeout(timeout);
+    return inherited ?? direct;
   }
 
   /// Supabase üzerinden lisans bilgilerini sorgular (best-effort).

@@ -285,6 +285,18 @@ const Map<String, String> enCeviriler = {
       'Your remote/cloud database is being prepared. You will be notified when the setup is completed.',
   'setup.cloud.access_error_contact_support':
       'Unable to access the cloud database. Please try again. If the problem persists, contact technical support.',
+  'setup.cloud.cross_device_choice.title': 'Online Database Choice',
+  'setup.cloud.cross_device_choice.message':
+      'Your device "{device}" is using an online database. Would you like to connect to this database?\n\nOr would you like to create a brand new online database?',
+  'setup.cloud.cross_device_choice.use_existing_title':
+      'Connect to existing database',
+  'setup.cloud.cross_device_choice.use_existing_desc':
+      'Use the online database already used by another device. (Shared database)',
+  'setup.cloud.cross_device_choice.source_label': 'Database Source',
+  'setup.cloud.cross_device_choice.create_new_title':
+      'Create a new online database',
+  'setup.cloud.cross_device_choice.create_new_desc':
+      'A separate online database will be prepared for this device.',
   'dbsync.desktop.local_to_cloud.intro':
       'Your online database settings are ready. Choose an option below to switch to the cloud.',
   'dbsync.desktop.cloud_to_local.intro':
@@ -361,6 +373,7 @@ const Map<String, String> enCeviriler = {
   'dbsync.table.roles': 'Roles',
   'dbsync.table.saved_descriptions': 'Saved descriptions',
   'dbsync.table.sequences': 'Sequences',
+  'dbsync.table.maintenance': 'Maintenance',
   'dbsync.table.shipments': 'Shipments',
   'dbsync.table.stock_movements': 'Stock movements',
   'dbsync.table.sync_outbox': 'Sync queue',

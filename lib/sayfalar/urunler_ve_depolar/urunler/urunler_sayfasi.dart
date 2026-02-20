@@ -1282,10 +1282,29 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
   }
 
   Future<void> _showAddDialog() async {
+    String? initialCode;
+    try {
+      if (_genelAyarlar.otoStokKodu) {
+        final lastCode = await UrunlerVeritabaniServisi().sonUrunKoduGetir();
+        int nextValue = 1;
+        if (lastCode != null) {
+          nextValue = (int.tryParse(lastCode) ?? 0) + 1;
+        }
+
+        initialCode = _genelAyarlar.otoStokKoduAlfanumerik
+            ? 'STK-${nextValue.toString().padLeft(6, '0')}'
+            : nextValue.toString();
+      }
+    } catch (e) {
+      debugPrint('Oto kod alma hatası: $e');
+    }
+
+    if (!mounted) return;
+
     final result = await Navigator.of(context).push<bool>(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const UrunEkleSayfasi(),
+            UrunEkleSayfasi(initialCode: initialCode),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(1.0, 0.0);
           const end = Offset.zero;
@@ -2272,8 +2291,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
             children: [
               LayoutBuilder(
                 builder: (context, constraints) {
-                  final bool forceMobile =
-                      ResponsiveYardimcisi.tabletMi(context);
+                  final bool forceMobile = ResponsiveYardimcisi.tabletMi(
+                    context,
+                  );
                   if (forceMobile || constraints.maxWidth < 1000) {
                     return _buildMobileView(filteredUrunler);
                   } else {

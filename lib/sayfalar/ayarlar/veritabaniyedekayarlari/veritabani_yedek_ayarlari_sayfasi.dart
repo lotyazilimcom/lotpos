@@ -21,6 +21,41 @@ import '../../../servisler/veritabani_aktarim_servisi.dart';
 import '../../../servisler/veritabani_yapilandirma.dart';
 import '../../baslangic/bootstrap_sayfasi.dart';
 
+enum _BulutVeritabaniSecimTipi { mevcut, yeni }
+
+class _BulutOnlineDbKaynakAdayi {
+  final OnlineVeritabaniCihazBilgisi cihaz;
+  final OnlineVeritabaniKimlikleri kimlikler;
+
+  const _BulutOnlineDbKaynakAdayi({
+    required this.cihaz,
+    required this.kimlikler,
+  });
+}
+
+class _BulutVeritabaniSecimSonucu {
+  final _BulutVeritabaniSecimTipi tip;
+  final _BulutOnlineDbKaynakAdayi? kaynak;
+
+  const _BulutVeritabaniSecimSonucu._(this.tip, this.kaynak);
+
+  const _BulutVeritabaniSecimSonucu.mevcut(_BulutOnlineDbKaynakAdayi kaynak)
+    : this._(_BulutVeritabaniSecimTipi.mevcut, kaynak);
+
+  const _BulutVeritabaniSecimSonucu.yeni()
+    : this._(_BulutVeritabaniSecimTipi.yeni, null);
+}
+
+class _BulutHazirlikDurumu {
+  final bool cloudReadyNow;
+  final bool requestSent;
+
+  const _BulutHazirlikDurumu({
+    required this.cloudReadyNow,
+    required this.requestSent,
+  });
+}
+
 class VeritabaniYedekAyarlariSayfasi extends StatefulWidget {
   const VeritabaniYedekAyarlariSayfasi({super.key, this.standalone = false});
 
@@ -1022,6 +1057,438 @@ class _VeritabaniYedekAyarlariSayfasiState
     );
   }
 
+  Future<void> _ensureSupabaseInitializedBestEffort() async {
+    try {
+      await Supabase.initialize(url: LisansServisi.u, anonKey: LisansServisi.k);
+    } catch (_) {
+      // Zaten başlatılmış olabilir.
+    }
+  }
+
+  Future<void> _showCloudAccessErrorDialog() async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        child: Container(
+          width: 450,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+          ),
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tr('setup.cloud.error_title'),
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF202124),
+                ),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                tr('setup.cloud.access_error_contact_support'),
+                style: const TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  color: Color(0xFF606368),
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 24),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
+                        foregroundColor: const Color(0xFF2C3E50),
+                        textStyle: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      child: Text(tr('common.ok')),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<List<_BulutOnlineDbKaynakAdayi>> _bulutMevcutKaynaklariGetir({
+    required String currentHardwareId,
+    required String licenseId,
+  }) async {
+    final normalizedHw = currentHardwareId.trim();
+    final normalizedLicense = licenseId.trim();
+    if (normalizedHw.isEmpty || normalizedLicense.isEmpty) return const [];
+
+    final devices = await OnlineVeritabaniServisi()
+        .cihazBilgileriGetirByLisansKimligi(normalizedLicense);
+
+    final otherDevices = devices
+        .where(
+          (d) =>
+              d.hardwareId.trim().isNotEmpty &&
+              d.hardwareId.trim() != normalizedHw,
+        )
+        .toList();
+
+    final List<_BulutOnlineDbKaynakAdayi> kaynaklar = [];
+    for (final device in otherDevices) {
+      final creds = await OnlineVeritabaniServisi().kimlikleriGetir(
+        device.hardwareId,
+      );
+      if (creds != null) {
+        kaynaklar.add(
+          _BulutOnlineDbKaynakAdayi(cihaz: device, kimlikler: creds),
+        );
+      }
+    }
+
+    return kaynaklar;
+  }
+
+  Future<_BulutVeritabaniSecimSonucu?> _bulutBirlesikLisansSecimDialogGoster({
+    required List<_BulutOnlineDbKaynakAdayi> kaynaklar,
+  }) async {
+    if (!mounted) return null;
+    if (kaynaklar.isEmpty) return null;
+
+    final firstDeviceName = kaynaklar.first.cihaz.displayName;
+
+    return showDialog<_BulutVeritabaniSecimSonucu>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) {
+        bool mevcutSecili = true;
+        int selectedIndex = 0;
+
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return Dialog(
+              backgroundColor: Colors.white,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 24,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Container(
+                width: 520,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('setup.cloud.cross_device_choice.title'),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF202124),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    Text(
+                      tr(
+                        'setup.cloud.cross_device_choice.message',
+                        args: {'device': firstDeviceName},
+                      ),
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF606368),
+                        height: 1.45,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    CheckboxListTile(
+                      value: mevcutSecili,
+                      onChanged: (_) => setState(() => mevcutSecili = true),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Text(
+                        tr(
+                          'setup.cloud.cross_device_choice.use_existing_title',
+                        ),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF202124),
+                        ),
+                      ),
+                      subtitle: Text(
+                        tr('setup.cloud.cross_device_choice.use_existing_desc'),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF606368),
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                    if (mevcutSecili && kaynaklar.length > 1) ...[
+                      const SizedBox(height: 8),
+                      DropdownButtonFormField<int>(
+                        initialValue: selectedIndex,
+                        isExpanded: true,
+                        decoration: InputDecoration(
+                          labelText: tr(
+                            'setup.cloud.cross_device_choice.source_label',
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 12,
+                          ),
+                        ),
+                        items: [
+                          for (int i = 0; i < kaynaklar.length; i++)
+                            DropdownMenuItem<int>(
+                              value: i,
+                              child: Text(kaynaklar[i].cihaz.displayName),
+                            ),
+                        ],
+                        onChanged: (v) {
+                          if (v == null) return;
+                          setState(() => selectedIndex = v);
+                        },
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    CheckboxListTile(
+                      value: !mevcutSecili,
+                      onChanged: (_) => setState(() => mevcutSecili = false),
+                      dense: true,
+                      contentPadding: EdgeInsets.zero,
+                      controlAffinity: ListTileControlAffinity.leading,
+                      title: Text(
+                        tr('setup.cloud.cross_device_choice.create_new_title'),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF202124),
+                        ),
+                      ),
+                      subtitle: Text(
+                        tr('setup.cloud.cross_device_choice.create_new_desc'),
+                        style: const TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF606368),
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        TextButton(
+                          onPressed: () => Navigator.of(ctx).pop(null),
+                          style: TextButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 12,
+                            ),
+                            foregroundColor: const Color(0xFF2C3E50),
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          child: Text(tr('common.cancel')),
+                        ),
+                        const SizedBox(width: 10),
+                        ElevatedButton(
+                          onPressed: () {
+                            if (mevcutSecili) {
+                              Navigator.of(ctx).pop(
+                                _BulutVeritabaniSecimSonucu.mevcut(
+                                  kaynaklar[selectedIndex],
+                                ),
+                              );
+                            } else {
+                              Navigator.of(
+                                ctx,
+                              ).pop(const _BulutVeritabaniSecimSonucu.yeni());
+                            }
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF81C784),
+                            foregroundColor: Colors.black87,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 18,
+                              vertical: 12,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                            textStyle: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w900,
+                            ),
+                          ),
+                          child: Text(tr('common.continue')),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Future<_BulutHazirlikDurumu?> _bulutGecisHazirla({
+    required String requestSource,
+    required Duration connectionTestTimeout,
+  }) async {
+    await _ensureSupabaseInitializedBestEffort();
+
+    try {
+      await LisansServisi().baslat();
+    } catch (_) {}
+
+    final hardwareId = (LisansServisi().hardwareId ?? '').trim();
+    if (hardwareId.isEmpty) return null;
+
+    // Not: Lisans birleştirme (license_id) durumu admin panelden sonradan değişebilir.
+    // Bu ekranda kullanıcı "Bulut" seçtiği anda, cache yerine sunucudaki en güncel license_id ile kontrol et.
+    String licenseId = (LisansServisi().licenseId ?? '').trim();
+    try {
+      final data = await Supabase.instance.client
+          .from('program_deneme')
+          .select('license_id')
+          .eq('hardware_id', hardwareId)
+          .maybeSingle();
+      if (data is Map<String, dynamic>) {
+        final serverLicenseId = data['license_id']?.toString().trim();
+        if (serverLicenseId != null && serverLicenseId.isNotEmpty) {
+          licenseId = serverLicenseId;
+        }
+      }
+    } on PostgrestException catch (e) {
+      final msg = (e.message).toLowerCase();
+      final licenseIdColumnMissing =
+          msg.contains('license_id') &&
+          (msg.contains('column') || msg.contains('schema'));
+      if (!licenseIdColumnMissing) {
+        // Best-effort: akışı bozma, cache ile devam et.
+        debugPrint('license_id fetch failed (best-effort): $e');
+      }
+    } catch (_) {}
+    if (licenseId.isNotEmpty) {
+      final kaynaklar = await _bulutMevcutKaynaklariGetir(
+        currentHardwareId: hardwareId,
+        licenseId: licenseId,
+      );
+
+      if (kaynaklar.isNotEmpty) {
+        final secim = await _bulutBirlesikLisansSecimDialogGoster(
+          kaynaklar: kaynaklar,
+        );
+        if (secim == null) return null;
+
+        if (secim.tip == _BulutVeritabaniSecimTipi.yeni) {
+          await VeritabaniYapilandirma.clearCloudDatabaseCredentials();
+          await OnlineVeritabaniServisi().talepGonder(
+            hardwareId: hardwareId,
+            source: requestSource,
+          );
+          return const _BulutHazirlikDurumu(
+            cloudReadyNow: false,
+            requestSent: true,
+          );
+        }
+
+        final selected = secim.kaynak;
+        if (selected != null) {
+          await VeritabaniYapilandirma.saveCloudDatabaseCredentials(
+            host: selected.kimlikler.host,
+            port: selected.kimlikler.port,
+            username: selected.kimlikler.username,
+            password: selected.kimlikler.password,
+            database: selected.kimlikler.database,
+            sslRequired: selected.kimlikler.sslRequired,
+          );
+
+          // Admin panel görünürlüğü için bu cihaza da kopyala (best-effort).
+          await OnlineVeritabaniServisi().kimlikleriCihazaKaydet(
+            hardwareId: hardwareId,
+            kimlikler: selected.kimlikler,
+          );
+
+          final ok = VeritabaniYapilandirma.testSavedCloudDatabaseConnection(
+            timeout: connectionTestTimeout,
+          );
+
+          return _BulutHazirlikDurumu(
+            cloudReadyNow: await ok,
+            requestSent: false,
+          );
+        }
+      }
+    }
+
+    final creds = await OnlineVeritabaniServisi().kimlikleriGetir(hardwareId);
+    if (creds == null) {
+      await VeritabaniYapilandirma.clearCloudDatabaseCredentials();
+      await OnlineVeritabaniServisi().talepGonder(
+        hardwareId: hardwareId,
+        source: requestSource,
+      );
+      return const _BulutHazirlikDurumu(
+        cloudReadyNow: false,
+        requestSent: true,
+      );
+    }
+
+    await VeritabaniYapilandirma.saveCloudDatabaseCredentials(
+      host: creds.host,
+      port: creds.port,
+      username: creds.username,
+      password: creds.password,
+      database: creds.database,
+      sslRequired: creds.sslRequired,
+    );
+
+    final ok = await VeritabaniYapilandirma.testSavedCloudDatabaseConnection(
+      timeout: connectionTestTimeout,
+    );
+    return _BulutHazirlikDurumu(cloudReadyNow: ok, requestSent: false);
+  }
+
   Future<void> _handleSavePressed() async {
     final bool isMobilePlatform =
         defaultTargetPlatform == TargetPlatform.iOS ||
@@ -1105,20 +1572,60 @@ class _VeritabaniYedekAyarlariSayfasiState
         ? 'cloud'
         : oncekiMod;
 
-    // Local <-> Cloud geçişinde: her seferinde veri aktarımı sor.
+    // Local <-> Cloud geçişinde:
+    // - Bulut kimlikleri hazırsa veri aktarım seçimini sor.
+    // - Hazır değilse talep gönder ve "hazırlanıyor" mesajını göster.
     final bool modDegisti = normalizedOncekiMod != _seciliMod;
     final bool localCloudSwitch =
         (normalizedOncekiMod == 'local' && _seciliMod == 'cloud') ||
         (normalizedOncekiMod == 'cloud' && _seciliMod == 'local');
 
     DesktopVeritabaniAktarimSecimi? transferSecim;
-    if (modDegisti && localCloudSwitch) {
+    _BulutHazirlikDurumu? bulutDurumu;
+    final bool localToCloud =
+        modDegisti &&
+        localCloudSwitch &&
+        normalizedOncekiMod == 'local' &&
+        _seciliMod == 'cloud';
+    final bool cloudToLocal =
+        modDegisti &&
+        localCloudSwitch &&
+        normalizedOncekiMod == 'cloud' &&
+        _seciliMod == 'local';
+
+    if (localToCloud) {
+      bulutDurumu = await _bulutGecisHazirla(
+        requestSource: 'database_settings',
+        connectionTestTimeout: const Duration(seconds: 8),
+      );
+      if (bulutDurumu == null) {
+        if (mounted) setState(() => _seciliMod = previousUiMode);
+        return;
+      }
+
+      if (!bulutDurumu.cloudReadyNow && !bulutDurumu.requestSent) {
+        await _showCloudAccessErrorDialog();
+        if (mounted) setState(() => _seciliMod = previousUiMode);
+        return;
+      }
+
+      if (bulutDurumu.cloudReadyNow) {
+        if (!mounted) return;
+        transferSecim = await veritabaniAktarimSecimDialogGoster(
+          context: context,
+          localToCloud: true,
+          barrierDismissible: false,
+        );
+        if (transferSecim == null) {
+          if (mounted) setState(() => _seciliMod = previousUiMode);
+          return;
+        }
+      }
+    } else if (cloudToLocal) {
       if (!mounted) return;
-      final localToCloud =
-          normalizedOncekiMod == 'local' && _seciliMod == 'cloud';
       transferSecim = await veritabaniAktarimSecimDialogGoster(
         context: context,
-        localToCloud: localToCloud,
+        localToCloud: false,
         barrierDismissible: false,
       );
       if (transferSecim == null) {
@@ -1133,7 +1640,22 @@ class _VeritabaniYedekAyarlariSayfasiState
     );
 
     if (modDegisti && localCloudSwitch) {
-      if (transferSecim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+      if (transferSecim == null) {
+        // Cloud seçildi ama kimlikler hazır değil: veri aktarımı ekranını gösterme.
+        await _clearPendingTransferChoice();
+
+        final localHost = (oncekiYerelHost ?? '').trim();
+        await VeritabaniAktarimServisi().niyetKaydet(
+          VeritabaniAktarimNiyeti(
+            fromMode: normalizedOncekiMod,
+            toMode: _seciliMod,
+            localHost: localHost.isEmpty ? null : localHost,
+            localCompanyDb: oncekiYerelCompanyDb,
+            createdAt: DateTime.now(),
+          ),
+        );
+      } else if (transferSecim ==
+          DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
         await VeritabaniAktarimServisi().niyetTemizle();
         await _clearPendingTransferChoice();
       } else {
@@ -1160,86 +1682,79 @@ class _VeritabaniYedekAyarlariSayfasiState
       }
     }
 
-    if (_seciliMod == 'cloud') {
-      final hardwareId = LisansServisi().hardwareId;
-      if (hardwareId != null && hardwareId.trim().isNotEmpty) {
-        await OnlineVeritabaniServisi().talepGonder(
-          hardwareId: hardwareId.trim(),
-          source: 'database_settings',
-        );
-      }
+    final bool shouldShowPreparingDialog =
+        localToCloud && (bulutDurumu?.requestSent ?? false);
 
-      if (mounted) {
-        await showDialog<void>(
-          context: context,
-          builder: (ctx) => Dialog(
-            backgroundColor: Colors.white,
-            insetPadding: const EdgeInsets.symmetric(
-              horizontal: 32,
-              vertical: 24,
-            ),
-            shape: RoundedRectangleBorder(
+    if (shouldShowPreparingDialog && mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (ctx) => Dialog(
+          backgroundColor: Colors.white,
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 32,
+            vertical: 24,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Container(
+            width: 450,
+            decoration: BoxDecoration(
+              color: Colors.white,
               borderRadius: BorderRadius.circular(14),
             ),
-            child: Container(
-              width: 450,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              padding: const EdgeInsets.all(28),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    tr('setup.cloud.preparing_title'),
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: Color(0xFF202124),
-                    ),
+            padding: const EdgeInsets.all(28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('setup.cloud.preparing_title'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF202124),
                   ),
-                  const SizedBox(height: 16),
-                  Text(
-                    tr('setup.cloud.preparing_message'),
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w500,
-                      color: Color(0xFF606368),
-                      height: 1.5,
-                    ),
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  tr('setup.cloud.preparing_message'),
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w500,
+                    color: Color(0xFF606368),
+                    height: 1.5,
                   ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      MouseRegion(
-                        cursor: SystemMouseCursors.click,
-                        child: TextButton(
-                          onPressed: () => Navigator.of(ctx).pop(),
-                          style: TextButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 18,
-                              vertical: 12,
-                            ),
-                            foregroundColor: const Color(0xFF2C3E50),
-                            textStyle: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w700,
-                            ),
+                ),
+                const SizedBox(height: 24),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.end,
+                  children: [
+                    MouseRegion(
+                      cursor: SystemMouseCursors.click,
+                      child: TextButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        style: TextButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 18,
+                            vertical: 12,
                           ),
-                          child: Text(tr('common.ok')),
+                          foregroundColor: const Color(0xFF2C3E50),
+                          textStyle: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
+                        child: Text(tr('common.ok')),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
-        );
-      }
+        ),
+      );
     }
 
     if (!mounted) return;
@@ -1260,50 +1775,6 @@ class _VeritabaniYedekAyarlariSayfasiState
         backgroundColor: Colors.green.shade700,
         behavior: SnackBarBehavior.floating,
       ),
-    );
-  }
-
-  Future<bool> _desktopBulutKimlikleriniHazirlaBestEffort() async {
-    try {
-      await Supabase.initialize(url: LisansServisi.u, anonKey: LisansServisi.k);
-    } catch (_) {
-      // Zaten başlatılmış olabilir.
-    }
-
-    try {
-      await LisansServisi().baslat();
-    } catch (_) {}
-
-    final hardwareId = LisansServisi().hardwareId;
-    if (hardwareId == null || hardwareId.trim().isEmpty) return false;
-
-    final creds = await OnlineVeritabaniServisi().kimlikleriGetir(
-      hardwareId.trim(),
-    );
-    if (creds == null) {
-      await OnlineVeritabaniServisi().talepGonder(
-        hardwareId: hardwareId.trim(),
-        source: 'desktop_settings',
-      );
-      return false;
-    }
-
-    await VeritabaniYapilandirma.saveCloudDatabaseCredentials(
-      host: creds.host,
-      port: creds.port,
-      username: creds.username,
-      password: creds.password,
-      database: creds.database,
-      sslRequired: creds.sslRequired,
-    );
-
-    if (!VeritabaniYapilandirma.cloudCredentialsReady) return false;
-
-    // Kimlikler kaydedilmiş olsa bile, Postgres gerçekten erişilebilir olmayabilir
-    // (yanlış şifre/db adı, geçici ağ sorunu vb.). Desktop akışında "hazır" saymadan önce
-    // bağlantıyı doğrula.
-    return VeritabaniYapilandirma.testSavedCloudDatabaseConnection(
-      timeout: const Duration(seconds: 6),
     );
   }
 
@@ -1371,11 +1842,6 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     // Local/Hybrid -> Cloud
     if (_seciliMod == 'cloud' && oncekiMod != 'cloud') {
-      // Desktop: her seferinde admin tarafını kontrol et (cache'e güvenme).
-      // Hazır değilse "Online Veritabanı Hazırlanıyor" akışına düş.
-      final bool credsReady =
-          await _desktopBulutKimlikleriniHazirlaBestEffort();
-
       final localHost =
           ((oncekiYerelHost ?? '').trim().isNotEmpty
                   ? oncekiYerelHost!
@@ -1383,49 +1849,41 @@ class _VeritabaniYedekAyarlariSayfasiState
               .trim();
       final localCompanyDb = OturumServisi().aktifVeritabaniAdi;
 
-      // Cloud kimlikleri yoksa: cloud_pending kaydet, yerelden devam et.
-      if (!credsReady) {
-        if (!mounted) return;
-        final secim = await veritabaniAktarimSecimDialogGoster(
-          context: context,
-          localToCloud: true,
-          barrierDismissible: false,
+      final bulutDurumu = await _bulutGecisHazirla(
+        requestSource: 'desktop_settings',
+        connectionTestTimeout: const Duration(seconds: 6),
+      );
+      if (bulutDurumu == null) {
+        if (mounted) setState(() => _seciliMod = previousUiMode);
+        return;
+      }
+
+      if (!bulutDurumu.cloudReadyNow && !bulutDurumu.requestSent) {
+        await _showCloudAccessErrorDialog();
+        if (mounted) setState(() => _seciliMod = previousUiMode);
+        return;
+      }
+
+      if (!bulutDurumu.cloudReadyNow) {
+        // Cloud kimlikleri hazır değil (veya bağlantı doğrulanamadı): cloud_pending kaydet, yerelden devam et.
+        await _clearPendingTransferChoice();
+        await VeritabaniAktarimServisi().niyetKaydet(
+          VeritabaniAktarimNiyeti(
+            fromMode: normalizeMode(oncekiMod),
+            toMode: 'cloud',
+            localHost: localHost.isEmpty ? null : localHost,
+            localCompanyDb: localCompanyDb,
+            createdAt: DateTime.now(),
+          ),
         );
-        if (secim == null) {
-          if (mounted) setState(() => _seciliMod = previousUiMode);
-          return;
-        }
-
-        // Eski/stale kimlikler varsa: pending modda yanlışlıkla "hazır" sayılmasın.
-        await VeritabaniYapilandirma.clearCloudDatabaseCredentials();
-
-        if (secim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
-          // Kullanıcı seçim yaptı: tekrar sorma. Cloud hazır olunca direkt geç.
-          await _savePendingTransferChoiceValue('none');
-          await VeritabaniAktarimServisi().niyetTemizle();
-        } else {
-          final choiceValue = secim == DesktopVeritabaniAktarimSecimi.birlestir
-              ? 'merge'
-              : 'full';
-          await _savePendingTransferChoiceValue(choiceValue);
-
-          await VeritabaniAktarimServisi().niyetKaydet(
-            VeritabaniAktarimNiyeti(
-              fromMode: normalizeMode(oncekiMod),
-              toMode: 'cloud',
-              localHost: localHost.isEmpty ? null : localHost,
-              localCompanyDb: localCompanyDb,
-              createdAt: DateTime.now(),
-            ),
-          );
-        }
 
         await VeritabaniYapilandirma.saveConnectionPreferences(
           VeritabaniYapilandirma.cloudPendingMode,
           oncekiYerelHost,
         );
 
-        if (mounted) {
+        final bool shouldShowPreparingDialog = bulutDurumu.requestSent;
+        if (shouldShowPreparingDialog && mounted) {
           await showDialog<void>(
             context: context,
             builder: (ctx) => Dialog(

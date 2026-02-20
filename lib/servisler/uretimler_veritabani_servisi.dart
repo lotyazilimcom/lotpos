@@ -2820,38 +2820,46 @@ class UretimlerVeritabaniServisi {
     }
 
     // 2. Sequence yoksa: Hem Ürünler hem Üretimler tablosundaki EN BÜYÜK numarayı bul
+    // Not: Alfanumerik kodlarda da çalışsın diye sondaki sayıyı extract ediyoruz.
     int maxCode = 0;
 
-    // Ürünlerdeki max
-    final prodResult = await _pool!.execute(
-      "SELECT kod FROM products WHERE kod ~ '^[0-9]+\$' ORDER BY CAST(kod AS BIGINT) DESC LIMIT 1",
-    );
-    if (prodResult.isNotEmpty) {
-      final pc = int.tryParse(prodResult[0][0].toString());
-      if (pc != null && pc > maxCode) maxCode = pc;
-    }
-
-    // Üretimlerdeki max
-    final uretimResult = await _pool!.execute(
-      "SELECT kod FROM productions WHERE kod ~ '^[0-9]+\$' ORDER BY CAST(kod AS BIGINT) DESC LIMIT 1",
-    );
-    if (uretimResult.isNotEmpty) {
-      final uc = int.tryParse(uretimResult[0][0].toString());
-      if (uc != null && uc > maxCode) maxCode = uc;
-    }
-
-    if (maxCode > 0) {
-      // Sequence'i başlat
-      await _pool!.execute(
-        Sql.named(
-          "INSERT INTO sequences (name, current_value) VALUES ('product_code', @val)",
-        ),
-        parameters: {'val': maxCode},
+    // Products table check
+    try {
+      final prodResult = await _pool!.execute(
+        "SELECT MAX((substring(trim(kod) from '([0-9]+)\$'))::BIGINT) FROM products WHERE trim(kod) ~ '[0-9]+\$'",
       );
-      return maxCode.toString();
+      if (prodResult.isNotEmpty && prodResult[0][0] != null) {
+        final pc = int.tryParse(prodResult[0][0].toString());
+        if (pc != null && pc > maxCode) maxCode = pc;
+      }
+    } catch (e) {
+      debugPrint('Products kod kontrolü atlandı: $e');
     }
 
-    return null;
+    // Productions table check
+    try {
+      final uretimResult = await _pool!.execute(
+        "SELECT MAX((substring(trim(kod) from '([0-9]+)\$'))::BIGINT) FROM productions WHERE trim(kod) ~ '[0-9]+\$'",
+      );
+      if (uretimResult.isNotEmpty && uretimResult[0][0] != null) {
+        final uc = int.tryParse(uretimResult[0][0].toString());
+        if (uc != null && uc > maxCode) maxCode = uc;
+      }
+    } catch (e) {
+      debugPrint('Productions kod kontrolü atlandı: $e');
+    }
+
+    // Sequence'i başlat / güncelle (yarış durumlarını önlemek için ON CONFLICT)
+    await _pool!.execute(
+      Sql.named(
+        "INSERT INTO sequences (name, current_value) VALUES ('product_code', @val) "
+        "ON CONFLICT (name) DO UPDATE "
+        "SET current_value = GREATEST(sequences.current_value, @val)",
+      ),
+      parameters: {'val': maxCode},
+    );
+
+    return maxCode.toString();
   }
 
   Future<String?> sonBarkodGetir() async {
@@ -2866,21 +2874,30 @@ class UretimlerVeritabaniServisi {
       return seqResult[0][0].toString();
     }
 
-    final result = await _pool!.execute(
-      "SELECT barkod FROM productions WHERE barkod ~ '^[0-9]+\$' ORDER BY CAST(barkod AS BIGINT) DESC LIMIT 1",
+    // Fallback (Init) - Sort yerine MAX kullan (online DB'de çok daha hızlı)
+    int maxBarcode = 0;
+    try {
+      final result = await _pool!.execute(
+        "SELECT MAX((substring(trim(barkod) from '([0-9]+)\$'))::BIGINT) FROM productions WHERE trim(barkod) ~ '[0-9]+\$'",
+      );
+      maxBarcode = (result.isNotEmpty && result[0][0] != null)
+          ? (int.tryParse(result[0][0].toString()) ?? 0)
+          : 0;
+    } catch (e) {
+      debugPrint('Productions barkod kontrolü atlandı: $e');
+    }
+
+    // Sequence'i başlat / güncelle (yarış durumlarını önlemek için ON CONFLICT)
+    await _pool!.execute(
+      Sql.named(
+        "INSERT INTO sequences (name, current_value) VALUES ('production_barcode', @val) "
+        "ON CONFLICT (name) DO UPDATE "
+        "SET current_value = GREATEST(sequences.current_value, @val)",
+      ),
+      parameters: {'val': maxBarcode},
     );
 
-    if (result.isNotEmpty) {
-      final lastBarcode = result[0][0] as String;
-      await _pool!.execute(
-        Sql.named(
-          "INSERT INTO sequences (name, current_value) VALUES ('production_barcode', @val)",
-        ),
-        parameters: {'val': int.parse(lastBarcode)},
-      );
-      return lastBarcode;
-    }
-    return null;
+    return maxBarcode.toString();
   }
 
   // ====== REÇETE İŞLEMLERİ (BOM - Bill of Materials) ======
