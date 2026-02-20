@@ -66,6 +66,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
   // Satır seçimi için (ok tuşları ile navigasyon)
   int? _selectedRowId;
+  int? _selectedMobileCardId;
 
   // Seçili detay transaction bilgisi (Son Hareketler için F2/Del kısayolları)
   int? _selectedDetailTransactionId;
@@ -102,11 +103,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   String? _selectedUser;
   List<String> _availableUsers = [];
 
-  // Mock transactions for detail view
-  // Transactions
-  // Transactions
-  List<Map<String, dynamic>> _transactions = [];
-  bool _isTransactionsLoading = false;
   final Map<int, List<int>> _visibleTransactionIds = {}; // depoId -> [id]
   final Map<int, Set<int>> _selectedDetailIds = {};
   // Cache for detail futures to prevent reloading on selection changes
@@ -161,7 +157,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     _loadAvailableUsers();
     _loadAvailableTransactionTypes();
     _fetchDepolar();
-    _fetchTransactions();
     _searchController.addListener(() {
       if (_debounce?.isActive ?? false) _debounce!.cancel();
       _debounce = Timer(const Duration(milliseconds: 500), () {
@@ -307,26 +302,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           MesajYardimcisi.hataGoster(context, '${tr('common.error')}: $e');
         }
       }
-    }
-  }
-
-  Future<void> _fetchTransactions() async {
-    try {
-      if (mounted) {
-        setState(() => _isTransactionsLoading = true);
-      }
-      final transactions = await DepolarVeritabaniServisi().sonIslemleriGetir();
-      if (mounted) {
-        setState(() {
-          _transactions = transactions;
-          _isTransactionsLoading = false;
-        });
-      }
-    } catch (e) {
-      if (mounted) {
-        setState(() => _isTransactionsLoading = false);
-      }
-      debugPrint('Sevkiyatlar yüklenirken hata: $e');
     }
   }
 
@@ -1229,7 +1204,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       setState(() => _detailRefreshKey++);
       _detailFutures.clear(); // Clear cache on data change
       _fetchDepolar();
-      _fetchTransactions();
     }
   }
 
@@ -1395,6 +1369,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       _selectedIds.clear();
       _selectedDetailIds.clear();
       _selectedRowId = null;
+      _selectedMobileCardId = null;
       _selectedDetailTransactionId = null;
       _selectedDetailCustomTypeLabel = null;
       _selectedDetailProductCode = null;
@@ -1626,7 +1601,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           _detailRefreshKey++;
           _detailFutures.clear();
         });
-        await _fetchTransactions();
         await _fetchDepolar(showLoading: false);
       }
 
@@ -1669,7 +1643,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
               if (result == true) {
                 _detailRefreshKey++;
                 _detailFutures.clear();
-                _fetchTransactions();
                 _fetchDepolar();
               }
             });
@@ -1733,7 +1706,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           if (result == true) {
             _detailRefreshKey++;
             _detailFutures.clear();
-            _fetchTransactions();
             _fetchDepolar();
           }
         } else if (mounted) {
@@ -1797,7 +1769,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           if (result == true) {
             _detailRefreshKey++;
             _detailFutures.clear();
-            _fetchTransactions();
             _fetchDepolar();
           }
         } else if (mounted) {
@@ -1836,7 +1807,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
             _detailRefreshKey++;
             _detailFutures.clear();
           });
-          _fetchTransactions();
           _fetchDepolar();
         },
       ),
@@ -4339,7 +4309,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           _detailRefreshKey++;
           _detailFutures.clear();
         });
-        await _fetchTransactions();
         await _fetchDepolar();
       }
     } catch (e) {
@@ -4528,7 +4497,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   if (result == true) {
                     _detailRefreshKey++;
                     _detailFutures.clear();
-                    await _fetchTransactions();
                     await _fetchDepolar();
                   }
                 } else if (mounted) {
@@ -4607,7 +4575,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   if (result == true) {
                     _detailRefreshKey++;
                     _detailFutures.clear();
-                    await _fetchTransactions();
                     await _fetchDepolar();
                   }
                 } else if (mounted) {
@@ -4648,7 +4615,6 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                     _detailRefreshKey++;
                     _detailFutures.clear();
                   });
-                  _fetchTransactions();
                   _fetchDepolar();
                 },
               ),
@@ -5467,152 +5433,169 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
   Widget _buildDepoCard(DepoModel depo) {
     final isExpanded = _expandedMobileIds.contains(depo.id);
+    final bool isSelected = _selectedMobileCardId == depo.id;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+    return GestureDetector(
+      onTap: () {
+        setState(() {
+          if (_selectedMobileCardId == depo.id) {
+            _selectedMobileCardId = null;
+          } else {
+            _selectedMobileCardId = depo.id;
+          }
+        });
+      },
+      child: Container(
+        decoration: BoxDecoration(
+          color: isSelected
+              ? const Color(0xFF2C3E50).withValues(alpha: 0.04)
+              : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected
+                ? const Color(0xFF2C3E50).withValues(alpha: 0.3)
+                : Colors.grey.shade200,
           ),
-        ],
-      ),
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        children: [
-          // Top Row
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 24,
-                height: 24,
-                child: Checkbox(
-                  value: _selectedIds.contains(depo.id),
-                  onChanged: (v) => _onSelectRow(v, depo.id),
-                  shape: RoundedRectangleBorder(
+          boxShadow: [
+            BoxShadow(
+              color: isSelected
+                  ? const Color(0xFF2C3E50).withValues(alpha: 0.08)
+                  : Colors.black.withValues(alpha: 0.05),
+              blurRadius: isSelected ? 12 : 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            // Top Row
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Checkbox(
+                    value: _selectedIds.contains(depo.id),
+                    onChanged: (v) => _onSelectRow(v, depo.id),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    side: const BorderSide(color: Color(0xFFD1D1D1)),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        depo.ad,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${depo.kod} • ${depo.sorumlu}',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        depo.adres,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [_buildPopupMenu(depo)],
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Status & Actions Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: depo.aktifMi
+                        ? const Color(0xFFE6F4EA)
+                        : const Color(0xFFF5F5F5),
                     borderRadius: BorderRadius.circular(4),
                   ),
-                  side: const BorderSide(color: Color(0xFFD1D1D1)),
+                  child: Text(
+                    depo.aktifMi ? tr('common.active') : tr('common.passive'),
+                    style: TextStyle(
+                      color: depo.aktifMi
+                          ? const Color(0xFF1E7E34)
+                          : const Color(0xFF757575),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                    ),
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                Row(
                   children: [
-                    Text(
-                      depo.ad,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Colors.black87,
+                    IconButton(
+                      icon: Icon(
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: const Color(0xFF2C3E50),
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${depo.kod} • ${depo.sorumlu}',
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      depo.adres,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey.shade600,
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
+                      onPressed: () {
+                        setState(() {
+                          if (isExpanded) {
+                            _expandedMobileIds.remove(depo.id);
+                          } else {
+                            _expandedMobileIds.add(depo.id);
+                          }
+                        });
+                      },
                     ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [_buildPopupMenu(depo)],
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
+              ],
+            ),
 
-          // Status & Actions Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: depo.aktifMi
-                      ? const Color(0xFFE6F4EA)
-                      : const Color(0xFFF5F5F5),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  depo.aktifMi ? tr('common.active') : tr('common.passive'),
-                  style: TextStyle(
-                    color: depo.aktifMi
-                        ? const Color(0xFF1E7E34)
-                        : const Color(0xFF757575),
-                    fontWeight: FontWeight.bold,
-                    fontSize: 11,
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      isExpanded ? Icons.expand_less : Icons.expand_more,
-                      color: const Color(0xFF2C3E50),
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        if (isExpanded) {
-                          _expandedMobileIds.remove(depo.id);
-                        } else {
-                          _expandedMobileIds.add(depo.id);
-                        }
-                      });
-                    },
-                  ),
-                ],
-              ),
-            ],
-          ),
-
-          // Details
-          AnimatedSize(
-            duration: const Duration(milliseconds: 300),
-            alignment: Alignment.topCenter,
-            child: isExpanded
-                ? Column(
-                    children: [
-                      const Divider(height: 24),
-                      _buildMobileDetails(depo),
-                    ],
-                  )
-                : const SizedBox.shrink(),
-          ),
-        ],
+            // Details
+            AnimatedSize(
+              duration: const Duration(milliseconds: 300),
+              alignment: Alignment.topCenter,
+              child: isExpanded
+                  ? Column(
+                      children: [
+                        const Divider(height: 24),
+                        _buildMobileDetails(depo),
+                      ],
+                    )
+                  : const SizedBox.shrink(),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildMobileDetails(DepoModel depo) {
-    final depotTransactions = _transactions.where((tx) {
-      final sourceId = tx['source_warehouse_id'];
-      final destId = tx['dest_warehouse_id'];
-      return sourceId == depo.id || destId == depo.id;
-    }).toList();
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -5625,26 +5608,60 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           ),
         ),
         const SizedBox(height: 8),
-        if (_isTransactionsLoading)
-          const Center(child: CircularProgressIndicator())
-        else if (depotTransactions.isEmpty)
-          Text(
-            tr('common.no_data'),
-            style: TextStyle(color: Colors.grey.shade500),
-          )
-        else
-          ...depotTransactions.map((tx) {
-            return _buildMobileTransactionRow(
-              isIncoming: tx['isIncoming'] == true,
-              product: tx['product']?.toString() ?? '',
-              quantity: tx['quantity']?.toString() ?? '',
-              date: tx['date']?.toString() ?? '',
-              user: tx['user']?.toString() ?? '',
-              description: tx['description']?.toString() ?? '',
-              customTypeLabel: tx['customTypeLabel']?.toString(),
-              sourceSuffix: tx['sourceSuffix']?.toString(),
+        FutureBuilder<List<dynamic>>(
+          key: ValueKey('depo_mobile_detail_${depo.id}_$_detailRefreshKey'),
+          future: _detailFutures.putIfAbsent(
+            depo.id,
+            () => Future.wait([
+              DepolarVeritabaniServisi().depoIslemleriniGetir(
+                depo.id,
+                aramaTerimi: _searchQuery,
+                baslangicTarihi: _startDate,
+                bitisTarihi: _endDate,
+                islemTuru: _selectedTransactionType,
+                kullanici: _selectedUser,
+              ),
+              DepolarVeritabaniServisi().depoIstatistikleriniGetir(depo.id),
+            ]),
+          ),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (snapshot.hasError) {
+              return Text(
+                '${tr('common.error')}: ${snapshot.error}',
+                style: TextStyle(color: Colors.grey.shade600),
+              );
+            }
+
+            final depotTransactions =
+                (snapshot.data?[0] as List<Map<String, dynamic>>?) ?? [];
+
+            if (depotTransactions.isEmpty) {
+              return Text(
+                tr('common.no_data'),
+                style: TextStyle(color: Colors.grey.shade500),
+              );
+            }
+
+            return Column(
+              children: depotTransactions.map((tx) {
+                return _buildMobileTransactionRow(
+                  isIncoming: tx['isIncoming'] == true,
+                  product: tx['product']?.toString() ?? '',
+                  quantity: tx['quantity']?.toString() ?? '',
+                  date: tx['date']?.toString() ?? '',
+                  user: tx['user']?.toString() ?? '',
+                  description: tx['description']?.toString() ?? '',
+                  customTypeLabel: tx['customTypeLabel']?.toString(),
+                  sourceSuffix: tx['sourceSuffix']?.toString(),
+                );
+              }).toList(),
             );
-          }),
+          },
+        ),
       ],
     );
   }
@@ -5659,15 +5676,21 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     String? customTypeLabel,
     String? sourceSuffix,
   }) {
-    final String typeLabel = IslemCeviriYardimcisi.cevir(
-      IslemTuruRenkleri.getProfessionalLabel(
-        customTypeLabel ??
-            (isIncoming
-                ? tr('warehouses.detail.type_in')
-                : tr('warehouses.detail.type_out')),
-        context: 'stock',
-      ),
+    String displayLabel = IslemTuruRenkleri.getProfessionalLabel(
+      customTypeLabel ??
+          (isIncoming
+              ? tr('warehouses.detail.type_in')
+              : tr('warehouses.detail.type_out')),
+      context: 'stock',
     );
+
+    if (customTypeLabel == 'Sevkiyat') {
+      displayLabel = isIncoming
+          ? tr('warehouses.detail.type_in')
+          : tr('warehouses.detail.type_out');
+    }
+
+    final String typeLabel = IslemCeviriYardimcisi.cevir(displayLabel);
 
     final String normalizedSourceSuffix = (sourceSuffix ?? '').trim();
     final String translatedSourceSuffix = normalizedSourceSuffix.isNotEmpty
