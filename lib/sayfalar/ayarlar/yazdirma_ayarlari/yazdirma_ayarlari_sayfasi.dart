@@ -179,6 +179,7 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
       ),
       clipBehavior: Clip.antiAlias,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => _sablonDuzenle(sablon),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -210,6 +211,7 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
                       ),
                       const SizedBox(width: 4),
                       InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () => _sablonIsimlendir(sablon),
                         child: Icon(
                           Icons.edit_note_rounded,

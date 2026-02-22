@@ -729,6 +729,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
       return const SizedBox.shrink();
     }
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedStatus = value;
@@ -816,6 +817,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
       return const SizedBox.shrink();
     }
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedPaymentStatus = value;
@@ -904,6 +906,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
       return const SizedBox.shrink();
     }
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedCategory = value;
@@ -990,6 +993,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
       return const SizedBox.shrink();
     }
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUser = value;
@@ -1094,6 +1098,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
   Widget _buildDateRangeFilter() {
     final hasSelection = _startDate != null || _endDate != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -1136,6 +1141,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: _clearDateFilter,
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4.0),
@@ -1157,6 +1163,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
   Widget _buildStatusFilterWidget() {
     final hasSelection = _selectedStatus != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showStatusOverlay,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -1201,6 +1208,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _selectedStatus = null;
@@ -1228,6 +1236,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
   Widget _buildPaymentFilterWidget() {
     final hasSelection = _selectedPaymentStatus != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showPaymentOverlay,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -1270,6 +1279,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _selectedPaymentStatus = null;
@@ -1297,6 +1307,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
   Widget _buildCategoryFilterWidget() {
     final hasSelection = _selectedCategory != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showCategoryOverlay,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -1339,6 +1350,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _selectedCategory = null;
@@ -1366,6 +1378,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
   Widget _buildUserFilterWidget() {
     final hasSelection = _selectedUser != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showUserOverlay,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -1408,6 +1421,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _selectedUser = null;
@@ -1809,7 +1823,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
       selectionWidget: _selectedIds.isNotEmpty
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelectedGiderler,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1842,13 +1856,14 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       extraWidgets: [
         Tooltip(
           message: tr('expenses.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -1884,7 +1899,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
           // Print Button
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -1925,13 +1940,13 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           // Add Button
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _showAddDialog,
               child: Container(
                 height: 40,
@@ -1965,7 +1980,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -2097,7 +2112,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
                 children: [
                   MouseRegion(
                     cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
+                    child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                       onTap: toggleExpand,
                       child: Icon(
                         isExpanded
@@ -2106,7 +2121,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
                         color: Colors.grey.shade600,
                         size: 22,
                       ),
-                    ),
+                    )),
                   ),
                   const SizedBox(width: 8),
                   HighlightText(
@@ -2287,6 +2302,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -2341,6 +2357,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -2664,18 +2681,21 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
         ],
         onSelected: (value) =>
             unawaited(_handleMobileActionMenuSelection(value)),
-        child: Container(
-          height: size,
-          width: size,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: const Color(0xFFE5E7EB)),
-          ),
-          child: Icon(
-            Icons.more_horiz,
-            size: size < 44 ? 20 : 22,
-            color: const Color(0xFF2C3E50),
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            height: size,
+            width: size,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE5E7EB)),
+            ),
+            child: Icon(
+              Icons.more_horiz,
+              size: size < 44 ? 20 : 22,
+              color: const Color(0xFF2C3E50),
+            ),
           ),
         ),
       ),
@@ -2803,6 +2823,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -2930,6 +2951,8 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        mouseCursor: WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                         value: _rowsPerPage,
                                         items: [10, 25, 50, 100]
                                             .map(
@@ -2996,7 +3019,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
                                     alignment: Alignment.centerLeft,
                                     child: MouseRegion(
                                       cursor: SystemMouseCursors.click,
-                                      child: GestureDetector(
+                                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                         onTap: _deleteSelectedGiderler,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
@@ -3023,7 +3046,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
                                             ),
                                           ),
                                         ),
-                                      ),
+                                      )),
                                     ),
                                   ),
                                 ),
@@ -3178,7 +3201,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
         '${FormatYardimcisi.sayiFormatlaOndalikli(gider.tutar, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.fiyatOndalik)} ${gider.paraBirimi}';
     final dateText = DateFormat('dd.MM.yyyy HH:mm').format(gider.tarih);
 
-    return GestureDetector(
+    return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
       onTap: () {
         setState(() {
           if (_selectedMobileCardId == gider.id) {
@@ -3428,7 +3451,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildMobileDetails(GiderModel gider) {
@@ -3585,7 +3608,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
   Widget _buildAddTransactionButton(GiderModel gider) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: () => _showQuickAddDrawer(gider),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -3630,7 +3653,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -4231,6 +4254,8 @@ class _QuickExpenseAddPanelState extends State<_QuickExpenseAddPanel> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: value,
           isExpanded: true,
           decoration: const InputDecoration(

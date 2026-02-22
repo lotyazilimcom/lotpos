@@ -628,6 +628,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[key] = !(localMap[key] ?? true);
@@ -1793,6 +1794,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
   Widget _buildDateRangeFilter({double? width}) {
     final hasSelection = _startDate != null || _endDate != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -1836,6 +1838,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _startDate = null;
@@ -1867,6 +1870,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
     return CompositedTransformTarget(
       link: _statusLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isStatusFilterExpanded) {
             _closeOverlay();
@@ -1923,6 +1927,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
               ),
               if (_selectedStatus != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedStatus = null;
@@ -1966,6 +1971,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
       return const SizedBox.shrink();
     }
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedStatus = value;
@@ -1994,6 +2000,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
     return CompositedTransformTarget(
       link: _defaultLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isDefaultFilterExpanded) {
             _closeOverlay();
@@ -2050,6 +2057,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
               ),
               if (_selectedDefault != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedDefault = null;
@@ -2094,6 +2102,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedDefault = value;
@@ -2122,6 +2131,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
     return CompositedTransformTarget(
       link: _userLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUserFilterExpanded) {
             _closeOverlay();
@@ -2171,6 +2181,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
               ),
               if (_selectedUser != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUser = null;
@@ -2213,6 +2224,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUser = value;
@@ -2241,6 +2253,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
     return CompositedTransformTarget(
       link: _transactionLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isTransactionFilterExpanded) {
             _closeOverlay();
@@ -2295,6 +2308,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
               ),
               if (_selectedTransactionType != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedTransactionType = null;
@@ -2337,6 +2351,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedTransactionType = value;
@@ -2365,6 +2380,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
     return CompositedTransformTarget(
       link: _warehouseLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isWarehouseFilterExpanded) {
             _closeOverlay();
@@ -2419,6 +2435,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
               ),
               if (_selectedWarehouse != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedWarehouse = null;
@@ -2548,7 +2565,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
       selectionWidget: _selectedIds.isNotEmpty
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelectedKrediKartlari,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -2581,7 +2598,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       expandAll: _keepDetailsOpen,
@@ -2599,6 +2616,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
         Tooltip(
           message: tr('creditcards.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -2632,6 +2650,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
           Tooltip(
             message: tr('common.column_settings'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => _showColumnVisibilityDialog(context),
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -2655,7 +2674,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -2697,12 +2716,12 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _showAddDialog,
               child: Container(
                 height: 40,
@@ -2736,7 +2755,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -2856,6 +2875,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                 child: Row(
                   children: [
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: toggleExpand,
                       borderRadius: BorderRadius.circular(20),
                       child: Padding(
@@ -2987,6 +3007,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                 width: colDefaultWidth,
                 alignment: Alignment.center,
                 child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () => _krediKartiVarsayilanDegistir(
                     krediKarti,
                     !krediKarti.varsayilan,
@@ -3826,7 +3847,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                   ),
                   if (copyable && value.isNotEmpty && value != '-') ...[
                     const SizedBox(width: 6),
-                    GestureDetector(
+                    MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                       onTap: () {
                         final textToCopy =
                             copyValue ?? value.replaceAll(' ', '');
@@ -3841,7 +3862,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                         size: 16,
                         color: Colors.grey.shade500,
                       ),
-                    ),
+                    )),
                   ],
                 ],
               ),
@@ -4187,6 +4208,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
         child: Tooltip(
           message: tr('common.go_to_related_page'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: () {
               final tabScope = TabAciciScope.of(context);
               if (tabScope == null) {
@@ -4406,7 +4428,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
             }
           });
         }
-        return GestureDetector(
+        return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
           onTap: onTap,
           child: Container(
             constraints: const BoxConstraints(minHeight: 52),
@@ -4662,7 +4684,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
               ],
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -4994,6 +5016,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -5048,6 +5071,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -5198,6 +5222,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -5325,6 +5350,8 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        mouseCursor: WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                         value: _rowsPerPage,
                                         items: [10, 25, 50, 100]
                                             .map(
@@ -5394,7 +5421,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                                     alignment: Alignment.centerLeft,
                                     child: MouseRegion(
                                       cursor: SystemMouseCursors.click,
-                                      child: GestureDetector(
+                                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                         onTap: _deleteSelectedKrediKartlari,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
@@ -5421,7 +5448,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                                             ),
                                           ),
                                         ),
-                                      ),
+                                      )),
                                     ),
                                   ),
                                 ),
@@ -6288,6 +6315,7 @@ class _WarehouseFilterOverlayState extends State<_WarehouseFilterOverlay> {
   Widget _buildOption(KrediKartiModel? value, String label) {
     final isSelected = widget.selectedWarehouse?.id == value?.id;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => widget.onSelect(value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

@@ -241,14 +241,14 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                               ],
                               MouseRegion(
                                 cursor: SystemMouseCursors.click,
-                                child: GestureDetector(
+                                child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                   onTap: () => Navigator.of(context).pop(),
                                   child: const Icon(
                                     Icons.close,
                                     size: 24,
                                     color: _textColor,
                                   ),
-                                ),
+                                )),
                               ),
                             ],
                           ),
@@ -496,7 +496,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                       cursor: _antetSatirControllers.length >= 3
                                           ? SystemMouseCursors.basic
                                           : SystemMouseCursors.click,
-                                      child: GestureDetector(
+                                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                         onTap:
                                             _antetSatirControllers.length >= 3
                                             ? null
@@ -528,7 +528,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                             ],
                                           ),
                                         ),
-                                      ),
+                                      )),
                                     ),
                                   ],
                                 )
@@ -568,7 +568,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                               _antetSatirControllers.length >= 3
                                               ? SystemMouseCursors.basic
                                               : SystemMouseCursors.click,
-                                          child: GestureDetector(
+                                          child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                             onTap:
                                                 _antetSatirControllers.length >=
                                                     3
@@ -603,7 +603,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                                 ],
                                               ),
                                             ),
-                                          ),
+                                          )),
                                         ),
                                       ],
                                     ),
@@ -628,7 +628,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                       const SizedBox(width: 12),
                                       MouseRegion(
                                         cursor: SystemMouseCursors.click,
-                                        child: GestureDetector(
+                                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                           onTap: () =>
                                               _antetSatirSil(entry.key),
                                           child: const Icon(
@@ -636,7 +636,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                             color: Color(0xFFEA4335),
                                             size: 24,
                                           ),
-                                        ),
+                                        )),
                                       ),
                                     ],
                                   ),
@@ -683,7 +683,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                       right: 8,
                                       child: MouseRegion(
                                         cursor: SystemMouseCursors.click,
-                                        child: GestureDetector(
+                                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                           onTap: _logoSil,
                                           child: Container(
                                             padding: const EdgeInsets.all(6),
@@ -705,7 +705,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                               size: 20,
                                             ),
                                           ),
-                                        ),
+                                        )),
                                       ),
                                     ),
                                   ],
@@ -713,7 +713,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                               else
                                 MouseRegion(
                                   cursor: SystemMouseCursors.click,
-                                  child: GestureDetector(
+                                  child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                     onTap: _logoSec,
                                     child: Container(
                                       width: double.infinity,
@@ -761,7 +761,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                         ],
                                       ),
                                     ),
-                                  ),
+                                  )),
                                 ),
 
                               const SizedBox(height: 32),
@@ -1217,7 +1217,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
             final isSelected = groupValue == opt.value;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () => onChanged(opt.value),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1256,7 +1256,7 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                     ),
                   ],
                 ),
-              ),
+              )),
             );
           }).toList(),
         ),

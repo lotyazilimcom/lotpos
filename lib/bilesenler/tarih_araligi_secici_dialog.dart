@@ -291,6 +291,7 @@ class _TarihAraligiSeciciDialogState extends State<TarihAraligiSeciciDialog> {
     required VoidCallback onTap,
   }) {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(

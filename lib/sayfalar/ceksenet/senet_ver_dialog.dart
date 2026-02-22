@@ -911,6 +911,8 @@ class _SenetVerDialogState extends State<SenetVerDialog> {
         const SizedBox(height: 12),
         // ignore: deprecated_member_use
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(_selectedParaBirimi),
           initialValue: _selectedParaBirimi,
           isExpanded: true,
@@ -1129,6 +1131,7 @@ class _SenetVerDialogState extends State<SenetVerDialog> {
                     itemBuilder: (BuildContext context, int index) {
                       final CariHesapModel option = options.elementAt(index);
                       return InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () => onSelected(option),
                         child: Container(
                           padding: const EdgeInsets.symmetric(
@@ -1484,6 +1487,7 @@ class _SupplierSearchDialogWrapperState
                       itemBuilder: (context, index) {
                         final supplier = _suppliers[index];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             widget.onSelect(supplier);
                             Navigator.of(context).pop();

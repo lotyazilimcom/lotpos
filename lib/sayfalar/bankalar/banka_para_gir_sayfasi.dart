@@ -1175,6 +1175,7 @@ class _BankaParaGirSayfasiState extends State<BankaParaGirSayfasi> {
                     itemBuilder: (context, index) {
                       final option = options.elementAt(index);
                       return InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () => onSelected(option),
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
@@ -1324,6 +1325,8 @@ class _BankaParaGirSayfasiState extends State<BankaParaGirSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           // ignore: deprecated_member_use
           value: value,
           decoration: InputDecoration(
@@ -1574,6 +1577,7 @@ class _CariHesapSearchDialogState extends State<_CariHesapSearchDialog> {
       itemBuilder: (context, index) {
         final item = _items[index];
         return InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () {
             widget.onSelect(item);
             Navigator.pop(context);
@@ -1839,6 +1843,7 @@ class _KasaSearchDialogState extends State<_KasaSearchDialog> {
       itemBuilder: (context, index) {
         final item = _items[index];
         return InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () {
             widget.onSelect(item);
             Navigator.pop(context);
@@ -2112,6 +2117,7 @@ class _BankaSearchDialogState extends State<_BankaSearchDialog> {
       itemBuilder: (context, index) {
         final item = _items[index];
         return InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () {
             widget.onSelect(item);
             Navigator.pop(context);
@@ -2351,6 +2357,7 @@ class _KrediKartiSearchDialogState extends State<_KrediKartiSearchDialog> {
       itemBuilder: (context, index) {
         final item = _items[index];
         return InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () {
             widget.onSelect(item);
             Navigator.pop(context);
@@ -2598,6 +2605,7 @@ class _PersonelSearchDialogState extends State<_PersonelSearchDialog> {
       itemBuilder: (context, index) {
         final item = _items[index];
         return InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () {
             widget.onSelect(item);
             Navigator.pop(context);

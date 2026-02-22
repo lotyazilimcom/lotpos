@@ -611,7 +611,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
             _totalRecords,
           );
 
-    return GestureDetector(
+    return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
         _closeOverlay();
@@ -720,7 +720,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildMobileToolbarCard() {
@@ -735,6 +735,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -845,6 +846,8 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<int>(
+                                      mouseCursor: WidgetStateMouseCursor.clickable,
+                                      dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                       value: _rowsPerPage,
                                       items: [10, 25, 50, 100]
                                           .map(
@@ -928,7 +931,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
                                 padding: const EdgeInsets.only(top: 12),
                                 child: Align(
                                   alignment: Alignment.centerLeft,
-                                  child: GestureDetector(
+                                  child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                     onTap: _deleteSelectedTeklifler,
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
@@ -951,7 +954,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
                                         ),
                                       ),
                                     ),
-                                  ),
+                                  )),
                                 ),
                               ),
                             const SizedBox(height: 12),
@@ -1067,6 +1070,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
       color: effectiveColor,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -1113,6 +1117,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -1156,6 +1161,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
         ],
       ),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: BorderRadius.circular(12),
         onTap: () => setState(() => _selectedRowId = order.id),
         child: Padding(
@@ -1524,7 +1530,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
       selectionWidget: _selectedIds.isNotEmpty
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelectedTeklifler,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1557,7 +1563,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       expandAll: _keepDetailsOpen,
@@ -1869,7 +1875,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
   Widget _buildPrintButton() {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: _handlePrint,
         child: Container(
           height: 40,
@@ -1907,7 +1913,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -1944,6 +1950,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
             child: Row(
               children: [
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: toggleExpand,
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
@@ -2367,6 +2374,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedDetailProductId = u.id;
@@ -2480,6 +2488,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
               Expanded(
                 flex: 5,
                 child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     final String current = u.kdvDurumu.toLowerCase();
                     final String next =
@@ -2603,6 +2612,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
               child: Align(
                 alignment: Alignment.centerRight,
                 child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () => _deleteTeklifItem(order, u),
                   borderRadius: BorderRadius.circular(4),
                   child: Padding(
@@ -3034,6 +3044,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedStatus = value;
@@ -3069,6 +3080,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedType = value;
@@ -3104,6 +3116,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedWarehouse = value;
@@ -3139,6 +3152,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUnit = value;
@@ -3174,6 +3188,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedAccount = value;
@@ -3209,6 +3224,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUser = value;
@@ -3257,6 +3273,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -3298,6 +3315,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: _clearDateFilter,
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4.0),
@@ -3320,6 +3338,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     return CompositedTransformTarget(
       link: _statusLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isStatusFilterExpanded) {
             _closeOverlay();
@@ -3378,6 +3397,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
               ),
               if (_selectedStatus != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedStatus = null;
@@ -3413,6 +3433,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     return CompositedTransformTarget(
       link: _typeLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isTypeFilterExpanded) {
             _closeOverlay();
@@ -3466,6 +3487,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
               ),
               if (_selectedType != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedType = null;
@@ -3501,6 +3523,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     return CompositedTransformTarget(
       link: _warehouseLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isWarehouseFilterExpanded) {
             _closeOverlay();
@@ -3554,6 +3577,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
               ),
               if (_selectedWarehouse != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedWarehouse = null;
@@ -3589,6 +3613,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     return CompositedTransformTarget(
       link: _unitLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUnitFilterExpanded) {
             _closeOverlay();
@@ -3636,6 +3661,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
               ),
               if (_selectedUnit != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUnit = null;
@@ -3671,6 +3697,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     return CompositedTransformTarget(
       link: _accountLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isAccountFilterExpanded) {
             _closeOverlay();
@@ -3723,6 +3750,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
               ),
               if (_selectedAccount != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedAccount = null;
@@ -3758,6 +3786,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     return CompositedTransformTarget(
       link: _userLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUserFilterExpanded) {
             _closeOverlay();
@@ -3805,6 +3834,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
               ),
               if (_selectedUser != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUser = null;
@@ -3841,6 +3871,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     final Color buttonColor = const Color(0xFFF39C12);
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: isEnabled ? _topluTeklifOnayla : null,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 200),
@@ -3898,6 +3929,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
 
   Widget _buildteklifOlusturButton() {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _teklifOlustur,
       child: Container(
         height: 40,
@@ -3937,6 +3969,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     return Tooltip(
       message: tr('quotes.keep_details_open'),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => setState(() => _keepDetailsOpen = !_keepDetailsOpen),
         child: Container(
           height: 40,
@@ -3968,6 +4001,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     return Tooltip(
       message: tr('common.column_settings'),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => _showColumnVisibilityDialog(context),
         borderRadius: BorderRadius.circular(4),
         child: Container(
@@ -4361,6 +4395,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[key] = !(localMap[key] ?? true);
@@ -4411,7 +4446,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
   Widget _buildAddProductButton(TeklifModel order) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: () => _showHizliUrunEkleDrawer(order),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -4456,7 +4491,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -5015,6 +5050,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         if (_isLoading) return;
         setState(() {
@@ -5791,6 +5827,7 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
                                   : const Color(0xFF1565C0);
 
                               return InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => onSelected(option),
                                 child: Container(
                                   color: isHighlighted
@@ -6235,14 +6272,14 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
                       isCodeField: true,
                       suffixIcon: MouseRegion(
                         cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
+                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                           onTap: _searchUrun,
                           child: const Icon(
                             Icons.search,
                             size: 20,
                             color: Colors.grey,
                           ),
-                        ),
+                        )),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -6256,14 +6293,14 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
                       isCodeField: false,
                       suffixIcon: MouseRegion(
                         cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
+                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                           onTap: _searchUrun,
                           child: const Icon(
                             Icons.search,
                             size: 20,
                             color: Colors.grey,
                           ),
-                        ),
+                        )),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -6436,6 +6473,7 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
           controller: controller,
           focusNode: focusNode,
           readOnly: readOnly,
+          mouseCursor: ((readOnly) && ((onTap) != null)) ? SystemMouseCursors.click : SystemMouseCursors.text,
           onTap: onTap,
           keyboardType: isNumeric
               ? const TextInputType.numberWithOptions(decimal: true)
@@ -6491,6 +6529,8 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: value,
           isExpanded: true,
           decoration: const InputDecoration(
@@ -6768,6 +6808,7 @@ class _ProductSelectionDialogState extends State<_ProductSelectionDialog> {
                       itemBuilder: (ctx, i) {
                         final p = _products[i];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () => Navigator.pop(context, p),
                           hoverColor: const Color(0xFFF5F7FA),
                           child: Padding(

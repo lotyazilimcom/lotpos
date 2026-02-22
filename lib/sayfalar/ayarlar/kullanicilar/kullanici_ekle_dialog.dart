@@ -260,7 +260,7 @@ class _KullaniciEkleDialogState extends State<KullaniciEkleDialog> {
                       right: 0,
                       child: MouseRegion(
                         cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
+                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                           onTap: () {
                             setState(() {
                               _profilResmi = null;
@@ -289,7 +289,7 @@ class _KullaniciEkleDialogState extends State<KullaniciEkleDialog> {
                               color: Color(0xFF6B7280),
                             ),
                           ),
-                        ),
+                        )),
                       ),
                     ),
                 ],
@@ -902,6 +902,8 @@ class _KullaniciEkleDialogState extends State<KullaniciEkleDialog> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           // value: rolListedeVar ? _seciliRol : null, // Deprecated use initialValue if not controlled
           // ignore: deprecated_member_use
           value: rolListedeVar ? _seciliRol : null,
@@ -979,7 +981,7 @@ class _KullaniciEkleDialogState extends State<KullaniciEkleDialog> {
             final isSelected = groupValue == opt.value;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () => onChanged(opt.value),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1020,7 +1022,7 @@ class _KullaniciEkleDialogState extends State<KullaniciEkleDialog> {
                     ),
                   ],
                 ),
-              ),
+              )),
             );
           }).toList(),
         ),
@@ -1048,6 +1050,8 @@ class _KullaniciEkleDialogState extends State<KullaniciEkleDialog> {
             final countryField = SizedBox(
               width: stack ? double.infinity : 135,
               child: DropdownButtonFormField<_CountryCode>(
+                mouseCursor: WidgetStateMouseCursor.clickable,
+                dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                 // ignore: deprecated_member_use
                 value: _selectedCountry,
                 isExpanded: true,

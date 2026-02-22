@@ -925,6 +925,7 @@ class _DevirYapSayfasiState extends State<DevirYapSayfasi> {
               ]),
               const SizedBox(height: 12),
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: _openWarrantyDatePicker,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1126,6 +1127,7 @@ class _DevirYapSayfasiState extends State<DevirYapSayfasi> {
     required ValueChanged<bool> onChanged,
   }) {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => onChanged(!value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -1423,6 +1425,8 @@ class _DevirYapSayfasiState extends State<DevirYapSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<dynamic>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           // Changed type to dynamic
           key: ValueKey(value),
           initialValue: value,

@@ -1431,6 +1431,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
     final content = CompositedTransformTarget(
       link: _transactionLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: _isSerialListMode
             ? null
             : () {
@@ -1496,6 +1497,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
               ),
               if (_selectedTransactionType != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: _isSerialListMode
                       ? null
                       : () {
@@ -1542,6 +1544,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
     final content = CompositedTransformTarget(
       link: _warehouseLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: _isSerialListMode
             ? null
             : () {
@@ -1605,6 +1608,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
               ),
               if (_selectedWarehouse != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: _isSerialListMode
                       ? null
                       : () {
@@ -1645,6 +1649,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
     final content = CompositedTransformTarget(
       link: _unitLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: _isSerialListMode
             ? null
             : () {
@@ -1696,6 +1701,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
               ),
               if (_selectedUnit != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: _isSerialListMode
                       ? null
                       : () {
@@ -1736,6 +1742,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
     final content = CompositedTransformTarget(
       link: _userLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: _isSerialListMode
             ? null
             : () {
@@ -1794,6 +1801,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
               ),
               if (_selectedUser != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: _isSerialListMode
                       ? null
                       : () {
@@ -1858,6 +1866,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                     shrinkWrap: true,
                     children: [
                       InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () {
                           setState(() {
                             _selectedTransactionType = null;
@@ -1913,6 +1922,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                         }
 
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             setState(() {
                               _selectedTransactionType = type;
@@ -1995,6 +2005,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                     shrinkWrap: true,
                     children: [
                       InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () {
                           setState(() {
                             _selectedWarehouse = null;
@@ -2050,6 +2061,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                           return const SizedBox.shrink();
                         }
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             setState(() {
                               _selectedWarehouse = warehouse;
@@ -2134,6 +2146,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                     shrinkWrap: true,
                     children: [
                       InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () {
                           setState(() {
                             _selectedUnit = null;
@@ -2188,6 +2201,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                         }
 
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             setState(() {
                               _selectedUnit = unit;
@@ -2270,6 +2284,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                     shrinkWrap: true,
                     children: [
                       InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () {
                           setState(() {
                             _selectedUser = null;
@@ -2324,6 +2339,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                           return const SizedBox.shrink();
                         }
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             setState(() {
                               _selectedUser = user;
@@ -2434,6 +2450,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                   ),
                   if (item.$2.isNotEmpty && item.$2 != '-')
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: () {
                         Clipboard.setData(ClipboardData(text: item.$2));
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -2504,6 +2521,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
   Widget _buildDateRangeFilter({double? width}) {
     final hasSelection = _startDate != null || _endDate != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -2547,6 +2565,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _startDate = null;
@@ -2760,6 +2779,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
         children: [
           // ============ TOGGLE HEADER ============
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: () =>
                 setState(() => _isInfoCardExpanded = !_isInfoCardExpanded),
             borderRadius: BorderRadius.circular(12),
@@ -3729,6 +3749,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[key] = !(localMap[key] ?? true);
@@ -3877,6 +3898,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
         Tooltip(
           message: tr('warehouses.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -3910,6 +3932,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
           Tooltip(
             message: tr('common.column_settings'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => _showColumnVisibilityDialog(context),
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -3933,6 +3956,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
           Tooltip(
             message: tr('common.show_only_list'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: _toggleSerialListMode,
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -3956,7 +3980,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -3997,7 +4021,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -4254,6 +4278,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
         Tooltip(
           message: tr('warehouses.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: null, // Liste modunda genişleyen satır yok
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -4277,6 +4302,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
           Tooltip(
             message: tr('common.column_settings'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => _showSerialListColumnVisibilityDialog(context),
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -4299,6 +4325,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
         Tooltip(
           message: tr('common.show_only_list'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleSerialListMode,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -4322,7 +4349,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -4363,7 +4390,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -5135,6 +5162,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
                 const SizedBox(width: 20, height: 20)
               else
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     toggleExpand();
                   },

@@ -371,6 +371,14 @@ class _MyAppState extends State<MyApp>
             onError: Colors.white,
           );
 
+          final clickableMouseCursor =
+              WidgetStateProperty.resolveWith<MouseCursor?>((states) {
+            if (states.contains(WidgetState.disabled)) {
+              return SystemMouseCursors.basic;
+            }
+            return SystemMouseCursors.click;
+          });
+
           return MaterialApp(
             navigatorKey: _rootNavigatorKey,
             navigatorObservers: [appRouteObserver],
@@ -386,33 +394,59 @@ class _MyAppState extends State<MyApp>
                   backgroundColor: const Color(0xFFEA4335),
                   foregroundColor: Colors.white,
                   elevation: 0,
+                  enabledMouseCursor: SystemMouseCursors.click,
+                  disabledMouseCursor: SystemMouseCursors.basic,
                 ),
               ),
               filledButtonTheme: FilledButtonThemeData(
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFFEA4335),
                   foregroundColor: Colors.white,
+                  enabledMouseCursor: SystemMouseCursors.click,
+                  disabledMouseCursor: SystemMouseCursors.basic,
                 ),
               ),
               textButtonTheme: TextButtonThemeData(
                 style: TextButton.styleFrom(
                   foregroundColor: const Color(0xFF2C3E50),
+                  enabledMouseCursor: SystemMouseCursors.click,
+                  disabledMouseCursor: SystemMouseCursors.basic,
                 ),
               ),
               outlinedButtonTheme: OutlinedButtonThemeData(
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF2C3E50),
+                  enabledMouseCursor: SystemMouseCursors.click,
+                  disabledMouseCursor: SystemMouseCursors.basic,
+                ),
+              ),
+              iconButtonTheme: IconButtonThemeData(
+                style: IconButton.styleFrom(
+                  enabledMouseCursor: SystemMouseCursors.click,
+                  disabledMouseCursor: SystemMouseCursors.basic,
                 ),
               ),
               floatingActionButtonTheme: const FloatingActionButtonThemeData(
                 backgroundColor: Color(0xFFEA4335),
                 foregroundColor: Colors.white,
+                mouseCursor: WidgetStateMouseCursor.clickable,
               ),
-            ),
-            locale: Locale(ceviriServisi.mevcutDil),
-            supportedLocales: const [Locale('tr'), Locale('en'), Locale('ar')],
-            localizationsDelegates: const [
-              GlobalMaterialLocalizations.delegate,
+              checkboxTheme: CheckboxThemeData(mouseCursor: clickableMouseCursor),
+              radioTheme: RadioThemeData(mouseCursor: clickableMouseCursor),
+	              switchTheme: SwitchThemeData(mouseCursor: clickableMouseCursor),
+	              listTileTheme: ListTileThemeData(mouseCursor: clickableMouseCursor),
+	              popupMenuTheme: PopupMenuThemeData(mouseCursor: clickableMouseCursor),
+	              dataTableTheme: DataTableThemeData(
+	                headingCellCursor: clickableMouseCursor,
+	                dataRowCursor: clickableMouseCursor,
+	              ),
+	              tabBarTheme: TabBarThemeData(mouseCursor: clickableMouseCursor),
+	              sliderTheme: SliderThemeData(mouseCursor: clickableMouseCursor),
+	            ),
+	            locale: Locale(ceviriServisi.mevcutDil),
+	            supportedLocales: const [Locale('tr'), Locale('en'), Locale('ar')],
+	            localizationsDelegates: const [
+	              GlobalMaterialLocalizations.delegate,
               GlobalWidgetsLocalizations.delegate,
               GlobalCupertinoLocalizations.delegate,
             ],
@@ -751,7 +785,6 @@ class _HomePageState extends State<HomePage> {
             final sidebar = MouseRegion(
               opaque: true,
               hitTestBehavior: HitTestBehavior.opaque,
-              cursor: SystemMouseCursors.basic,
               onEnter: (_) {
                 _hoverTimer?.cancel();
                 if (!_isSidebarHovered && mounted) {
@@ -923,7 +956,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 if (_isSidebarExpanded)
                   Positioned.fill(
-                    child: GestureDetector(
+                    child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                       onTap: () {
                         if (!mounted) return;
                         setState(() {
@@ -933,7 +966,7 @@ class _HomePageState extends State<HomePage> {
                       child: Container(
                         color: Colors.black.withValues(alpha: 0.3),
                       ),
-                    ),
+                    )),
                   ),
                 Positioned(
                   top: 0,
@@ -1065,7 +1098,7 @@ class _HomePageState extends State<HomePage> {
                 ),
                 if (_isSidebarExpanded)
                   Positioned.fill(
-                    child: GestureDetector(
+                    child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                       onTap: () {
                         if (!mounted) return;
                         setState(() {
@@ -1075,7 +1108,7 @@ class _HomePageState extends State<HomePage> {
                       child: Container(
                         color: Colors.black.withValues(alpha: 0.3),
                       ),
-                    ),
+                    )),
                   ),
                 AnimatedPositioned(
                   duration: const Duration(milliseconds: 250),

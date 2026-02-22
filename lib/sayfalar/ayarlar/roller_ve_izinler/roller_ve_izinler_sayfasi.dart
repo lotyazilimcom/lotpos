@@ -236,7 +236,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
       cursor: onTap != null
           ? SystemMouseCursors.click
           : SystemMouseCursors.basic,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: onTap,
         child: Container(
           height: 40,
@@ -262,7 +262,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -282,6 +282,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -331,6 +332,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
         color: color,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Container(
@@ -405,6 +407,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -529,6 +532,8 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        mouseCursor: WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                         value: _sayfaBasinaKayit,
                                         items: [10, 25, 50, 100]
                                             .map(
@@ -598,7 +603,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
                                           cursor: isDisabled
                                               ? SystemMouseCursors.forbidden
                                               : SystemMouseCursors.click,
-                                          child: GestureDetector(
+                                          child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                             onTap: isDisabled
                                                 ? null
                                                 : _secilenleriSil,
@@ -647,7 +652,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
                                                 ),
                                               ),
                                             ),
-                                          ),
+                                          )),
                                         );
                                       },
                                     ),
@@ -700,7 +705,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
               cursor: devreDisi
                   ? SystemMouseCursors.forbidden
                   : SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: devreDisi ? null : _secilenleriSil,
                 child: Opacity(
                   opacity: devreDisi ? 0.5 : 1.0,
@@ -737,7 +742,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
                     ),
                   ),
                 ),
-              ),
+              )),
             );
           }
           return const SizedBox.shrink();
@@ -755,7 +760,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
         const SizedBox(width: 12),
         MouseRegion(
           cursor: SystemMouseCursors.click,
-          child: GestureDetector(
+          child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
             onTap: _rolEkle,
             child: Container(
               height: 40,
@@ -780,7 +785,7 @@ class _RollerVeIzinlerSayfasiState extends State<RollerVeIzinlerSayfasi> {
                 ],
               ),
             ),
-          ),
+          )),
         ),
       ],
     );

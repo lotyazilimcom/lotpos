@@ -792,7 +792,7 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
             message: tr('common.delete_selected_items'),
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _removeSelectedUrunler,
                 child: Container(
                   height: 32,
@@ -840,7 +840,7 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             ),
           ),
         if (_selectedUrunIndices.isNotEmpty && _eklenenUrunler.isNotEmpty)
@@ -850,7 +850,7 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
             message: tr('common.delete_all'),
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _removeAllUrunler,
                 child: Container(
                   height: 32,
@@ -894,7 +894,7 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             ),
           ),
       ],
@@ -909,6 +909,7 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
       children: [
         if (_selectedUrunIndices.isNotEmpty)
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _removeSelectedUrunler,
             borderRadius: BorderRadius.circular(8),
             child: Container(
@@ -940,6 +941,7 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
           ),
         if (_eklenenUrunler.isNotEmpty)
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _removeAllUrunler,
             borderRadius: BorderRadius.circular(8),
             child: Container(
@@ -1018,6 +1020,7 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
             TextFormField(
               controller: _cariAdiController,
               readOnly: true,
+              mouseCursor: SystemMouseCursors.click,
               style: const TextStyle(fontSize: 17),
               decoration: InputDecoration(
                 hintText: tr('quotes.search_customer_hint'),
@@ -1264,6 +1267,7 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
                                   : const Color(0xFF1565C0);
 
                               return InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => onSelected(option),
                                 hoverColor: Colors.transparent,
                                 child: Container(
@@ -2225,6 +2229,7 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _editingIndex = index;
@@ -2534,6 +2539,8 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: value,
           decoration: InputDecoration(
             border: UnderlineInputBorder(
@@ -3254,6 +3261,7 @@ class _ProductSelectionDialogState extends State<_ProductSelectionDialog> {
                       itemBuilder: (ctx, i) {
                         final p = _products[i];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () => Navigator.pop(context, p),
                           hoverColor: const Color(0xFFF5F7FA),
                           child: Padding(
@@ -3568,6 +3576,7 @@ class _CariSelectionDialogState extends State<_CariSelectionDialog> {
                       itemBuilder: (ctx, i) {
                         final c = _cariler[i];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () => Navigator.pop(context, c),
                           hoverColor: const Color(0xFFF5F7FA),
                           child: Padding(

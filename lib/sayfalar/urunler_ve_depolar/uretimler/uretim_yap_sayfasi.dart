@@ -866,6 +866,7 @@ class _UretimYapSayfasiState extends State<UretimYapSayfasi> {
                                   : const Color(0xFFC62828);
 
                               return InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => onSelected(option),
                                 hoverColor: const Color(0xFFF5F7FA),
                                 child: Padding(
@@ -1123,6 +1124,8 @@ class _UretimYapSayfasiState extends State<UretimYapSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<int>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(value),
           initialValue: value,
           items: items.map((item) {
@@ -1424,6 +1427,8 @@ class _UretimYapSayfasiState extends State<UretimYapSayfasi> {
 
     return DropdownButtonHideUnderline(
       child: DropdownButton<int>(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
         value: value,
         items: _warehouses
             .map(
@@ -1736,6 +1741,7 @@ class _ProductionSelectionDialogState
                       itemBuilder: (context, index) {
                         final production = _productions[index];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () => Navigator.pop(context, production),
                           hoverColor: const Color(0xFFF5F7FA),
                           child: Padding(

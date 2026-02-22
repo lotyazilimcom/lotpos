@@ -751,6 +751,8 @@ class _KrediKartiEkleDialogState extends State<KrediKartiEkleDialog> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: _selectedParaBirimi,
           isExpanded: true,
           validator: (value) {
@@ -834,7 +836,7 @@ class _KrediKartiEkleDialogState extends State<KrediKartiEkleDialog> {
             final isSelected = groupValue == opt.value;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () => onChanged(opt.value),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -875,7 +877,7 @@ class _KrediKartiEkleDialogState extends State<KrediKartiEkleDialog> {
                     ),
                   ],
                 ),
-              ),
+              )),
             );
           }).toList(),
         ),

@@ -1012,6 +1012,7 @@ class _SenetTahsilSayfasiState extends State<SenetTahsilSayfasi> {
                     itemBuilder: (context, index) {
                       final option = options.elementAt(index);
                       return InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () => onSelected(option),
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
@@ -1161,6 +1162,8 @@ class _SenetTahsilSayfasiState extends State<SenetTahsilSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(value),
           initialValue: value,
           decoration: InputDecoration(
@@ -1335,6 +1338,7 @@ class _KasaSearchDialogState extends State<_KasaSearchDialog> {
             ),
             const SizedBox(width: 8),
             InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => Navigator.of(context).pop(),
               borderRadius: BorderRadius.circular(8),
               child: Container(
@@ -1539,6 +1543,7 @@ class _BankaSearchDialogState extends State<_BankaSearchDialog> {
             ),
             const SizedBox(width: 8),
             InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => Navigator.of(context).pop(),
               borderRadius: BorderRadius.circular(8),
               child: Container(

@@ -537,6 +537,7 @@ class _YanMenuState extends State<YanMenu> {
         color: Colors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           borderRadius: BorderRadius.circular(10),
           onTap: () => _openUserMenu(),
           child: Padding(
@@ -786,6 +787,7 @@ class AyarlarAltOgesi extends StatelessWidget {
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           borderRadius: BorderRadius.circular(10),
           onTap: onTap,
           child: Padding(
@@ -878,6 +880,7 @@ class _YanMenuOgesiState extends State<YanMenuOgesi> {
           color: bgColor,
           borderRadius: BorderRadius.circular(10),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(10),
             onTap: widget.onTap,
             child: Padding(

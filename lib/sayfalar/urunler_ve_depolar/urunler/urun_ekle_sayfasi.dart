@@ -1812,6 +1812,7 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
               ]),
               const SizedBox(height: 12),
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: _openWarrantyDatePicker,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -2013,6 +2014,7 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
     required ValueChanged<bool> onChanged,
   }) {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => onChanged(!value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -2087,6 +2089,7 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4, right: 12),
                   child: InkWell(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
                     onTap: () {
                       showDialog(
                         context: context,
@@ -2109,6 +2112,7 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
                               itemBuilder: (context, i) {
                                 final pColor = palette[i];
                                 return InkWell(
+                                  mouseCursor: WidgetStateMouseCursor.clickable,
                                   onTap: () {
                                     setState(() {
                                       attr['color'] = pColor.toARGB32();
@@ -2222,6 +2226,7 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
       children: [
         if (!isFull)
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _pickImages,
             borderRadius: BorderRadius.circular(12),
             child: Container(
@@ -2327,6 +2332,7 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
                     top: 4,
                     right: 4,
                     child: InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: () => _removeImage(index),
                       child: Container(
                         padding: const EdgeInsets.all(4),
@@ -2644,6 +2650,8 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(value),
           initialValue: value,
           decoration: InputDecoration(

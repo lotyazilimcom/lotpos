@@ -906,6 +906,7 @@ class _CekAlDialogState extends State<CekAlDialog> {
                           final address = addressParts.join(' / ');
 
                           return InkWell(
+                            mouseCursor: WidgetStateMouseCursor.clickable,
                             onTap: () => onSelected(option),
                             child: Padding(
                               padding: const EdgeInsets.all(12.0),
@@ -1075,6 +1076,7 @@ class _CekAlDialogState extends State<CekAlDialog> {
                             return MouseRegion(
                               cursor: SystemMouseCursors.click,
                               child: InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => onSelected(option),
                                 hoverColor: _primaryColor.withValues(
                                   alpha: 0.08,
@@ -1442,6 +1444,8 @@ class _CekAlDialogState extends State<CekAlDialog> {
         const SizedBox(height: 12),
         // ignore: deprecated_member_use
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(_selectedParaBirimi),
           initialValue: _selectedParaBirimi,
           isExpanded: true,
@@ -1723,6 +1727,7 @@ class _SupplierSearchDialogWrapperState
                       itemBuilder: (context, index) {
                         final supplier = _suppliers[index];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             widget.onSelect(supplier);
                             Navigator.pop(context);

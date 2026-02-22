@@ -323,6 +323,7 @@ class _PerakendeUrunSearchDialogState
                       itemBuilder: (context, index) {
                         final p = _items[index];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             widget.onSelect(p);
                             Navigator.of(context).pop();
@@ -2004,6 +2005,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
 	                      border: Border.all(color: Colors.grey.shade300),
                     ),
                     child: InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: _selectWarehouses,
                       child: Row(
                         children: [
@@ -2313,6 +2315,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
 	  }) {
 	    final isSelected = _selectedFiyatGrubu == group;
 	    return InkWell(
+	      mouseCursor: WidgetStateMouseCursor.clickable,
 	      onTap: () => setState(() => _selectedFiyatGrubu = group),
 	      child: Container(
 	        width: size,
@@ -2339,7 +2342,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
 	  }
 
   Widget _buildToggleSwitch() {
-    return GestureDetector(
+    return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
       onTap: () => setState(() => _fisYazdir = !_fisYazdir),
       child: Container(
         width: 60,
@@ -2379,7 +2382,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildSmallButton({
@@ -2483,7 +2486,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                   Divider(height: 1, color: Colors.grey.shade200),
               itemBuilder: (context, index) {
                 final item = _sepetItems[index];
-                return GestureDetector(
+                return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                   onTap: () => setState(() => _selectedRowIndex = index),
                   child: Container(
                     padding: EdgeInsets.symmetric(
@@ -2533,7 +2536,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                       ],
                     ),
                   ),
-                );
+                ));
               },
             ),
           ),
@@ -3517,6 +3520,7 @@ class _PerakendeHizliUrunlerPaneliState
 
   Widget _buildProductCard(UrunModel urun) {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _editMode ? null : () => widget.onSelect(urun),
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -3569,6 +3573,7 @@ class _PerakendeHizliUrunlerPaneliState
                 top: 4,
                 right: 4,
                 child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () async {
                     await UrunlerVeritabaniServisi().hizliUrundenCikar(urun.id);
                     widget.onChanged();

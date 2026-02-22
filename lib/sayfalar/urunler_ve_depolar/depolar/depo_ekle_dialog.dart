@@ -629,7 +629,7 @@ class _DepoEkleDialogState extends State<DepoEkleDialog> {
             final isSelected = groupValue == opt.value;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () => onChanged(opt.value),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -670,7 +670,7 @@ class _DepoEkleDialogState extends State<DepoEkleDialog> {
                     ),
                   ],
                 ),
-              ),
+              )),
             );
           }).toList(),
         ),
@@ -699,6 +699,8 @@ class _DepoEkleDialogState extends State<DepoEkleDialog> {
             final countryField = SizedBox(
               width: stack ? double.infinity : dropdownWidth,
               child: DropdownButtonFormField<_CountryCode>(
+                mouseCursor: WidgetStateMouseCursor.clickable,
+                dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                 initialValue: _selectedCountry,
                 isExpanded: true,
                 decoration: const InputDecoration(

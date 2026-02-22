@@ -749,6 +749,7 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
                           if (widget.customToggles != null &&
                               widget.customToggles!.isNotEmpty) ...[
                             InkWell(
+                              mouseCursor: WidgetStateMouseCursor.clickable,
                               onTap: _showColumnSettingsDialog,
                               borderRadius: BorderRadius.circular(6),
                               child: Container(
@@ -1104,6 +1105,7 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[toggle.key] = !(localMap[toggle.key] ?? true);
@@ -1271,6 +1273,8 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<T>(
+                mouseCursor: WidgetStateMouseCursor.clickable,
+                dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                 value: value,
                 items: items,
                 onChanged: onChanged,

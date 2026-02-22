@@ -625,6 +625,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[key] = !(localMap[key] ?? true);
@@ -1914,6 +1915,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
   Widget _buildDateRangeFilter({double? width}) {
     final hasSelection = _startDate != null || _endDate != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -1957,6 +1959,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _startDate = null;
@@ -1988,6 +1991,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     return CompositedTransformTarget(
       link: _statusLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isStatusFilterExpanded) {
             _closeOverlay();
@@ -2044,6 +2048,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
               ),
               if (_selectedStatus != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedStatus = null;
@@ -2089,6 +2094,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedStatus = value;
@@ -2117,6 +2123,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     return CompositedTransformTarget(
       link: _defaultLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isDefaultFilterExpanded) {
             _closeOverlay();
@@ -2173,6 +2180,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
               ),
               if (_selectedDefault != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedDefault = null;
@@ -2217,6 +2225,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedDefault = value;
@@ -2245,6 +2254,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     return CompositedTransformTarget(
       link: _userLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUserFilterExpanded) {
             _closeOverlay();
@@ -2294,6 +2304,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
               ),
               if (_selectedUser != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUser = null;
@@ -2336,6 +2347,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUser = value;
@@ -2364,6 +2376,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     return CompositedTransformTarget(
       link: _transactionLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isTransactionFilterExpanded) {
             _closeOverlay();
@@ -2418,6 +2431,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
               ),
               if (_selectedTransactionType != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedTransactionType = null;
@@ -2460,6 +2474,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedTransactionType = value;
@@ -2488,6 +2503,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     return CompositedTransformTarget(
       link: _warehouseLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isWarehouseFilterExpanded) {
             _closeOverlay();
@@ -2539,9 +2555,10 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                 ),
               ),
               if (_selectedWarehouse != null)
-                GestureDetector(
+                MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                   onTap: () {}, // Prevent bubbling
                   child: InkWell(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
                     onTap: () {
                       setState(() {
                         _selectedWarehouse = null;
@@ -2553,7 +2570,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                       child: Icon(Icons.close, size: 16, color: Colors.grey),
                     ),
                   ),
-                ),
+                )),
               const SizedBox(width: 4),
               AnimatedRotation(
                 turns: _isWarehouseFilterExpanded ? 0.5 : 0,
@@ -2673,7 +2690,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
       selectionWidget: _selectedIds.isNotEmpty
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelectedKasalar,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -2706,7 +2723,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       expandAll: _keepDetailsOpen,
@@ -2724,6 +2741,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
         Tooltip(
           message: tr('cashregisters.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -2757,6 +2775,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
           Tooltip(
             message: tr('common.column_settings'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => _showColumnVisibilityDialog(context),
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -2780,7 +2799,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -2822,12 +2841,12 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _showAddDialog,
               child: Container(
                 height: 40,
@@ -2861,7 +2880,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -2983,6 +3002,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                 child: Row(
                   children: [
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: toggleExpand,
                       borderRadius: BorderRadius.circular(20),
                       child: Padding(
@@ -4063,6 +4083,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
         child: Tooltip(
           message: tr('common.go_to_related_page'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: () {
               final tabScope = TabAciciScope.of(context);
               if (tabScope == null) {
@@ -4562,6 +4583,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -4616,6 +4638,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -4766,6 +4789,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -4893,6 +4917,8 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        mouseCursor: WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                         value: _rowsPerPage,
                                         items: [10, 25, 50, 100]
                                             .map(
@@ -4960,7 +4986,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                                     alignment: Alignment.centerLeft,
                                     child: MouseRegion(
                                       cursor: SystemMouseCursors.click,
-                                      child: GestureDetector(
+                                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                         onTap: _deleteSelectedKasalar,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
@@ -4987,7 +5013,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                                             ),
                                           ),
                                         ),
-                                      ),
+                                      )),
                                     ),
                                   ),
                                 ),
@@ -5684,7 +5710,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
             }
           });
         }
-        return GestureDetector(
+        return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
           onTap: onTap,
           child: MouseRegion(
             cursor: SystemMouseCursors.click, // Show pointer on hover
@@ -5941,7 +5967,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
               ),
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -6232,6 +6258,7 @@ class _WarehouseFilterOverlayState extends State<_WarehouseFilterOverlay> {
   Widget _buildOption(KasaModel? value, String label) {
     final isSelected = widget.selectedWarehouse?.id == value?.id;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => widget.onSelect(value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

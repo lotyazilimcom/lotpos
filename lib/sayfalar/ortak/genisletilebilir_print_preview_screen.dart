@@ -870,6 +870,7 @@ class _GenisletilebilirPrintPreviewScreenState
 
                           // Column Selection Button
                           InkWell(
+                            mouseCursor: WidgetStateMouseCursor.clickable,
                             onTap: _showColumnSettingsDialog,
                             borderRadius: BorderRadius.circular(6),
                             child: Container(
@@ -1392,6 +1393,7 @@ class _GenisletilebilirPrintPreviewScreenState
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localList[index] = !localList[index];
@@ -1447,6 +1449,7 @@ class _GenisletilebilirPrintPreviewScreenState
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[toggle.key] = !(localMap[toggle.key] ?? true);
@@ -1674,6 +1677,8 @@ class _GenisletilebilirPrintPreviewScreenState
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<T>(
+                mouseCursor: WidgetStateMouseCursor.clickable,
+                dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                 value: value,
                 items: items,
                 onChanged: onChanged,

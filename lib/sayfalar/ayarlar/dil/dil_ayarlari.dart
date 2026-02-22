@@ -201,7 +201,7 @@ class _DilAyarlariSayfasiState extends State<DilAyarlariSayfasi> {
               cursor: isDisabled
                   ? SystemMouseCursors.forbidden
                   : SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: isDisabled ? null : () => _deleteSelectedLanguages(),
                 child: Opacity(
                   opacity: isDisabled ? 0.5 : 1.0,
@@ -238,7 +238,7 @@ class _DilAyarlariSayfasiState extends State<DilAyarlariSayfasi> {
                     ),
                   ),
                 ),
-              ),
+              )),
             );
           }
           return const SizedBox.shrink();
@@ -256,7 +256,7 @@ class _DilAyarlariSayfasiState extends State<DilAyarlariSayfasi> {
         const SizedBox(width: 12),
         MouseRegion(
           cursor: SystemMouseCursors.click,
-          child: GestureDetector(
+          child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
             onTap: () {
               showDialog(
                 context: context,
@@ -272,12 +272,12 @@ class _DilAyarlariSayfasiState extends State<DilAyarlariSayfasi> {
               textColor: Colors.white,
               borderColor: Colors.transparent,
             ),
-          ),
+          )),
         ),
         const SizedBox(width: 12),
         MouseRegion(
           cursor: SystemMouseCursors.click,
-          child: GestureDetector(
+          child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
             onTap: _showAddLanguageDialog,
             child: _buildActionButton(
               label: tr('language.add'),
@@ -286,7 +286,7 @@ class _DilAyarlariSayfasiState extends State<DilAyarlariSayfasi> {
               textColor: Colors.white,
               borderColor: Colors.transparent,
             ),
-          ),
+          )),
         ),
       ],
       columns: [
@@ -487,6 +487,8 @@ class _DilAyarlariSayfasiState extends State<DilAyarlariSayfasi> {
                             ),
                             child: DropdownButtonHideUnderline(
                               child: DropdownButton<int>(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
+                                dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                 value: _rowsPerPage,
                                 items: [10, 25, 50, 100]
                                     .map(
@@ -974,6 +976,7 @@ class _DilAyarlariSayfasiState extends State<DilAyarlariSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -1017,7 +1020,7 @@ class _DilAyarlariSayfasiState extends State<DilAyarlariSayfasi> {
   }) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: onTap,
         child: Container(
           height: 40,
@@ -1046,7 +1049,7 @@ class _DilAyarlariSayfasiState extends State<DilAyarlariSayfasi> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -1397,7 +1400,7 @@ class _CustomSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
       onTap: onChanged != null ? () => onChanged!(!value) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -1439,6 +1442,6 @@ class _CustomSwitch extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }

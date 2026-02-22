@@ -498,7 +498,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
   Widget build(BuildContext context) {
     return TapRegion(
       onTapOutside: (_) => _clearAllSelections(),
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: () {
           // Request focus when table area is tapped
           if (!_tableFocusNode.hasFocus) {
@@ -576,54 +576,60 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            height: 40,
-                            padding: const EdgeInsets.symmetric(horizontal: 12),
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              border: Border.all(color: Colors.grey.shade300),
-                              borderRadius: BorderRadius.circular(8),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withValues(alpha: 0.05),
-                                  blurRadius: 2,
-                                  offset: const Offset(0, 1),
-                                ),
-                              ],
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<int>(
-                                value: _rowsPerPage,
-                                icon: const Icon(
-                                  Icons.keyboard_arrow_down,
-                                  size: 20,
-                                  color: Color(0xFF606368),
-                                ),
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF333333),
-                                  fontSize: 14,
-                                ),
-                                dropdownColor: Colors.white,
-                                borderRadius: BorderRadius.circular(8),
-                                elevation: 4,
-                                onChanged: _changeRowsPerPage,
-                                items: _rowsPerPageOptions.map((e) {
-                                  return DropdownMenuItem(
-                                    value: e,
-                                    child: Text('$e'),
-                                  );
-                                }).toList(),
-                              ),
-                            ),
-                          ),
-                          if (widget.extraWidgets != null) ...[
-                            const SizedBox(width: 16),
-                            ...widget.extraWidgets!,
-                          ],
-                        ],
+	                        mainAxisSize: MainAxisSize.min,
+	                        children: [
+	                          MouseRegion(
+	                            cursor: SystemMouseCursors.click,
+	                            hitTestBehavior: HitTestBehavior.deferToChild,
+	                            child: Container(
+	                              height: 40,
+	                              padding: const EdgeInsets.symmetric(horizontal: 12),
+	                              decoration: BoxDecoration(
+	                                color: Colors.white,
+	                                border: Border.all(color: Colors.grey.shade300),
+	                                borderRadius: BorderRadius.circular(8),
+	                                boxShadow: [
+	                                  BoxShadow(
+	                                    color: Colors.black.withValues(alpha: 0.05),
+	                                    blurRadius: 2,
+	                                    offset: const Offset(0, 1),
+	                                  ),
+	                                ],
+	                              ),
+	                              child: DropdownButtonHideUnderline(
+	                                child: DropdownButton<int>(
+	                                  mouseCursor: WidgetStateMouseCursor.clickable,
+	                                  dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
+	                                  value: _rowsPerPage,
+	                                  icon: const Icon(
+	                                    Icons.keyboard_arrow_down,
+	                                    size: 20,
+	                                    color: Color(0xFF606368),
+	                                  ),
+	                                  style: const TextStyle(
+	                                    fontWeight: FontWeight.w600,
+	                                    color: Color(0xFF333333),
+	                                    fontSize: 14,
+	                                  ),
+	                                  dropdownColor: Colors.white,
+	                                  borderRadius: BorderRadius.circular(8),
+	                                  elevation: 4,
+	                                  onChanged: _changeRowsPerPage,
+	                                  items: _rowsPerPageOptions.map((e) {
+	                                    return DropdownMenuItem(
+	                                      value: e,
+	                                      child: Text('$e'),
+	                                    );
+	                                  }).toList(),
+	                                ),
+	                              ),
+	                            ),
+	                          ),
+	                          if (widget.extraWidgets != null) ...[
+	                            const SizedBox(width: 16),
+	                            ...widget.extraWidgets!,
+	                          ],
+	                        ],
                       ),
                       if (widget.selectionWidget != null)
                         Padding(
@@ -783,6 +789,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                     widget.sortColumnIndex == index;
 
                                 Widget child = InkWell(
+                                  mouseCursor: WidgetStateMouseCursor.clickable,
                                   onTap: col.allowSorting
                                       ? () {
                                           if (widget.onSort != null) {
@@ -855,6 +862,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                       header: Material(
                                         color: Colors.white,
                                         child: InkWell(
+                                          mouseCursor: WidgetStateMouseCursor.clickable,
                                           onTap: () {
                                             setState(
                                               () => _focusedRowIndex = index,
@@ -1029,6 +1037,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                         widget.sortColumnIndex == index;
 
                                     Widget child = InkWell(
+                                      mouseCursor: WidgetStateMouseCursor.clickable,
                                       onTap: col.allowSorting
                                           ? () {
                                               if (widget.onSort != null) {
@@ -1102,6 +1111,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                           children: [
                                             // Main Row
                                             InkWell(
+                                              mouseCursor: WidgetStateMouseCursor.clickable,
                                               onTap: () {
                                                 setState(
                                                   () =>
@@ -1261,7 +1271,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -1405,7 +1415,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
       cursor: onTap != null
           ? SystemMouseCursors.click
           : SystemMouseCursors.basic,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minWidth: 32),
@@ -1436,7 +1446,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                       : Colors.grey.shade300,
                 ),
         ),
-      ),
+      )),
     );
   }
 }

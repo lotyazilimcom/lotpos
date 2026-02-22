@@ -134,51 +134,57 @@ class _StandartTabloState extends State<StandartTablo> {
           children: [
             // Rows Per Page Dropdown & Selection Widget
             Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade300),
-                    borderRadius: BorderRadius.circular(8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
-                        blurRadius: 2,
-                        offset: const Offset(0, 1),
-                      ),
-                    ],
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton<int>(
-                      value: _rowsPerPage,
-                      icon: const Icon(
-                        Icons.keyboard_arrow_down,
-                        size: 20,
-                        color: Color(0xFF606368),
-                      ),
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF333333),
-                        fontSize: 14,
-                      ),
-                      dropdownColor: Colors.white,
-                      borderRadius: BorderRadius.circular(8),
-                      elevation: 4,
-                      onChanged: _changeRowsPerPage,
-                      items: _rowsPerPageOptions.map((e) {
-                        return DropdownMenuItem(value: e, child: Text('$e'));
-                      }).toList(),
-                    ),
-                  ),
-                ),
-                if (widget.selectionWidget != null)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: widget.selectionWidget!,
-                  ),
+	              crossAxisAlignment: CrossAxisAlignment.start,
+	              children: [
+	                MouseRegion(
+	                  cursor: SystemMouseCursors.click,
+	                  hitTestBehavior: HitTestBehavior.deferToChild,
+	                  child: Container(
+	                    height: 40,
+	                    padding: const EdgeInsets.symmetric(horizontal: 12),
+	                    decoration: BoxDecoration(
+	                      color: Colors.white,
+	                      border: Border.all(color: Colors.grey.shade300),
+	                      borderRadius: BorderRadius.circular(8),
+	                      boxShadow: [
+	                        BoxShadow(
+	                          color: Colors.black.withValues(alpha: 0.05),
+	                          blurRadius: 2,
+	                          offset: const Offset(0, 1),
+	                        ),
+	                      ],
+	                    ),
+	                    child: DropdownButtonHideUnderline(
+	                      child: DropdownButton<int>(
+	                        mouseCursor: WidgetStateMouseCursor.clickable,
+	                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
+	                        value: _rowsPerPage,
+	                        icon: const Icon(
+	                          Icons.keyboard_arrow_down,
+	                          size: 20,
+	                          color: Color(0xFF606368),
+	                        ),
+	                        style: const TextStyle(
+	                          fontWeight: FontWeight.w600,
+	                          color: Color(0xFF333333),
+	                          fontSize: 14,
+	                        ),
+	                        dropdownColor: Colors.white,
+	                        borderRadius: BorderRadius.circular(8),
+	                        elevation: 4,
+	                        onChanged: _changeRowsPerPage,
+	                        items: _rowsPerPageOptions.map((e) {
+	                          return DropdownMenuItem(value: e, child: Text('$e'));
+	                        }).toList(),
+	                      ),
+	                    ),
+	                  ),
+	                ),
+	                if (widget.selectionWidget != null)
+	                  Padding(
+	                    padding: const EdgeInsets.only(top: 8.0),
+	                    child: widget.selectionWidget!,
+	                  ),
               ],
             ),
             const Spacer(),
@@ -416,7 +422,7 @@ class _StandartTabloState extends State<StandartTablo> {
       cursor: onTap != null
           ? SystemMouseCursors.click
           : SystemMouseCursors.basic,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: onTap,
         child: Container(
           constraints: const BoxConstraints(minWidth: 32),
@@ -447,7 +453,7 @@ class _StandartTabloState extends State<StandartTablo> {
                       : Colors.grey.shade300,
                 ),
         ),
-      ),
+      )),
     );
   }
 }

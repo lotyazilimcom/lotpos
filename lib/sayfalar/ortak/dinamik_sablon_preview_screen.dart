@@ -772,6 +772,8 @@ class _DinamikSablonPreviewScreenState
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton<T>(
+                mouseCursor: WidgetStateMouseCursor.clickable,
+                dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                 value: value,
                 items: items,
                 onChanged: onChanged,

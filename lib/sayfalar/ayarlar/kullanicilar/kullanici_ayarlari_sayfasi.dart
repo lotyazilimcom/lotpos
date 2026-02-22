@@ -926,6 +926,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
   Widget _buildDateRangeFilter({double? width}) {
     final hasSelection = _startDate != null || _endDate != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -969,6 +970,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   _clearDateFilter();
                 },
@@ -996,6 +998,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
     return CompositedTransformTarget(
       link: _roleLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isRoleFilterExpanded) {
             _closeOverlay();
@@ -1045,6 +1048,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
               ),
               if (_selectedRole != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedRole = null;
@@ -1083,6 +1087,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
     return CompositedTransformTarget(
       link: _statusLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isStatusFilterExpanded) {
             _closeOverlay();
@@ -1139,6 +1144,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
               ),
               if (_selectedStatus != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedStatus = null;
@@ -1267,6 +1273,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedRole = value;
@@ -1363,6 +1370,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedStatus = value;
@@ -1508,7 +1516,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
       selectionWidget: (_selectedIds.isNotEmpty || _isSelectAllActive)
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelectedKullanicilar,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1544,7 +1552,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       expandedIndices: _autoExpandedIndices,
@@ -1561,7 +1569,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -1600,12 +1608,12 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _kullaniciEkle,
               child: Container(
                 height: 40,
@@ -1639,7 +1647,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -1760,6 +1768,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
               child: Row(
                 children: [
                   InkWell(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
                     onTap: toggleExpand,
                     borderRadius: BorderRadius.circular(20),
                     child: Padding(
@@ -2660,7 +2669,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
             }
           });
         }
-        return GestureDetector(
+        return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
           onTap: onTap,
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
@@ -2835,7 +2844,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
               ),
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -3384,6 +3393,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -3438,6 +3448,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -3556,6 +3567,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -3683,6 +3695,8 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        mouseCursor: WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                         value: _rowsPerPage,
                                         items: [10, 25, 50, 100]
                                             .map(
@@ -3752,7 +3766,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                                     alignment: Alignment.centerLeft,
                                     child: MouseRegion(
                                       cursor: SystemMouseCursors.click,
-                                      child: GestureDetector(
+                                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                         onTap: _deleteSelectedKullanicilar,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
@@ -3779,7 +3793,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                                             ),
                                           ),
                                         ),
-                                      ),
+                                      )),
                                     ),
                                   ),
                                 ),

@@ -464,7 +464,7 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
     const Color accentColor = Color(0xFFEA4335);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: () => onChanged(!value),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -507,7 +507,7 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 

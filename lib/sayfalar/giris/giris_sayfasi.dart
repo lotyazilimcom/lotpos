@@ -1167,6 +1167,8 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
                                           DropdownButtonFormField<
                                             SirketAyarlariModel
                                           >(
+                                            mouseCursor: WidgetStateMouseCursor.clickable,
+                                            dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                             // ignore: deprecated_member_use
                                             value: _seciliSirket,
                                             decoration: InputDecoration(

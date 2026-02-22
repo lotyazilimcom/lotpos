@@ -2241,6 +2241,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
         children: [
           // ============ TOGGLE HEADER ============
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: () =>
                 setState(() => _isInfoCardExpanded = !_isInfoCardExpanded),
             borderRadius: BorderRadius.circular(12),
@@ -3079,6 +3080,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
           ),
           if (value.isNotEmpty)
             InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: value));
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -3157,6 +3159,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                   ),
                   if (item.$2.isNotEmpty && item.$2 != '-')
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: () {
                         Clipboard.setData(ClipboardData(text: item.$2));
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -3261,6 +3264,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                     ),
                     if (fullAdres.isNotEmpty && fullAdres != '/')
                       InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () {
                           Clipboard.setData(ClipboardData(text: fullAdres));
                           ScaffoldMessenger.of(context).showSnackBar(
@@ -3347,6 +3351,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
   Widget _buildDateRangeFilter({double? width}) {
     final hasSelection = _startDate != null || _endDate != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -3390,6 +3395,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _startDate = null;
@@ -3506,6 +3512,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedTransactionType = value;
@@ -3533,6 +3540,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     return CompositedTransformTarget(
       link: _transactionTypeLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isTransactionTypeFilterExpanded) {
             _closeOverlay();
@@ -3587,6 +3595,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
               ),
               if (_selectedTransactionType != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedTransactionType = null;
@@ -3684,6 +3693,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUser = value;
@@ -3711,6 +3721,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     return CompositedTransformTarget(
       link: _userLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUserFilterExpanded) {
             _closeOverlay();
@@ -3760,6 +3771,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
               ),
               if (_selectedUser != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUser = null;
@@ -4609,6 +4621,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     return SizedBox(
       width: 170, // Slightly wider for better text fit
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[key] = !(localMap[key] ?? true);
@@ -4829,7 +4842,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
       selectionWidget: (selectedIds.isNotEmpty)
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () {
                   // Seçilileri sil (Fonksiyonu çağır)
                   _deleteSelectedTransactions();
@@ -4868,7 +4881,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       expandAll: false,
@@ -4893,6 +4906,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
         Tooltip(
           message: tr('warehouses.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -4926,6 +4940,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
         Tooltip(
           message: tr('common.column_settings'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: () => _isInstallmentsMode
                 ? _showInstallmentColumnVisibilityDialog(context)
                 : _showColumnVisibilityDialog(context),
@@ -4951,6 +4966,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
           Tooltip(
             message: tr('accounts.card.show_installments'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: _toggleInstallmentsMode,
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -4982,7 +4998,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -5023,7 +5039,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           // Belge Yazdır (Sadece Satış için)
@@ -5046,7 +5062,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                 cursor: isSatis
                     ? SystemMouseCursors.click
                     : SystemMouseCursors.basic,
-                child: GestureDetector(
+                child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                   onTap: isSatis
                       ? () async {
                           final List<dynamic> rawElements =
@@ -5178,14 +5194,14 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                       ],
                     ),
                   ),
-                ),
+                )),
               );
             },
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: () {
                 // İade Et işlemi
                 MesajYardimcisi.bilgiGoster(
@@ -5240,12 +5256,12 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: () {
                 Navigator.push(
                   context,
@@ -5321,7 +5337,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -5616,6 +5632,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
         Tooltip(
           message: tr('warehouses.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -5648,6 +5665,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
         Tooltip(
           message: tr('common.column_settings'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: () => _showInstallmentColumnVisibilityDialog(context),
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -5671,6 +5689,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
           Tooltip(
             message: tr('accounts.card.show_installments'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: _toggleInstallmentsMode,
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -5694,7 +5713,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -5735,7 +5754,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           Builder(
@@ -5757,7 +5776,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                 cursor: isSatis
                     ? SystemMouseCursors.click
                     : SystemMouseCursors.basic,
-                child: GestureDetector(
+                child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                   onTap: isSatis
                       ? () async {
                           final List<dynamic> rawElements =
@@ -5888,14 +5907,14 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                       ],
                     ),
                   ),
-                ),
+                )),
               );
             },
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: () {
                 MesajYardimcisi.bilgiGoster(
                   context,
@@ -5948,12 +5967,12 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: () {
                 Navigator.push(
                   context,
@@ -6029,7 +6048,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -6503,6 +6522,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
             child: Tooltip(
               message: tr('sale.complete.installments_title'),
               child: InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () async {
                   final ref = row['integration_ref']?.toString() ?? '';
                   if (ref.isEmpty) return;
@@ -6752,6 +6772,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                     const SizedBox(width: 20, height: 20)
                   else
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: toggleExpand,
                       borderRadius: BorderRadius.circular(12),
                       child: Padding(
@@ -6818,6 +6839,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                               Padding(
                                 padding: const EdgeInsets.only(left: 6.0),
                                 child: InkWell(
+                                  mouseCursor: WidgetStateMouseCursor.clickable,
                                   onTap: () async {
                                     final bool? res = await showDialog<bool>(
                                       context: context,
@@ -7264,6 +7286,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
       mainActionWidget = Tooltip(
         message: tr('common.go_to_related_page'),
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () {
             final tabScope = TabAciciScope.of(context);
             if (tabScope == null) {
@@ -7399,6 +7422,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
               ? tr('common.show_all_rows') // "Tümünü Göster"
               : tr('common.show_single_row'), // "Sadece Bu Satırı Göster"
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: () => _toggleSingleView(tx['id'] as int),
             borderRadius: BorderRadius.circular(6),
             child: Container(
@@ -8490,7 +8514,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
               final double dBorcVal = isBorc ? displayTotal : 0.0;
               final double dAlacakVal = isBorc ? 0.0 : displayTotal;
 
-              return GestureDetector(
+              return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () {
                   if (txId != null) {
                     _onSelectDetailRow(_currentCari.id, txId, !isSelected);
@@ -8920,7 +8944,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                     ),
                   ),
                 ),
-              );
+              ));
             }).toList();
           })(),
         ],
@@ -9089,6 +9113,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
         Tooltip(
           message: tr('warehouses.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(6),
             child: Container(
@@ -9126,6 +9151,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     return Tooltip(
       message: '${tr('accounts.statement')} $type',
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setState(() {
             _selectedEkstreType = type;
@@ -9340,6 +9366,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     List<Map<String, dynamic>> columns,
   ) {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         // Satır seçim işlemi
       },
@@ -10173,6 +10200,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
             child: Row(
               children: [
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: toggleExpand,
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
@@ -11276,7 +11304,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
             }
           });
         }
-        return GestureDetector(
+        return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
           onTap: onTap,
           child: MouseRegion(
             cursor: SystemMouseCursors.click, // Show pointer on hover
@@ -11513,7 +11541,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
               ),
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -11778,7 +11806,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     final bool isSelected = cari.renk == colorVal;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: () {
           _updateAccountColor(cari, colorVal);
           Navigator.pop(context);
@@ -11811,7 +11839,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
             Text(label, style: const TextStyle(fontSize: 12)),
           ],
         ),
-      ),
+      )),
     );
   }
 

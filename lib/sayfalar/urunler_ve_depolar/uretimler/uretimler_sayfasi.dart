@@ -713,6 +713,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[key] = !(localMap[key] ?? true);
@@ -2234,6 +2235,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
   Widget _buildDateRangeFilter({double? width}) {
     final hasSelection = _startDate != null || _endDate != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -2277,6 +2279,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   _clearDateFilter();
                   // Prevent dialog opening when clearing
@@ -2307,6 +2310,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     return CompositedTransformTarget(
       link: _statusLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isStatusFilterExpanded) {
             _closeOverlay();
@@ -2363,6 +2367,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
               ),
               if (_selectedStatus != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedStatus = null;
@@ -2397,6 +2402,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     return CompositedTransformTarget(
       link: _groupLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isGroupFilterExpanded) {
             _closeOverlay();
@@ -2446,6 +2452,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
               ),
               if (_selectedGroup != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedGroup = null;
@@ -2480,6 +2487,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     return CompositedTransformTarget(
       link: _unitLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUnitFilterExpanded) {
             _closeOverlay();
@@ -2529,6 +2537,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
               ),
               if (_selectedUnit != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUnit = null;
@@ -2563,6 +2572,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     return CompositedTransformTarget(
       link: _vatLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isVatFilterExpanded) {
             _closeOverlay();
@@ -2612,6 +2622,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
               ),
               if (_selectedVat != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedVat = null;
@@ -2646,6 +2657,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     return CompositedTransformTarget(
       link: _transactionLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isTransactionFilterExpanded) {
             _closeOverlay();
@@ -2700,6 +2712,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
               ),
               if (_selectedTransactionType != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedTransactionType = null;
@@ -2765,6 +2778,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     return CompositedTransformTarget(
       link: _userLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUserFilterExpanded) {
             _closeOverlay();
@@ -2814,6 +2828,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
               ),
               if (_selectedUser != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUser = null;
@@ -2857,6 +2872,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedStatus = value;
@@ -2892,6 +2908,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedGroup = value;
@@ -2927,6 +2944,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUnit = value;
@@ -2962,6 +2980,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedVat = value;
@@ -2997,6 +3016,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedTransactionType = value;
@@ -3032,6 +3052,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUser = value;
@@ -3118,7 +3139,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
       selectionWidget: _selectedIds.isNotEmpty
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelectedUrunler,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -3151,7 +3172,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       expandAll: _keepDetailsOpen,
@@ -3169,6 +3190,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
         Tooltip(
           message: tr('warehouses.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -3202,6 +3224,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
           Tooltip(
             message: tr('common.column_settings'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => _showColumnVisibilityDialog(context),
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -3225,7 +3248,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -3267,7 +3290,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           Theme(
@@ -3455,37 +3478,40 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                   );
                 }
               },
-              child: Container(
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF39C12),
-                  borderRadius: BorderRadius.circular(4),
-                  border: Border.all(color: Colors.transparent),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.bolt_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      tr('common.actions'),
-                      style: const TextStyle(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                child: Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF39C12),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: Colors.transparent),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.bolt_rounded,
+                        size: 18,
                         color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                  ],
+                      const SizedBox(width: 8),
+                      Text(
+                        tr('common.actions'),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      const Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 18,
+                        color: Colors.white,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -3493,7 +3519,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _showAddDialog,
               child: Container(
                 height: 40,
@@ -3527,7 +3553,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -3653,6 +3679,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                 child: Row(
                   children: [
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: toggleExpand,
                       borderRadius: BorderRadius.circular(20),
                       child: Padding(
@@ -4465,6 +4492,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                               ),
                               const SizedBox(height: 4),
                               InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => _showRecipeDialog(urun),
                                 borderRadius: BorderRadius.circular(6),
                                 child: Container(
@@ -5001,6 +5029,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -5055,6 +5084,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -5239,17 +5269,20 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
         ],
         onSelected: (value) =>
             unawaited(_handleMobileActionMenuSelection(value)),
-        child: Container(
-          height: size,
-          width: size,
-          decoration: BoxDecoration(
-            color: const Color(0xFFF39C12),
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: Icon(
-            Icons.bolt_rounded,
-            size: size < 44 ? 20 : 24,
-            color: Colors.white,
+        child: MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            height: size,
+            width: size,
+            decoration: BoxDecoration(
+              color: const Color(0xFFF39C12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              Icons.bolt_rounded,
+              size: size < 44 ? 20 : 24,
+              color: Colors.white,
+            ),
           ),
         ),
       ),
@@ -5387,6 +5420,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -5514,6 +5548,8 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        mouseCursor: WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                         value: _rowsPerPage,
                                         items: [10, 25, 50, 100]
                                             .map(
@@ -5580,7 +5616,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                                     alignment: Alignment.centerLeft,
                                     child: MouseRegion(
                                       cursor: SystemMouseCursors.click,
-                                      child: GestureDetector(
+                                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                         onTap: _deleteSelectedUrunler,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
@@ -5607,7 +5643,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                                             ),
                                           ),
                                         ),
-                                      ),
+                                      )),
                                     ),
                                   ),
                                 ),
@@ -6358,7 +6394,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
               )
             : rawTypeLabel;
 
-        return GestureDetector(
+        return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
           onTap: onTap,
           child: MouseRegion(
             cursor: SystemMouseCursors.click, // Show pointer on hover
@@ -6791,7 +6827,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
               ),
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -7196,6 +7232,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     return CompositedTransformTarget(
       link: _warehouseLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isWarehouseFilterExpanded) {
             _closeOverlay();
@@ -7250,6 +7287,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
               ),
               if (_selectedWarehouse != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedWarehouse = null;
@@ -7291,6 +7329,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedWarehouse = value;

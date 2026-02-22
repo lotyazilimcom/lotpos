@@ -309,7 +309,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
       cursor: onTap != null
           ? SystemMouseCursors.click
           : SystemMouseCursors.basic,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: onTap,
         child: Container(
           height: 40,
@@ -335,7 +335,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -355,6 +355,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -404,6 +405,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
         color: color,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: onTap,
           borderRadius: BorderRadius.circular(8),
           child: Container(
@@ -478,6 +480,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -602,6 +605,8 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        mouseCursor: WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                         value: _sayfaBasinaKayit,
                                         items: [10, 25, 50, 100]
                                             .map(
@@ -671,7 +676,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
                                           cursor: isDisabled
                                               ? SystemMouseCursors.forbidden
                                               : SystemMouseCursors.click,
-                                          child: GestureDetector(
+                                          child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                             onTap: isDisabled
                                                 ? null
                                                 : () => _secilenSirketleriSil(),
@@ -720,7 +725,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
                                                 ),
                                               ),
                                             ),
-                                          ),
+                                          )),
                                         );
                                       },
                                     ),
@@ -773,7 +778,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
               cursor: isDisabled
                   ? SystemMouseCursors.forbidden
                   : SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: isDisabled ? null : () => _secilenSirketleriSil(),
                 child: Opacity(
                   opacity: isDisabled ? 0.5 : 1.0,
@@ -810,7 +815,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
                     ),
                   ),
                 ),
-              ),
+              )),
             );
           }
           return const SizedBox.shrink();
@@ -828,7 +833,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
         const SizedBox(width: 12),
         MouseRegion(
           cursor: SystemMouseCursors.click,
-          child: GestureDetector(
+          child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
             onTap: _sirketEkle,
             child: Container(
               height: 40,
@@ -853,7 +858,7 @@ class _SirketAyarlariSayfasiState extends State<SirketAyarlariSayfasi> {
                 ],
               ),
             ),
-          ),
+          )),
         ),
       ],
     );
@@ -1497,7 +1502,7 @@ class _CustomSwitch extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
       onTap: onChanged != null ? () => onChanged!(!value) : null,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
@@ -1539,6 +1544,6 @@ class _CustomSwitch extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }

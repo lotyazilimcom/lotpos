@@ -71,6 +71,13 @@ class UstBar extends StatelessWidget {
               final lisans = LisansServisi();
               final isLite = lisans.isLiteMode;
 
+              Future<void> openLisansDialog() async {
+                await showDialog<bool>(
+                  context: context,
+                  builder: (context) => const LisansDiyalog(),
+                );
+              }
+
               Widget buildLisanslaButton() {
                 return Padding(
                   padding: const EdgeInsets.only(right: 5),
@@ -82,13 +89,9 @@ class UstBar extends StatelessWidget {
                     child: Material(
                       color: Colors.transparent,
                       child: InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         borderRadius: BorderRadius.circular(8),
-                        onTap: () async {
-                          await showDialog<bool>(
-                            context: context,
-                            builder: (context) => const LisansDiyalog(),
-                          );
-                        },
+                        onTap: openLisansDialog,
                         child: Padding(
                           padding: EdgeInsets.symmetric(
                             horizontal: isWide ? 16 : 8,
@@ -132,55 +135,62 @@ class UstBar extends StatelessWidget {
                     padding: const EdgeInsets.only(right: 5),
                     child: Tooltip(
                       message: isLite ? 'LITE' : 'PRO',
-                      child: Container(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: isWide ? 11 : 8,
-                          vertical: 6,
-                        ),
-                        decoration: BoxDecoration(
-                          color:
-                              (isLite
-                                      ? const Color(0xFF5C6BC0)
-                                      : const Color(0xFFFFA726))
-                                  .withValues(alpha: 0.06),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color:
-                                (isLite
-                                        ? const Color(0xFF5C6BC0)
-                                        : const Color(0xFFFFA726))
-                                    .withValues(alpha: 0.25),
-                            width: 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              isLite
-                                  ? Icons.shield_outlined
-                                  : Icons.workspace_premium_outlined,
-                              color: isLite
-                                  ? const Color(0xFF5C6BC0)
-                                  : const Color(0xFFFFA726),
-                              size: 15,
+                      child: MouseRegion(
+                        cursor: SystemMouseCursors.click,
+                        hitTestBehavior: HitTestBehavior.deferToChild,
+                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
+                          onTap: openLisansDialog,
+                          child: Container(
+                            padding: EdgeInsets.symmetric(
+                              horizontal: isWide ? 11 : 8,
+                              vertical: 6,
                             ),
-                            if (isWide) ...[
-                              const SizedBox(width: 6),
-                              Text(
-                                isLite ? 'LITE' : 'PRO',
-                                style: TextStyle(
+                            decoration: BoxDecoration(
+                              color:
+                                  (isLite
+                                          ? const Color(0xFF5C6BC0)
+                                          : const Color(0xFFFFA726))
+                                      .withValues(alpha: 0.06),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color:
+                                    (isLite
+                                            ? const Color(0xFF5C6BC0)
+                                            : const Color(0xFFFFA726))
+                                        .withValues(alpha: 0.25),
+                                width: 1,
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  isLite
+                                      ? Icons.shield_outlined
+                                      : Icons.workspace_premium_outlined,
                                   color: isLite
                                       ? const Color(0xFF5C6BC0)
                                       : const Color(0xFFFFA726),
-                                  fontWeight: FontWeight.w600,
-                                  fontSize: 11,
-                                  letterSpacing: 0.4,
+                                  size: 15,
                                 ),
-                              ),
-                            ],
-                          ],
-                        ),
+                                if (isWide) ...[
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    isLite ? 'LITE' : 'PRO',
+                                    style: TextStyle(
+                                      color: isLite
+                                          ? const Color(0xFF5C6BC0)
+                                          : const Color(0xFFFFA726),
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 11,
+                                      letterSpacing: 0.4,
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                        )),
                       ),
                     ),
                   ),

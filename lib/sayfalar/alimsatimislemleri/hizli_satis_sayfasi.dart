@@ -1127,6 +1127,7 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
         children: [
           // Card Header
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: () {
               setState(() {
                 if (isExpanded) {
@@ -1966,6 +1967,7 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
     Widget buildButton(int group) {
       final selected = _selectedSalePriceGroup == group;
       return InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => setState(() => _selectedSalePriceGroup = group),
         borderRadius: BorderRadius.circular(6),
         child: AnimatedContainer(
@@ -2749,6 +2751,7 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
     final hasStock = product.stok > 0;
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: onTap,
       hoverColor: const Color(0xFFF5F7FA),
       child: Padding(
@@ -2865,6 +2868,8 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<int>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           value: row.warehouseId,
           isExpanded: true,
           isDense: true,
@@ -2938,6 +2943,8 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           value: row.serialNumber,
           isExpanded: true,
           isDense: true,
@@ -2987,6 +2994,8 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           value: row.unit,
           isExpanded: true,
           isDense: true,
@@ -3026,6 +3035,8 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           value: row.currency,
           isExpanded: true,
           isDense: true,
@@ -3081,6 +3092,8 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           value: row.tevkifatValue,
           isExpanded: true,
           isDense: true,
@@ -3359,6 +3372,8 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
         SizedBox(
           height: 44,
           child: DropdownButtonFormField<T>(
+            mouseCursor: WidgetStateMouseCursor.clickable,
+            dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
             initialValue: value,
             isExpanded: true,
             icon: const Icon(Icons.keyboard_arrow_down_rounded),

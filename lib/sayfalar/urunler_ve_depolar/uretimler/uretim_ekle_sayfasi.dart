@@ -1266,6 +1266,7 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 4, right: 12),
                   child: InkWell(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
                     onTap: () {
                       showDialog(
                         context: context,
@@ -1288,6 +1289,7 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
                               itemBuilder: (context, i) {
                                 final pColor = palette[i];
                                 return InkWell(
+                                  mouseCursor: WidgetStateMouseCursor.clickable,
                                   onTap: () {
                                     setState(() {
                                       attr['color'] = pColor.toARGB32();
@@ -1401,6 +1403,7 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
       children: [
         if (!isFull)
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _pickImages,
             borderRadius: BorderRadius.circular(12),
             child: Container(
@@ -1506,6 +1509,7 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
                     top: 4,
                     right: 4,
                     child: InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: () => _removeImage(index),
                       child: Container(
                         padding: const EdgeInsets.all(4),
@@ -1817,6 +1821,8 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(value),
           initialValue: value,
           decoration: InputDecoration(
@@ -2107,6 +2113,7 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
                                   : const Color(0xFFC62828);
 
                               return InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => onSelected(option),
                                 hoverColor: const Color(0xFFF5F7FA),
                                 child: Padding(
@@ -2654,7 +2661,7 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
         final item = _recipeItems[index];
         final bool isSelected = _selectedRecipeIndices.contains(index);
 
-        return GestureDetector(
+        return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
           onTap: () {
             setState(() {
               if (isSelected) {
@@ -2751,7 +2758,7 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
               ],
             ),
           ),
-        );
+        ));
       }),
     );
   }
@@ -3059,6 +3066,7 @@ class _ProductSelectionDialogState extends State<_ProductSelectionDialog> {
                       itemBuilder: (context, index) {
                         final product = _products[index];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () => Navigator.pop(context, product),
                           hoverColor: const Color(0xFFF5F7FA),
                           child: Padding(

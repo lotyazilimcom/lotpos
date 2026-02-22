@@ -557,6 +557,7 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
     return Material(
       color: Colors.transparent,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(24),
         splashColor: color.withValues(alpha: 0.1),

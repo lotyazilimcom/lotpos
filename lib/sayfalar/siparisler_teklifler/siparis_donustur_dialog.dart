@@ -358,6 +358,7 @@ class _SiparisDonusturDialogState extends State<SiparisDonusturDialog> {
                                 itemBuilder: (BuildContext context, int index) {
                                   final option = options.elementAt(index);
                                   return InkWell(
+                                    mouseCursor: WidgetStateMouseCursor.clickable,
                                     onTap: () => onSelected(option),
                                     child: Padding(
                                       padding: const EdgeInsets.all(12),
@@ -510,6 +511,8 @@ class _SiparisDonusturDialogState extends State<SiparisDonusturDialog> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: _selectedParaBirimi,
           decoration: const InputDecoration(
             prefixIcon: Icon(
@@ -813,6 +816,7 @@ class _CariSelectionDialogState extends State<_CariSelectionDialog> {
                         itemBuilder: (ctx, i) {
                           final c = _cariler[i];
                           return InkWell(
+                            mouseCursor: WidgetStateMouseCursor.clickable,
                             onTap: () => Navigator.pop(context, c),
                             hoverColor: const Color(0xFFF5F7FA),
                             child: Padding(

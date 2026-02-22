@@ -704,6 +704,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[key] = !(localMap[key] ?? true);
@@ -2111,6 +2112,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   Widget _buildDateRangeFilter({double? width}) {
     final hasSelection = _startDate != null || _endDate != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -2154,6 +2156,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _startDate = null;
@@ -2183,6 +2186,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     return CompositedTransformTarget(
       link: _statusLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isStatusFilterExpanded) {
             _closeOverlay();
@@ -2239,6 +2243,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
               ),
               if (_selectedStatus != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedStatus = null;
@@ -2286,6 +2291,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
         ? label
         : IslemCeviriYardimcisi.cevir(label);
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedStatus = value;
@@ -2314,6 +2320,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     return CompositedTransformTarget(
       link: _transactionLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isTransactionFilterExpanded) {
             _closeOverlay();
@@ -2368,6 +2375,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
               ),
               if (_selectedTransactionType != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedTransactionType = null;
@@ -2417,6 +2425,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedTransactionType = value;
@@ -2445,6 +2454,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     return CompositedTransformTarget(
       link: _userLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUserFilterExpanded) {
             _closeOverlay();
@@ -2494,6 +2504,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
               ),
               if (_selectedUser != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUser = null;
@@ -2536,6 +2547,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUser = value;
@@ -2564,6 +2576,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     return CompositedTransformTarget(
       link: _warehouseLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isWarehouseFilterExpanded) {
             _closeOverlay();
@@ -2618,6 +2631,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
               ),
               if (_selectedWarehouse != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedWarehouse = null;
@@ -2706,7 +2720,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       selectionWidget: _selectedIds.isNotEmpty
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelectedDepolar,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -2739,7 +2753,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       expandAll: _keepDetailsOpen,
@@ -2757,6 +2771,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
         Tooltip(
           message: tr('warehouses.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -2790,6 +2805,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           Tooltip(
             message: tr('common.column_settings'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => _showColumnVisibilityDialog(context),
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -2813,7 +2829,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -2855,12 +2871,12 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _showShipmentPage,
               child: Container(
                 height: 40,
@@ -2898,12 +2914,12 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _showAddDialog,
               child: Container(
                 height: 40,
@@ -2937,7 +2953,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -3047,6 +3063,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                 child: Row(
                   children: [
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: toggleExpand,
                       borderRadius: BorderRadius.circular(20),
                       child: Padding(
@@ -3385,6 +3402,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                                   const SizedBox(height: 6),
                                   // Toplam Stok Chip - Tıklanabilir
                                   InkWell(
+                                    mouseCursor: WidgetStateMouseCursor.clickable,
                                     onTap: () =>
                                         _showWarehouseStockDialog(depo),
                                     borderRadius: BorderRadius.circular(6),
@@ -4851,6 +4869,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -4905,6 +4924,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -5063,6 +5083,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -5190,6 +5211,8 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        mouseCursor: WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                         value: _rowsPerPage,
                                         items: [10, 25, 50, 100]
                                             .map(
@@ -5257,7 +5280,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                                     alignment: Alignment.centerLeft,
                                     child: MouseRegion(
                                       cursor: SystemMouseCursors.click,
-                                      child: GestureDetector(
+                                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                         onTap: _deleteSelectedDepolar,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
@@ -5284,7 +5307,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                                             ),
                                           ),
                                         ),
-                                      ),
+                                      )),
                                     ),
                                   ),
                                 ),
@@ -5435,7 +5458,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     final isExpanded = _expandedMobileIds.contains(depo.id);
     final bool isSelected = _selectedMobileCardId == depo.id;
 
-    return GestureDetector(
+    return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
       onTap: () {
         setState(() {
           if (_selectedMobileCardId == depo.id) {
@@ -5592,7 +5615,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildMobileDetails(DepoModel depo) {
@@ -6032,6 +6055,7 @@ class _WarehouseFilterOverlayState extends State<_WarehouseFilterOverlay> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => widget.onSelect(value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

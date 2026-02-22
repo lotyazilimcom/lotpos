@@ -657,6 +657,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[key] = !(localMap[key] ?? true);
@@ -1694,6 +1695,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
   Widget _buildDateRangeFilter({double? width}) {
     final hasSelection = _startDate != null || _endDate != null;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -1737,6 +1739,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: () {
                   setState(() {
                     _startDate = null;
@@ -1768,6 +1771,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
     return CompositedTransformTarget(
       link: _bankLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isBankFilterExpanded) {
             _closeOverlay();
@@ -1817,6 +1821,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
               ),
               if (_selectedBank != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedBank = null;
@@ -1852,6 +1857,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
     return CompositedTransformTarget(
       link: _transactionLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isTransactionFilterExpanded) {
             _closeOverlay();
@@ -1906,6 +1912,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
               ),
               if (_selectedTransactionType != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedTransactionType = null;
@@ -1941,6 +1948,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
     return CompositedTransformTarget(
       link: _userLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUserFilterExpanded) {
             _closeOverlay();
@@ -1990,6 +1998,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
               ),
               if (_selectedUser != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUser = null;
@@ -2032,6 +2041,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUser = value;
@@ -2067,6 +2077,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedBank = value;
@@ -2102,6 +2113,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedTransactionType = value;
@@ -2214,7 +2226,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
       selectionWidget: _selectedIds.isNotEmpty
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelectedSenetler,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -2247,7 +2259,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       expandAll: _keepDetailsOpen,
@@ -2265,6 +2277,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
         Tooltip(
           message: tr('warehouses.keep_details_open'),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _toggleKeepDetailsOpen,
             borderRadius: BorderRadius.circular(4),
             child: Container(
@@ -2298,6 +2311,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
           Tooltip(
             message: tr('common.column_settings'),
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => _showColumnVisibilityDialog(context),
               borderRadius: BorderRadius.circular(4),
               child: Container(
@@ -2321,7 +2335,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
         children: [
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _handlePrint,
               child: Container(
                 height: 40,
@@ -2363,12 +2377,12 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _showGiveNoteDialog,
               child: Container(
                 height: 40,
@@ -2406,12 +2420,12 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
           const SizedBox(width: 12),
           MouseRegion(
             cursor: SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _showAddDialog,
               child: Container(
                 height: 40,
@@ -2449,7 +2463,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ],
       ),
@@ -2569,6 +2583,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                 child: Row(
                   children: [
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: toggleExpand,
                       borderRadius: BorderRadius.circular(20),
                       child: Padding(
@@ -3379,7 +3394,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
             }
           });
         }
-        return GestureDetector(
+        return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
           onTap: onTap,
           child: MouseRegion(
             cursor: SystemMouseCursors.click,
@@ -3641,7 +3656,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
               ),
             ),
           ),
-        );
+        ));
       },
     );
   }
@@ -4077,6 +4092,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -4131,6 +4147,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -4297,6 +4314,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -4424,6 +4442,8 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                                     ),
                                     child: DropdownButtonHideUnderline(
                                       child: DropdownButton<int>(
+                                        mouseCursor: WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                         value: _rowsPerPage,
                                         items: [10, 25, 50, 100]
                                             .map(
@@ -4491,7 +4511,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                                     alignment: Alignment.centerLeft,
                                     child: MouseRegion(
                                       cursor: SystemMouseCursors.click,
-                                      child: GestureDetector(
+                                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                         onTap: _deleteSelectedSenetler,
                                         child: Container(
                                           padding: const EdgeInsets.symmetric(
@@ -4518,7 +4538,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                                             ),
                                           ),
                                         ),
-                                      ),
+                                      )),
                                     ),
                                   ),
                                 ),
@@ -5204,6 +5224,7 @@ class _WarehouseFilterOverlayState extends State<_WarehouseFilterOverlay> {
   Widget _buildOption(SenetModel? value, String label) {
     final isSelected = widget.selectedWarehouse?.id == value?.id;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => widget.onSelect(value),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),

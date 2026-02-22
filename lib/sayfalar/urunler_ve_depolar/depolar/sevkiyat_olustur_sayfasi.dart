@@ -365,6 +365,8 @@ class _SevkiyatOlusturSayfasiState extends State<SevkiyatOlusturSayfasi> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<int>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(value),
           initialValue: value,
           items: items,
@@ -1355,6 +1357,7 @@ class _SevkiyatOlusturSayfasiState extends State<SevkiyatOlusturSayfasi> {
                                   : const Color(0xFFC62828); // Red text
 
                               return InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => onSelected(option),
                                 hoverColor: const Color(0xFFF5F7FA),
                                 child: Padding(
@@ -1722,6 +1725,7 @@ class _SevkiyatOlusturSayfasiState extends State<SevkiyatOlusturSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _editingIndex = index;
@@ -1800,6 +1804,7 @@ class _SevkiyatOlusturSayfasiState extends State<SevkiyatOlusturSayfasi> {
               focusNode: focusNode,
               autofocus: autoFocus,
               readOnly: readOnly,
+              mouseCursor: ((readOnly) && ((onTap) != null)) ? SystemMouseCursors.click : SystemMouseCursors.text,
               onTap: onTap,
               onFieldSubmitted: onSubmitted,
               keyboardType: isNumeric
@@ -2188,6 +2193,7 @@ class _ProductSearchDialogState extends State<_ProductSearchDialog> {
                       itemBuilder: (context, index) {
                         final product = _products[index];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () => Navigator.pop(context, product),
                           hoverColor: const Color(0xFFF5F7FA),
                           child: Padding(

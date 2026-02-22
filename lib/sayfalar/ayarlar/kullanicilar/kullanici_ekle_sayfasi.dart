@@ -890,7 +890,7 @@ class _KullaniciEkleSayfasiState extends State<KullaniciEkleSayfasi> {
                     right: 0,
                     child: MouseRegion(
                       cursor: SystemMouseCursors.click,
-                      child: GestureDetector(
+                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                         onTap: () {
                           setState(() {
                             _profilResmi = null;
@@ -917,7 +917,7 @@ class _KullaniciEkleSayfasiState extends State<KullaniciEkleSayfasi> {
                             color: Color(0xFF6B7280),
                           ),
                         ),
-                      ),
+                      )),
                     ),
                   ),
               ],
@@ -1018,6 +1018,8 @@ class _KullaniciEkleSayfasiState extends State<KullaniciEkleSayfasi> {
             final countryField = SizedBox(
               width: stack ? double.infinity : 120,
               child: DropdownButtonFormField<_CountryCode>(
+                mouseCursor: WidgetStateMouseCursor.clickable,
+                dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                 key: ValueKey(_selectedCountry),
                 initialValue: _selectedCountry,
                 isExpanded: true,
@@ -1172,6 +1174,8 @@ class _KullaniciEkleSayfasiState extends State<KullaniciEkleSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(rolListedeVar ? _seciliRol : null),
           initialValue: rolListedeVar ? _seciliRol : null,
           decoration: InputDecoration(
@@ -1312,7 +1316,7 @@ class _KullaniciEkleSayfasiState extends State<KullaniciEkleSayfasi> {
             final isSelected = groupValue == opt.value;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () => onChanged(opt.value),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1353,7 +1357,7 @@ class _KullaniciEkleSayfasiState extends State<KullaniciEkleSayfasi> {
                     ),
                   ],
                 ),
-              ),
+              )),
             );
           }).toList(),
         ),
@@ -1676,6 +1680,8 @@ class _KullaniciEkleSayfasiState extends State<KullaniciEkleSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(value),
           initialValue: value,
           decoration: InputDecoration(

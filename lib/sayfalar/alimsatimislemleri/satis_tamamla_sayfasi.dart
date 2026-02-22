@@ -1378,6 +1378,7 @@ class _SatisTamamlaSayfasiState extends State<SatisTamamlaSayfasi> {
                                 itemBuilder: (BuildContext context, int index) {
                                   final option = options.elementAt(index);
                                   return InkWell(
+                                    mouseCursor: WidgetStateMouseCursor.clickable,
                                     onTap: () => onSelected(option),
                                     child: Padding(
                                       padding: const EdgeInsets.all(12.0),
@@ -2119,6 +2120,7 @@ class _SatisTamamlaSayfasiState extends State<SatisTamamlaSayfasi> {
                     itemBuilder: (context, index) {
                       final option = options.elementAt(index);
                       return InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () => onSelected(option),
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
@@ -2284,6 +2286,8 @@ class _SatisTamamlaSayfasiState extends State<SatisTamamlaSayfasi> {
           ),
         if (label.isNotEmpty) SizedBox(height: isCompact ? 3 : 4),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(value),
           initialValue: items.contains(value) ? value : null,
           decoration: InputDecoration(
@@ -2373,6 +2377,16 @@ class _SatisTamamlaSayfasiState extends State<SatisTamamlaSayfasi> {
                 controller: controller,
                 focusNode: focusNode,
                 readOnly: readOnly,
+                mouseCursor: ((readOnly) && ((selectAllOnTap
+                    ? () {
+                        if (controller.text.isNotEmpty) {
+                          controller.selection = TextSelection(
+                            baseOffset: 0,
+                            extentOffset: controller.text.length,
+                          );
+                        }
+                      }
+                    : null) != null)) ? SystemMouseCursors.click : SystemMouseCursors.text,
                 textAlign: TextAlign.right,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,
@@ -2536,6 +2550,7 @@ class _SatisTamamlaSayfasiState extends State<SatisTamamlaSayfasi> {
         TextFormField(
           controller: _vadeTarihiController,
           readOnly: true,
+          mouseCursor: SystemMouseCursors.click,
           onTap: () => _selectDate(context, isVadeTarihi: true),
           style: theme.textTheme.bodyLarge?.copyWith(
             fontSize: isCompact ? 15 : 17,
@@ -2757,6 +2772,7 @@ class _CariSearchDialogWrapperState extends State<_CariSearchDialogWrapper> {
                     ),
                     const SizedBox(width: 8),
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: () => Navigator.of(context).pop(),
                       borderRadius: BorderRadius.circular(8),
                       child: Container(
@@ -2826,6 +2842,7 @@ class _CariSearchDialogWrapperState extends State<_CariSearchDialogWrapper> {
                       itemBuilder: (context, index) {
                         final cari = _carilar[index];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             widget.onSelect(cari);
                             Navigator.of(context).pop();
@@ -3099,6 +3116,7 @@ class _KasaSearchDialogState extends State<_KasaSearchDialog> {
       itemBuilder: (context, index) {
         final item = _items[index];
         return InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () {
             widget.onSelect(item);
             Navigator.pop(context);
@@ -3363,6 +3381,7 @@ class _BankaSearchDialogState extends State<_BankaSearchDialog> {
       itemBuilder: (context, index) {
         final item = _items[index];
         return InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () {
             widget.onSelect(item);
             Navigator.pop(context);
@@ -3623,6 +3642,7 @@ class _KrediKartiSearchDialogState extends State<_KrediKartiSearchDialog> {
       itemBuilder: (context, index) {
         final item = _items[index];
         return InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () {
             widget.onSelect(item);
             Navigator.pop(context);
@@ -4421,6 +4441,7 @@ class _TaksitLandirmaDialogState extends State<_TaksitLandirmaDialog> {
           Expanded(
             flex: 2,
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () async {
                 final DateTime? picked = await showDialog<DateTime>(
                   context: context,

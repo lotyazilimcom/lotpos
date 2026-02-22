@@ -643,6 +643,7 @@ class _TaksitIzlemeDiyaloguState extends State<TaksitIzlemeDiyalogu> {
                                 if (!isPaid) ...[
                                   const SizedBox(width: 16),
                                   InkWell(
+                                    mouseCursor: WidgetStateMouseCursor.clickable,
                                     onTap: () => _odemeYap(t),
                                     borderRadius: BorderRadius.circular(8),
                                     child: Container(
@@ -745,6 +746,7 @@ class _TaksitIzlemeDiyaloguState extends State<TaksitIzlemeDiyalogu> {
               // Vade Seçici
               Expanded(
                 child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () async {
                     final picked = await showDatePicker(
                       context: context,
@@ -1018,6 +1020,7 @@ class _HesapSecimDialogState extends State<_HesapSecimDialog> {
     const primaryColor = Color(0xFF2C3E50);
     return Expanded(
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setState(() => _selectedType = type);
           _hesaplariYukle();

@@ -519,6 +519,8 @@ class _AiAyarlariSayfasiState extends State<AiAyarlariSayfasi> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           // 'value' FormField içinde deprecated olduğu için 'initialValue' kullanıyoruz.
           // Ancak FormField state'i kendi değerini yönetir. DropdownButtonFormField hem 'value' hem form state kullanınca karışabiliyor.
           // En temiz çözüm: key vererek widget'i yeniden oluşturmak veya sadece initialValue kullanmak.

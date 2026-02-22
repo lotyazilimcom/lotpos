@@ -1060,6 +1060,7 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
             ),
             child: _resimler.isEmpty
                 ? InkWell(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
                     onTap: _pickImage,
                     borderRadius: BorderRadius.circular(12),
                     child: Column(
@@ -1105,6 +1106,7 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
                         return Material(
                           color: Colors.transparent,
                           child: InkWell(
+                            mouseCursor: WidgetStateMouseCursor.clickable,
                             onTap: () {
                               setState(() {
                                 _selectedAiImageIndex = index;
@@ -1181,6 +1183,7 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
                                     top: 4,
                                     right: 4,
                                     child: InkWell(
+                                      mouseCursor: WidgetStateMouseCursor.clickable,
                                       onTap: () {
                                         setState(() {
                                           _resimler.removeAt(index);
@@ -1231,6 +1234,7 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
                         Material(
                           color: Colors.transparent,
                           child: InkWell(
+                            mouseCursor: WidgetStateMouseCursor.clickable,
                             onTap: _pickImage,
                             borderRadius: BorderRadius.circular(8),
                             child: Container(
@@ -1959,6 +1963,7 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
             ),
             const SizedBox(height: 4),
             InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () {
                 focusNode?.requestFocus();
                 onTap();
@@ -2024,6 +2029,8 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           focusNode: focusNode,
           initialValue: items.contains(value) ? value : null,
           onChanged: (val) {

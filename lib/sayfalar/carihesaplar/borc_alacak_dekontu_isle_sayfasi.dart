@@ -846,6 +846,8 @@ class _BorcAlacakDekontuIsleSayfasiState
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<dynamic>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey(value),
           initialValue: items.contains(value)
               ? value

@@ -423,6 +423,8 @@ class _DinamikYazdirmaOnizlemeSayfasiState
             child: ButtonTheme(
               alignedDropdown: true,
               child: DropdownButton<T>(
+                mouseCursor: WidgetStateMouseCursor.clickable,
+                dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                 value: value,
                 isExpanded: true,
                 items: items,

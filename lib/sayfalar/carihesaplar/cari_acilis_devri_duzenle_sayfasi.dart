@@ -408,6 +408,7 @@ class _CariAcilisDevriDuzenleSayfasiState
   }) {
     final isSelected = value == groupValue;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => onChanged(value),
       borderRadius: BorderRadius.circular(8),
       child: Container(

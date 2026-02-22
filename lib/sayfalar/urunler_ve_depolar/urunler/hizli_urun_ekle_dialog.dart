@@ -741,6 +741,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
     required Color color,
   }) {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _isAiScanning ? null : onPressed,
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -818,6 +819,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
         side: BorderSide(color: Colors.grey.shade200),
       ),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => _showMobileItemEditor(index),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
@@ -1406,6 +1408,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
         itemBuilder: (context, i) {
           if (i == resimler.length && resimler.length < 5) {
             return InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => _pickImagesForMobileRow(index),
               child: Container(
                 width: 100,
@@ -1454,6 +1457,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                 top: 4,
                 right: 12,
                 child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       final list = List<String>.from(_items[index]['resimler']);
@@ -1751,7 +1755,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hoveredIndex = index),
       onExit: (_) => setState(() => _hoveredIndex = null),
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: () => setState(() => _selectedIndex = index),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
@@ -1847,7 +1851,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -1885,6 +1889,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<int>(
+              mouseCursor: WidgetStateMouseCursor.clickable,
+              dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
               value: _items[index]['depoId'],
               isExpanded: true,
               borderRadius: BorderRadius.circular(12),
@@ -1921,6 +1927,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () async {
             final picked = await showDialog<DateTime>(
               context: context,
@@ -2057,6 +2064,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
+              mouseCursor: WidgetStateMouseCursor.clickable,
+              dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
               value: currentValue,
               isExpanded: true,
               borderRadius: BorderRadius.circular(12),
@@ -2240,6 +2249,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                       itemBuilder: (context, i) {
                         final base64 = (item['resimler'] as List)[i];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () => _showImagePreview(item['resimler']),
                           child: Container(
                             height: 50,

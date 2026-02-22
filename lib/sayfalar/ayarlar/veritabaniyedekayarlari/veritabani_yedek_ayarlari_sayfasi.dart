@@ -692,6 +692,7 @@ class _VeritabaniYedekAyarlariSayfasiState
     final isSelected = _seciliMod == id;
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         if (!enabled) {
           _showProGerekiyor();
@@ -884,6 +885,8 @@ class _VeritabaniYedekAyarlariSayfasiState
                     border: Border.all(color: Colors.grey.shade200),
                   ),
                   child: DropdownButton<String>(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
+                    dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                     value: _yedeklemePeriyodu,
                     underline: const SizedBox(),
                     icon: const Icon(Icons.keyboard_arrow_down_rounded),
@@ -1255,6 +1258,8 @@ class _VeritabaniYedekAyarlariSayfasiState
                     if (mevcutSecili && kaynaklar.length > 1) ...[
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
+                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                         initialValue: selectedIndex,
                         isExpanded: true,
                         decoration: InputDecoration(

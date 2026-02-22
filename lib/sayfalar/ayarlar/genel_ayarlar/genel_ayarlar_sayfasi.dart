@@ -976,12 +976,13 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                     ? tr('country.$countryKey')
                     : '';
                 final isDefault = code == _ayarlar.varsayilanParaBirimi;
-                return Chip(
-                  label: Text(
-                    '$code ($cName)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isDefault ? _actionPrimary : _primaryColor,
+	                return Chip(
+	                  mouseCursor: WidgetStateMouseCursor.clickable,
+	                  label: Text(
+	                    '$code ($cName)',
+	                    style: TextStyle(
+	                      fontSize: 11,
+	                      color: isDefault ? _actionPrimary : _primaryColor,
                     ),
                   ),
                   deleteIcon: isDefault
@@ -1004,15 +1005,16 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                   visualDensity: VisualDensity.compact,
                 );
               }),
-              ActionChip(
-                avatar: const Icon(Icons.add, size: 14),
-                label: Text(
-                  tr('settings.general.currency.add'),
-                  style: const TextStyle(fontSize: 11),
-                ),
-                onPressed: _showAddCurrencyDialog,
-                visualDensity: VisualDensity.compact,
-              ),
+	              ActionChip(
+	                avatar: const Icon(Icons.add, size: 14),
+	                label: Text(
+	                  tr('settings.general.currency.add'),
+	                  style: const TextStyle(fontSize: 11),
+	                ),
+	                onPressed: _showAddCurrencyDialog,
+	                mouseCursor: WidgetStateMouseCursor.clickable,
+	                visualDensity: VisualDensity.compact,
+	              ),
             ],
           ),
           const SizedBox(height: 16),
@@ -1077,6 +1079,8 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                 ),
                 child: DropdownButtonHideUnderline(
                   child: DropdownButton<String>(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
+                    dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                     value: _ayarlar.varsayilanKdvDurumu,
                     isDense: true,
                     style: const TextStyle(fontSize: 12, color: _primaryColor),
@@ -1410,7 +1414,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
           children: [
             MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () => setState(() => onAlfaChanged(false)),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1430,12 +1434,12 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                     ),
                   ),
                 ),
-              ),
+              )),
             ),
             const SizedBox(width: 2),
             MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () => setState(() => onAlfaChanged(true)),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1455,7 +1459,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                     ),
                   ),
                 ),
-              ),
+              )),
             ),
           ],
         ),
@@ -1644,7 +1648,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
   }) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: () => onChanged(!value),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
@@ -1687,7 +1691,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -1843,6 +1847,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
             mainAxisSize: MainAxisSize.min,
             children: [
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 key: _printerPickerAnchorKey,
                 onTap: _pickPrinter,
                 borderRadius: BorderRadius.circular(8),
@@ -1973,6 +1978,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
   }) {
     final isSelected = _ayarlar.sunucuModu == mode;
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () => setState(() => _ayarlar.sunucuModu = mode),
       borderRadius: BorderRadius.circular(12),
       child: Container(
@@ -2050,6 +2056,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                 ? SystemMouseCursors.click
                 : SystemMouseCursors.basic,
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: value > 0 ? () => onChanged(value - 1) : null,
               borderRadius: const BorderRadius.horizontal(
                 left: Radius.circular(7),
@@ -2077,6 +2084,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                 ? SystemMouseCursors.click
                 : SystemMouseCursors.basic,
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: value < 6 ? () => onChanged(value + 1) : null,
               borderRadius: const BorderRadius.horizontal(
                 right: Radius.circular(7),
@@ -2105,6 +2113,8 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     String Function(String)? labelBuilder,
   }) {
     return DropdownButtonFormField<String>(
+      mouseCursor: WidgetStateMouseCursor.clickable,
+      dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
       key: ValueKey('ga_dropdown_${label}_${value}_${items.length}'),
       initialValue: items.contains(value) ? value : items.first,
       decoration: InputDecoration(
@@ -2144,6 +2154,8 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           value: value,
           isDense: true,
           style: const TextStyle(fontSize: 11, color: _primaryColor),
@@ -2194,12 +2206,13 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
       children: [
         ..._ayarlar.urunBirimleri.map((unit) {
           final isDefault = unit['isDefault'] == true;
-          return Chip(
-            label: Text(
-              unit['name'],
-              style: TextStyle(
-                fontSize: 11,
-                color: isDefault ? _actionPrimary : _primaryColor,
+	          return Chip(
+	            mouseCursor: WidgetStateMouseCursor.clickable,
+	            label: Text(
+	              unit['name'],
+	              style: TextStyle(
+	                fontSize: 11,
+	                color: isDefault ? _actionPrimary : _primaryColor,
               ),
             ),
             backgroundColor: isDefault
@@ -2222,12 +2235,13 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
             visualDensity: VisualDensity.compact,
           );
         }),
-        ActionChip(
-          avatar: const Icon(Icons.add, size: 14),
-          label: Text(tr('common.add'), style: const TextStyle(fontSize: 11)),
-          onPressed: _showAddUnitDialog,
-          visualDensity: VisualDensity.compact,
-        ),
+	        ActionChip(
+	          avatar: const Icon(Icons.add, size: 14),
+	          label: Text(tr('common.add'), style: const TextStyle(fontSize: 11)),
+	          onPressed: _showAddUnitDialog,
+	          mouseCursor: WidgetStateMouseCursor.clickable,
+	          visualDensity: VisualDensity.compact,
+	        ),
       ],
     );
   }
@@ -2239,12 +2253,13 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
       children: [
         ..._ayarlar.urunGruplari.map((group) {
           final color = Color(group['color'] ?? 0xFF2196F3);
-          return Chip(
-            avatar: Container(
-              width: 8,
-              height: 8,
-              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
-            ),
+	          return Chip(
+	            mouseCursor: WidgetStateMouseCursor.clickable,
+	            avatar: Container(
+	              width: 8,
+	              height: 8,
+	              decoration: BoxDecoration(shape: BoxShape.circle, color: color),
+	            ),
             label: Text(group['name'], style: const TextStyle(fontSize: 11)),
             deleteIcon: const Icon(Icons.close, size: 14),
             onDeleted: () =>
@@ -2254,15 +2269,16 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
             visualDensity: VisualDensity.compact,
           );
         }),
-        ActionChip(
-          avatar: const Icon(Icons.add, size: 14),
-          label: Text(
-            tr('settings.general.groups.addButton'),
-            style: const TextStyle(fontSize: 11),
-          ),
-          onPressed: _showAddGroupDialog,
-          visualDensity: VisualDensity.compact,
-        ),
+	        ActionChip(
+	          avatar: const Icon(Icons.add, size: 14),
+	          label: Text(
+	            tr('settings.general.groups.addButton'),
+	            style: const TextStyle(fontSize: 11),
+	          ),
+	          onPressed: _showAddGroupDialog,
+	          mouseCursor: WidgetStateMouseCursor.clickable,
+	          visualDensity: VisualDensity.compact,
+	        ),
       ],
     );
   }
@@ -2453,7 +2469,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                 runSpacing: 8,
                 children: colors.map((color) {
                   final isSelected = selectedColor == color;
-                  return GestureDetector(
+                  return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                     onTap: () => setState(() => selectedColor = color),
                     child: Container(
                       width: 32,
@@ -2476,7 +2492,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                             )
                           : null,
                     ),
-                  );
+                  ));
                 }).toList(),
               ),
             ],

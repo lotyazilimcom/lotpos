@@ -639,6 +639,8 @@ class _KasaEkleDialogState extends State<KasaEkleDialog> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: _selectedParaBirimi,
           isExpanded: true,
           validator: (value) {
@@ -722,7 +724,7 @@ class _KasaEkleDialogState extends State<KasaEkleDialog> {
             final isSelected = groupValue == opt.value;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () => onChanged(opt.value),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -763,7 +765,7 @@ class _KasaEkleDialogState extends State<KasaEkleDialog> {
                     ),
                   ],
                 ),
-              ),
+              )),
             );
           }).toList(),
         ),

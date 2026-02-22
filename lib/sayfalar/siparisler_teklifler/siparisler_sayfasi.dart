@@ -604,7 +604,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
             _totalRecords,
           );
 
-    return GestureDetector(
+    return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
       onTap: () {
         FocusScope.of(context).unfocus();
         _closeOverlay();
@@ -715,7 +715,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
           ],
         ),
       ),
-    );
+    ));
   }
 
   Widget _buildMobileToolbarCard() {
@@ -730,6 +730,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
       child: Column(
         children: [
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             borderRadius: BorderRadius.circular(12),
             onTap: () {
               FocusScope.of(context).unfocus();
@@ -840,6 +841,8 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                                   ),
                                   child: DropdownButtonHideUnderline(
                                     child: DropdownButton<int>(
+                                      mouseCursor: WidgetStateMouseCursor.clickable,
+                                      dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                                       value: _rowsPerPage,
                                       items: [10, 25, 50, 100]
                                           .map(
@@ -923,7 +926,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                                 padding: const EdgeInsets.only(top: 12),
                                 child: Align(
                                   alignment: Alignment.centerLeft,
-                                  child: GestureDetector(
+                                  child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                     onTap: _deleteSelectedSiparisler,
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(
@@ -946,7 +949,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                                         ),
                                       ),
                                     ),
-                                  ),
+                                  )),
                                 ),
                               ),
                             const SizedBox(height: 12),
@@ -1062,6 +1065,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
       color: effectiveColor,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: enabled ? onTap : null,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -1108,6 +1112,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
       color: color,
       borderRadius: BorderRadius.circular(8),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
         child: Container(
@@ -1151,6 +1156,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
         ],
       ),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         borderRadius: BorderRadius.circular(12),
         onTap: () => setState(() => _selectedRowId = order.id),
         child: Padding(
@@ -1519,7 +1525,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
       selectionWidget: _selectedIds.isNotEmpty
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelectedSiparisler,
                 child: Container(
                   padding: const EdgeInsets.symmetric(
@@ -1552,7 +1558,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             )
           : null,
       expandAll: _keepDetailsOpen,
@@ -1866,7 +1872,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
   Widget _buildPrintButton() {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: _handlePrint,
         child: Container(
           height: 40,
@@ -1904,7 +1910,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -1941,6 +1947,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
             child: Row(
               children: [
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: toggleExpand,
                   borderRadius: BorderRadius.circular(20),
                   child: Padding(
@@ -2360,6 +2367,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedDetailProductId = u.id;
@@ -2473,6 +2481,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
               Expanded(
                 flex: 5,
                 child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     final String current = u.kdvDurumu.toLowerCase();
                     final String next =
@@ -2596,6 +2605,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
               child: Align(
                 alignment: Alignment.centerRight,
                 child: InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () => _deleteOrderItem(order, u),
                   borderRadius: BorderRadius.circular(4),
                   child: Padding(
@@ -3027,6 +3037,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedStatus = value;
@@ -3062,6 +3073,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedType = value;
@@ -3097,6 +3109,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedWarehouse = value;
@@ -3132,6 +3145,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUnit = value;
@@ -3167,6 +3181,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedAccount = value;
@@ -3202,6 +3217,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _selectedUser = value;
@@ -3250,6 +3266,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _showDateRangePicker,
       borderRadius: BorderRadius.circular(4),
       child: Container(
@@ -3291,6 +3308,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
             ),
             if (hasSelection)
               InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
                 onTap: _clearDateFilter,
                 child: const Padding(
                   padding: EdgeInsets.symmetric(horizontal: 4.0),
@@ -3313,6 +3331,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     return CompositedTransformTarget(
       link: _statusLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isStatusFilterExpanded) {
             _closeOverlay();
@@ -3371,6 +3390,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
               ),
               if (_selectedStatus != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedStatus = null;
@@ -3406,6 +3426,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     return CompositedTransformTarget(
       link: _typeLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isTypeFilterExpanded) {
             _closeOverlay();
@@ -3459,6 +3480,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
               ),
               if (_selectedType != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedType = null;
@@ -3494,6 +3516,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     return CompositedTransformTarget(
       link: _warehouseLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isWarehouseFilterExpanded) {
             _closeOverlay();
@@ -3547,6 +3570,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
               ),
               if (_selectedWarehouse != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedWarehouse = null;
@@ -3582,6 +3606,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     return CompositedTransformTarget(
       link: _unitLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUnitFilterExpanded) {
             _closeOverlay();
@@ -3629,6 +3654,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
               ),
               if (_selectedUnit != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUnit = null;
@@ -3664,6 +3690,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     return CompositedTransformTarget(
       link: _accountLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isAccountFilterExpanded) {
             _closeOverlay();
@@ -3716,6 +3743,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
               ),
               if (_selectedAccount != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedAccount = null;
@@ -3751,6 +3779,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     return CompositedTransformTarget(
       link: _userLayerLink,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           if (_isUserFilterExpanded) {
             _closeOverlay();
@@ -3798,6 +3827,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
               ),
               if (_selectedUser != null)
                 InkWell(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
                   onTap: () {
                     setState(() {
                       _selectedUser = null;
@@ -3834,6 +3864,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     final Color buttonColor = const Color(0xFFF39C12);
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: isEnabled ? _siparisleriAl : null,
       child: AnimatedOpacity(
         duration: const Duration(milliseconds: 200),
@@ -3891,6 +3922,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
 
   Widget _buildSiparisOlusturButton() {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: _siparisOlustur,
       child: Container(
         height: 40,
@@ -3930,6 +3962,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     return Tooltip(
       message: tr('orders.keep_details_open'),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => setState(() => _keepDetailsOpen = !_keepDetailsOpen),
         child: Container(
           height: 40,
@@ -3961,6 +3994,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     return Tooltip(
       message: tr('common.column_settings'),
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () => _showColumnVisibilityDialog(context),
         borderRadius: BorderRadius.circular(4),
         child: Container(
@@ -4354,6 +4388,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     return SizedBox(
       width: 170,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: () {
           setDialogState(() {
             localMap[key] = !(localMap[key] ?? true);
@@ -4404,7 +4439,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
   Widget _buildAddProductButton(SiparisModel order) {
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: () => _showQuickAddProductDrawer(order),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -4445,7 +4480,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -5000,6 +5035,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         if (_isLoading) return;
         setState(() {
@@ -5776,6 +5812,7 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
                                   : const Color(0xFF1565C0);
 
                               return InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => onSelected(option),
                                 child: Container(
                                   color: isHighlighted
@@ -6220,14 +6257,14 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
                       isCodeField: true,
                       suffixIcon: MouseRegion(
                         cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
+                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                           onTap: _searchUrun,
                           child: Icon(
                             Icons.search,
                             size: 20,
                             color: Colors.grey,
                           ),
-                        ),
+                        )),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -6241,14 +6278,14 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
                       isCodeField: false,
                       suffixIcon: MouseRegion(
                         cursor: SystemMouseCursors.click,
-                        child: GestureDetector(
+                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                           onTap: _searchUrun,
                           child: Icon(
                             Icons.search,
                             size: 20,
                             color: Colors.grey,
                           ),
-                        ),
+                        )),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -6421,6 +6458,7 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
           controller: controller,
           focusNode: focusNode,
           readOnly: readOnly,
+          mouseCursor: ((readOnly) && ((onTap) != null)) ? SystemMouseCursors.click : SystemMouseCursors.text,
           onTap: onTap,
           keyboardType: isNumeric
               ? const TextInputType.numberWithOptions(decimal: true)
@@ -6476,6 +6514,8 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: value,
           isExpanded: true,
           decoration: const InputDecoration(
@@ -6753,6 +6793,7 @@ class _ProductSelectionDialogState extends State<_ProductSelectionDialog> {
                       itemBuilder: (ctx, i) {
                         final p = _products[i];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () => Navigator.pop(context, p),
                           hoverColor: const Color(0xFFF5F7FA),
                           child: Padding(

@@ -539,6 +539,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
       return Tooltip(
         message: _salePriceGroupTooltip(group),
         child: InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: () => _selectSalePriceGroup(group),
           borderRadius: BorderRadius.circular(6),
           child: AnimatedContainer(
@@ -752,7 +753,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
                                       () => hoveredIndex = null,
                                     ),
                                     cursor: SystemMouseCursors.click,
-                                    child: GestureDetector(
+                                    child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                       onTap: () {
                                         setState(() {
                                           _selectedSerialNumber =
@@ -812,7 +813,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
                                           ],
                                         ),
                                       ),
-                                    ),
+                                    )),
                                   );
                                 },
                               ),
@@ -1413,6 +1414,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
     }
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: () {
         setState(() {
           _editingIndex = index;
@@ -1449,7 +1451,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
             message: '${tr('common.delete_selected_items')} (F8)',
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: _deleteSelected,
                 child: Container(
                   height: 32,
@@ -1497,7 +1499,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
                     ],
                   ),
                 ),
-              ),
+              )),
             ),
           ),
           const SizedBox(width: 8),
@@ -1508,7 +1510,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
             cursor: _items.isEmpty
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _items.isEmpty ? null : _deleteAllItems,
               child: Container(
                 height: 32,
@@ -1557,7 +1559,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ),
         const SizedBox(width: 8),
@@ -1567,7 +1569,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
             cursor: _items.isEmpty
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.click,
-            child: GestureDetector(
+            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
               onTap: _items.isEmpty ? null : _showInvoiceDiscountDialog,
               child: Container(
                 height: 32,
@@ -1612,7 +1614,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
                   ],
                 ),
               ),
-            ),
+            )),
           ),
         ),
       ],
@@ -2203,6 +2205,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
                             itemBuilder: (BuildContext context, int index) {
                               final option = options.elementAt(index);
                               return InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => onSelected(option),
                                 child: Padding(
                                   padding: const EdgeInsets.all(12.0),
@@ -3052,6 +3055,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
     final bool enabled = onTap != null;
 
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(
@@ -4227,6 +4231,8 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
   // Styled Dropdown matching 'borc_alacak_dekontu_isle_sayfasi.dart'
   Widget _buildFooterCurrencyDropdown() {
     return DropdownButtonFormField<String>(
+      mouseCursor: WidgetStateMouseCursor.clickable,
+      dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
       value: _invoiceCurrency,
       items: _genelAyarlar.kullanilanParaBirimleri
           .map(
@@ -4324,13 +4330,16 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
         : Colors.blue.shade700;
     final bool isCompact = MediaQuery.sizeOf(context).width < 640;
 
-    Widget inputField = TextFormField(
-      controller: controller,
-      focusNode: focusNode,
-      readOnly: readOnly,
-      keyboardType: isNumeric
-          ? const TextInputType.numberWithOptions(decimal: true)
-          : TextInputType.text,
+	    Widget inputField = TextFormField(
+	      controller: controller,
+	      focusNode: focusNode,
+	      readOnly: readOnly,
+	      mouseCursor: (readOnly && onTap != null)
+	          ? SystemMouseCursors.click
+	          : SystemMouseCursors.text,
+	      keyboardType: isNumeric
+	          ? const TextInputType.numberWithOptions(decimal: true)
+	          : TextInputType.text,
       inputFormatters: isNumeric
           ? [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
@@ -4439,6 +4448,8 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
     final bool isCompact = MediaQuery.sizeOf(context).width < 640;
 
     Widget dropdown = DropdownButtonFormField<T>(
+      mouseCursor: WidgetStateMouseCursor.clickable,
+      dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
       value: value,
       items: items,
       onChanged: onChanged,
@@ -4721,6 +4732,7 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
                                   : const Color(0xFF1565C0);
 
                               return InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
                                 onTap: () => onSelected(option),
                                 hoverColor: const Color(0xFFF5F7FA),
                                 child: Padding(
@@ -5171,6 +5183,7 @@ class _ProductSearchDialogWrapperState
                             : const Color(0xFF1565C0);
 
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             widget.onSelect(product);
                             Navigator.pop(context);
@@ -5517,6 +5530,7 @@ class _SupplierSearchDialogWrapperState
                       itemBuilder: (context, index) {
                         final supplier = _suppliers[index];
                         return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
                           onTap: () {
                             widget.onSelect(supplier);
                             Navigator.pop(context);

@@ -300,6 +300,8 @@ class _FiyatlariDegistirDialogState extends State<FiyatlariDegistirDialog> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: value,
           items: items,
           onChanged: onChanged,

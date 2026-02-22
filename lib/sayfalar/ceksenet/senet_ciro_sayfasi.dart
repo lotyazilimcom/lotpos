@@ -924,6 +924,7 @@ class _SenetCiroSayfasiState extends State<SenetCiroSayfasi> {
                     itemBuilder: (context, index) {
                       final option = options.elementAt(index);
                       return InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () => onSelected(option),
                         child: Padding(
                           padding: const EdgeInsets.all(12.0),
@@ -1178,6 +1179,7 @@ class _CariHesapSearchDialogState extends State<_CariHesapSearchDialog> {
             ),
             const SizedBox(width: 8),
             InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: () => Navigator.of(context).pop(),
               borderRadius: BorderRadius.circular(8),
               child: Container(

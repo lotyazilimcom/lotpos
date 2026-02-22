@@ -354,6 +354,8 @@ class _KdvleriDegistirDialogState extends State<KdvleriDegistirDialog> {
         ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           key: ValueKey('dropdown_$value'),
           initialValue: value,
           items: items,

@@ -748,6 +748,8 @@ class _BankaEkleDialogState extends State<BankaEkleDialog> {
         ),
         const SizedBox(height: 12),
         DropdownButtonFormField<String>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: _selectedParaBirimi,
           isExpanded: true,
           validator: (value) {
@@ -831,7 +833,7 @@ class _BankaEkleDialogState extends State<BankaEkleDialog> {
             final isSelected = groupValue == opt.value;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onTap: () => onChanged(opt.value),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -872,7 +874,7 @@ class _BankaEkleDialogState extends State<BankaEkleDialog> {
                     ),
                   ],
                 ),
-              ),
+              )),
             );
           }).toList(),
         ),

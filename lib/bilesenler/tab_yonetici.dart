@@ -276,6 +276,7 @@ class _TabYoneticiState extends State<TabYonetici> {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: onPressed,
               borderRadius: BorderRadius.circular(20),
               child: Container(
@@ -327,7 +328,7 @@ class _TabYoneticiState extends State<TabYonetici> {
       onEnter: (_) => setState(() => _hoveredTabIndex = index),
       onExit: (_) => setState(() => _hoveredTabIndex = null),
       cursor: SystemMouseCursors.click,
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: () => widget.onTabSecildi(index),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 150),
@@ -388,7 +389,7 @@ class _TabYoneticiState extends State<TabYonetici> {
             ],
           ),
         ),
-      ),
+      )),
     );
   }
 }
@@ -415,6 +416,7 @@ class _CloseAllButtonState extends State<_CloseAllButton> {
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: widget.onPressed,
             borderRadius: BorderRadius.circular(6),
             child: AnimatedContainer(
@@ -459,7 +461,7 @@ class _CloseButtonState extends State<_CloseButton> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onTap: widget.onPressed,
         child: Container(
           width: 20,
@@ -480,7 +482,7 @@ class _CloseButtonState extends State<_CloseButton> {
                       : const Color(0xFFCBD5E1)),
           ),
         ),
-      ),
+      )),
     );
   }
 }

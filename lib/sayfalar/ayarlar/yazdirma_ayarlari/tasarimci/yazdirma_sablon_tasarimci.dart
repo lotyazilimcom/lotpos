@@ -1253,7 +1253,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
             return Draggable<String>(
               data: el.key,
               feedback: _buildDraggableFeedback(label),
-              child: GestureDetector(
+              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                 onDoubleTap: () => _addElement(el.key),
                 child: MouseRegion(
                   cursor: SystemMouseCursors.grab,
@@ -1294,7 +1294,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                     ),
                   ),
                 ),
-              ),
+              )),
             );
           },
         ),
@@ -1468,7 +1468,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                             children: [
                               // White Paper Base + Marquee Selection
                               Positioned.fill(
-                                child: GestureDetector(
+                                child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                   onTap: () {
                                     _canvasFocusNode.requestFocus();
                                     setState(() {
@@ -1546,7 +1546,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                                       ],
                                     ),
                                   ),
-                                ),
+                                )),
                               ),
                               // 1. Background Image Layer
                               if (_backgroundImage != null)
@@ -1557,7 +1557,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                                   top:
                                       (_backgroundY * _scale) -
                                       _backgroundOverlayPaddingPx,
-                                  child: GestureDetector(
+                                  child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
                                     onTap: () {
                                       _canvasFocusNode.requestFocus();
                                       setState(() {
@@ -1681,7 +1681,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                                         ],
                                       ),
                                     ),
-                                  ),
+                                  )),
                                 ),
                               // 2. Element Layers
                               ..._layout.map((el) {
@@ -1790,7 +1790,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       top: offsetY + (el.y * _scale) - 8,
       child: MouseRegion(
         cursor: SystemMouseCursors.click,
-        child: GestureDetector(
+        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () => _elementSil(el),
           child: Container(
@@ -1818,7 +1818,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
               ),
             ),
           ),
-        ),
+        )),
       ),
     );
   }
@@ -1836,7 +1836,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       key: ValueKey(el.id),
       left: offsetX + (el.x * _scale),
       top: offsetY + (el.y * _scale),
-      child: GestureDetector(
+      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
         onDoubleTap: () {
           if (_isLocked) return; // Protected
           if (el.isStatic) {
@@ -2022,7 +2022,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
             ),
           ),
         ),
-      ),
+      )),
     );
   }
 
@@ -2383,6 +2383,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     return Tooltip(
       message: tooltip,
       child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
         onTap: onTap,
         borderRadius: BorderRadius.circular(6),
         child: Container(
@@ -2509,6 +2510,8 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                         const SizedBox(height: 8),
                         // 2. Satır: Font Ailesi
                         DropdownButtonFormField<String>(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
+                          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                           isDense: true,
                           initialValue:
                               _fontFamilies.contains(element?.fontFamily)
@@ -2552,6 +2555,8 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                         const SizedBox(height: 8),
                         // 3. Satır: Font Kalınlığı
                         DropdownButtonFormField<String>(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
+                          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                           isDense: true,
                           initialValue:
                               _fontWeights.containsKey(element?.fontWeight)
@@ -3179,6 +3184,8 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       children: [
         Expanded(
           child: DropdownButtonFormField<double>(
+            mouseCursor: WidgetStateMouseCursor.clickable,
+            dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
             isDense: true,
             initialValue: sizes.contains(currentSize.toInt())
                 ? currentSize
@@ -3249,6 +3256,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
 
   Widget _buildMiniButton(IconData icon, VoidCallback? onTap) {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: onTap,
       borderRadius: BorderRadius.circular(6),
       child: Container(
@@ -3307,6 +3315,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
         Text(label, style: TextStyle(fontSize: 10, color: Colors.grey[600])),
         const SizedBox(height: 4),
         InkWell(
+          mouseCursor: WidgetStateMouseCursor.clickable,
           onTap: isSingleElement
               ? () => _showColorPicker(colorValue, onChanged, allowTransparent)
               : null,
@@ -3400,6 +3409,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                 children: [
                   if (allowTransparent)
                     InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: () {
                         onSelect(null);
                         Navigator.pop(context);
@@ -3419,6 +3429,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                     ),
                   ...colors.map(
                     (c) => InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: () {
                         onSelect(c);
                         Navigator.pop(context);
@@ -3481,6 +3492,8 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
+                  dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                   initialValue: _docType,
                   decoration: InputDecoration(
                     labelText: tr('print.designer.document_type'),
@@ -3511,6 +3524,8 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
+                  mouseCursor: WidgetStateMouseCursor.clickable,
+                  dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                   initialValue: _paperSize,
                   decoration: InputDecoration(
                     labelText: tr('print.designer.paper_type'),
@@ -3584,6 +3599,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                   children: [
                     Expanded(
                       child: InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () {
                           setState(() {
                             _isLandscape = false;
@@ -3632,6 +3648,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                     const SizedBox(width: 12),
                     Expanded(
                       child: InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
                         onTap: () {
                           setState(() {
                             _isLandscape = true;
@@ -3938,6 +3955,7 @@ class _ImageUploadDialogState extends State<_ImageUploadDialog> {
             ),
             const SizedBox(height: 8),
             InkWell(
+              mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: _pickImage,
               child: Container(
                 height: 250,
@@ -3997,6 +4015,8 @@ class _ImageUploadDialogState extends State<_ImageUploadDialog> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
+                    mouseCursor: WidgetStateMouseCursor.clickable,
+                    dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
                     initialValue: _paperSize,
                     decoration: InputDecoration(
                       labelText: tr('print.paper_size'),
@@ -4128,6 +4148,7 @@ class _ImageUploadDialogState extends State<_ImageUploadDialog> {
     required VoidCallback onTap,
   }) {
     return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
       onTap: onTap,
       borderRadius: BorderRadius.circular(8),
       child: Container(

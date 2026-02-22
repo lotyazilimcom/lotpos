@@ -1402,6 +1402,7 @@ class _CariHesapEkleSayfasiState extends State<CariHesapEkleSayfasi> {
       children: [
         if (!isFull)
           InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
             onTap: _pickImages,
             borderRadius: BorderRadius.circular(12),
             child: Container(
@@ -1491,6 +1492,7 @@ class _CariHesapEkleSayfasiState extends State<CariHesapEkleSayfasi> {
                     top: 4,
                     right: 4,
                     child: InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
                       onTap: () => _removeImage(index),
                       child: Container(
                         padding: const EdgeInsets.all(4),
@@ -1764,6 +1766,8 @@ class _CariHesapEkleSayfasiState extends State<CariHesapEkleSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           focusNode: focusNode,
           initialValue: items.contains(value) ? value : null,
           onChanged: (val) {

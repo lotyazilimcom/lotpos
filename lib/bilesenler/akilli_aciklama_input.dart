@@ -271,6 +271,7 @@ class _AkilliAciklamaInputState extends State<AkilliAciklamaInput> {
                         return MouseRegion(
                           cursor: SystemMouseCursors.click,
                           child: InkWell(
+                            mouseCursor: WidgetStateMouseCursor.clickable,
                             onTap: () => onSelected(option),
                             hoverColor: primaryColor.withValues(alpha: 0.08),
                             splashColor: primaryColor.withValues(alpha: 0.12),

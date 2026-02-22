@@ -1545,6 +1545,7 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
         TextField(
           controller: controller,
           readOnly: isDate,
+          mouseCursor: ((isDate) && ((enabled ? onTap : null) != null)) ? SystemMouseCursors.click : SystemMouseCursors.text,
           enabled: enabled,
           onTap: enabled ? onTap : null,
           decoration: InputDecoration(
@@ -1608,6 +1609,8 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
         ),
         const SizedBox(height: 4),
         DropdownButtonFormField<YazdirmaSablonuModel>(
+          mouseCursor: WidgetStateMouseCursor.clickable,
+          dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
           initialValue: value,
           isExpanded: true,
           onChanged: onChanged,
