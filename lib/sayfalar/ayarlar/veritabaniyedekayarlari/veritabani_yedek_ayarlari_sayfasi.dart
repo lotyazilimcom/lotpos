@@ -51,10 +51,12 @@ class _BulutVeritabaniSecimSonucu {
 class _BulutHazirlikDurumu {
   final bool cloudReadyNow;
   final bool requestSent;
+  final bool usedExistingOnlineDatabase;
 
   const _BulutHazirlikDurumu({
     required this.cloudReadyNow,
     required this.requestSent,
+    this.usedExistingOnlineDatabase = false,
   });
 }
 
@@ -1500,6 +1502,7 @@ class _VeritabaniYedekAyarlariSayfasiState
           return _BulutHazirlikDurumu(
             cloudReadyNow: await ok,
             requestSent: false,
+            usedExistingOnlineDatabase: true,
           );
         }
       }
@@ -1662,14 +1665,19 @@ class _VeritabaniYedekAyarlariSayfasiState
 
       if (bulutDurumu.cloudReadyNow) {
         if (!mounted) return;
-        transferSecim = await veritabaniAktarimSecimDialogGoster(
-          context: context,
-          localToCloud: true,
-          barrierDismissible: false,
-        );
-        if (transferSecim == null) {
-          if (mounted) setState(() => _seciliMod = previousUiMode);
-          return;
+        if (bulutDurumu.usedExistingOnlineDatabase) {
+          // Mevcut online veritabanına bağlanırken veri aktarımı sormuyoruz.
+          transferSecim = DesktopVeritabaniAktarimSecimi.hicbirSeyYapma;
+        } else {
+          transferSecim = await veritabaniAktarimSecimDialogGoster(
+            context: context,
+            localToCloud: true,
+            barrierDismissible: false,
+          );
+          if (transferSecim == null) {
+            if (mounted) setState(() => _seciliMod = previousUiMode);
+            return;
+          }
         }
       }
     } else if (cloudToLocal) {
@@ -1944,13 +1952,18 @@ class _VeritabaniYedekAyarlariSayfasiState
       DesktopVeritabaniAktarimSecimi? secim;
       if (bulutDurumu.cloudReadyNow) {
         if (!mounted) return;
-        secim = await veritabaniAktarimSecimDialogGoster(
-          context: context,
-          localToCloud: true,
-        );
-        if (secim == null) {
-          if (mounted) setState(() => _seciliMod = previousUiMode);
-          return;
+        if (bulutDurumu.usedExistingOnlineDatabase) {
+          // Mevcut online veritabanına bağlanırken veri aktarımı sormuyoruz.
+          secim = DesktopVeritabaniAktarimSecimi.hicbirSeyYapma;
+        } else {
+          secim = await veritabaniAktarimSecimDialogGoster(
+            context: context,
+            localToCloud: true,
+          );
+          if (secim == null) {
+            if (mounted) setState(() => _seciliMod = previousUiMode);
+            return;
+          }
         }
       }
 
@@ -2216,13 +2229,20 @@ class _VeritabaniYedekAyarlariSayfasiState
       }
 
       if (!mounted) return;
-      final secim = await veritabaniAktarimSecimDialogGoster(
-        context: context,
-        localToCloud: true,
-      );
-      if (secim == null) {
-        if (mounted) setState(() => _seciliMod = previousUiMode);
-        return;
+      final DesktopVeritabaniAktarimSecimi secim;
+      if (bulutDurumu.usedExistingOnlineDatabase) {
+        // Mevcut online veritabanına bağlanırken veri aktarımı sormuyoruz.
+        secim = DesktopVeritabaniAktarimSecimi.hicbirSeyYapma;
+      } else {
+        final picked = await veritabaniAktarimSecimDialogGoster(
+          context: context,
+          localToCloud: true,
+        );
+        if (picked == null) {
+          if (mounted) setState(() => _seciliMod = previousUiMode);
+          return;
+        }
+        secim = picked;
       }
 
       if (secim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {

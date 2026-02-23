@@ -10,10 +10,13 @@ Future<DesktopVeritabaniAktarimSecimi?> veritabaniAktarimSecimDialogGoster({
   bool barrierDismissible = false,
 }) async {
   DesktopVeritabaniAktarimSecimi? secim;
+  bool allowPop = false;
 
   return showDialog<DesktopVeritabaniAktarimSecimi>(
     context: context,
-    barrierDismissible: barrierDismissible,
+    // Kullanıcı bir seçenek seçmeden kapanmamalı.
+    // (İstek: "Veri aktarım dialoğu nerde açılırsa açılsın ... kesinlikle kapanmasın")
+    barrierDismissible: false,
     builder: (ctx) {
       return StatefulBuilder(
         builder: (ctx, setState) {
@@ -76,106 +79,90 @@ Future<DesktopVeritabaniAktarimSecimi?> veritabaniAktarimSecimDialogGoster({
           const primaryColor = Color(0xFF2C3E50);
           const dialogRadius = 14.0;
 
-          return Dialog(
-            backgroundColor: Colors.white,
-            insetPadding: const EdgeInsets.symmetric(
-              horizontal: 32,
-              vertical: 24,
-            ),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(dialogRadius),
-            ),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 560),
-              child: SizedBox(
-                width: double.infinity,
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(dialogRadius),
-                  ),
-                  padding: const EdgeInsets.all(28),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        tr('dbsync.title'),
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF202124),
-                        ),
-                      ),
-                      const SizedBox(height: 12),
-                      Text(
-                        tr(introKey),
-                        style: const TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF606368),
-                          height: 1.45,
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-                      Flexible(
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              secenek(
-                                value:
-                                    DesktopVeritabaniAktarimSecimi.hicbirSeyYapma,
-                                title: tr('dbsync.option.none.title'),
-                                subtitle: tr(noneDescKey),
-                              ),
-                              secenek(
-                                value: DesktopVeritabaniAktarimSecimi.tamAktar,
-                                title: tr('dbsync.full'),
-                                subtitle: tr(fullDescKey),
-                                destructive: true,
-                              ),
-                              secenek(
-                                value: DesktopVeritabaniAktarimSecimi.birlestir,
-                                title: tr('dbsync.merge'),
-                                subtitle: tr(mergeDescKey),
-                              ),
-                            ],
+          return PopScope<DesktopVeritabaniAktarimSecimi>(
+            canPop: allowPop,
+            child: Dialog(
+              backgroundColor: Colors.white,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 24,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(dialogRadius),
+              ),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 560),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(dialogRadius),
+                    ),
+                    padding: const EdgeInsets.all(28),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tr('dbsync.title'),
+                          style: const TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF202124),
                           ),
                         ),
-                      ),
-                      const SizedBox(height: 24),
-                      Wrap(
-                        alignment: WrapAlignment.end,
-                        runAlignment: WrapAlignment.end,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        spacing: 12,
-                        runSpacing: 8,
-                        children: [
-                          MouseRegion(
-                            cursor: SystemMouseCursors.click,
-                            child: TextButton(
-                              onPressed: () => Navigator.of(ctx).pop(),
-                              style: TextButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 18,
-                                  vertical: 12,
+                        const SizedBox(height: 12),
+                        Text(
+                          tr(introKey),
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF606368),
+                            height: 1.45,
+                          ),
+                        ),
+                        const SizedBox(height: 18),
+                        Flexible(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                secenek(
+                                  value:
+                                      DesktopVeritabaniAktarimSecimi.hicbirSeyYapma,
+                                  title: tr('dbsync.option.none.title'),
+                                  subtitle: tr(noneDescKey),
                                 ),
-                                foregroundColor: primaryColor,
-                                textStyle: const TextStyle(
-                                  fontSize: 15,
-                                  fontWeight: FontWeight.w700,
+                                secenek(
+                                  value: DesktopVeritabaniAktarimSecimi.tamAktar,
+                                  title: tr('dbsync.full'),
+                                  subtitle: tr(fullDescKey),
+                                  destructive: true,
                                 ),
-                              ),
-                              child: Text(tr('dbsync.not_now')),
+                                secenek(
+                                  value: DesktopVeritabaniAktarimSecimi.birlestir,
+                                  title: tr('dbsync.merge'),
+                                  subtitle: tr(mergeDescKey),
+                                ),
+                              ],
                             ),
                           ),
-                          MouseRegion(
+                        ),
+                        const SizedBox(height: 24),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: MouseRegion(
                             cursor: SystemMouseCursors.click,
                             child: ElevatedButton(
                               onPressed: secim == null
                                   ? null
-                                  : () => Navigator.of(ctx).pop(secim),
+                                  : () {
+                                      setState(() => allowPop = true);
+                                      WidgetsBinding.instance.addPostFrameCallback(
+                                        (_) => Navigator.of(ctx).pop(secim),
+                                      );
+                                    },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: primaryColor,
                                 foregroundColor: Colors.white,
@@ -197,9 +184,9 @@ Future<DesktopVeritabaniAktarimSecimi?> veritabaniAktarimSecimDialogGoster({
                               child: Text(tr('common.continue')),
                             ),
                           ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
