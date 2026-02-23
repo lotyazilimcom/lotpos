@@ -212,14 +212,15 @@ class LisansServisi extends ChangeNotifier {
       );
       final supabase = Supabase.instance.client;
       final machineName = await _getMachineName();
+      final now = _nowUtc().toIso8601String();
 
       await supabase
           .from('program_deneme')
           .update({
             'is_online': online,
             'machine_name': machineName,
-            'last_activity': DateTime.now().toIso8601String(),
-            'last_heartbeat': DateTime.now().toIso8601String(),
+            'last_activity': now,
+            'last_heartbeat': now,
           })
           .eq('hardware_id', _hardwareId!);
 
@@ -232,15 +233,67 @@ class LisansServisi extends ChangeNotifier {
     }
   }
 
+  /// Uygulama kapanırken "EN HIZLI" offline sinyali.
+  ///
+  /// Neden ayrı?
+  /// - Kapanış anında ekstra IO (device_info vb.) bazen yetişmeyebiliyor.
+  /// - Bu yüzden `machine_name` okumadan sadece kritik alanları günceller.
+  /// - Ayrıca heartbeat timer'ını durdurur ki kapanış sırasında tekrar Online yazılmasın.
+  Future<void> kapanisOfflineSinyaliGonder() async {
+    final hid = _hardwareId;
+    if (hid == null || hid.trim().isEmpty) return;
+
+    try {
+      _heartbeatTimer?.cancel();
+      _heartbeatTimer = null;
+
+      // Force: kapanış anında mutlaka yaz.
+      _lastOnlineStatus = null;
+
+      final supabase = Supabase.instance.client;
+      final now = _nowUtc().toIso8601String();
+
+      final updated = await supabase
+          .from('program_deneme')
+          .update({
+            'is_online': false,
+            'last_activity': now,
+            'last_heartbeat': now,
+          })
+          .eq('hardware_id', hid)
+          .select('hardware_id');
+
+      final updatedCount = updated.length;
+      if (updatedCount == 0) {
+        // Satır yoksa önce best-effort oluşturup tekrar dene.
+        await _ensureProgramDenemeRowExistsBestEffort();
+        await supabase
+            .from('program_deneme')
+            .update({
+              'is_online': false,
+              'last_activity': now,
+              'last_heartbeat': now,
+            })
+            .eq('hardware_id', hid);
+      }
+
+      _lastOnlineStatus = false;
+      debugPrint('Lisans Servisi: Offline sinyali gönderildi.');
+    } catch (e) {
+      debugPrint('Lisans Servisi: Offline sinyali gönderilemedi: $e');
+    }
+  }
+
   /// Kalp Atışı (Heartbeat) Gönderir
   Future<void> heartbeatGonder() async {
     if (_hardwareId == null) return;
     try {
       final supabase = Supabase.instance.client;
+      final now = _nowUtc().toIso8601String();
       await supabase
           .from('program_deneme')
           .update({
-            'last_heartbeat': DateTime.now().toIso8601String(),
+            'last_heartbeat': now,
             'is_online': true, // Kalp atışı geliyorsa online'dır
           })
           .eq('hardware_id', _hardwareId!);
@@ -737,7 +790,7 @@ class LisansServisi extends ChangeNotifier {
 
     final supabase = Supabase.instance.client;
     final machineName = await _getMachineName();
-    final now = DateTime.now().toIso8601String();
+    final now = _nowUtc().toIso8601String();
     final desiredStatus = isLicensed ? 'converted' : 'active';
     final hid = _hardwareId!;
 

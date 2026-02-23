@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
 
@@ -15,6 +16,7 @@ import '../../../servisler/lite_ayarlar_servisi.dart';
 import '../../../servisler/lite_kisitlari.dart';
 import '../../../servisler/lisans_servisi.dart';
 import '../../../servisler/local_network_discovery_service.dart';
+import '../../../servisler/karma_bulut_yedekleme_servisi.dart';
 import '../../../servisler/online_veritabani_servisi.dart';
 import '../../../servisler/oturum_servisi.dart';
 import '../../../servisler/veritabani_aktarim_servisi.dart';
@@ -97,6 +99,49 @@ class _VeritabaniYedekAyarlariSayfasiState
     _kayitliMod = _seciliMod;
     _kayitliYedeklemeAcik = _yedeklemeAcik;
     _kayitliYedeklemePeriyodu = _yedeklemePeriyodu;
+
+    unawaited(_loadPersistedBackupPrefs());
+  }
+
+  Future<void> _loadPersistedBackupPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final enabled =
+          prefs.getBool(KarmaBulutYedeklemeServisi.prefBackupEnabledKey);
+      final period =
+          prefs.getString(KarmaBulutYedeklemeServisi.prefBackupPeriodKey);
+
+      final normalizedPeriod = (period ?? '').trim();
+      final safePeriod = (normalizedPeriod == '15days' ||
+              normalizedPeriod == 'monthly' ||
+              normalizedPeriod == '3months' ||
+              normalizedPeriod == '6months')
+          ? normalizedPeriod
+          : _yedeklemePeriyodu;
+
+      if (!mounted) return;
+      setState(() {
+        if (enabled != null) _yedeklemeAcik = enabled;
+        _yedeklemePeriyodu = safePeriod;
+
+        _kayitliYedeklemeAcik = _yedeklemeAcik;
+        _kayitliYedeklemePeriyodu = _yedeklemePeriyodu;
+      });
+    } catch (_) {
+      // Sessiz: ayar yüklenemese bile varsayılanlarla devam.
+    }
+  }
+
+  Future<void> _persistBackupPrefs() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(
+      KarmaBulutYedeklemeServisi.prefBackupEnabledKey,
+      _yedeklemeAcik,
+    );
+    await prefs.setString(
+      KarmaBulutYedeklemeServisi.prefBackupPeriodKey,
+      _yedeklemePeriyodu,
+    );
   }
 
   @override
@@ -117,14 +162,6 @@ class _VeritabaniYedekAyarlariSayfasiState
             (defaultTargetPlatform == TargetPlatform.windows ||
                 defaultTargetPlatform == TargetPlatform.macOS ||
                 defaultTargetPlatform == TargetPlatform.linux);
-
-        if (isMobilePlatform && _seciliMod == 'hybrid') {
-          WidgetsBinding.instance.addPostFrameCallback((_) {
-            if (!mounted) return;
-            if (_seciliMod == 'hybrid') setState(() => _seciliMod = 'local');
-            if (_kayitliMod == 'hybrid') _kayitliMod = 'local';
-          });
-        }
 
         final content = _buildIcerik(
           primaryColor,
@@ -274,7 +311,8 @@ class _VeritabaniYedekAyarlariSayfasiState
           primaryColor,
           isLite: isLiteBackupKapali,
           isMobile: isMobile,
-          hideHybridMode: isMobilePlatform,
+          isMobilePlatform: isMobilePlatform,
+          showHybridMode: !isMobilePlatform,
         ),
         SizedBox(height: isMobile ? 24 : 32),
         _buildSectionTitle(
@@ -621,15 +659,16 @@ class _VeritabaniYedekAyarlariSayfasiState
     Color primaryColor, {
     required bool isLite,
     required bool isMobile,
-    required bool hideHybridMode,
+    required bool isMobilePlatform,
+    required bool showHybridMode,
   }) {
-    final localTitleKey = hideHybridMode
+    final localTitleKey = isMobilePlatform
         ? 'settings.database.mode.local_mobile.title'
         : 'settings.database.mode.local.title';
-    final localDescKey = hideHybridMode
+    final localDescKey = isMobilePlatform
         ? 'settings.database.mode.local_mobile.desc'
         : 'settings.database.mode.local.desc';
-    final localHelpKey = hideHybridMode
+    final localHelpKey = isMobilePlatform
         ? 'settings.database.mode.local_mobile.help'
         : 'settings.database.mode.local.help';
 
@@ -646,7 +685,7 @@ class _VeritabaniYedekAyarlariSayfasiState
       ),
     ];
 
-    if (!hideHybridMode) {
+    if (showHybridMode) {
       children.addAll([
         const SizedBox(height: 12),
         _buildModeCard(
@@ -1495,6 +1534,12 @@ class _VeritabaniYedekAyarlariSayfasiState
   }
 
   Future<void> _handleSavePressed() async {
+    // Yedekleme ayarlarını önce kalıcı kaydet (backup servisi bunu okuyacak).
+    try {
+      await _persistBackupPrefs();
+    } catch (_) {}
+    if (!mounted) return;
+
     final bool isMobilePlatform =
         defaultTargetPlatform == TargetPlatform.iOS ||
         defaultTargetPlatform == TargetPlatform.android;
@@ -1519,17 +1564,21 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     if (isDesktopPlatform) {
       await _handleDesktopSave();
+      unawaited(KarmaBulutYedeklemeServisi().ayarlariUygulaVeBaslat());
       return;
     }
 
     final String oncekiMod = VeritabaniYapilandirma.connectionMode;
     final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
-    final String? oncekiYerelCompanyDb = oncekiMod == 'local'
+    final bool oncekiModLocalLike = oncekiMod == 'local' || oncekiMod == 'hybrid';
+    final String? oncekiYerelCompanyDb = oncekiModLocalLike
         ? OturumServisi().aktifVeritabaniAdi
         : null;
     String? yerelHostKaydi;
 
-    if (_seciliMod == 'local') {
+    bool isLocalLike(String mode) => mode == 'local' || mode == 'hybrid';
+
+    if (isLocalLike(_seciliMod)) {
       // Bulut -> Yerel geçişinde: kurulum/giriş ekranındaki gibi
       // otomatik sunucu tara, tekse seç, çoksa kullanıcıya sor.
       if (oncekiMod == 'cloud') {
@@ -1577,28 +1626,25 @@ class _VeritabaniYedekAyarlariSayfasiState
         ? 'cloud'
         : oncekiMod;
 
-    // Local <-> Cloud geçişinde:
+    // Local/Hibrit <-> Cloud geçişinde + Local -> Hibrit (Bulutu seed etme) akışında:
     // - Bulut kimlikleri hazırsa veri aktarım seçimini sor.
     // - Hazır değilse talep gönder ve "hazırlanıyor" mesajını göster.
     final bool modDegisti = normalizedOncekiMod != _seciliMod;
     final bool localCloudSwitch =
-        (normalizedOncekiMod == 'local' && _seciliMod == 'cloud') ||
-        (normalizedOncekiMod == 'cloud' && _seciliMod == 'local');
+        (isLocalLike(normalizedOncekiMod) && _seciliMod == 'cloud') ||
+        (normalizedOncekiMod == 'cloud' && isLocalLike(_seciliMod));
 
     DesktopVeritabaniAktarimSecimi? transferSecim;
     _BulutHazirlikDurumu? bulutDurumu;
     final bool localToCloud =
-        modDegisti &&
-        localCloudSwitch &&
-        normalizedOncekiMod == 'local' &&
-        _seciliMod == 'cloud';
+        modDegisti && isLocalLike(normalizedOncekiMod) && _seciliMod == 'cloud';
     final bool cloudToLocal =
-        modDegisti &&
-        localCloudSwitch &&
-        normalizedOncekiMod == 'cloud' &&
-        _seciliMod == 'local';
+        modDegisti && normalizedOncekiMod == 'cloud' && isLocalLike(_seciliMod);
+    final bool localToHybrid =
+        modDegisti && normalizedOncekiMod == 'local' && _seciliMod == 'hybrid';
+    final bool localToCloudSeed = localToCloud || localToHybrid;
 
-    if (localToCloud) {
+    if (localToCloudSeed) {
       bulutDurumu = await _bulutGecisHazirla(
         requestSource: 'database_settings',
         connectionTestTimeout: const Duration(seconds: 8),
@@ -1641,19 +1687,24 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     await VeritabaniYapilandirma.saveConnectionPreferences(
       _seciliMod,
-      _seciliMod == 'local' ? yerelHostKaydi : null,
+      isLocalLike(_seciliMod) ? yerelHostKaydi : null,
     );
 
-    if (modDegisti && localCloudSwitch) {
+    if (modDegisti && (localCloudSwitch || localToHybrid)) {
+      final String fromMode =
+          localToCloudSeed ? 'local' : (cloudToLocal ? 'cloud' : '');
+      final String toMode = localToCloudSeed ? 'cloud' : (cloudToLocal ? 'local' : '');
       if (transferSecim == null) {
         // Cloud seçildi ama kimlikler hazır değil: veri aktarımı ekranını gösterme.
         await _clearPendingTransferChoice();
 
-        final localHost = (oncekiYerelHost ?? '').trim();
+        final localHost = localToCloudSeed
+            ? (oncekiYerelHost ?? yerelHostKaydi ?? '').trim()
+            : (yerelHostKaydi ?? oncekiYerelHost ?? '').trim();
         await VeritabaniAktarimServisi().niyetKaydet(
           VeritabaniAktarimNiyeti(
-            fromMode: normalizedOncekiMod,
-            toMode: _seciliMod,
+            fromMode: fromMode,
+            toMode: toMode,
             localHost: localHost.isEmpty ? null : localHost,
             localCompanyDb: oncekiYerelCompanyDb,
             createdAt: DateTime.now(),
@@ -1670,15 +1721,13 @@ class _VeritabaniYedekAyarlariSayfasiState
             : 'full';
         await _savePendingTransferChoiceValue(choiceValue);
 
-        final localHost =
-            (normalizedOncekiMod == 'local'
-                    ? (oncekiYerelHost ?? '')
-                    : (yerelHostKaydi ?? ''))
-                .trim();
+        final localHost = localToCloudSeed
+            ? (oncekiYerelHost ?? yerelHostKaydi ?? '').trim()
+            : (yerelHostKaydi ?? oncekiYerelHost ?? '').trim();
         await VeritabaniAktarimServisi().niyetKaydet(
           VeritabaniAktarimNiyeti(
-            fromMode: normalizedOncekiMod,
-            toMode: _seciliMod,
+            fromMode: fromMode,
+            toMode: toMode,
             localHost: localHost.isEmpty ? null : localHost,
             localCompanyDb: oncekiYerelCompanyDb,
             createdAt: DateTime.now(),
@@ -1688,7 +1737,7 @@ class _VeritabaniYedekAyarlariSayfasiState
     }
 
     final bool shouldShowPreparingDialog =
-        localToCloud && (bulutDurumu?.requestSent ?? false);
+        localToCloudSeed && (bulutDurumu?.requestSent ?? false);
 
     if (shouldShowPreparingDialog && mounted) {
       await showDialog<void>(
@@ -1766,6 +1815,7 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     if (modDegisti) {
       _kayitliDegerleriGuncelle();
+      unawaited(KarmaBulutYedeklemeServisi().ayarlariUygulaVeBaslat());
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
         (_) => false,
@@ -1774,6 +1824,7 @@ class _VeritabaniYedekAyarlariSayfasiState
     }
 
     _kayitliDegerleriGuncelle();
+    unawaited(KarmaBulutYedeklemeServisi().ayarlariUygulaVeBaslat());
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(tr('settings.ai.save_success')),
@@ -1803,14 +1854,14 @@ class _VeritabaniYedekAyarlariSayfasiState
     final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
 
     String normalizeMode(String mode) => mode == 'cloud' ? 'cloud' : 'local';
+    bool isLocalLike(String mode) => mode == 'local' || mode == 'hybrid';
     final String previousUiMode =
         oncekiMod == VeritabaniYapilandirma.cloudPendingMode
         ? 'cloud'
         : oncekiMod;
 
-    // Desktop: sadece Yerel <-> Bulut akışı (Bulut: sadece internet).
-    // Hibrit ve diğer ayarlar: mevcut davranışı bozma.
-    if (_seciliMod != 'local' && _seciliMod != 'cloud') {
+    // Desktop: Yerel / Karma / Bulut akışı (Bulut: sadece internet).
+    if (_seciliMod != 'local' && _seciliMod != 'hybrid' && _seciliMod != 'cloud') {
       if (!mounted) return;
       _kayitliDegerleriGuncelle();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1833,6 +1884,206 @@ class _VeritabaniYedekAyarlariSayfasiState
       await VeritabaniAktarimServisi().niyetTemizle();
       await _clearPendingTransferChoice();
 
+      if (!mounted) return;
+      _kayitliDegerleriGuncelle();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('settings.ai.save_success')),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Cloud Pending -> Hybrid: beklemeyi bozma, yerelden (karma mod) devam et.
+    if (_seciliMod == 'hybrid' &&
+        oncekiMod == VeritabaniYapilandirma.cloudPendingMode) {
+      await VeritabaniYapilandirma.saveConnectionPreferences(
+        'hybrid',
+        oncekiYerelHost,
+      );
+
+      if (!mounted) return;
+      _kayitliDegerleriGuncelle();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('settings.ai.save_success')),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Local -> Hybrid: Bulut kimliklerini hazırla (best-effort) + seed için aktarım niyeti.
+    if (_seciliMod == 'hybrid' && oncekiMod == 'local') {
+      final localHost =
+          ((oncekiYerelHost ?? '').trim().isNotEmpty
+                  ? oncekiYerelHost!
+                  : '127.0.0.1')
+              .trim();
+      final localCompanyDb = OturumServisi().aktifVeritabaniAdi;
+
+      final bulutDurumu = await _bulutGecisHazirla(
+        requestSource: 'desktop_settings_hybrid',
+        connectionTestTimeout: const Duration(seconds: 6),
+      );
+
+      if (bulutDurumu == null) {
+        if (mounted) setState(() => _seciliMod = previousUiMode);
+        return;
+      }
+
+      if (!bulutDurumu.cloudReadyNow && !bulutDurumu.requestSent) {
+        await _showCloudAccessErrorDialog();
+        if (mounted) setState(() => _seciliMod = previousUiMode);
+        return;
+      }
+
+      DesktopVeritabaniAktarimSecimi? secim;
+      if (bulutDurumu.cloudReadyNow) {
+        if (!mounted) return;
+        secim = await veritabaniAktarimSecimDialogGoster(
+          context: context,
+          localToCloud: true,
+        );
+        if (secim == null) {
+          if (mounted) setState(() => _seciliMod = previousUiMode);
+          return;
+        }
+      }
+
+      // Tercihi kaydet (hibrit: yerel çalışmaya devam eder)
+      await VeritabaniYapilandirma.saveConnectionPreferences(
+        'hybrid',
+        oncekiYerelHost,
+      );
+
+      if (secim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+        await VeritabaniAktarimServisi().niyetTemizle();
+        await _clearPendingTransferChoice();
+      } else if (secim != null) {
+        final choiceValue = secim == DesktopVeritabaniAktarimSecimi.birlestir
+            ? 'merge'
+            : 'full';
+        await _savePendingTransferChoiceValue(choiceValue);
+        await VeritabaniAktarimServisi().niyetKaydet(
+          VeritabaniAktarimNiyeti(
+            fromMode: 'local',
+            toMode: 'cloud',
+            localHost: localHost.isEmpty ? null : localHost,
+            localCompanyDb: localCompanyDb,
+            createdAt: DateTime.now(),
+          ),
+        );
+      } else {
+        // Cloud kimlikleri hazır değil: niyet kaydet, seçim yoksa login'de sorulur.
+        await _clearPendingTransferChoice();
+        await VeritabaniAktarimServisi().niyetKaydet(
+          VeritabaniAktarimNiyeti(
+            fromMode: 'local',
+            toMode: 'cloud',
+            localHost: localHost.isEmpty ? null : localHost,
+            localCompanyDb: localCompanyDb,
+            createdAt: DateTime.now(),
+          ),
+        );
+
+        final bool shouldShowPreparingDialog = bulutDurumu.requestSent;
+        if (shouldShowPreparingDialog && mounted) {
+          await showDialog<void>(
+            context: context,
+            builder: (ctx) => Dialog(
+              backgroundColor: Colors.white,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 32,
+                vertical: 24,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Container(
+                width: 450,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                padding: const EdgeInsets.all(28),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('setup.cloud.preparing_title'),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF202124),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      tr('setup.cloud.preparing_message'),
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF606368),
+                        height: 1.5,
+                      ),
+                    ),
+                    const SizedBox(height: 24),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          child: TextButton(
+                            onPressed: () => Navigator.of(ctx).pop(),
+                            style: TextButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 18,
+                                vertical: 12,
+                              ),
+                              foregroundColor: const Color(0xFF2C3E50),
+                              textStyle: const TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            child: Text(tr('common.ok')),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+      }
+
+      if (!mounted) return;
+      _kayitliDegerleriGuncelle();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(tr('settings.ai.save_success')),
+          backgroundColor: Colors.green.shade700,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    // Hybrid -> Local
+    if (_seciliMod == 'local' && oncekiMod == 'hybrid') {
+      await VeritabaniYapilandirma.saveConnectionPreferences(
+        'local',
+        oncekiYerelHost,
+      );
+
+      unawaited(KarmaBulutYedeklemeServisi().ayarlariUygulaVeBaslat());
       if (!mounted) return;
       _kayitliDegerleriGuncelle();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2006,14 +2257,14 @@ class _VeritabaniYedekAyarlariSayfasiState
       return;
     }
 
-    // Cloud -> Local
-    if (_seciliMod == 'local' && oncekiMod == 'cloud') {
+    // Cloud -> Local/Hybrid (local-like)
+    if (isLocalLike(_seciliMod) && oncekiMod == 'cloud') {
       final secim = await veritabaniAktarimSecimDialogGoster(
         context: context,
         localToCloud: false,
       );
       if (secim == null) {
-        if (mounted) setState(() => _seciliMod = 'cloud');
+        if (mounted) setState(() => _seciliMod = previousUiMode);
         return;
       }
 
@@ -2043,7 +2294,7 @@ class _VeritabaniYedekAyarlariSayfasiState
       }
 
       await VeritabaniYapilandirma.saveConnectionPreferences(
-        'local',
+        _seciliMod,
         oncekiYerelHost,
       );
 
@@ -2071,9 +2322,10 @@ class _VeritabaniYedekAyarlariSayfasiState
     Color primaryColor, {
     required bool isMobile,
   }) {
+    // Yerel şema dışa aktarma: uygulama fiilen cloud DB'ye bağlıyken
+    // yapılmamalı. Karma modda uygulama yerelden çalıştığı için izin ver.
     final bool canExportLocalSchema =
-        VeritabaniYapilandirma.connectionMode == 'local' &&
-        _seciliMod == 'local';
+        !VeritabaniYapilandirma().isEffectiveCloudDatabase;
     final String aktifDb = OturumServisi().aktifVeritabaniAdi;
 
     final String subtitle = canExportLocalSchema
@@ -2141,8 +2393,7 @@ class _VeritabaniYedekAyarlariSayfasiState
     if (_semaIndiriliyor) return;
 
     final bool canExportLocalSchema =
-        VeritabaniYapilandirma.connectionMode == 'local' &&
-        _seciliMod == 'local';
+        !VeritabaniYapilandirma().isEffectiveCloudDatabase;
     if (!canExportLocalSchema) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

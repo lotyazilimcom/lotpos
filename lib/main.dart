@@ -51,6 +51,7 @@ import 'sayfalar/urunler_ve_depolar/urunler/urun_karti_sayfasi.dart';
 import 'sayfalar/urunler_ve_depolar/urunler/modeller/urun_model.dart';
 import 'servisler/lisans_servisi.dart';
 import 'servisler/veritabani_aktarim_servisi.dart';
+import 'servisler/karma_bulut_yedekleme_servisi.dart';
 import 'sayfalar/baslangic/bootstrap_sayfasi.dart';
 import 'servisler/veritabani_yapilandirma.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -119,6 +120,8 @@ class _MyAppState extends State<MyApp>
       GlobalKey<NavigatorState>();
   bool _desktopCloudReadyDialogOpen = false;
   bool _desktopCloudReadyRetryScheduled = false;
+  bool _hybridSeedChoiceDialogOpen = false;
+  bool _hybridSeedChoiceRetryScheduled = false;
 
   @override
   void initState() {
@@ -130,9 +133,13 @@ class _MyAppState extends State<MyApp>
     VeritabaniYapilandirma.desktopCloudReadyTick.addListener(
       _onDesktopCloudCredentialsReady,
     );
+    KarmaBulutYedeklemeServisi.hybridSeedChoicePromptTick.addListener(
+      _onHybridSeedChoicePromptNeeded,
+    );
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(_maybePromptDesktopCloudReady());
+      unawaited(_maybePromptHybridSeedChoice());
     });
 
     // Heartbeat başlatan timer (Her 5 dakikada bir)
@@ -156,6 +163,9 @@ class _MyAppState extends State<MyApp>
     VeritabaniYapilandirma.desktopCloudReadyTick.removeListener(
       _onDesktopCloudCredentialsReady,
     );
+    KarmaBulutYedeklemeServisi.hybridSeedChoicePromptTick.removeListener(
+      _onHybridSeedChoicePromptNeeded,
+    );
     _heartbeatTimer?.cancel();
     super.dispose();
   }
@@ -163,6 +173,11 @@ class _MyAppState extends State<MyApp>
   void _onDesktopCloudCredentialsReady() {
     if (!mounted) return;
     unawaited(_maybePromptDesktopCloudReady());
+  }
+
+  void _onHybridSeedChoicePromptNeeded() {
+    if (!mounted) return;
+    unawaited(_maybePromptHybridSeedChoice());
   }
 
   Future<void> _maybePromptDesktopCloudReady() async {
@@ -312,6 +327,84 @@ class _MyAppState extends State<MyApp>
     }
   }
 
+  Future<void> _maybePromptHybridSeedChoice() async {
+    if (_hybridSeedChoiceDialogOpen) return;
+    if (kIsWeb) return;
+    if (!CeviriServisi().yuklendi) {
+      if (_hybridSeedChoiceRetryScheduled) return;
+      _hybridSeedChoiceRetryScheduled = true;
+      Future<void>.delayed(const Duration(milliseconds: 300), () {
+        _hybridSeedChoiceRetryScheduled = false;
+        if (!mounted) return;
+        unawaited(_maybePromptHybridSeedChoice());
+      });
+      return;
+    }
+
+    if (VeritabaniYapilandirma.connectionMode != 'hybrid') return;
+    if (!VeritabaniYapilandirma.cloudCredentialsReady) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final backupEnabled =
+        prefs.getBool(KarmaBulutYedeklemeServisi.prefBackupEnabledKey) ?? true;
+    if (!backupEnabled) return;
+
+    final aktarim = VeritabaniAktarimServisi();
+    final niyet = await aktarim.niyetOku();
+    if (niyet == null) return;
+    if (niyet.fromMode.trim() != 'local' || niyet.toMode.trim() != 'cloud') {
+      return;
+    }
+
+    final storedChoice =
+        (prefs.getString(VeritabaniYapilandirma.prefPendingTransferChoiceKey) ??
+                '')
+            .trim()
+            .toLowerCase();
+    if (storedChoice == 'merge' ||
+        storedChoice == 'full' ||
+        storedChoice == 'none') {
+      return;
+    }
+
+    final ctx = _rootNavigatorKey.currentContext;
+    if (ctx == null) return;
+    if (!ctx.mounted) return;
+
+    _hybridSeedChoiceDialogOpen = true;
+    try {
+      final secim = await veritabaniAktarimSecimDialogGoster(
+        context: ctx,
+        localToCloud: true,
+        barrierDismissible: false,
+      );
+      if (secim == null) return;
+
+      if (secim == DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
+        // Kullanıcı "dokunma" dedi: seed'i atla ve bir sonraki periyoda ertele.
+        await prefs.setString(
+          VeritabaniYapilandirma.prefPendingTransferChoiceKey,
+          'none',
+        );
+        unawaited(KarmaBulutYedeklemeServisi().tetikle(force: true));
+        return;
+      }
+
+      final choiceValue = secim == DesktopVeritabaniAktarimSecimi.birlestir
+          ? 'merge'
+          : 'full';
+      await prefs.setString(
+        VeritabaniYapilandirma.prefPendingTransferChoiceKey,
+        choiceValue,
+      );
+
+      // Seçim yapıldı: arka plan seed/backup'i hemen tetikle.
+      unawaited(KarmaBulutYedeklemeServisi().tetikle(force: true));
+    } finally {
+      _hybridSeedChoiceDialogOpen = false;
+    }
+  }
+
   @override
   void onWindowClose() async {
     // Pencere kapatılırken anlık offline sinyali gönder
@@ -321,11 +414,11 @@ class _MyAppState extends State<MyApp>
       await windowManager.hide();
     } catch (_) {}
 
-    // Offline sinyalini gönder ama kapanmayı bekletme (timeout ile)
+    // Offline sinyalini gönder (kapanış için hızlı path) ama kapanmayı sonsuza kadar bekletme
     try {
       await LisansServisi()
-          .durumGuncelle(false)
-          .timeout(const Duration(milliseconds: 1500));
+          .kapanisOfflineSinyaliGonder()
+          .timeout(const Duration(milliseconds: 3500));
     } catch (e) {
       debugPrint('Lisans Servisi: Offline sinyali gonderilemedi: $e');
     }

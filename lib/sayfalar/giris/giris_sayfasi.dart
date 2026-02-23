@@ -375,6 +375,18 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     // bağlantı denemek yerine erken çık. Kullanıcıya gereksiz hata snackbar'ı gösterme.
     final fromMode = niyet.fromMode.trim();
     final toMode = niyet.toMode.trim();
+
+    // Karma (Yerel+Bulut) modda: Local->Cloud seed/backup işlemi login akışını
+    // kesinlikle bloklamamalı. Bu senaryoda aktarımı arka plan servisine bırak.
+    if (VeritabaniYapilandirma.connectionMode == 'hybrid' &&
+        fromMode == 'local' &&
+        toMode == 'cloud') {
+      debugPrint(
+        'DB aktarım kontrolü: Karma mod (local->cloud) arka planda çalışacak, login bloklanmadı.',
+      );
+      return;
+    }
+
     if ((fromMode == 'cloud' || toMode == 'cloud') &&
         !VeritabaniYapilandirma.cloudCredentialsReady) {
       debugPrint(

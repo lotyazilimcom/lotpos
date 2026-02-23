@@ -137,6 +137,82 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
               ],
             ),
             const SizedBox(height: 32),
+            ListenableBuilder(
+              listenable: LisansServisi(),
+              builder: (context, _) {
+                final masterLicenseId = LisansServisi().licenseId ?? 'TANIMSIZ';
+
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('login.license.master_id'),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 1.5,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? Colors.white.withValues(alpha: 0.05)
+                            : const Color(0xFFF8F9FA),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.1)
+                              : Colors.grey[200]!,
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.vpn_key_rounded,
+                            size: 16,
+                            color: Colors.grey,
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            masterLicenseId,
+                            style: const TextStyle(
+                              fontFamily: 'monospace',
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 2,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const Spacer(),
+                          IconButton(
+                            icon: const Icon(Icons.copy_rounded, size: 18),
+                            onPressed: () {
+                              Clipboard.setData(
+                                ClipboardData(text: masterLicenseId),
+                              );
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    tr('login.license.copy_success'),
+                                  ),
+                                ),
+                              );
+                            },
+                            tooltip: tr('common.select'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+                );
+              },
+            ),
             Text(
               tr('login.license.hardware_id'),
               style: TextStyle(

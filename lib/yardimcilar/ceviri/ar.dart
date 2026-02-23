@@ -768,6 +768,7 @@ const Map<String, String> arCeviriler = {
   'login.company.placeholder': 'اختر شركة',
   'login.license.title': 'الترخيص والتفعيل',
   'login.license.subtitle': 'تسجيل الجهاز',
+  'login.license.master_id': 'رمز الترخيص الرئيسي (معرّف الترخيص)',
   'login.license.hardware_id': 'معرّف الجهاز (HARDWARE ID)',
   'login.license.help': '* لتفعيل الترخيص، شارك المعرّف أعلاه مع المسؤول.',
   'login.license.button': 'تحقق وفعّل الترخيص',

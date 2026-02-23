@@ -11,6 +11,7 @@ import 'lisans_servisi.dart';
 import 'online_veritabani_servisi.dart';
 import 'ayarlar_veritabani_servisi.dart';
 import 'veritabani_baglanti_sifirlayici.dart';
+import 'karma_bulut_yedekleme_servisi.dart';
 import '../yardimcilar/ceviri/ceviri_servisi.dart';
 import 'doviz_guncelleme_servisi.dart';
 
@@ -92,7 +93,8 @@ class BaglantiYoneticisi extends ChangeNotifier {
     final savedHost = VeritabaniYapilandirma.discoveredHost;
 
     // A. İlk Kurulum Kontrolü (Scenario A)
-    if (mode == 'local' && (savedHost == null || savedHost.isEmpty)) {
+    if ((mode == 'local' || mode == 'hybrid') &&
+        (savedHost == null || savedHost.isEmpty)) {
       _durum = BaglantiDurumu.kurulumGerekli;
       notifyListeners();
       return;
@@ -109,7 +111,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
     }
 
     // B. Mevcut IP'yi Dene (Scenario B - Attempt 1)
-    if (mode == 'local') {
+    if (mode == 'local' || mode == 'hybrid') {
       final hedefHost = savedHost!.trim();
       debugPrint('BaglantiYoneticisi: Kayıtlı IP deneniyor: $hedefHost');
       bool bagli = await _baglantiTestEt(
@@ -146,7 +148,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
           debugPrint('BaglantiYoneticisi: Yeni IP bulundu: $yeniHost');
           // Yeni IP'yi kaydet ve devam et
           await VeritabaniYapilandirma.saveConnectionPreferences(
-            'local',
+            mode,
             yeniHost,
           );
           VeritabaniYapilandirma.setDiscoveredHost(yeniHost);
@@ -319,6 +321,9 @@ class BaglantiYoneticisi extends ChangeNotifier {
     // Diğerleri
     DovizGuncellemeServisi().baslat();
     await LisansServisi().baslat();
+
+    // Karma (Yerel+Bulut): arka plan local->cloud seed/backup döngüsünü best-effort başlat.
+    unawaited(KarmaBulutYedeklemeServisi().ayarlariUygulaVeBaslat());
 
     _durum = BaglantiDurumu.basarili;
     notifyListeners();

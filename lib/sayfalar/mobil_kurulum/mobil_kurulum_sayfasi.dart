@@ -397,9 +397,10 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
     final bool kurulumTamamlandi =
         prefs.getBool('mobil_kurulum_tamamlandi') ?? false;
     final selectedHost = (_selectedServer?.host ?? '').trim();
-    if (mode == 'local' && selectedHost.isEmpty) return;
+    bool isLocalLike(String m) => m == 'local' || m == 'hybrid';
+    if (isLocalLike(mode) && selectedHost.isEmpty) return;
 
-    if (mode == 'local') {
+    if (isLocalLike(mode)) {
       VeritabaniYapilandirma.setDiscoveredHost(selectedHost);
       // Lisans durumunu devral (mDNS yayını varsa TXT üzerinden gelir).
       bool isPro = false;
@@ -412,21 +413,24 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
       unawaited(LisansServisi().setInheritedPro(isPro));
     }
 
-    // Local <-> Cloud geçişinde: her seferinde veri aktarımı sor (mobil/tablet).
+    // Local/Hibrit <-> Cloud geçişinde + Local -> Hibrit (Bulutu seed etme) akışında:
+    // her seferinde veri aktarımı sor (mobil/tablet).
     final bool modDegisti = oncekiMod != mode;
     final bool localCloudSwitch =
-        (oncekiMod == 'local' && mode == 'cloud') ||
-        (oncekiMod == 'cloud' && mode == 'local');
+        (isLocalLike(oncekiMod) && mode == 'cloud') ||
+        (oncekiMod == 'cloud' && isLocalLike(mode));
+    final bool localToHybrid = oncekiMod == 'local' && mode == 'hybrid';
+    final bool localToCloudSeed = (isLocalLike(oncekiMod) && mode == 'cloud') || localToHybrid;
 
     DesktopVeritabaniAktarimSecimi? transferSecim;
-    if (!kurulumTamamlandi && modDegisti && localCloudSwitch) {
+    if (!kurulumTamamlandi && modDegisti && (localCloudSwitch || localToHybrid)) {
       // İlk kurulumda veri aktarımı sormayız. Bekleyen bir seçim/niyet varsa temizle (best-effort).
       await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
       await VeritabaniAktarimServisi().niyetTemizle();
-    } else if (modDegisti && localCloudSwitch && context.mounted) {
+    } else if (modDegisti && (localCloudSwitch || localToHybrid) && context.mounted) {
       transferSecim = await veritabaniAktarimSecimDialogGoster(
         context: context,
-        localToCloud: oncekiMod == 'local' && mode == 'cloud',
+        localToCloud: localToCloudSeed,
         barrierDismissible: false,
       );
       if (transferSecim == null) return;
@@ -448,20 +452,24 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
     // Tercihleri kaydet
     await VeritabaniYapilandirma.saveConnectionPreferences(
       mode,
-      mode == 'local' ? selectedHost : null,
+      isLocalLike(mode) ? selectedHost : null,
     );
 
-    // Local <-> Cloud geçişinde: seçime göre niyet kaydet (mobil/tablet).
+    // Local/Hibrit <-> Cloud geçişinde + Local -> Hibrit (Bulutu seed) akışında:
+    // seçime göre niyet kaydet (mobil/tablet).
     if (modDegisti &&
-        localCloudSwitch &&
+        (localCloudSwitch || localToHybrid) &&
         transferSecim != null &&
         transferSecim != DesktopVeritabaniAktarimSecimi.hicbirSeyYapma) {
-      final localHost =
-          (mode == 'local' ? selectedHost : (oncekiYerelHost ?? '')).trim();
+      final String fromMode = localToCloudSeed ? 'local' : 'cloud';
+      final String toMode = localToCloudSeed ? 'cloud' : 'local';
+      final localHost = localToCloudSeed
+          ? (oncekiYerelHost ?? selectedHost).trim()
+          : selectedHost.trim();
       await VeritabaniAktarimServisi().niyetKaydet(
         VeritabaniAktarimNiyeti(
-          fromMode: oncekiMod,
-          toMode: mode,
+          fromMode: fromMode,
+          toMode: toMode,
           localHost: localHost.isEmpty ? null : localHost,
           localCompanyDb: null,
           createdAt: DateTime.now(),
@@ -471,8 +479,11 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
 
     await prefs.setBool('mobil_kurulum_tamamlandi', true);
 
-    if (mode == 'cloud' && context.mounted) {
+    if ((mode == 'cloud' || mode == 'hybrid') && context.mounted) {
       unawaited(_bulutTalebiGonderBestEffort());
+    }
+
+    if (mode == 'cloud' && context.mounted) {
       await showDialog<void>(
         context: context,
         builder: (ctx) => Dialog(

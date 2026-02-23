@@ -828,6 +828,7 @@ const Map<String, String> trCeviriler = {
   'login.company.placeholder': 'Şirket seçin',
   'login.license.title': 'Lisans ve Aktivasyon',
   'login.license.subtitle': 'Cihaz Kayıt İşlemleri',
+  'login.license.master_id': 'ANA LİSANS KODU (LİSANS ID)',
   'login.license.hardware_id': 'DONANIM KİMLİĞİ (HARDWARE ID)',
   'login.license.help':
       '* Lisansınızı aktif etmek için yukarıdaki ID\'yi yöneticinize iletin.',

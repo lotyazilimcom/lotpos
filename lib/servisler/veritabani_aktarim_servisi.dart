@@ -398,6 +398,11 @@ class VeritabaniAktarimServisi {
             target: tCloudConn,
             table: table,
             tip: tip,
+            // Cloud modda `company_id` filtreleri aktif DB adına göre çalışır.
+            // Local DB'de `company_id` genelde şirket DB adı (örn. patisyo_lotpos).
+            // Cloud DB'de ise tek veritabanı adı (örn. postgres) kullanılır.
+            // Bu yüzden local -> cloud aktarımında `company_id` hedef DB adına normalize edilir.
+            companyIdOverride: cloud.database,
           );
           doneSteps++;
           emit(table);
@@ -618,6 +623,9 @@ class VeritabaniAktarimServisi {
             target: tSettingsConn,
             table: table,
             tip: tip,
+            // Cloud tarafında `company_id` hedef DB adı olabilir (örn. postgres).
+            // Local tarafta `company_id` şirket DB adı olmalı (örn. patisyo_lotpos).
+            companyIdOverride: localCompany.database,
           );
           doneSteps++;
           emit('settings.$table');
@@ -629,6 +637,7 @@ class VeritabaniAktarimServisi {
             target: tCompanyConn,
             table: table,
             tip: tip,
+            companyIdOverride: localCompany.database,
           );
           doneSteps++;
           emit('company.$table');
@@ -1236,6 +1245,7 @@ class VeritabaniAktarimServisi {
     required Connection target,
     required String table,
     required VeritabaniAktarimTipi tip,
+    String? companyIdOverride,
   }) async {
     // Target şemaya göre conflict kolonlarını al (PK)
     final conflictCols = await _primaryKeyColumns(target, table);
@@ -1261,6 +1271,7 @@ class VeritabaniAktarimServisi {
         conflictColumns: conflictCols,
         // Tam aktarımda hedef tablo zaten temiz; yine de kaynaklar arası çakışmada update faydalı.
         upsert: tip == VeritabaniAktarimTipi.birlestir || sources.length > 1,
+        companyIdOverride: companyIdOverride,
       );
     }
   }
@@ -1273,6 +1284,7 @@ class VeritabaniAktarimServisi {
     required List<String> columns,
     required List<String> conflictColumns,
     required bool upsert,
+    String? companyIdOverride,
   }) async {
     // Cursor ile batch oku, batch insert.
     final sw = Stopwatch()..start();
@@ -1301,8 +1313,15 @@ class VeritabaniAktarimServisi {
         totalRows += batch.length;
 
         final rows = <List<dynamic>>[];
+        final companyIdIndex = companyIdOverride == null
+            ? -1
+            : columns.indexOf('company_id');
         for (final r in batch) {
-          rows.add(List<dynamic>.from(r));
+          final row = List<dynamic>.from(r);
+          if (companyIdIndex >= 0 && companyIdIndex < row.length) {
+            row[companyIdIndex] = companyIdOverride;
+          }
+          rows.add(row);
         }
 
         await _insertBatch(

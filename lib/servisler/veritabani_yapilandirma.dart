@@ -568,9 +568,9 @@ class VeritabaniYapilandirma {
         'Bu özellik sadece desktop platformlarda çalışır.',
       );
     }
-    if (VeritabaniYapilandirma.connectionMode != 'local') {
+    if (isEffectiveCloudDatabase) {
       throw StateError(
-        'Şema dışa aktarma sadece yerel veritabanı modunda yapılır.',
+        'Şema dışa aktarma sadece yerel veritabanı (Yerel/Karma) modunda yapılır.',
       );
     }
 
@@ -635,9 +635,59 @@ class VeritabaniYapilandirma {
     final rawContent = await file.readAsString();
     final cleanedLines = rawContent
         .split('\n')
-        .where((line) => !line.trimLeft().startsWith('\\'))
+        .where((line) {
+          final trimmedLeft = line.trimLeft();
+
+          // psql meta-komutları (SQL motorunda syntax error verir)
+          if (trimmedLeft.startsWith('\\')) return false;
+
+          // PostgreSQL 17+ pg_dump çıktısı: `SET transaction_timeout = 0;`
+          // Managed DB'lerde (Supabase/Neon) farklı sürümde syntax hatası
+          // verebildiği için kaldırıyoruz.
+          final lowered = trimmedLeft.toLowerCase();
+          if (lowered.startsWith('set transaction_timeout')) return false;
+
+          return true;
+        })
         .toList();
-    await file.writeAsString(cleanedLines.join('\n'));
+
+    final wrappedContent = _wrapSchemaDumpInTransactionIfMissing(
+      cleanedLines.join('\n'),
+    );
+    await file.writeAsString(wrappedContent);
+  }
+
+  String _wrapSchemaDumpInTransactionIfMissing(String content) {
+    final lines = content.split('\n');
+
+    bool isExactStatement(String line, String statement) =>
+        line.trim().toUpperCase() == statement;
+
+    final alreadyWrapped =
+        lines.any((line) => isExactStatement(line, 'BEGIN;')) ||
+        lines.any((line) => isExactStatement(line, 'COMMIT;'));
+    if (alreadyWrapped) return content;
+
+    int insertAt = 0;
+    while (insertAt < lines.length) {
+      final trimmed = lines[insertAt].trimLeft();
+      if (trimmed.isEmpty || trimmed.startsWith('--')) {
+        insertAt++;
+        continue;
+      }
+
+      final lowered = trimmed.toLowerCase();
+      if (lowered.startsWith('set ') ||
+          lowered.startsWith('select pg_catalog.set_config')) {
+        insertAt++;
+        continue;
+      }
+      break;
+    }
+
+    lines.insert(insertAt, 'BEGIN;');
+    lines.add('COMMIT;');
+    return lines.join('\n');
   }
 
   /// Dinamik keşif sonrası host'u günceller

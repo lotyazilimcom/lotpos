@@ -789,6 +789,7 @@ const Map<String, String> enCeviriler = {
   'login.company.placeholder': 'Select a company',
   'login.license.title': 'License & Activation',
   'login.license.subtitle': 'Device Registration',
+  'login.license.master_id': 'MASTER LICENSE CODE (LICENSE ID)',
   'login.license.hardware_id': 'HARDWARE ID',
   'login.license.help':
       '* To activate your license, share the above ID with your administrator.',
