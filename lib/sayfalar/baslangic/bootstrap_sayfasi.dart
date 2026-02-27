@@ -330,6 +330,48 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
                       ),
                     ),
 
+                    // Cluster ID uyumsuzluğu detayları
+                    if (yonetici.clusterUyumsuz) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.14),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Beklenen: ${yonetici.beklenenClusterId ?? '-'}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                height: 1.4,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Bulunan: ${yonetici.aktifClusterId ?? '-'}',
+                              style: const TextStyle(
+                                color: Colors.white70,
+                                fontSize: 12,
+                                height: 1.4,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+
                     // Cloud hatası bilgi notu
                     if (bulutHatasi) ...[
                       const SizedBox(height: 12),
@@ -365,6 +407,31 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
                         ),
                       ),
                     ),
+
+                    // Cluster mismatch: kullanıcı bilinçli olarak bu veri setini kabul edebilir.
+                    if (yonetici.clusterUyumsuz) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: 260,
+                        child: OutlinedButton.icon(
+                          onPressed: () => unawaited(
+                            BaglantiYoneticisi().clusterKimliginiKabulEt(),
+                          ),
+                          icon: const Icon(Icons.verified_rounded, size: 18),
+                          label: const Text('Bu veri setini kabul et'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.white,
+                            side: BorderSide(
+                              color: Colors.white.withValues(alpha: 0.4),
+                            ),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
 
                     // Masaüstünde ve bulutu hatası varsa: Yerele Geç butonu
                     if (bulutHatasi && masaustuMu) ...[

@@ -2,11 +2,13 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:postgres/postgres.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:nsd/nsd.dart' show Service;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'veritabani_yapilandirma.dart';
 import 'local_network_discovery_service.dart';
+import 'cluster_kimligi_servisi.dart';
 import 'lisans_servisi.dart';
 import 'online_veritabani_servisi.dart';
 import 'ayarlar_veritabani_servisi.dart';
@@ -34,12 +36,36 @@ class BaglantiYoneticisi extends ChangeNotifier {
   BaglantiYoneticisi._internal();
 
   static bool _supabaseInitDone = false;
+  static const String _prefExpectedClusterIdKey = 'patisyo_expected_cluster_id';
 
   BaglantiDurumu _durum = BaglantiDurumu.baslangic;
   BaglantiDurumu get durum => _durum;
 
   String? _hataMesaji;
   String? get hataMesaji => _hataMesaji;
+
+  bool _clusterUyumsuz = false;
+  String? _beklenenClusterId;
+  String? _aktifClusterId;
+  bool get clusterUyumsuz => _clusterUyumsuz;
+  String? get beklenenClusterId => _beklenenClusterId;
+  String? get aktifClusterId => _aktifClusterId;
+
+  Future<void> clusterKimliginiKabulEt() async {
+    final actual = (_aktifClusterId ?? '').trim();
+    if (actual.isEmpty) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_prefExpectedClusterIdKey, actual);
+
+    _clusterUyumsuz = false;
+    _beklenenClusterId = null;
+    _aktifClusterId = null;
+    _hataMesaji = null;
+    notifyListeners();
+
+    await sistemiBaslat();
+  }
 
   /// Tüm sistemi başlatan ana döngü
   Future<void> sistemiBaslat() async {
@@ -318,6 +344,10 @@ class BaglantiYoneticisi extends ChangeNotifier {
       return;
     }
 
+    // Cluster ID doğrulaması: yanlış veri setine bağlanmayı engelle.
+    final okCluster = await _clusterUyumlulukKontroluBestEffort();
+    if (!okCluster) return;
+
     // Diğerleri
     DovizGuncellemeServisi().baslat();
     await LisansServisi().baslat();
@@ -327,6 +357,60 @@ class BaglantiYoneticisi extends ChangeNotifier {
 
     _durum = BaglantiDurumu.basarili;
     notifyListeners();
+  }
+
+  Future<bool> _clusterUyumlulukKontroluBestEffort() async {
+    try {
+      final cfg = VeritabaniYapilandirma();
+      final endpoint = Endpoint(
+        host: cfg.host,
+        port: cfg.port,
+        database: cfg.database,
+        username: cfg.username,
+        password: cfg.password,
+      );
+
+      final id = await ClusterKimligiServisi().okuVeyaOlustur(
+        endpoint: endpoint,
+        sslMode: cfg.sslMode,
+        connectTimeout: const Duration(seconds: 4),
+        allowCreate: true,
+      );
+
+      final clusterId = (id ?? '').trim();
+      if (clusterId.isEmpty) return true;
+
+      final prefs = await SharedPreferences.getInstance();
+      final expected =
+          (prefs.getString(_prefExpectedClusterIdKey) ?? '').trim();
+      if (expected.isEmpty) {
+        await prefs.setString(_prefExpectedClusterIdKey, clusterId);
+        _clusterUyumsuz = false;
+        _beklenenClusterId = null;
+        _aktifClusterId = clusterId;
+        return true;
+      }
+
+      if (expected == clusterId) {
+        _clusterUyumsuz = false;
+        _beklenenClusterId = expected;
+        _aktifClusterId = clusterId;
+        return true;
+      }
+
+      _clusterUyumsuz = true;
+      _beklenenClusterId = expected;
+      _aktifClusterId = clusterId;
+      _durum = BaglantiDurumu.hata;
+      _hataMesaji =
+          'Farklı veri seti: Bu cihazın beklediği Cluster ID ($expected) '
+          'ile bağlanılan veritabanının Cluster ID ($clusterId) uyuşmuyor.';
+      notifyListeners();
+      return false;
+    } catch (e) {
+      debugPrint('BaglantiYoneticisi: Cluster ID kontrolü başarısız: $e');
+      return true;
+    }
   }
 
   /// Cloud erişim hatası sonrası yerel veritabanına geçiş yapar.

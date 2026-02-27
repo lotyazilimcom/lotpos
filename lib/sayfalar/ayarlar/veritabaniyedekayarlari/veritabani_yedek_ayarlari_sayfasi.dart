@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:nsd/nsd.dart' show Service;
+import 'package:postgres/postgres.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../bilesenler/veritabani_aktarim_secim_dialog.dart';
@@ -17,6 +18,7 @@ import '../../../servisler/lite_kisitlari.dart';
 import '../../../servisler/lisans_servisi.dart';
 import '../../../servisler/local_network_discovery_service.dart';
 import '../../../servisler/karma_bulut_yedekleme_servisi.dart';
+import '../../../servisler/cluster_kimligi_servisi.dart';
 import '../../../servisler/online_veritabani_servisi.dart';
 import '../../../servisler/oturum_servisi.dart';
 import '../../../servisler/veritabani_aktarim_servisi.dart';
@@ -79,6 +81,8 @@ class _VeritabaniYedekAyarlariSayfasiState
   bool _yedeklemeAcik = true;
   String _yedeklemePeriyodu = '15days'; // 15days, monthly, 3months, 6months
   bool _semaIndiriliyor = false;
+  bool _clusterIdYukleniyor = false;
+  String? _clusterId;
 
   late String _kayitliMod;
   late bool _kayitliYedeklemeAcik;
@@ -103,6 +107,247 @@ class _VeritabaniYedekAyarlariSayfasiState
     _kayitliYedeklemePeriyodu = _yedeklemePeriyodu;
 
     unawaited(_loadPersistedBackupPrefs());
+    unawaited(_loadClusterIdBestEffort());
+  }
+
+  Future<void> _loadClusterIdBestEffort() async {
+    if (_clusterIdYukleniyor) return;
+    setState(() => _clusterIdYukleniyor = true);
+
+    try {
+      final cfg = VeritabaniYapilandirma();
+      final id = await ClusterKimligiServisi().okuVeyaOlustur(
+        endpoint: Endpoint(
+          host: cfg.host,
+          port: cfg.port,
+          database: cfg.database,
+          username: cfg.username,
+          password: cfg.password,
+        ),
+        sslMode: cfg.sslMode,
+        connectTimeout: const Duration(seconds: 6),
+      );
+      if (!mounted) return;
+      setState(() => _clusterId = id);
+    } catch (_) {
+      // Sessiz: meta okunamazsa bile ayar sayfası çalışmalı.
+    } finally {
+      if (mounted) setState(() => _clusterIdYukleniyor = false);
+    }
+  }
+
+  static String _localSettingsDatabaseName() {
+    if (kIsWeb) return 'patisyosettings';
+    final fromEnv = Platform.environment['PATISYO_DB_NAME'];
+    if (fromEnv != null && fromEnv.trim().isNotEmpty) return fromEnv.trim();
+    return 'patisyosettings';
+  }
+
+  static int _localPort() {
+    final envPort = Platform.environment['PATISYO_DB_PORT'];
+    return int.tryParse(envPort ?? '') ?? 5432;
+  }
+
+  static String _localUser() =>
+      (Platform.environment['PATISYO_DB_USER'] ?? 'patisyo').trim();
+
+  static String _localPassword() {
+    final passEnv = Platform.environment['PATISYO_DB_PASSWORD'];
+    if (passEnv != null && passEnv.trim().isNotEmpty) return passEnv.trim();
+    // Geriye dönük uyumluluk (mevcut kurulumların şifresi)
+    return '5828486';
+  }
+
+  Future<bool> _guardClusterIdUyumsuzlugu({
+    required String localHost,
+  }) async {
+    final cloudHost = VeritabaniYapilandirma.cloudHost;
+    final cloudUser = VeritabaniYapilandirma.cloudUsername;
+    final cloudPass = VeritabaniYapilandirma.cloudPassword;
+    final cloudDb = VeritabaniYapilandirma.cloudDatabase;
+    if (cloudHost == null ||
+        cloudUser == null ||
+        cloudPass == null ||
+        cloudDb == null) {
+      return true;
+    }
+
+    final local = Endpoint(
+      host: localHost.trim().isEmpty ? '127.0.0.1' : localHost.trim(),
+      port: _localPort(),
+      database: _localSettingsDatabaseName(),
+      username: _localUser(),
+      password: _localPassword(),
+    );
+
+    final cloud = Endpoint(
+      host: cloudHost,
+      port: VeritabaniYapilandirma.cloudPort ?? 5432,
+      database: cloudDb,
+      username: cloudUser,
+      password: cloudPass,
+    );
+
+    final cloudSsl = (VeritabaniYapilandirma.cloudSslRequired ?? true)
+        ? SslMode.require
+        : SslMode.disable;
+
+    final localId = await ClusterKimligiServisi().okuVeyaOlustur(
+      endpoint: local,
+      sslMode: SslMode.disable,
+      connectTimeout: const Duration(seconds: 3),
+    );
+    final cloudId = await ClusterKimligiServisi().okuVeyaOlustur(
+      endpoint: cloud,
+      sslMode: cloudSsl,
+      connectTimeout: const Duration(seconds: 6),
+      // Cloud'da yazma izni yoksa sadece oku (mismatch guard yine çalışır).
+      allowCreate: true,
+    );
+
+    if (localId == null || cloudId == null) return true;
+    if (localId == cloudId) return true;
+
+    return await _showClusterUyumsuzlukDialog(
+      localId: localId,
+      cloudId: cloudId,
+      localHost: local.host,
+      cloudHost: cloud.host,
+    );
+  }
+
+  Future<bool> _showClusterUyumsuzlukDialog({
+    required String localId,
+    required String cloudId,
+    required String localHost,
+    required String cloudHost,
+  }) async {
+    if (!mounted) return false;
+
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.white,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        child: Container(
+          width: 520,
+          padding: const EdgeInsets.fromLTRB(24, 22, 24, 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.orange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(
+                      Icons.warning_rounded,
+                      color: Colors.orange,
+                      size: 26,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Farklı veri seti tespit edildi',
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF202124),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Yerel ve Bulut veritabanlarının Cluster ID değerleri farklı. '
+                'Bu durumda devam etmek veri karışmasına veya beklenmeyen senkrona yol açabilir.',
+                style: TextStyle(
+                  fontSize: 13.5,
+                  height: 1.5,
+                  color: Colors.grey.shade700,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade200),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Yerel ($localHost): $localId',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF202124),
+                      ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Bulut ($cloudHost): $cloudId',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w800,
+                        color: Color(0xFF202124),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    child: const Text(
+                      'İptal',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  ElevatedButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                    ),
+                    child: const Text(
+                      'Bilinçli olarak devam et',
+                      style: TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    return result == true;
   }
 
   Future<void> _loadPersistedBackupPrefs() async {
@@ -151,7 +396,11 @@ class _VeritabaniYedekAyarlariSayfasiState
     const primaryColor = Color(0xFF2C3E50);
 
     return ListenableBuilder(
-      listenable: Listenable.merge([LisansServisi(), LiteAyarlarServisi()]),
+      listenable: Listenable.merge([
+        LisansServisi(),
+        LiteAyarlarServisi(),
+        KarmaBulutYedeklemeServisi(),
+      ]),
       builder: (context, _) {
         final isLite = LisansServisi().isLiteMode;
         final isLiteBackupKapali = isLite && !LiteKisitlari.isCloudBackupActive;
@@ -316,6 +565,8 @@ class _VeritabaniYedekAyarlariSayfasiState
           isMobilePlatform: isMobilePlatform,
           showHybridMode: !isMobilePlatform,
         ),
+        const SizedBox(height: 12),
+        _buildClusterIdCard(primaryColor, isMobile: isMobile),
         SizedBox(height: isMobile ? 24 : 32),
         _buildSectionTitle(
           tr('settings.backup.title'),
@@ -347,6 +598,78 @@ class _VeritabaniYedekAyarlariSayfasiState
           const SizedBox(height: 24),
         ],
       ],
+    );
+  }
+
+  Widget _buildClusterIdCard(Color primaryColor, {required bool isMobile}) {
+    final id = (_clusterId ?? '').trim();
+    final label = _clusterIdYukleniyor
+        ? tr('common.loading')
+        : (id.isEmpty ? '-' : id);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: _buildBackupRow(
+        title: 'Cluster ID',
+        subtitle: 'Aynı veri seti doğrulaması için kullanılır.',
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 260),
+              child: SelectableText(
+                label,
+                style: TextStyle(
+                  fontSize: 12,
+                  color: id.isEmpty ? Colors.grey.shade500 : Colors.black87,
+                  fontWeight: FontWeight.w700,
+                ),
+                maxLines: 1,
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              tooltip: tr('common.copy'),
+              onPressed: id.isEmpty
+                  ? null
+                  : () async {
+                      await Clipboard.setData(ClipboardData(text: id));
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(tr('common.copied')),
+                          backgroundColor: Colors.green.shade700,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+              icon: Icon(
+                Icons.copy_rounded,
+                size: 18,
+                color: id.isEmpty ? Colors.grey.shade400 : primaryColor,
+              ),
+            ),
+            IconButton(
+              tooltip: tr('common.update'),
+              onPressed: _clusterIdYukleniyor ? null : _loadClusterIdBestEffort,
+              icon: Icon(
+                Icons.refresh_rounded,
+                size: 18,
+                color: _clusterIdYukleniyor
+                    ? Colors.grey.shade400
+                    : primaryColor,
+              ),
+            ),
+          ],
+        ),
+        isMobile: isMobile,
+      ),
     );
   }
 
@@ -881,6 +1204,39 @@ class _VeritabaniYedekAyarlariSayfasiState
     required bool isLite,
     required bool isMobile,
   }) {
+    final isHybridMode = VeritabaniYapilandirma.connectionMode == 'hybrid';
+    final syncService = KarmaBulutYedeklemeServisi();
+    final hasSyncError = (syncService.lastError ?? '').trim().isNotEmpty;
+
+    String syncSubtitle;
+    if (isLite) {
+      syncSubtitle = 'Pro sürümde kullanılabilir.';
+    } else if (!isHybridMode) {
+      syncSubtitle = 'Karma (Yerel + Bulut) modda otomatik çalışır.';
+    } else if (!_yedeklemeAcik) {
+      syncSubtitle = tr('settings.backup.warning.off');
+    } else if (syncService.inFlight) {
+      syncSubtitle = 'Senkron yapılıyor...';
+    } else if (hasSyncError) {
+      syncSubtitle = '⚠️ Senkron bekliyor. Otomatik yeniden denenecek.';
+    } else if (syncService.started) {
+      syncSubtitle = tr('common.on');
+    } else {
+      syncSubtitle = 'Beklemede';
+    }
+
+    Widget syncTrailing;
+    if (isLite || !isHybridMode || !_yedeklemeAcik) {
+      syncTrailing =
+          Icon(Icons.sync_disabled_rounded, color: Colors.grey.shade400);
+    } else {
+      syncTrailing = IconButton(
+        tooltip: 'Şimdi senkronla',
+        onPressed: () => unawaited(syncService.tetikle(force: true)),
+        icon: Icon(Icons.sync_rounded, color: primaryColor),
+      );
+    }
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
@@ -993,6 +1349,13 @@ class _VeritabaniYedekAyarlariSayfasiState
                 ],
               ),
             ),
+            isMobile: isMobile,
+          ),
+          const Divider(height: 32),
+          _buildBackupRow(
+            title: 'Senkron Durumu',
+            subtitle: syncSubtitle,
+            trailing: syncTrailing,
             isMobile: isMobile,
           ),
         ],
@@ -1664,6 +2027,16 @@ class _VeritabaniYedekAyarlariSayfasiState
       }
 
       if (bulutDurumu.cloudReadyNow) {
+        final localHostForCheck =
+            (oncekiYerelHost ?? yerelHostKaydi ?? '127.0.0.1').trim();
+        final ok = await _guardClusterIdUyumsuzlugu(
+          localHost: localHostForCheck.isEmpty ? '127.0.0.1' : localHostForCheck,
+        );
+        if (!ok) {
+          if (mounted) setState(() => _seciliMod = previousUiMode);
+          return;
+        }
+
         if (!mounted) return;
         if (bulutDurumu.usedExistingOnlineDatabase) {
           // Mevcut online veritabanına bağlanırken veri aktarımı sormuyoruz.
@@ -1681,6 +2054,15 @@ class _VeritabaniYedekAyarlariSayfasiState
         }
       }
     } else if (cloudToLocal) {
+      final host = (yerelHostKaydi ?? oncekiYerelHost ?? '').trim();
+      if (host.isNotEmpty) {
+        final ok = await _guardClusterIdUyumsuzlugu(localHost: host);
+        if (!ok) {
+          if (mounted) setState(() => _seciliMod = previousUiMode);
+          return;
+        }
+      }
+
       if (!mounted) return;
       transferSecim = await veritabaniAktarimSecimDialogGoster(
         context: context,
@@ -1951,6 +2333,12 @@ class _VeritabaniYedekAyarlariSayfasiState
 
       DesktopVeritabaniAktarimSecimi? secim;
       if (bulutDurumu.cloudReadyNow) {
+        final ok = await _guardClusterIdUyumsuzlugu(localHost: localHost);
+        if (!ok) {
+          if (mounted) setState(() => _seciliMod = previousUiMode);
+          return;
+        }
+
         if (!mounted) return;
         if (bulutDurumu.usedExistingOnlineDatabase) {
           // Mevcut online veritabanına bağlanırken veri aktarımı sormuyoruz.
@@ -2133,6 +2521,14 @@ class _VeritabaniYedekAyarlariSayfasiState
         return;
       }
 
+      if (bulutDurumu.cloudReadyNow) {
+        final ok = await _guardClusterIdUyumsuzlugu(localHost: localHost);
+        if (!ok) {
+          if (mounted) setState(() => _seciliMod = previousUiMode);
+          return;
+        }
+      }
+
       if (!bulutDurumu.cloudReadyNow) {
         // Cloud kimlikleri hazır değil (veya bağlantı doğrulanamadı): cloud_pending kaydet, yerelden devam et.
         await _clearPendingTransferChoice();
@@ -2279,6 +2675,16 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     // Cloud -> Local/Hybrid (local-like)
     if (isLocalLike(_seciliMod) && oncekiMod == 'cloud') {
+      final host = (oncekiYerelHost ?? '').trim();
+      if (host.isNotEmpty) {
+        final ok = await _guardClusterIdUyumsuzlugu(localHost: host);
+        if (!ok) {
+          if (mounted) setState(() => _seciliMod = previousUiMode);
+          return;
+        }
+      }
+
+      if (!mounted) return;
       final secim = await veritabaniAktarimSecimDialogGoster(
         context: context,
         localToCloud: false,

@@ -98,9 +98,47 @@ class VeritabaniAktarimServisi {
   VeritabaniAktarimServisi._internal();
 
   static const String _prefPendingKey = 'patisyo_pending_db_transfer';
+  static const String _tombstonesTable = 'sync_tombstones';
+  static const String _tombstoneTriggerFn = 'patisyo_capture_delete_tombstone';
+  static const String _tombstoneTriggerName = 'trg_patisyo_capture_delete';
+  static const String _deltaOutboxTable = 'sync_delta_outbox';
+  static const String _deltaOutboxTriggerFn = 'patisyo_capture_delta_outbox';
+  static const String _deltaOutboxTriggerName =
+      'trg_patisyo_capture_delta_outbox';
+  static const String _syncApplyGuc = 'patisyo.sync_apply';
+  static const String _updatedAtTriggerFn = 'patisyo_set_updated_at';
+  static const String _updatedAtTriggerName = 'trg_patisyo_set_updated_at';
+  static const int _localSequenceParity = 1; // odd
+  static const int _cloudSequenceParity = 0; // even
+  static const Set<String> _transferExcludedTables = <String>{
+    // Dahili kuyruk: cross-db aktarımda kopyalanırsa yan etki/çift uygulanma üretir.
+    'sync_outbox',
+    // Offline-first delta kuyruğu: sadece kaynak DB içinde çalışır.
+    _deltaOutboxTable,
+  };
 
   final Map<String, Map<String, String>> _targetColumnUdtNameCacheByTable =
       <String, Map<String, String>>{};
+
+  // Karma modda "hızlı" yerel -> bulut delta senkronu için istatistik cache'i.
+  // pg_stat_user_tables sayaçlarını okuyup son durumla karşılaştırırız.
+  final Map<String, int> _deltaSettingsModsByTable = <String, int>{};
+  final Map<String, int> _deltaCompanyModsByTable = <String, int>{};
+  final Map<String, int> _deltaCloudModsByTable = <String, int>{};
+  String? _deltaSettingsDbName;
+  String? _deltaCompanyDbName;
+  String? _deltaCloudKey;
+
+  static const Set<String> _deltaFullCopyAllowlistNoTimestamps = <String>{
+    'sequences',
+    'table_counts',
+    'account_metadata',
+  };
+
+  final Set<String> _tombstoneInfraReadyByDbKey = <String>{};
+  final Set<String> _deltaOutboxInfraReadyByDbKey = <String>{};
+  final Set<String> _timestampInfraReadyByDbKey = <String>{};
+  final Set<String> _sequenceParityReadyByDbKey = <String>{};
 
   void _resetRunCaches() {
     _targetColumnUdtNameCacheByTable.clear();
@@ -234,6 +272,635 @@ class VeritabaniAktarimServisi {
     throw StateError(
       'Aktarım yönü desteklenmiyor: ${hazirlik.fromMode} -> ${hazirlik.toMode}',
     );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Hybrid: Delta Sync (Local -> Cloud)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  Future<VeritabaniDeltaSenkronRapor> deltaSenkronYerelBulut({
+    required String localHost,
+    required String localCompanyDb,
+    required DateTime since,
+    Duration overlap = const Duration(minutes: 2),
+    int maxTables = 0,
+  }) async {
+    _resetRunCaches();
+
+    final cloud = _buildCloudConnection();
+    if (cloud == null) {
+      throw StateError('Bulut bağlantı bilgileri hazır değil.');
+    }
+
+    final cloudDbKey = 'cloud://${cloud.host}:${cloud.port}/${cloud.database}';
+    final settingsDb = _localSettingsDatabaseName();
+    final normalizedLocalHost =
+        localHost.trim().isEmpty ? '127.0.0.1' : localHost.trim();
+    if (_deltaSettingsDbName != settingsDb) {
+      _deltaSettingsDbName = settingsDb;
+      _deltaSettingsModsByTable.clear();
+    }
+    if (_deltaCompanyDbName != localCompanyDb) {
+      _deltaCompanyDbName = localCompanyDb;
+      _deltaCompanyModsByTable.clear();
+    }
+
+    final effectiveSince = since.subtract(overlap);
+    final localSettings =
+        _buildLocalConnection(host: normalizedLocalHost, database: settingsDb);
+    final localCompany = _buildLocalConnection(
+      host: normalizedLocalHost,
+      database: localCompanyDb,
+    );
+    final localSettingsDbKey =
+        'local://$normalizedLocalHost:${localSettings.port}/$settingsDb';
+    final localCompanyDbKey =
+        'local://$normalizedLocalHost:${localCompany.port}/$localCompanyDb';
+
+    Connection? sSettings;
+    Connection? sCompany;
+    Connection? tCloud;
+
+    final sw = Stopwatch()..start();
+    var appliedRows = 0;
+    final touchedTables = <String>{};
+
+    try {
+      sSettings = await _open(localSettings);
+      sCompany = await _open(localCompany);
+      final Connection sSettingsConn = sSettings;
+      final Connection sCompanyConn = sCompany;
+
+      // DELETE senkronu için tombstone altyapısını önceden garanti altına al.
+      await _ensureTombstoneInfraBestEffort(
+        sSettingsConn,
+        dbKey: localSettingsDbKey,
+      );
+      await _ensureTombstoneInfraBestEffort(
+        sCompanyConn,
+        dbKey: localCompanyDbKey,
+      );
+
+      await _ensureDeltaTimestampInfraBestEffort(
+        sSettingsConn,
+        dbKey: localSettingsDbKey,
+      );
+      await _ensureDeltaTimestampInfraBestEffort(
+        sCompanyConn,
+        dbKey: localCompanyDbKey,
+      );
+
+      await _ensureSequenceParityBestEffort(
+        sSettingsConn,
+        dbKey: localSettingsDbKey,
+        desiredParity: _localSequenceParity,
+      );
+      await _ensureSequenceParityBestEffort(
+        sCompanyConn,
+        dbKey: localCompanyDbKey,
+        desiredParity: _localSequenceParity,
+      );
+
+      // 1) Offline-first delta: DB içi outbox kuyruğunu oku (hızlı, idempotent).
+      final settingsOutboxReady = await _isDeltaOutboxOperational(
+        sSettingsConn,
+        dbKey: localSettingsDbKey,
+      );
+      final companyOutboxReady = await _isDeltaOutboxOperational(
+        sCompanyConn,
+        dbKey: localCompanyDbKey,
+      );
+
+      final outboxItems = <_DeltaOutboxItem>[];
+      if (settingsOutboxReady) {
+        final rows = await _readDeltaOutbox(sSettingsConn);
+        outboxItems.addAll(
+          rows.map(
+            (r) => _DeltaOutboxItem(
+              source: sSettingsConn,
+              sourceLabel: 'settings',
+              row: r,
+            ),
+          ),
+        );
+      }
+      if (companyOutboxReady) {
+        final rows = await _readDeltaOutbox(sCompanyConn);
+        outboxItems.addAll(
+          rows.map(
+            (r) => _DeltaOutboxItem(
+              source: sCompanyConn,
+              sourceLabel: 'company',
+              row: r,
+            ),
+          ),
+        );
+      }
+      outboxItems.sort((a, b) => a.row.touchedAt.compareTo(b.row.touchedAt));
+
+      // 2) Geriye dönük fallback (outbox altyapısı yoksa): pg_stat + timestamp delta.
+      final fallbackChangedTables =
+          (!settingsOutboxReady && !companyOutboxReady)
+              ? <String>{
+                  ...await _detectChangedTables(
+                    conn: sSettingsConn,
+                    prev: _deltaSettingsModsByTable,
+                  ),
+                  ...await _detectChangedTables(
+                    conn: sCompanyConn,
+                    prev: _deltaCompanyModsByTable,
+                  ),
+                }
+              : <String>{};
+
+      if (outboxItems.isEmpty && fallbackChangedTables.isEmpty) {
+        return VeritabaniDeltaSenkronRapor(
+          tabloSayisi: 0,
+          satirSayisi: 0,
+          tablolar: const <String>[],
+          elapsed: sw.elapsed,
+        );
+      }
+
+      tCloud = await _open(cloud);
+      final Connection tCloudConn = tCloud;
+
+      await _ensureTombstoneInfraBestEffort(tCloudConn, dbKey: cloudDbKey);
+      await _ensureDeltaTimestampInfraBestEffort(
+        tCloudConn,
+        dbKey: cloudDbKey,
+      );
+      await _ensureSequenceParityBestEffort(
+        tCloudConn,
+        dbKey: cloudDbKey,
+        desiredParity: _cloudSequenceParity,
+      );
+      // Best-effort: cloud outbox altyapısını hazırla (cloud->local akışında kullanılır).
+      await _isDeltaOutboxOperational(tCloudConn, dbKey: cloudDbKey);
+      await _setSyncApplyFlagBestEffort(
+        tCloudConn,
+        enabled: true,
+        debugContext: 'delta-local->cloud',
+      );
+
+      if (outboxItems.isNotEmpty) {
+        List<_DeltaOutboxItem> toApply = outboxItems;
+        if (maxTables > 0) {
+          final seen = <String>{};
+          final keepTables = <String>[];
+          for (final it in outboxItems) {
+            final t = it.row.tableName.trim();
+            if (t.isEmpty) continue;
+            if (seen.add(t)) {
+              keepTables.add(t);
+              if (keepTables.length >= maxTables) break;
+            }
+          }
+          final keepSet = keepTables.toSet();
+          toApply = <_DeltaOutboxItem>[
+            for (final it in outboxItems)
+              if (keepSet.contains(it.row.tableName.trim())) it,
+          ];
+        }
+
+        final apply = await _applyDeltaOutboxItemsToTarget(
+          tCloudConn,
+          items: toApply,
+          companyIdOverride: cloud.database,
+        );
+        appliedRows += apply.applied;
+        touchedTables.addAll(apply.tablesTouched);
+
+        for (final it in apply.succeeded) {
+          await _ackDeltaOutboxRow(it.source, row: it.row);
+        }
+        for (final f in apply.failed) {
+          await _markDeltaOutboxRowFailed(
+            f.item.source,
+            row: f.item.row,
+            error: f.error,
+          );
+        }
+      }
+
+      var copiedRows = 0;
+      if (fallbackChangedTables.isNotEmpty) {
+        final changedTables = <String>{...fallbackChangedTables};
+        changedTables.remove(_tombstonesTable);
+        changedTables.removeAll(_transferExcludedTables);
+
+        final allTables = changedTables.toList()..sort();
+        final limitedTables = (maxTables > 0 && allTables.length > maxTables)
+            ? allTables.take(maxTables).toList()
+            : allTables;
+
+        final ordered = await _topologicalInsertOrder(tCloudConn, limitedTables);
+
+        for (final table in ordered) {
+          final targetCols = await _columns(tCloudConn, table);
+          if (targetCols.isEmpty) continue;
+
+          final sources = <_DbSource>[];
+          if (await _tableExistsCached(sSettingsConn, table)) {
+            sources.add(_DbSource(sSettingsConn, 'settings'));
+          }
+          if (await _tableExistsCached(sCompanyConn, table)) {
+            sources.add(_DbSource(sCompanyConn, 'company'));
+          }
+          if (sources.isEmpty) continue;
+
+          final copied = await _copyTableFromMultipleSources(
+            sources: sources,
+            target: tCloudConn,
+            table: table,
+            tip: VeritabaniAktarimTipi.birlestir,
+            companyIdOverride: cloud.database,
+            deltaSince: effectiveSince,
+          );
+
+          if (copied > 0) {
+            touchedTables.add(table);
+          }
+          copiedRows += copied;
+        }
+      }
+
+      // DELETE senkronu: Yerelden gelen tombstone'ları buluta yaz ve hedefte sil.
+      await _syncTombstonesLocalToCloud(
+        localSettings: sSettingsConn,
+        localCompany: sCompanyConn,
+        cloud: tCloudConn,
+        since: effectiveSince,
+      );
+
+      appliedRows += copiedRows;
+
+      if (touchedTables.isNotEmpty) {
+        await _fixSequences(
+          tCloudConn,
+          touchedTables.toList(),
+          desiredParity: _cloudSequenceParity,
+        );
+      }
+
+      final list = touchedTables.toList()..sort();
+      return VeritabaniDeltaSenkronRapor(
+        tabloSayisi: list.length,
+        satirSayisi: appliedRows,
+        tablolar: list,
+        elapsed: sw.elapsed,
+      );
+    } finally {
+      sw.stop();
+      await _safeClose(sSettings);
+      await _safeClose(sCompany);
+      await _safeClose(tCloud);
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Hybrid: Delta Sync (Cloud -> Local)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  Future<VeritabaniDeltaSenkronRapor> deltaSenkronBulutYerel({
+    required String localHost,
+    required String localCompanyDb,
+    required DateTime since,
+    Duration overlap = const Duration(minutes: 2),
+    int maxTables = 0,
+  }) async {
+    _resetRunCaches();
+
+    final cloud = _buildCloudConnection();
+    if (cloud == null) {
+      throw StateError('Bulut bağlantı bilgileri hazır değil.');
+    }
+
+    final cloudDbKey = 'cloud://${cloud.host}:${cloud.port}/${cloud.database}';
+    final cloudKey = '${cloud.host}:${cloud.port}/${cloud.database}';
+    if (_deltaCloudKey != cloudKey) {
+      _deltaCloudKey = cloudKey;
+      _deltaCloudModsByTable.clear();
+    }
+
+    final settingsDb = _localSettingsDatabaseName();
+    final effectiveSince = since.subtract(overlap);
+
+    final normalizedHost =
+        localHost.trim().isEmpty ? '127.0.0.1' : localHost.trim();
+    final localSettings =
+        _buildLocalConnection(host: normalizedHost, database: settingsDb);
+    final localCompany = _buildLocalConnection(
+      host: normalizedHost,
+      database: localCompanyDb,
+    );
+    final localSettingsDbKey =
+        'local://$normalizedHost:${localSettings.port}/$settingsDb';
+    final localCompanyDbKey =
+        'local://$normalizedHost:${localCompany.port}/$localCompanyDb';
+
+    Connection? sCloud;
+    Connection? tSettings;
+    Connection? tCompany;
+
+    final sw = Stopwatch()..start();
+    var appliedRows = 0;
+    final touchedTables = <String>{};
+
+    try {
+      sCloud = await _open(cloud);
+      tSettings = await _open(localSettings);
+      tCompany = await _open(localCompany);
+
+      final Connection sCloudConn = sCloud;
+      final Connection tSettingsConn = tSettings;
+      final Connection tCompanyConn = tCompany;
+
+      await _ensureTombstoneInfraBestEffort(sCloudConn, dbKey: cloudDbKey);
+      await _ensureTombstoneInfraBestEffort(
+        tSettingsConn,
+        dbKey: localSettingsDbKey,
+      );
+      await _ensureTombstoneInfraBestEffort(
+        tCompanyConn,
+        dbKey: localCompanyDbKey,
+      );
+
+      await _ensureDeltaTimestampInfraBestEffort(sCloudConn, dbKey: cloudDbKey);
+      await _ensureDeltaTimestampInfraBestEffort(
+        tSettingsConn,
+        dbKey: localSettingsDbKey,
+      );
+      await _ensureDeltaTimestampInfraBestEffort(
+        tCompanyConn,
+        dbKey: localCompanyDbKey,
+      );
+
+      await _ensureSequenceParityBestEffort(
+        sCloudConn,
+        dbKey: cloudDbKey,
+        desiredParity: _cloudSequenceParity,
+      );
+      await _ensureSequenceParityBestEffort(
+        tSettingsConn,
+        dbKey: localSettingsDbKey,
+        desiredParity: _localSequenceParity,
+      );
+      await _ensureSequenceParityBestEffort(
+        tCompanyConn,
+        dbKey: localCompanyDbKey,
+        desiredParity: _localSequenceParity,
+      );
+
+      await _setSyncApplyFlagBestEffort(
+        tSettingsConn,
+        enabled: true,
+        debugContext: 'delta-cloud->local(settings)',
+      );
+      await _setSyncApplyFlagBestEffort(
+        tCompanyConn,
+        enabled: true,
+        debugContext: 'delta-cloud->local(company)',
+      );
+
+      final settingsTables = (await _listTables(tSettingsConn)).toSet();
+      final companyTables = (await _listTables(tCompanyConn)).toSet();
+
+      // 1) Hızlı delta: cloud outbox kuyruğunu yerele uygula.
+      final cloudOutboxReady = await _isDeltaOutboxOperational(
+        sCloudConn,
+        dbKey: cloudDbKey,
+      );
+
+      final outboxItems = <_DeltaOutboxItem>[];
+      if (cloudOutboxReady) {
+        final rows = await _readDeltaOutbox(sCloudConn);
+        outboxItems.addAll(
+          rows.map(
+            (r) => _DeltaOutboxItem(
+              source: sCloudConn,
+              sourceLabel: 'cloud',
+              row: r,
+            ),
+          ),
+        );
+      }
+      outboxItems.sort((a, b) => a.row.touchedAt.compareTo(b.row.touchedAt));
+
+      if (outboxItems.isNotEmpty) {
+        List<_DeltaOutboxItem> filteredItems = outboxItems;
+        if (maxTables > 0) {
+          final seen = <String>{};
+          final keepTables = <String>[];
+          for (final it in outboxItems) {
+            final t = it.row.tableName.trim();
+            if (t.isEmpty) continue;
+            if (!settingsTables.contains(t) && !companyTables.contains(t)) {
+              continue;
+            }
+            if (seen.add(t)) {
+              keepTables.add(t);
+              if (keepTables.length >= maxTables) break;
+            }
+          }
+          final keepSet = keepTables.toSet();
+          filteredItems = <_DeltaOutboxItem>[
+            for (final it in outboxItems)
+              if (keepSet.contains(it.row.tableName.trim())) it,
+          ];
+        }
+
+        final itemsForSettings = <_DeltaOutboxItem>[
+          for (final it in filteredItems)
+            if (settingsTables.contains(it.row.tableName.trim())) it,
+        ];
+        final itemsForCompany = <_DeltaOutboxItem>[
+          for (final it in filteredItems)
+            if (companyTables.contains(it.row.tableName.trim())) it,
+        ];
+
+        final settingsApply = await _applyDeltaOutboxItemsToTarget(
+          tSettingsConn,
+          items: itemsForSettings,
+          companyIdOverride: localCompanyDb,
+        );
+        final companyApply = await _applyDeltaOutboxItemsToTarget(
+          tCompanyConn,
+          items: itemsForCompany,
+          companyIdOverride: localCompanyDb,
+        );
+
+        appliedRows += settingsApply.applied + companyApply.applied;
+        touchedTables
+          ..addAll(settingsApply.tablesTouched)
+          ..addAll(companyApply.tablesTouched);
+
+        if (settingsApply.tablesTouched.isNotEmpty) {
+          await _fixSequences(
+            tSettingsConn,
+            settingsApply.tablesTouched.toList(),
+            desiredParity: _localSequenceParity,
+          );
+        }
+        if (companyApply.tablesTouched.isNotEmpty) {
+          await _fixSequences(
+            tCompanyConn,
+            companyApply.tablesTouched.toList(),
+            desiredParity: _localSequenceParity,
+          );
+        }
+
+        String idOf(_DeltaOutboxItem it) =>
+            '${it.row.tableName}|${it.row.pkHash}|${it.row.touchedAt.toIso8601String()}|${it.row.action}';
+
+        final succeededSettings = <String>{
+          for (final it in settingsApply.succeeded) idOf(it),
+        };
+        final succeededCompany = <String>{
+          for (final it in companyApply.succeeded) idOf(it),
+        };
+        final failuresById = <String, String>{};
+        for (final f in [...settingsApply.failed, ...companyApply.failed]) {
+          failuresById[idOf(f.item)] = f.error;
+        }
+
+        for (final it in filteredItems) {
+          final table = it.row.tableName.trim();
+          final needSettings = settingsTables.contains(table);
+          final needCompany = companyTables.contains(table);
+
+          if (!needSettings && !needCompany) {
+            await _ackDeltaOutboxRow(sCloudConn, row: it.row);
+            continue;
+          }
+
+          final okSettings =
+              !needSettings || succeededSettings.contains(idOf(it));
+          final okCompany = !needCompany || succeededCompany.contains(idOf(it));
+          if (okSettings && okCompany) {
+            await _ackDeltaOutboxRow(sCloudConn, row: it.row);
+          } else {
+            await _markDeltaOutboxRowFailed(
+              sCloudConn,
+              row: it.row,
+              error: failuresById[idOf(it)] ?? 'apply_failed',
+            );
+          }
+        }
+      }
+
+      // 2) Fallback delta (outbox altyapısı yoksa): pg_stat tabanlı tespit + timestamp delta kopyalama.
+      var copiedRows = 0;
+      final copiedTables = <String>{};
+      final copiedSettingsTables = <String>[];
+      final copiedCompanyTables = <String>[];
+
+      if (!cloudOutboxReady) {
+        final changedTables = await _detectChangedTables(
+          conn: sCloudConn,
+          prev: _deltaCloudModsByTable,
+        );
+
+        // Tombstone tablosunu "veri" gibi delta kopyalamayız; ayrı akışta işleriz.
+        final effectiveChanged = <String>{
+          for (final t in changedTables)
+            if (t != _tombstonesTable &&
+                !_transferExcludedTables.contains(t.trim().toLowerCase()))
+              t,
+        };
+
+        final allTables = <String>[
+          for (final t in effectiveChanged)
+            if (settingsTables.contains(t) || companyTables.contains(t)) t,
+        ]..sort();
+
+        if (allTables.isNotEmpty) {
+          final limitedTables =
+              (maxTables > 0 && allTables.length > maxTables)
+                  ? allTables.take(maxTables).toList()
+                  : allTables;
+
+          final ordered =
+              await _topologicalInsertOrder(sCloudConn, limitedTables);
+
+          for (final table in ordered) {
+            if (settingsTables.contains(table)) {
+              final copied = await _copyTableFromMultipleSources(
+                sources: <_DbSource>[_DbSource(sCloudConn, 'cloud')],
+                target: tSettingsConn,
+                table: table,
+                tip: VeritabaniAktarimTipi.birlestir,
+                companyIdOverride: localCompanyDb,
+                deltaSince: effectiveSince,
+              );
+              if (copied > 0) {
+                copiedTables.add(table);
+                copiedSettingsTables.add(table);
+                touchedTables.add(table);
+              }
+              copiedRows += copied;
+            }
+
+            if (companyTables.contains(table)) {
+              final copied = await _copyTableFromMultipleSources(
+                sources: <_DbSource>[_DbSource(sCloudConn, 'cloud')],
+                target: tCompanyConn,
+                table: table,
+                tip: VeritabaniAktarimTipi.birlestir,
+                companyIdOverride: localCompanyDb,
+                deltaSince: effectiveSince,
+              );
+              if (copied > 0) {
+                copiedTables.add(table);
+                copiedCompanyTables.add(table);
+                touchedTables.add(table);
+              }
+              copiedRows += copied;
+            }
+          }
+
+          if (copiedSettingsTables.isNotEmpty) {
+            await _fixSequences(
+              tSettingsConn,
+              copiedSettingsTables,
+              desiredParity: _localSequenceParity,
+            );
+          }
+          if (copiedCompanyTables.isNotEmpty) {
+            await _fixSequences(
+              tCompanyConn,
+              copiedCompanyTables,
+              desiredParity: _localSequenceParity,
+            );
+          }
+        }
+      }
+
+      // DELETE senkronu: Buluttaki tombstone'ları yerele uygula (best-effort).
+      await _syncTombstonesCloudToLocal(
+        cloud: sCloudConn,
+        localSettings: tSettingsConn,
+        localCompany: tCompanyConn,
+        settingsTables: settingsTables,
+        companyTables: companyTables,
+        since: effectiveSince,
+      );
+
+      appliedRows += copiedRows;
+
+      final list = touchedTables.toList()..sort();
+      return VeritabaniDeltaSenkronRapor(
+        tabloSayisi: list.length,
+        satirSayisi: appliedRows,
+        tablolar: list,
+        elapsed: sw.elapsed,
+      );
+    } finally {
+      sw.stop();
+      await _safeClose(sCloud);
+      await _safeClose(tSettings);
+      await _safeClose(tCompany);
+    }
   }
 
   // ──────────────────────────────────────────────────────────────────────────
@@ -409,7 +1076,11 @@ class VeritabaniAktarimServisi {
         }
 
         emit('sequences');
-        await _fixSequences(tCloudConn, tables);
+        await _fixSequences(
+          tCloudConn,
+          tables,
+          desiredParity: _cloudSequenceParity,
+        );
         doneSteps++;
         emit('sequences');
 
@@ -645,13 +1316,21 @@ class VeritabaniAktarimServisi {
 
         if (settingsList.isNotEmpty) {
           emit('settings.sequences');
-          await _fixSequences(tSettingsConn, settingsList);
+          await _fixSequences(
+            tSettingsConn,
+            settingsList,
+            desiredParity: _localSequenceParity,
+          );
           doneSteps++;
           emit('settings.sequences');
         }
         if (companyList.isNotEmpty) {
           emit('company.sequences');
-          await _fixSequences(tCompanyConn, companyList);
+          await _fixSequences(
+            tCompanyConn,
+            companyList,
+            desiredParity: _localSequenceParity,
+          );
           doneSteps++;
           emit('company.sequences');
         }
@@ -1240,18 +1919,23 @@ class VeritabaniAktarimServisi {
     }
   }
 
-  Future<void> _copyTableFromMultipleSources({
+  Future<int> _copyTableFromMultipleSources({
     required List<_DbSource> sources,
     required Connection target,
     required String table,
     required VeritabaniAktarimTipi tip,
     String? companyIdOverride,
+    DateTime? deltaSince,
   }) async {
+    final normalizedTable = table.trim().toLowerCase();
+    if (_transferExcludedTables.contains(normalizedTable)) return 0;
+
     // Target şemaya göre conflict kolonlarını al (PK)
     final conflictCols = await _primaryKeyColumns(target, table);
     final targetCols = await _columns(target, table);
-    if (targetCols.isEmpty) return;
+    if (targetCols.isEmpty) return 0;
 
+    var totalCopied = 0;
     for (final src in sources) {
       final srcCols = await _columns(src.conn, table);
       if (srcCols.isEmpty) continue;
@@ -1262,7 +1946,26 @@ class VeritabaniAktarimServisi {
       ];
       if (cols.isEmpty) continue;
 
-      await _copyTableData(
+      final where = deltaSince == null
+          ? null
+          : await _buildDeltaWhereClause(
+              source: src.conn,
+              table: table,
+              since: deltaSince,
+            );
+
+      // Delta senkron: timestamp kolonu yoksa küçük tabloları full kopyalamaya izin ver.
+      // Büyük tablolar için filtre yoksa atla (performans + yanlış senkron riskini azalt).
+      if (deltaSince != null && where == null) {
+        final allowlisted = _deltaFullCopyAllowlistNoTimestamps.contains(table);
+        if (!allowlisted) {
+          final est = await _estimateRowCount(src.conn, table);
+          // reltuples=0 olabilir (istatistik yok). Bu durumda riskli: tabloyu atla.
+          if (est == null || est <= 0 || est > 5000) continue;
+        }
+      }
+
+      totalCopied += await _copyTableData(
         source: src.conn,
         sourceLabel: src.label,
         target: target,
@@ -1272,11 +1975,15 @@ class VeritabaniAktarimServisi {
         // Tam aktarımda hedef tablo zaten temiz; yine de kaynaklar arası çakışmada update faydalı.
         upsert: tip == VeritabaniAktarimTipi.birlestir || sources.length > 1,
         companyIdOverride: companyIdOverride,
+        whereClause: where?.sql,
+        whereParams: where?.params,
       );
     }
+
+    return totalCopied;
   }
 
-  Future<void> _copyTableData({
+  Future<int> _copyTableData({
     required Connection source,
     required String sourceLabel,
     required Connection target,
@@ -1285,6 +1992,8 @@ class VeritabaniAktarimServisi {
     required List<String> conflictColumns,
     required bool upsert,
     String? companyIdOverride,
+    String? whereClause,
+    Map<String, dynamic>? whereParams,
   }) async {
     // Cursor ile batch oku, batch insert.
     final sw = Stopwatch()..start();
@@ -1293,7 +2002,7 @@ class VeritabaniAktarimServisi {
     // Parametre limiti (65535) ve SQL boyutu için güvenli batch boyutu.
     final batchSize = _safeBatchSize(columns.length);
     final selectSql =
-        'SELECT ${columns.map(_qi).join(', ')} FROM ${_qt(table)}';
+        'SELECT ${columns.map(_qi).join(', ')} FROM ${_qt(table)} ${whereClause ?? ''}';
 
     _log(
       'Copy start: $sourceLabel -> target, table=$table, cols=${columns.length}, batchSize=$batchSize',
@@ -1301,9 +2010,12 @@ class VeritabaniAktarimServisi {
 
     await source.execute('BEGIN');
     try {
-      await source.execute(
-        'DECLARE $cursorName NO SCROLL CURSOR FOR $selectSql',
-      );
+      final declareSql = 'DECLARE $cursorName NO SCROLL CURSOR FOR $selectSql';
+      if (whereParams != null && whereParams.isNotEmpty) {
+        await source.execute(Sql.named(declareSql), parameters: whereParams);
+      } else {
+        await source.execute(declareSql);
+      }
 
       while (true) {
         final batch = await source.execute(
@@ -1341,6 +2053,7 @@ class VeritabaniAktarimServisi {
       _log(
         'Copy done: $sourceLabel -> target, table=$table, rows=$totalRows, elapsed=${sw.elapsedMilliseconds}ms',
       );
+      return totalRows;
     } catch (e) {
       try {
         await source.execute('ROLLBACK');
@@ -1367,7 +2080,7 @@ class VeritabaniAktarimServisi {
     final params = <String, dynamic>{};
     final sb = StringBuffer();
     sb.write(
-      'INSERT INTO ${_qt(table)} (${columns.map(_qi).join(', ')}) '
+      'INSERT INTO ${_qt(table)} AS t (${columns.map(_qi).join(', ')}) '
       'OVERRIDING SYSTEM VALUE VALUES ',
     );
 
@@ -1398,10 +2111,24 @@ class VeritabaniAktarimServisi {
         if (updateCols.isEmpty) {
           sb.write('DO NOTHING');
         } else {
+          final hasUpdatedAt = updateCols.contains('updated_at');
           sb.write('DO UPDATE SET ');
           sb.write(
             updateCols.map((c) => '${_qi(c)} = EXCLUDED.${_qi(c)}').join(', '),
           );
+          // No-op update'leri atla (ping-pong döngüsünü ve gereksiz yazımları engeller).
+          final distinctExpr = updateCols
+              .map((c) => 't.${_qi(c)} IS DISTINCT FROM EXCLUDED.${_qi(c)}')
+              .join(' OR ');
+          sb.write(' WHERE (');
+          sb.write(distinctExpr);
+          sb.write(')');
+          if (hasUpdatedAt) {
+            // Hibrit çatışma koruması: daha yeni kaydı daha eski veriyle ezme.
+            sb.write(
+              ' AND (t."updated_at" IS NULL OR (EXCLUDED."updated_at" IS NOT NULL AND EXCLUDED."updated_at" >= t."updated_at"))',
+            );
+          }
         }
       }
     } else {
@@ -1462,6 +2189,171 @@ class VeritabaniAktarimServisi {
         .map((r) => (r[0] as String?)?.trim() ?? '')
         .where((c) => c.isNotEmpty)
         .toList();
+  }
+
+  Future<bool> _tableExistsCached(Connection conn, String table) async {
+    // _columns zaten empty döner ama info_schema sorgusu pahalı olabilir; burada hafif kontrol yap.
+    // NOT: pg_class sadece public şeması.
+    try {
+      final result = await conn.execute(
+        Sql.named('''
+          SELECT 1
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public'
+            AND c.relname = @t
+            AND c.relkind IN ('r', 'p')
+          LIMIT 1
+        '''),
+        parameters: {'t': table},
+      );
+      return result.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<Map<String, _ColumnMeta>> _columnMetas(
+    Connection conn,
+    String table,
+  ) async {
+    final result = await conn.execute(
+      Sql.named('''
+        SELECT column_name, column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = @t
+      '''),
+      parameters: {'t': table},
+    );
+
+    final map = <String, _ColumnMeta>{};
+    for (final r in result) {
+      final name = (r[0] as String?)?.trim() ?? '';
+      if (name.isEmpty) continue;
+      final def = (r[1] as String?)?.trim();
+      map[name] = _ColumnMeta(name: name, defaultExpr: def);
+    }
+    return map;
+  }
+
+  bool _isDefaultNow(String? expr) {
+    final v = (expr ?? '').toLowerCase();
+    return v.contains('current_timestamp') || v.contains('now()');
+  }
+
+  Future<_DeltaWhere?> _buildDeltaWhereClause({
+    required Connection source,
+    required String table,
+    required DateTime since,
+  }) async {
+    final metas = await _columnMetas(source, table);
+    final hasUpdated = metas.containsKey('updated_at');
+    final hasCreated = metas.containsKey('created_at');
+
+    if (hasUpdated && hasCreated) {
+      return _DeltaWhere(
+        sql:
+            'WHERE (${_qi('updated_at')} >= @since OR (${_qi('updated_at')} IS NULL AND ${_qi('created_at')} >= @since))',
+        params: {'since': since},
+      );
+    }
+    if (hasUpdated) {
+      return _DeltaWhere(
+        sql: 'WHERE ${_qi('updated_at')} >= @since',
+        params: {'since': since},
+      );
+    }
+    if (hasCreated) {
+      return _DeltaWhere(
+        sql: 'WHERE ${_qi('created_at')} >= @since',
+        params: {'since': since},
+      );
+    }
+
+    // Bazı eski tablolarda created_at/updated_at yok; "date" default now ise best-effort kullan.
+    final dateMeta = metas['date'];
+    if (dateMeta != null && _isDefaultNow(dateMeta.defaultExpr)) {
+      return _DeltaWhere(
+        sql: 'WHERE ${_qi('date')} >= @since',
+        params: {'since': since},
+      );
+    }
+
+    return null;
+  }
+
+  Future<int?> _estimateRowCount(Connection conn, String table) async {
+    try {
+      final result = await conn.execute(
+        Sql.named('''
+          SELECT c.reltuples
+          FROM pg_class c
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public' AND c.relname = @t
+          LIMIT 1
+        '''),
+        parameters: {'t': table},
+      );
+      if (result.isEmpty) return null;
+      final v = result.first[0];
+      if (v is int) return v;
+      if (v is double) return v.round();
+      if (v is num) return v.toInt();
+      return int.tryParse(v.toString());
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<Set<String>> _detectChangedTables({
+    required Connection conn,
+    required Map<String, int> prev,
+  }) async {
+    try {
+      final rows = await conn.execute('''
+        SELECT relname, (n_tup_ins + n_tup_upd + n_tup_del) AS mods
+        FROM pg_stat_user_tables
+      ''');
+
+      final next = <String, int>{};
+      final changed = <String>{};
+
+      for (final r in rows) {
+        final name = (r[0] as String?)?.trim() ?? '';
+        if (name.isEmpty) continue;
+        final raw = r[1];
+        final mods = raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+        next[name] = mods;
+        final before = prev[name];
+        if (before == null) {
+          if (mods > 0) changed.add(name);
+        } else if (mods != before) {
+          changed.add(name);
+        }
+      }
+
+      prev
+        ..clear()
+        ..addAll(next);
+
+      return changed;
+    } catch (e) {
+      // pg_stat_user_tables okunamazsa: sessizce "0 değişti" demek, eksik senkron üretir.
+      // Best-effort fallback: tüm tabloları değişti kabul edip timestamp delta ile ilerle.
+      if (kDebugMode) {
+        debugPrint('DBAktarim: pg_stat_user_tables okunamadı: $e');
+      }
+      try {
+        final tables = await _listTables(conn);
+        prev.clear();
+        return tables.toSet();
+      } catch (inner) {
+        if (kDebugMode) {
+          debugPrint('DBAktarim: changed-table fallback listTables failed: $inner');
+        }
+        return const <String>{};
+      }
+    }
   }
 
   Future<Map<String, String>> _targetColumnUdtNames(
@@ -1782,7 +2674,79 @@ class VeritabaniAktarimServisi {
     }
   }
 
-  Future<void> _fixSequences(Connection conn, List<String> tables) async {
+  Future<void> _ensureSequenceParityBestEffort(
+    Connection conn, {
+    required String dbKey,
+    required int desiredParity,
+  }) async {
+    if (_sequenceParityReadyByDbKey.contains(dbKey)) return;
+    final p = desiredParity == 0 ? 0 : 1;
+    try {
+      await conn.execute('''
+        DO \$\$
+        DECLARE
+          r RECORD;
+          maxv BIGINT;
+          nextv BIGINT;
+          seq_fqn TEXT;
+        BEGIN
+          FOR r IN
+            SELECT
+              seq.relname AS seq_name,
+              tab.relname AS table_name,
+              att.attname AS column_name
+            FROM pg_class seq
+            JOIN pg_depend dep ON dep.objid = seq.oid
+            JOIN pg_class tab ON tab.oid = dep.refobjid
+            JOIN pg_attribute att
+              ON att.attrelid = tab.oid
+             AND att.attnum = dep.refobjsubid
+            JOIN pg_namespace ns_seq ON ns_seq.oid = seq.relnamespace
+            JOIN pg_namespace ns_tab ON ns_tab.oid = tab.relnamespace
+            WHERE seq.relkind = 'S'
+              AND ns_seq.nspname = 'public'
+              AND ns_tab.nspname = 'public'
+          LOOP
+            BEGIN
+              EXECUTE format(
+                'SELECT COALESCE(MAX(%I), 0) FROM public.%I',
+                r.column_name,
+                r.table_name
+              ) INTO maxv;
+
+              nextv := maxv + 1;
+              IF mod(nextv, 2) <> $p THEN
+                nextv := nextv + 1;
+              END IF;
+
+              EXECUTE format('ALTER SEQUENCE public.%I INCREMENT BY 2', r.seq_name);
+
+              seq_fqn := format('%I.%I', 'public', r.seq_name);
+              EXECUTE format(
+                'SELECT setval(%L::regclass, %s, false)',
+                seq_fqn,
+                nextv
+              );
+            EXCEPTION WHEN others THEN
+              -- ignore
+            END;
+          END LOOP;
+        END
+        \$\$;
+      ''');
+      _sequenceParityReadyByDbKey.add(dbKey);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DBAktarim: Sequence parity ensure failed ($dbKey): $e');
+      }
+    }
+  }
+
+  Future<void> _fixSequences(
+    Connection conn,
+    List<String> tables, {
+    int? desiredParity,
+  }) async {
     if (tables.isEmpty) return;
     final tableSet = tables.toSet();
 
@@ -1812,13 +2776,1152 @@ class VeritabaniAktarimServisi {
       if (!tableSet.contains(table)) continue;
 
       try {
-        await conn.execute(
-          'SELECT setval(${_qs(seq)}, (SELECT COALESCE(MAX(${_qi(col)}), 0) FROM ${_qt(table)}) + 1, false)',
-        );
+        if (desiredParity == null) {
+          await conn.execute(
+            'SELECT setval(${_qs(seq)}, (SELECT COALESCE(MAX(${_qi(col)}), 0) FROM ${_qt(table)}) + 1, false)',
+          );
+        } else {
+          final maxResult = await conn.execute(
+            'SELECT COALESCE(MAX(${_qi(col)}), 0) FROM ${_qt(table)}',
+          );
+          final raw = maxResult.isNotEmpty ? maxResult.first[0] : 0;
+          final maxId = raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+          var next = maxId + 1;
+          final p = desiredParity == 0 ? 0 : 1;
+          if (next % 2 != p) next++;
+
+          await conn.execute('ALTER SEQUENCE public.${_qi(seq)} INCREMENT BY 2');
+          await conn.execute('SELECT setval(${_qs(seq)}, $next, false)');
+        }
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Sequence fix warning ($seq on $table.$col): $e');
         }
+      }
+    }
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Hybrid: DELETE sync via tombstones (sync_tombstones)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  Future<void> _ensureTombstoneInfraBestEffort(
+    Connection conn, {
+    required String dbKey,
+  }) async {
+    if (_tombstoneInfraReadyByDbKey.contains(dbKey)) return;
+    try {
+      await conn.execute('''
+        CREATE TABLE IF NOT EXISTS public.$_tombstonesTable (
+          id BIGSERIAL PRIMARY KEY,
+          table_name TEXT NOT NULL,
+          pk JSONB NOT NULL,
+          pk_hash TEXT NOT NULL,
+          deleted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+      await conn.execute(
+        'CREATE UNIQUE INDEX IF NOT EXISTS ux_sync_tombstones_table_pk ON public.$_tombstonesTable (table_name, pk_hash)',
+      );
+      await conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sync_tombstones_deleted_at ON public.$_tombstonesTable (deleted_at)',
+      );
+
+      await conn.execute('''
+        CREATE OR REPLACE FUNCTION public.$_tombstoneTriggerFn()
+        RETURNS trigger AS \$\$
+        DECLARE
+          pk_cols TEXT[];
+          col TEXT;
+          pk JSONB := '{}'::jsonb;
+          row JSONB;
+        BEGIN
+          -- Senkron uygulaması sırasında (remote tombstone apply) tekrar tombstone üretme.
+          IF COALESCE(current_setting('$_syncApplyGuc', true), '') = '1' THEN
+            RETURN OLD;
+          END IF;
+
+          -- Dahili tabloları asla tombstone'lama.
+          IF TG_TABLE_SCHEMA <> 'public' THEN
+            RETURN OLD;
+          END IF;
+          IF TG_TABLE_NAME = '$_tombstonesTable' OR TG_TABLE_NAME = 'sync_outbox' OR TG_TABLE_NAME = '$_deltaOutboxTable' THEN
+            RETURN OLD;
+          END IF;
+
+          row := to_jsonb(OLD);
+
+          SELECT array_agg(a.attname ORDER BY a.attnum)
+          INTO pk_cols
+          FROM pg_index i
+          JOIN pg_attribute a
+            ON a.attrelid = i.indrelid
+           AND a.attnum = ANY(i.indkey)
+          WHERE i.indrelid = TG_RELID
+            AND i.indisprimary;
+
+          IF pk_cols IS NULL OR array_length(pk_cols, 1) IS NULL THEN
+            RETURN OLD;
+          END IF;
+
+          FOREACH col IN ARRAY pk_cols LOOP
+            pk := pk || jsonb_build_object(col, row -> col);
+          END LOOP;
+
+          INSERT INTO public.$_tombstonesTable (table_name, pk, pk_hash, deleted_at)
+          VALUES (TG_TABLE_NAME, pk, md5(pk::text), CURRENT_TIMESTAMP)
+          ON CONFLICT (table_name, pk_hash) DO UPDATE
+            SET deleted_at = GREATEST(public.$_tombstonesTable.deleted_at, EXCLUDED.deleted_at),
+                pk = EXCLUDED.pk;
+
+          RETURN OLD;
+        END;
+        \$\$ LANGUAGE plpgsql;
+      ''');
+
+      // Trigger'ları sadece base tablolara kur (partition child tablolarını dışarıda bırak).
+      await conn.execute('''
+        DO \$\$
+        DECLARE
+          r RECORD;
+        BEGIN
+          FOR r IN
+            SELECT c.oid AS oid, c.relname AS name
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public'
+              AND c.relkind IN ('r', 'p')
+              AND c.relispartition = false
+              AND c.relname NOT IN ('$_tombstonesTable', 'sync_outbox', '$_deltaOutboxTable')
+          LOOP
+            IF NOT EXISTS (
+              SELECT 1
+              FROM pg_trigger t
+              WHERE t.tgname = '$_tombstoneTriggerName'
+                AND t.tgrelid = r.oid
+            ) THEN
+              EXECUTE format(
+                'CREATE TRIGGER %s AFTER DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.%s()',
+                '$_tombstoneTriggerName',
+                r.name,
+                '$_tombstoneTriggerFn'
+              );
+            END IF;
+          END LOOP;
+        END
+        \$\$;
+      ''');
+
+      _tombstoneInfraReadyByDbKey.add(dbKey);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DBAktarim: Tombstone infra ensure failed ($dbKey): $e');
+      }
+    }
+  }
+
+  Future<void> _ensureDeltaOutboxInfraBestEffort(
+    Connection conn, {
+    required String dbKey,
+  }) async {
+    if (_deltaOutboxInfraReadyByDbKey.contains(dbKey)) return;
+    try {
+      await conn.execute('''
+        CREATE TABLE IF NOT EXISTS public.$_deltaOutboxTable (
+          table_name TEXT NOT NULL,
+          pk JSONB NOT NULL,
+          pk_hash TEXT NOT NULL,
+          action TEXT NOT NULL, -- 'upsert' | 'delete'
+          touched_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          acked_at TIMESTAMPTZ,
+          retry_count INTEGER NOT NULL DEFAULT 0,
+          last_error TEXT,
+          dead BOOLEAN NOT NULL DEFAULT false,
+          PRIMARY KEY (table_name, pk_hash)
+        )
+      ''');
+      await conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sync_delta_outbox_touched_at ON public.$_deltaOutboxTable (touched_at)',
+      );
+      await conn.execute(
+        'CREATE INDEX IF NOT EXISTS idx_sync_delta_outbox_acked_at ON public.$_deltaOutboxTable (acked_at)',
+      );
+
+      await conn.execute('''
+        CREATE OR REPLACE FUNCTION public.$_deltaOutboxTriggerFn()
+        RETURNS trigger AS \$\$
+        DECLARE
+          pk_cols TEXT[];
+          col TEXT;
+          pk JSONB := '{}'::jsonb;
+          row JSONB;
+          v_action TEXT;
+        BEGIN
+          -- Senkron uygulanırken (remote -> local/cloud upsert/delete) outbox üretme.
+          IF COALESCE(current_setting('$_syncApplyGuc', true), '') = '1' THEN
+            IF TG_OP = 'DELETE' THEN
+              RETURN OLD;
+            END IF;
+            RETURN NEW;
+          END IF;
+
+          IF TG_TABLE_SCHEMA <> 'public' THEN
+            IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+            RETURN NEW;
+          END IF;
+
+          -- Dahili/derivatif tabloları asla delta outbox'a alma.
+          IF TG_TABLE_NAME IN (
+            '$_tombstonesTable',
+            '$_deltaOutboxTable',
+            'sync_outbox',
+            'table_counts',
+            'sequences',
+            'account_metadata'
+          ) THEN
+            IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+            RETURN NEW;
+          END IF;
+
+          v_action := CASE WHEN TG_OP = 'DELETE' THEN 'delete' ELSE 'upsert' END;
+          row := to_jsonb(CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END);
+
+          SELECT array_agg(a.attname ORDER BY a.attnum)
+          INTO pk_cols
+          FROM pg_index i
+          JOIN pg_attribute a
+            ON a.attrelid = i.indrelid
+           AND a.attnum = ANY(i.indkey)
+          WHERE i.indrelid = TG_RELID
+            AND i.indisprimary;
+
+          IF pk_cols IS NULL OR array_length(pk_cols, 1) IS NULL THEN
+            IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+            RETURN NEW;
+          END IF;
+
+          FOREACH col IN ARRAY pk_cols LOOP
+            pk := pk || jsonb_build_object(col, row -> col);
+          END LOOP;
+
+          INSERT INTO public.$_deltaOutboxTable (
+            table_name,
+            pk,
+            pk_hash,
+            action,
+            touched_at,
+            acked_at,
+            retry_count,
+            last_error,
+            dead
+          )
+          VALUES (
+            TG_TABLE_NAME,
+            pk,
+            md5(pk::text),
+            v_action,
+            CURRENT_TIMESTAMP,
+            NULL,
+            0,
+            NULL,
+            false
+          )
+          ON CONFLICT (table_name, pk_hash) DO UPDATE
+            SET pk = EXCLUDED.pk,
+                action = EXCLUDED.action,
+                touched_at = EXCLUDED.touched_at,
+                acked_at = NULL,
+                retry_count = 0,
+                last_error = NULL,
+                dead = false;
+
+          IF TG_OP = 'DELETE' THEN
+            RETURN OLD;
+          END IF;
+          RETURN NEW;
+        END;
+        \$\$ LANGUAGE plpgsql;
+      ''');
+
+      await conn.execute('''
+        DO \$\$
+        DECLARE
+          r RECORD;
+        BEGIN
+          FOR r IN
+            SELECT c.oid AS oid, c.relname AS name
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public'
+              AND c.relkind IN ('r', 'p')
+              AND c.relispartition = false
+              AND c.relname NOT IN (
+                '$_tombstonesTable',
+                '$_deltaOutboxTable',
+                'sync_outbox',
+                'table_counts',
+                'sequences',
+                'account_metadata'
+              )
+          LOOP
+            IF NOT EXISTS (
+              SELECT 1
+              FROM pg_trigger t
+              WHERE t.tgname = '$_deltaOutboxTriggerName'
+                AND t.tgrelid = r.oid
+            ) THEN
+              EXECUTE format(
+                'CREATE TRIGGER %s AFTER INSERT OR UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.%s()',
+                '$_deltaOutboxTriggerName',
+                r.name,
+                '$_deltaOutboxTriggerFn'
+              );
+            END IF;
+          END LOOP;
+        END
+        \$\$;
+      ''');
+
+      _deltaOutboxInfraReadyByDbKey.add(dbKey);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DBAktarim: Delta outbox infra ensure failed ($dbKey): $e');
+      }
+    }
+  }
+
+  Future<void> _ensureDeltaTimestampInfraBestEffort(
+    Connection conn, {
+    required String dbKey,
+  }) async {
+    if (_timestampInfraReadyByDbKey.contains(dbKey)) return;
+    try {
+      await conn.execute('''
+        CREATE OR REPLACE FUNCTION public.$_updatedAtTriggerFn()
+        RETURNS trigger AS \$\$
+        BEGIN
+          -- Senkron uygulanırken (remote -> local/cloud upsert) updated_at'ı bozma.
+          IF COALESCE(current_setting('$_syncApplyGuc', true), '') = '1' THEN
+            RETURN NEW;
+          END IF;
+          NEW.updated_at = CURRENT_TIMESTAMP;
+          RETURN NEW;
+        END;
+        \$\$ LANGUAGE plpgsql;
+      ''');
+
+      // Timestamp kolonları ve updated_at trigger'ı: best-effort kur.
+      await conn.execute('''
+        DO \$\$
+        DECLARE
+          r RECORD;
+        BEGIN
+          FOR r IN
+            SELECT c.oid AS oid, c.relname AS name
+            FROM pg_class c
+            JOIN pg_namespace n ON n.oid = c.relnamespace
+            WHERE n.nspname = 'public'
+              AND c.relkind IN ('r', 'p')
+              AND c.relispartition = false
+          LOOP
+            BEGIN
+              EXECUTE format(
+                'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS created_at TIMESTAMP',
+                r.name
+              );
+            EXCEPTION WHEN others THEN
+              -- ignore
+            END;
+            BEGIN
+              EXECUTE format(
+                'ALTER TABLE public.%I ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP',
+                r.name
+              );
+            EXCEPTION WHEN others THEN
+              -- ignore
+            END;
+            BEGIN
+              EXECUTE format(
+                'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP',
+                r.name
+              );
+            EXCEPTION WHEN others THEN
+              -- ignore
+            END;
+            BEGIN
+              EXECUTE format(
+                'ALTER TABLE public.%I ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP',
+                r.name
+              );
+            EXCEPTION WHEN others THEN
+              -- ignore
+            END;
+
+            BEGIN
+              IF NOT EXISTS (
+                SELECT 1
+                FROM pg_trigger t
+                WHERE t.tgname = '$_updatedAtTriggerName'
+                  AND t.tgrelid = r.oid
+              ) THEN
+                EXECUTE format(
+                  'CREATE TRIGGER %s BEFORE UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.%s()',
+                  '$_updatedAtTriggerName',
+                  r.name,
+                  '$_updatedAtTriggerFn'
+                );
+              END IF;
+            EXCEPTION WHEN others THEN
+              -- ignore
+            END;
+          END LOOP;
+        END
+        \$\$;
+      ''');
+
+      _timestampInfraReadyByDbKey.add(dbKey);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DBAktarim: Timestamp infra ensure failed ($dbKey): $e');
+      }
+    }
+  }
+
+  Future<bool> _isDeltaOutboxOperational(
+    Connection conn, {
+    required String dbKey,
+  }) async {
+    if (_deltaOutboxInfraReadyByDbKey.contains(dbKey)) return true;
+
+    await _ensureDeltaOutboxInfraBestEffort(conn, dbKey: dbKey);
+
+    final exists = await _tableExistsCached(conn, _deltaOutboxTable);
+    if (!exists) return false;
+
+    try {
+      final result = await conn.execute(
+        Sql.named('''
+          SELECT COUNT(*)::int
+          FROM pg_trigger t
+          JOIN pg_class c ON c.oid = t.tgrelid
+          JOIN pg_namespace n ON n.oid = c.relnamespace
+          WHERE n.nspname = 'public'
+            AND t.tgname = @name
+            AND NOT t.tgisinternal
+        '''),
+        parameters: {'name': _deltaOutboxTriggerName},
+      );
+      final raw = result.isNotEmpty ? result.first[0] : 0;
+      final count = raw is num ? raw.toInt() : int.tryParse('$raw') ?? 0;
+      final ok = count > 0;
+      if (ok) _deltaOutboxInfraReadyByDbKey.add(dbKey);
+      return ok;
+    } catch (_) {
+      // Trigger listesini okuyamazsak bile tablo varsa denemek daha güvenli.
+      _deltaOutboxInfraReadyByDbKey.add(dbKey);
+      return true;
+    }
+  }
+
+  Future<List<_DeltaOutboxRow>> _readDeltaOutbox(
+    Connection conn, {
+    int limit = 2000,
+  }) async {
+    try {
+      final result = await conn.execute(
+        Sql.named('''
+          SELECT table_name, pk, pk_hash, action, touched_at, retry_count, dead
+          FROM public.$_deltaOutboxTable
+          WHERE acked_at IS NULL AND dead = false
+          ORDER BY retry_count ASC, touched_at ASC
+          LIMIT @limit
+        '''),
+        parameters: {'limit': limit},
+      );
+
+      return result
+          .map((r) {
+            final table = (r[0] as String?)?.trim() ?? '';
+            final pk = r[1];
+            final hash = (r[2] as String?)?.trim() ?? '';
+            final action = (r[3] as String?)?.trim().toLowerCase() ?? '';
+            final touchedAt = r[4] is DateTime
+                ? (r[4] as DateTime)
+                : DateTime.tryParse(r[4]?.toString() ?? '');
+            final retry =
+                r[5] is num ? (r[5] as num).toInt() : int.tryParse('${r[5]}') ?? 0;
+            final dead = r[6] == true;
+            if (table.isEmpty ||
+                pk == null ||
+                hash.isEmpty ||
+                (action != 'upsert' && action != 'delete') ||
+                touchedAt == null) {
+              return null;
+            }
+            return _DeltaOutboxRow(
+              tableName: table,
+              pk: pk,
+              pkHash: hash,
+              action: action,
+              touchedAt: touchedAt,
+              retryCount: retry,
+              dead: dead,
+            );
+          })
+          .whereType<_DeltaOutboxRow>()
+          .toList();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DBAktarim: Delta outbox read failed: $e');
+      }
+      return const <_DeltaOutboxRow>[];
+    }
+  }
+
+  Future<void> _ackDeltaOutboxRow(
+    Connection source, {
+    required _DeltaOutboxRow row,
+  }) async {
+    try {
+      await source.execute(
+        Sql.named('''
+          UPDATE public.$_deltaOutboxTable
+          SET acked_at = CURRENT_TIMESTAMP
+          WHERE table_name = @t
+            AND pk_hash = @h
+            AND touched_at = @ts
+            AND acked_at IS NULL
+        '''),
+        parameters: {
+          't': row.tableName,
+          'h': row.pkHash,
+          'ts': row.touchedAt,
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DBAktarim: Delta outbox ack failed: $e');
+      }
+    }
+  }
+
+  Future<void> _markDeltaOutboxRowFailed(
+    Connection source, {
+    required _DeltaOutboxRow row,
+    required String error,
+    int maxRetry = 20,
+  }) async {
+    try {
+      await source.execute(
+        Sql.named('''
+          UPDATE public.$_deltaOutboxTable
+          SET retry_count = retry_count + 1,
+              last_error = @e,
+              dead = CASE WHEN retry_count + 1 >= @max THEN true ELSE dead END
+          WHERE table_name = @t
+            AND pk_hash = @h
+            AND touched_at = @ts
+            AND acked_at IS NULL
+        '''),
+        parameters: {
+          't': row.tableName,
+          'h': row.pkHash,
+          'ts': row.touchedAt,
+          'e': error,
+          'max': maxRetry,
+        },
+      );
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DBAktarim: Delta outbox fail mark failed: $e');
+      }
+    }
+  }
+
+  Future<List<_TombstoneRow>> _readTombstones(
+    Connection conn, {
+    required DateTime since,
+    int limit = 2000,
+    int afterId = 0,
+  }) async {
+    try {
+      final result = await conn.execute(
+        Sql.named('''
+          SELECT id, table_name, pk, pk_hash, deleted_at
+          FROM public.$_tombstonesTable
+          WHERE deleted_at >= @since AND id > @after
+          ORDER BY id ASC
+          LIMIT @limit
+        '''),
+        parameters: {
+          'since': since,
+          'after': afterId,
+          'limit': limit,
+        },
+      );
+
+      return result
+          .map((r) {
+            final id = int.tryParse(r[0]?.toString() ?? '') ?? 0;
+            final table = (r[1] as String?)?.trim() ?? '';
+            final pk = r[2];
+            final hash = (r[3] as String?)?.trim() ?? '';
+            final deletedAt = r[4] is DateTime
+                ? (r[4] as DateTime)
+                : DateTime.tryParse(r[4]?.toString() ?? '') ?? DateTime.now();
+            if (id <= 0 || table.isEmpty || hash.isEmpty || pk == null) {
+              return null;
+            }
+            return _TombstoneRow(
+              id: id,
+              tableName: table,
+              pk: pk,
+              pkHash: hash,
+              deletedAt: deletedAt,
+            );
+          })
+          .whereType<_TombstoneRow>()
+          .toList();
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DBAktarim: Tombstone read failed: $e');
+      }
+      return const <_TombstoneRow>[];
+    }
+  }
+
+  Future<void> _upsertTombstones(
+    Connection target, {
+    required List<_TombstoneRow> rows,
+  }) async {
+    if (rows.isEmpty) return;
+
+    const batchSize = 500;
+    for (var i = 0; i < rows.length; i += batchSize) {
+      final chunk = rows.sublist(i, (i + batchSize).clamp(0, rows.length));
+      final params = <String, dynamic>{};
+      final sb = StringBuffer();
+      sb.write(
+        'INSERT INTO public.$_tombstonesTable (table_name, pk, pk_hash, deleted_at) VALUES ',
+      );
+
+      for (var j = 0; j < chunk.length; j++) {
+        final t = chunk[j];
+        final tn = 't_$j';
+        final pk = 'pk_$j';
+        final h = 'h_$j';
+        final d = 'd_$j';
+        params[tn] = t.tableName;
+        params[pk] = TypedValue(Type.jsonb, _coerceJsonEncodable(t.pk));
+        params[h] = t.pkHash;
+        params[d] = t.deletedAt;
+        sb.write('(@$tn, @$pk, @$h, @$d)');
+        if (j < chunk.length - 1) sb.write(', ');
+      }
+
+      sb.write(
+        ' ON CONFLICT (table_name, pk_hash) DO UPDATE '
+        'SET deleted_at = GREATEST(public.$_tombstonesTable.deleted_at, EXCLUDED.deleted_at), '
+        'pk = EXCLUDED.pk',
+      );
+
+      await target.execute(Sql.named(sb.toString()), parameters: params);
+    }
+  }
+
+  Future<void> _syncTombstonesLocalToCloud({
+    required Connection localSettings,
+    required Connection localCompany,
+    required Connection cloud,
+    required DateTime since,
+  }) async {
+    final collected = <_TombstoneRow>[];
+
+    Future<void> collectFrom(Connection src) async {
+      var afterId = 0;
+      while (true) {
+        final batch = await _readTombstones(
+          src,
+          since: since,
+          afterId: afterId,
+        );
+        if (batch.isEmpty) break;
+        collected.addAll(batch);
+        afterId = batch.last.id;
+        if (batch.length < 2000) break;
+      }
+    }
+
+    await collectFrom(localSettings);
+    await collectFrom(localCompany);
+    if (collected.isEmpty) return;
+
+    await _upsertTombstones(cloud, rows: collected);
+    await _applyTombstonesToTarget(cloud, tombstones: collected);
+  }
+
+  Future<void> _syncTombstonesCloudToLocal({
+    required Connection cloud,
+    required Connection localSettings,
+    required Connection localCompany,
+    required Set<String> settingsTables,
+    required Set<String> companyTables,
+    required DateTime since,
+  }) async {
+    final collected = <_TombstoneRow>[];
+    var afterId = 0;
+    while (true) {
+      final batch = await _readTombstones(
+        cloud,
+        since: since,
+        afterId: afterId,
+      );
+      if (batch.isEmpty) break;
+      collected.addAll(batch);
+      afterId = batch.last.id;
+      if (batch.length < 2000) break;
+    }
+    if (collected.isEmpty) return;
+
+    final settingsList = <_TombstoneRow>[
+      for (final t in collected)
+        if (settingsTables.contains(t.tableName)) t,
+    ];
+    final companyList = <_TombstoneRow>[
+      for (final t in collected)
+        if (companyTables.contains(t.tableName)) t,
+    ];
+
+    if (settingsList.isNotEmpty) {
+      await _applyTombstonesToTarget(localSettings, tombstones: settingsList);
+    }
+    if (companyList.isNotEmpty) {
+      await _applyTombstonesToTarget(localCompany, tombstones: companyList);
+    }
+  }
+
+  Future<void> _applyTombstonesToTarget(
+    Connection target, {
+    required List<_TombstoneRow> tombstones,
+  }) async {
+    if (tombstones.isEmpty) return;
+
+    final tables = tombstones.map((t) => t.tableName).toSet();
+    final ordered = await _topologicalInsertOrder(target, tables.toList());
+    final deleteOrder = ordered.reversed.toList();
+
+    final byTable = <String, List<_TombstoneRow>>{};
+    for (final t in tombstones) {
+      (byTable[t.tableName] ??= <_TombstoneRow>[]).add(t);
+    }
+
+    await _withTransaction(target, () async {
+      await _bestEffortInTransaction(
+        target,
+        "SET LOCAL $_syncApplyGuc = '1'",
+        debugContext: 'tombstone-apply',
+      );
+
+      for (final table in deleteOrder) {
+        final list = byTable[table];
+        if (list == null || list.isEmpty) continue;
+        for (final ts in list) {
+          final pkMap = _asJsonObject(ts.pk);
+          if (pkMap == null || pkMap.isEmpty) continue;
+
+          final keys = pkMap.keys.toList()..sort();
+          final params = <String, dynamic>{
+            for (final k in keys) _paramKey(table, k): pkMap[k],
+          };
+          final where = keys.map((k) => '${_qi(k)} = @${_paramKey(table, k)}').join(' AND ');
+
+          await _bestEffortStatementInTransaction(
+            target,
+            Sql.named('DELETE FROM ${_qt(table)} WHERE $where'),
+            parameters: params,
+            debugContext: 'tombstone-delete:$table',
+          );
+        }
+      }
+    });
+  }
+
+  Future<_DeltaOutboxApplyResult> _applyDeltaOutboxItemsToTarget(
+    Connection target, {
+    required List<_DeltaOutboxItem> items,
+    required String? companyIdOverride,
+  }) async {
+    if (items.isEmpty) {
+      return const _DeltaOutboxApplyResult(
+        applied: 0,
+        tablesTouched: <String>{},
+        succeeded: <_DeltaOutboxItem>[],
+        failed: <_DeltaOutboxItemFailure>[],
+      );
+    }
+
+    final byTable = <String, List<_DeltaOutboxItem>>{};
+    for (final it in items) {
+      final t = it.row.tableName.trim();
+      if (t.isEmpty) continue;
+      if (_transferExcludedTables.contains(t.toLowerCase())) continue;
+      if (t.toLowerCase() == _tombstonesTable) continue;
+      (byTable[t] ??= <_DeltaOutboxItem>[]).add(it);
+    }
+
+    final tables = byTable.keys.toList();
+    if (tables.isEmpty) {
+      return const _DeltaOutboxApplyResult(
+        applied: 0,
+        tablesTouched: <String>{},
+        succeeded: <_DeltaOutboxItem>[],
+        failed: <_DeltaOutboxItemFailure>[],
+      );
+    }
+
+    final ordered = await _topologicalInsertOrder(target, tables);
+    final deleteOrder = ordered.reversed.toList();
+
+    final targetColsCache = <String, List<String>>{};
+    final conflictColsCache = <String, List<String>>{};
+    final sourceColsCache = <String, List<String>>{};
+
+    Future<List<String>> colsCached(
+      Connection conn,
+      Map<String, List<String>> cache,
+      String key,
+      String table,
+    ) async {
+      final cached = cache[key];
+      if (cached != null) return cached;
+      final cols = await _columns(conn, table);
+      cache[key] = cols;
+      return cols;
+    }
+
+    Future<List<String>> targetCols(String table) async =>
+        targetColsCache[table] ??= await _columns(target, table);
+
+    Future<List<String>> conflictCols(String table) async =>
+        conflictColsCache[table] ??= await _primaryKeyColumns(target, table);
+
+    final succeeded = <_DeltaOutboxItem>[];
+    final failed = <_DeltaOutboxItemFailure>[];
+    final touched = <String>{};
+
+    await _withTransaction(target, () async {
+      await _bestEffortInTransaction(
+        target,
+        "SET LOCAL $_syncApplyGuc = '1'",
+        debugContext: 'delta-outbox-apply',
+      );
+
+      // Upserts (parent -> child)
+      for (final table in ordered) {
+        final list = byTable[table];
+        if (list == null || list.isEmpty) continue;
+
+        final tCols = await targetCols(table);
+        if (tCols.isEmpty) continue;
+
+        final pkCols = await conflictCols(table);
+        if (pkCols.isEmpty) continue;
+
+        for (final it in list) {
+          if (it.row.action != 'upsert') continue;
+
+          final pkMap = _asJsonObject(it.row.pk);
+          if (pkMap == null || pkMap.isEmpty) {
+            failed.add(
+              _DeltaOutboxItemFailure(item: it, error: 'pk_parse_failed'),
+            );
+            continue;
+          }
+
+          final srcKey = '${it.sourceLabel}::$table';
+          final sCols = await colsCached(
+            it.source,
+            sourceColsCache,
+            srcKey,
+            table,
+          );
+          if (sCols.isEmpty) {
+            failed.add(
+              _DeltaOutboxItemFailure(item: it, error: 'source_table_missing'),
+            );
+            continue;
+          }
+
+          final cols = <String>[
+            for (final c in tCols)
+              if (sCols.contains(c)) c,
+          ];
+          final allPkPresent = pkCols.every(cols.contains);
+          if (cols.isEmpty || !allPkPresent) {
+            failed.add(
+              _DeltaOutboxItemFailure(item: it, error: 'schema_mismatch'),
+            );
+            continue;
+          }
+
+          final ok = await _tryWorkInTransaction(
+            target,
+            () async {
+              final keys = pkMap.keys.toList()..sort();
+              final params = <String, dynamic>{
+                for (final k in keys) _paramKey(table, k): pkMap[k],
+              };
+              final where =
+                  keys.map((k) => '${_qi(k)} = @${_paramKey(table, k)}').join(' AND ');
+
+              final sel = await it.source.execute(
+                Sql.named(
+                  'SELECT ${cols.map(_qi).join(', ')} FROM ${_qt(table)} WHERE $where LIMIT 1',
+                ),
+                parameters: params,
+              );
+
+              if (sel.isEmpty) {
+                // Kaynakta yoksa: hedefte sil (best-effort).
+                await target.execute(
+                  Sql.named('DELETE FROM ${_qt(table)} WHERE $where'),
+                  parameters: params,
+                );
+                return;
+              }
+
+              final rowValues = List<dynamic>.from(sel.first);
+              final companyIdIndex =
+                  companyIdOverride == null ? -1 : cols.indexOf('company_id');
+              if (companyIdIndex >= 0 && companyIdIndex < rowValues.length) {
+                rowValues[companyIdIndex] = companyIdOverride;
+              }
+
+              await _insertBatch(
+                target: target,
+                table: table,
+                columns: cols,
+                conflictColumns: pkCols,
+                rows: <List<dynamic>>[rowValues],
+                upsert: true,
+              );
+            },
+            debugContext: 'delta-outbox-upsert:$table',
+          );
+
+          if (ok) {
+            succeeded.add(it);
+            touched.add(table);
+          } else {
+            failed.add(_DeltaOutboxItemFailure(item: it, error: 'apply_failed'));
+          }
+        }
+      }
+
+      // Deletes (child -> parent)
+      for (final table in deleteOrder) {
+        final list = byTable[table];
+        if (list == null || list.isEmpty) continue;
+
+        for (final it in list) {
+          if (it.row.action != 'delete') continue;
+          final pkMap = _asJsonObject(it.row.pk);
+          if (pkMap == null || pkMap.isEmpty) {
+            failed.add(
+              _DeltaOutboxItemFailure(item: it, error: 'pk_parse_failed'),
+            );
+            continue;
+          }
+
+          final keys = pkMap.keys.toList()..sort();
+          final params = <String, dynamic>{
+            for (final k in keys) _paramKey(table, k): pkMap[k],
+          };
+          final where =
+              keys.map((k) => '${_qi(k)} = @${_paramKey(table, k)}').join(' AND ');
+
+          final ok = await _tryStatementInTransaction(
+            target,
+            Sql.named('DELETE FROM ${_qt(table)} WHERE $where'),
+            parameters: params,
+            debugContext: 'delta-outbox-delete:$table',
+          );
+
+          if (ok) {
+            succeeded.add(it);
+            touched.add(table);
+          } else {
+            failed.add(_DeltaOutboxItemFailure(item: it, error: 'apply_failed'));
+          }
+        }
+      }
+    });
+
+    return _DeltaOutboxApplyResult(
+      applied: succeeded.length,
+      tablesTouched: touched,
+      succeeded: succeeded,
+      failed: failed,
+    );
+  }
+
+  static String _paramKey(String table, String column) {
+    String normalize(String v) =>
+        v.replaceAll(RegExp(r'[^a-zA-Z0-9]+'), '_').toLowerCase();
+    final t = normalize(table);
+    final c = normalize(column);
+    final key = 'p_${t}_$c';
+    if (key.length <= 60) return key;
+    return 'p_${t.hashCode.abs()}_${c.hashCode.abs()}';
+  }
+
+  Map<String, dynamic>? _asJsonObject(dynamic value) {
+    if (value is Map<String, dynamic>) return value;
+    if (value is Map) {
+      try {
+        return value.map((k, v) => MapEntry(k.toString(), v));
+      } catch (_) {
+        return null;
+      }
+    }
+    if (value is String) {
+      final trimmed = value.trim();
+      if (trimmed.startsWith('{')) {
+        try {
+          final decoded = jsonDecode(trimmed);
+          if (decoded is Map) {
+            return decoded.map((k, v) => MapEntry(k.toString(), v));
+          }
+        } catch (_) {}
+      }
+    }
+    return null;
+  }
+
+  Future<void> _bestEffortStatementInTransaction(
+    Connection conn,
+    Sql statement, {
+    required Map<String, dynamic> parameters,
+    required String debugContext,
+  }) async {
+    final sp = _nextSavepointName();
+    try {
+      await conn.execute('SAVEPOINT $sp');
+      try {
+        await conn.execute(statement, parameters: parameters);
+      } catch (e) {
+        try {
+          await conn.execute('ROLLBACK TO SAVEPOINT $sp');
+        } catch (rollbackErr) {
+          if (kDebugMode) {
+            debugPrint(
+              'Best-effort tx rollback failed ($debugContext): $rollbackErr',
+            );
+          }
+        }
+        if (kDebugMode) {
+          debugPrint('Best-effort tx statement failed ($debugContext): $e');
+        }
+      } finally {
+        try {
+          await conn.execute('RELEASE SAVEPOINT $sp');
+        } catch (_) {}
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Best-effort tx wrapper failed ($debugContext): $e');
+      }
+    }
+  }
+
+  Future<bool> _tryStatementInTransaction(
+    Connection conn,
+    Sql statement, {
+    required Map<String, dynamic> parameters,
+    required String debugContext,
+  }) async {
+    final sp = _nextSavepointName();
+    try {
+      await conn.execute('SAVEPOINT $sp');
+      try {
+        await conn.execute(statement, parameters: parameters);
+        return true;
+      } catch (e) {
+        try {
+          await conn.execute('ROLLBACK TO SAVEPOINT $sp');
+        } catch (rollbackErr) {
+          if (kDebugMode) {
+            debugPrint(
+              'Best-effort tx rollback failed ($debugContext): $rollbackErr',
+            );
+          }
+        }
+        if (kDebugMode) {
+          debugPrint('Best-effort tx statement failed ($debugContext): $e');
+        }
+        return false;
+      } finally {
+        try {
+          await conn.execute('RELEASE SAVEPOINT $sp');
+        } catch (_) {}
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Best-effort tx wrapper failed ($debugContext): $e');
+      }
+      return false;
+    }
+  }
+
+  Future<bool> _tryWorkInTransaction(
+    Connection conn,
+    Future<void> Function() work, {
+    required String debugContext,
+  }) async {
+    final sp = _nextSavepointName();
+    try {
+      await conn.execute('SAVEPOINT $sp');
+      try {
+        await work();
+        return true;
+      } catch (e) {
+        try {
+          await conn.execute('ROLLBACK TO SAVEPOINT $sp');
+        } catch (rollbackErr) {
+          if (kDebugMode) {
+            debugPrint(
+              'Best-effort tx rollback failed ($debugContext): $rollbackErr',
+            );
+          }
+        }
+        if (kDebugMode) {
+          debugPrint('Best-effort tx work failed ($debugContext): $e');
+        }
+        return false;
+      } finally {
+        try {
+          await conn.execute('RELEASE SAVEPOINT $sp');
+        } catch (_) {}
+      }
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('Best-effort tx work wrapper failed ($debugContext): $e');
+      }
+      return false;
+    }
+  }
+
+  Future<void> _setSyncApplyFlagBestEffort(
+    Connection conn, {
+    required bool enabled,
+    required String debugContext,
+  }) async {
+    final v = enabled ? '1' : '0';
+    try {
+      await conn.execute("SET $_syncApplyGuc = '$v'");
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('DBAktarim: SET $_syncApplyGuc failed ($debugContext): $e');
       }
     }
   }
@@ -2029,6 +4132,103 @@ class VeritabaniAktarimServisi {
   static String _qi(String ident) => '"${ident.replaceAll('"', '""')}"';
   static String _qt(String table) => 'public.${_qi(table)}';
   static String _qs(String seq) => "'public.${seq.replaceAll("'", "''")}'";
+}
+
+class VeritabaniDeltaSenkronRapor {
+  final int tabloSayisi;
+  final int satirSayisi;
+  final List<String> tablolar;
+  final Duration elapsed;
+
+  const VeritabaniDeltaSenkronRapor({
+    required this.tabloSayisi,
+    required this.satirSayisi,
+    required this.tablolar,
+    required this.elapsed,
+  });
+}
+
+class _TombstoneRow {
+  final int id;
+  final String tableName;
+  final dynamic pk;
+  final String pkHash;
+  final DateTime deletedAt;
+
+  const _TombstoneRow({
+    required this.id,
+    required this.tableName,
+    required this.pk,
+    required this.pkHash,
+    required this.deletedAt,
+  });
+}
+
+class _DeltaOutboxRow {
+  final String tableName;
+  final dynamic pk;
+  final String pkHash;
+  final String action; // 'upsert' | 'delete'
+  final DateTime touchedAt;
+  final int retryCount;
+  final bool dead;
+
+  const _DeltaOutboxRow({
+    required this.tableName,
+    required this.pk,
+    required this.pkHash,
+    required this.action,
+    required this.touchedAt,
+    required this.retryCount,
+    required this.dead,
+  });
+}
+
+class _DeltaOutboxItem {
+  final Connection source;
+  final String sourceLabel;
+  final _DeltaOutboxRow row;
+
+  const _DeltaOutboxItem({
+    required this.source,
+    required this.sourceLabel,
+    required this.row,
+  });
+}
+
+class _DeltaOutboxItemFailure {
+  final _DeltaOutboxItem item;
+  final String error;
+
+  const _DeltaOutboxItemFailure({required this.item, required this.error});
+}
+
+class _DeltaOutboxApplyResult {
+  final int applied;
+  final Set<String> tablesTouched;
+  final List<_DeltaOutboxItem> succeeded;
+  final List<_DeltaOutboxItemFailure> failed;
+
+  const _DeltaOutboxApplyResult({
+    required this.applied,
+    required this.tablesTouched,
+    required this.succeeded,
+    required this.failed,
+  });
+}
+
+class _DeltaWhere {
+  final String sql;
+  final Map<String, dynamic> params;
+
+  const _DeltaWhere({required this.sql, required this.params});
+}
+
+class _ColumnMeta {
+  final String name;
+  final String? defaultExpr;
+
+  const _ColumnMeta({required this.name, required this.defaultExpr});
 }
 
 class _DbConn {

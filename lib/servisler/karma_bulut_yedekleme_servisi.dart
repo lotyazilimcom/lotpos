@@ -24,8 +24,10 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
   // Telemetry (yerel): kullanıcıya göstermeden güvenli planlama için.
   static const String _prefLastSuccessAtKey =
       'patisyo_cloud_backup_last_success_at';
-  static const String _prefLastAttemptAtKey =
-      'patisyo_cloud_backup_last_attempt_at';
+  static const String _prefLastDeltaSuccessAtKey =
+      'patisyo_cloud_backup_last_delta_success_at';
+  static const String _prefLastCloudPullSuccessAtKey =
+      'patisyo_cloud_backup_last_cloud_pull_success_at';
   static const String _prefLastRequestAtKey =
       'patisyo_cloud_backup_last_request_at';
 
@@ -38,9 +40,18 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
   bool _started = false;
   bool _inFlight = false;
   int _consecutiveFailures = 0;
+  DateTime? _lastTickAt;
+
+  static const Duration _cloudHealthCacheTtl = Duration(seconds: 30);
+  DateTime? _lastCloudHealthCheckAt;
+  bool _lastCloudHealthOk = false;
 
   String? _lastError;
   String? get lastError => _lastError;
+  bool get started => _started;
+  bool get inFlight => _inFlight;
+  int get consecutiveFailures => _consecutiveFailures;
+  DateTime? get lastTickAt => _lastTickAt;
 
   void _log(String message) {
     if (kDebugMode) {
@@ -60,6 +71,9 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
     _timer = null;
     _consecutiveFailures = 0;
     _lastError = null;
+    _lastTickAt = null;
+    _lastCloudHealthCheckAt = null;
+    _lastCloudHealthOk = false;
   }
 
   Future<void> ayarlariUygulaVeBaslat() async {
@@ -123,14 +137,30 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
     await prefs.setString(_prefLastSuccessAtKey, at.toIso8601String());
   }
 
-  Future<void> _setLastAttemptAt(SharedPreferences prefs, DateTime at) async {
-    await prefs.setString(_prefLastAttemptAtKey, at.toIso8601String());
-  }
-
-  DateTime? _getLastAttemptAt(SharedPreferences prefs) {
-    final raw = (prefs.getString(_prefLastAttemptAtKey) ?? '').trim();
+  DateTime? _getLastDeltaSuccessAt(SharedPreferences prefs) {
+    final raw = (prefs.getString(_prefLastDeltaSuccessAtKey) ?? '').trim();
     if (raw.isEmpty) return null;
     return DateTime.tryParse(raw);
+  }
+
+  Future<void> _setLastDeltaSuccessAt(
+    SharedPreferences prefs,
+    DateTime at,
+  ) async {
+    await prefs.setString(_prefLastDeltaSuccessAtKey, at.toIso8601String());
+  }
+
+  DateTime? _getLastCloudPullSuccessAt(SharedPreferences prefs) {
+    final raw = (prefs.getString(_prefLastCloudPullSuccessAtKey) ?? '').trim();
+    if (raw.isEmpty) return null;
+    return DateTime.tryParse(raw);
+  }
+
+  Future<void> _setLastCloudPullSuccessAt(
+    SharedPreferences prefs,
+    DateTime at,
+  ) async {
+    await prefs.setString(_prefLastCloudPullSuccessAtKey, at.toIso8601String());
   }
 
   DateTime? _getLastRequestAt(SharedPreferences prefs) {
@@ -156,9 +186,16 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
     required String requestSource,
   }) async {
     if (VeritabaniYapilandirma.cloudCredentialsReady) {
+      final now = DateTime.now();
+      final last = _lastCloudHealthCheckAt;
+      if (last != null && now.difference(last) < _cloudHealthCacheTtl) {
+        return _lastCloudHealthOk;
+      }
       final ok = await VeritabaniYapilandirma.testSavedCloudDatabaseConnection(
         timeout: const Duration(seconds: 6),
       );
+      _lastCloudHealthCheckAt = now;
+      _lastCloudHealthOk = ok;
       return ok;
     }
 
@@ -196,9 +233,13 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
     );
 
     if (!VeritabaniYapilandirma.cloudCredentialsReady) return false;
-    return VeritabaniYapilandirma.testSavedCloudDatabaseConnection(
+    final checkedAt = DateTime.now();
+    final ok = await VeritabaniYapilandirma.testSavedCloudDatabaseConnection(
       timeout: const Duration(seconds: 8),
     );
+    _lastCloudHealthCheckAt = checkedAt;
+    _lastCloudHealthOk = ok;
+    return ok;
   }
 
   bool _pendingSeedNeedsChoice({
@@ -241,21 +282,22 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
     }
 
     if (_inFlight) {
-      _schedule(const Duration(minutes: 5));
+      _schedule(const Duration(seconds: 3));
       return;
     }
 
-    final prefs = await SharedPreferences.getInstance();
-    final lastAttempt = _getLastAttemptAt(prefs);
+    final now = DateTime.now();
+    final lastAttempt = _lastTickAt;
     if (lastAttempt != null &&
-        DateTime.now().difference(lastAttempt) < const Duration(seconds: 20)) {
-      _schedule(const Duration(seconds: 20));
+        now.difference(lastAttempt) < const Duration(seconds: 2)) {
+      _schedule(const Duration(seconds: 2));
       return;
     }
 
     _inFlight = true;
-    await _setLastAttemptAt(prefs, DateTime.now());
+    _lastTickAt = now;
     try {
+      final prefs = await SharedPreferences.getInstance();
       final cloudReady = await _ensureCloudCredentialsReadyBestEffort(
         prefs: prefs,
         requestSource: 'hybrid_backup',
@@ -321,20 +363,56 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
         await aktarim.niyetTemizle();
         await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
         await _setLastSuccessAt(prefs, DateTime.now());
+        await _setLastDeltaSuccessAt(prefs, DateTime.now());
         _consecutiveFailures = 0;
         _lastError = null;
         notifyListeners();
-        _schedule(const Duration(minutes: 15));
+        _schedule(const Duration(seconds: 4));
         return;
       }
 
-      // 2) Periyodik bulut yedekleme: due ise merge transfer çalıştır.
+      // 2) Delta sync: Yerelde değişiklik olduysa buluta anında gönder (best-effort, upsert).
+      final localHost =
+          (VeritabaniYapilandirma.discoveredHost ?? '127.0.0.1').trim();
+      final localCompanyDb = OturumServisi().aktifVeritabaniAdi;
+
+      final lastDelta = _getLastDeltaSuccessAt(prefs);
+      final lastFull = await _getLastSuccessAt(prefs);
+      final baseline =
+          lastDelta ?? lastFull ?? DateTime.now().subtract(const Duration(minutes: 5));
+
+      final deltaReport = await aktarim.deltaSenkronYerelBulut(
+        localHost: localHost.isEmpty ? '127.0.0.1' : localHost,
+        localCompanyDb: localCompanyDb,
+        since: baseline,
+      );
+
+      if (deltaReport.tabloSayisi > 0) {
+        await _setLastDeltaSuccessAt(prefs, DateTime.now());
+      }
+
+      // 3) Delta pull: Bulutta değişiklik olduysa yerele anında indir (best-effort, upsert).
+      final lastPull = _getLastCloudPullSuccessAt(prefs);
+      final pullBaseline =
+          lastPull ?? DateTime.now().subtract(const Duration(minutes: 5));
+
+      final pullReport = await aktarim.deltaSenkronBulutYerel(
+        localHost: localHost.isEmpty ? '127.0.0.1' : localHost,
+        localCompanyDb: localCompanyDb,
+        since: pullBaseline,
+      );
+
+      if (pullReport.tabloSayisi > 0) {
+        await _setLastCloudPullSuccessAt(prefs, DateTime.now());
+      }
+
+      // 4) Periyodik bulut yedekleme: due ise merge transfer çalıştır.
       final enabled = prefs.getBool(prefBackupEnabledKey) ?? true;
       if (!enabled) {
         _consecutiveFailures = 0;
         _lastError = null;
         notifyListeners();
-        _schedule(const Duration(minutes: 30));
+        _schedule(const Duration(seconds: 10));
         return;
       }
 
@@ -346,21 +424,14 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
 
       final isDue = dueAt == null || now.isAfter(dueAt);
       if (!isDue) {
-        final untilDue = dueAt.difference(now);
-        final next = untilDue < const Duration(minutes: 15)
-            ? untilDue
-            : const Duration(minutes: 15);
         _consecutiveFailures = 0;
         _lastError = null;
         notifyListeners();
-        _schedule(next);
+        _schedule(const Duration(seconds: 3));
         return;
       }
 
       // Backup niyeti (UI'ı bloklamadan).
-      final localHost = VeritabaniYapilandirma.discoveredHost;
-      final localCompanyDb = OturumServisi().aktifVeritabaniAdi;
-
       final backupNiyet = VeritabaniAktarimNiyeti(
         fromMode: 'local',
         toMode: 'cloud',
@@ -388,7 +459,7 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
       _consecutiveFailures = 0;
       _lastError = null;
       notifyListeners();
-      _schedule(const Duration(minutes: 15));
+      _schedule(const Duration(seconds: 6));
     } catch (e) {
       _consecutiveFailures++;
       _lastError = e.toString();

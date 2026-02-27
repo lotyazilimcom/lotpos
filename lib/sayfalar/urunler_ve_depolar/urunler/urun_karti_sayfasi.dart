@@ -10,6 +10,7 @@ import '../../../bilesenler/genisletilebilir_tablo.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
 import '../../../yardimcilar/islem_turu_renkleri.dart';
+import '../../../yardimcilar/responsive_yardimcisi.dart';
 import '../../../bilesenler/tarih_araligi_secici_dialog.dart';
 import 'modeller/urun_model.dart';
 
@@ -49,6 +50,9 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
 
   bool _isInfoCardExpanded = false;
   int? _selectedRowId;
+  bool _isMobileToolbarExpanded = false;
+  int _mobileRowsPerPage = 25;
+  int _mobileCurrentPage = 1;
   Map<String, bool> _columnVisibility = {};
   final Map<String, bool> _serialListColumnVisibility = {
     'barkod': true,
@@ -2651,14 +2655,1181 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
               _refreshCurrentView();
             },
           },
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final bool forceMobile = ResponsiveYardimcisi.tabletMi(context);
+              if (forceMobile || constraints.maxWidth < 1000) {
+                return _buildMobileView(theme);
+              }
+
+              return Column(
+                children: [
+                  _buildUrunInfoCard(theme),
+                  Expanded(child: _buildDesktopView(constraints)),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileView(ThemeData theme) {
+    final mediaQuery = MediaQuery.of(context);
+    final bool isKeyboardVisible = mediaQuery.viewInsets.bottom > 0;
+    final double availableHeight =
+        mediaQuery.size.height -
+        mediaQuery.padding.vertical -
+        mediaQuery.viewInsets.bottom;
+    final double maxExpandedHeight = (availableHeight * 0.5).clamp(
+      180.0,
+      420.0,
+    );
+
+    final bool isSerialMode = _isSerialListMode;
+    final List<Map<String, dynamic>> source =
+        isSerialMode ? _cachedSerialRows : _cachedTransactions;
+
+    final int totalRecords = source.length;
+    final int safeRowsPerPage = _mobileRowsPerPage <= 0 ? 25 : _mobileRowsPerPage;
+    final int totalPages = totalRecords == 0
+        ? 1
+        : (totalRecords / safeRowsPerPage).ceil();
+    final int effectivePage = _mobileCurrentPage.clamp(1, totalPages);
+    if (effectivePage != _mobileCurrentPage) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _mobileCurrentPage = effectivePage);
+      });
+    }
+
+    final int startIndex = (effectivePage - 1) * safeRowsPerPage;
+    final int endIndex = (startIndex + safeRowsPerPage) > totalRecords
+        ? totalRecords
+        : (startIndex + safeRowsPerPage);
+    final List<Map<String, dynamic>> paginatedRows =
+        (startIndex >= 0 && startIndex < endIndex && endIndex <= totalRecords)
+            ? source.sublist(startIndex, endIndex)
+            : const <Map<String, dynamic>>[];
+
+    final int showingStart = totalRecords == 0 ? 0 : startIndex + 1;
+    final int endRecord = totalRecords == 0 ? 0 : endIndex;
+
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      child: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+              child: Row(
+                children: [
+                  Text(
+                    tr('products.card.title'),
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _buildUrunInfoCard(
+              theme,
+              margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: _buildMobileToolbarCard(
+                totalRecords: totalRecords,
+                maxExpandedHeight: maxExpandedHeight,
+              ),
+            ),
+            if (!isKeyboardVisible)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: _buildMobileTopActionRow(),
+              ),
+            Expanded(
+              child: _isSerialListLoading && isSerialMode
+                  ? const Center(
+                      child: CircularProgressIndicator(
+                        color: Color(0xFF2C3E50),
+                      ),
+                    )
+                  : (paginatedRows.isEmpty
+                      ? Center(
+                          child: Text(
+                            tr('common.no_records_found'),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        )
+                      : ListView.separated(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          itemCount: paginatedRows.length,
+                          separatorBuilder: (context, index) =>
+                              const SizedBox(height: 16),
+                          itemBuilder: (context, index) {
+                            final row = paginatedRows[index];
+                            final int rowNumber = startIndex + index + 1;
+                            return isSerialMode
+                                ? _buildMobileSerialRowCard(
+                                    row,
+                                    rowNumber: rowNumber,
+                                  )
+                                : _buildMobileTransactionCard(
+                                    row,
+                                    rowNumber: rowNumber,
+                                  );
+                          },
+                        )),
+            ),
+            if (!isKeyboardVisible)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: effectivePage > 1
+                          ? () => setState(
+                                () => _mobileCurrentPage = effectivePage - 1,
+                              )
+                          : null,
+                      icon: const Icon(Icons.chevron_left),
+                    ),
+                    Expanded(
+                      child: Text(
+                        tr('common.pagination.showing')
+                            .replaceAll('{start}', showingStart.toString())
+                            .replaceAll('{end}', endRecord.toString())
+                            .replaceAll('{total}', totalRecords.toString()),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: effectivePage < totalPages
+                          ? () => setState(
+                                () => _mobileCurrentPage = effectivePage + 1,
+                              )
+                          : null,
+                      icon: const Icon(Icons.chevron_right),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileTopActionRow() {
+    final bool hasSelection =
+        _selectedTransactionIds.isNotEmpty || _isSelectAllActive;
+    final bool canToggleSerialList = _isSerialNumberedProduct;
+    final bool isSerialMode = _isSerialListMode;
+
+    final String printLabel =
+        hasSelection ? tr('common.print_selected') : tr('common.print_list');
+
+    final bool canToggleKeepDetails = !isSerialMode;
+    final String selectAllTooltip =
+        _isSelectAllActive ? tr('common.clear') : tr('common.select_all');
+
+    return Row(
+      children: [
+        Expanded(
+          child: _buildMobileActionButton(
+            label: printLabel,
+            icon: Icons.print_outlined,
+            color: const Color(0xFFF8F9FA),
+            textColor: Colors.black87,
+            borderColor: Colors.grey.shade300,
+            onTap: _handlePrint,
+            height: 40,
+            iconSize: 16,
+            fontSize: 12,
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+          ),
+        ),
+        if (canToggleSerialList) ...[
+          const SizedBox(width: 8),
+          Expanded(
+            child: _buildMobileActionButton(
+              label: isSerialMode ? 'Hareketler' : 'Seri Liste',
+              icon: Icons.format_list_bulleted_rounded,
+              color: isSerialMode ? const Color(0xFF2C3E50) : Colors.white,
+              textColor:
+                  isSerialMode ? Colors.white : const Color(0xFF2C3E50),
+              borderColor: isSerialMode
+                  ? Colors.transparent
+                  : Colors.grey.shade300,
+              onTap: _toggleSerialListMode,
+              height: 40,
+              iconSize: 16,
+              fontSize: 12,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+            ),
+          ),
+        ],
+        const SizedBox(width: 8),
+        _buildMobileSquareActionButton(
+          icon: _isSelectAllActive
+              ? Icons.check_box_rounded
+              : Icons.select_all_rounded,
+          onTap: () => _onSelectAll(!_isSelectAllActive),
+          color: Colors.white,
+          iconColor: const Color(0xFF2C3E50),
+          borderColor: Colors.grey.shade300,
+          tooltip: selectAllTooltip,
+          size: 40,
+        ),
+        if (canToggleKeepDetails) ...[
+          const SizedBox(width: 8),
+          _buildMobileSquareActionButton(
+            icon: _effectiveKeepDetailsOpen
+                ? Icons.unfold_less_rounded
+                : Icons.unfold_more_rounded,
+            onTap: _toggleKeepDetailsOpen,
+            color: Colors.white,
+            iconColor: _effectiveKeepDetailsOpen
+                ? const Color(0xFF2C3E50)
+                : Colors.grey.shade700,
+            borderColor: Colors.grey.shade300,
+            tooltip: tr('warehouses.keep_details_open'),
+            size: 40,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildMobileToolbarCard({
+    required int totalRecords,
+    required double maxExpandedHeight,
+  }) {
+    final int activeFilterCount = _getActiveMobileFilterCount();
+    final bool hasSelection =
+        _selectedTransactionIds.isNotEmpty || _isSelectAllActive;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            mouseCursor: WidgetStateMouseCursor.clickable,
+            borderRadius: BorderRadius.circular(12),
+            onTap: () {
+              FocusScope.of(context).unfocus();
+              setState(() {
+                _isMobileToolbarExpanded = !_isMobileToolbarExpanded;
+              });
+              if (!_isMobileToolbarExpanded) {
+                _closeOverlay();
+              }
+            },
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final bool compact = constraints.maxWidth < 330;
+                  final String toggleLabel = compact
+                      ? (_isMobileToolbarExpanded ? 'Gizle' : 'Göster')
+                      : (_isMobileToolbarExpanded
+                          ? 'Filtreleri Gizle'
+                          : 'Filtreleri Göster');
+
+                  return Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF2C3E50).withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: const Icon(
+                          Icons.tune_rounded,
+                          size: 16,
+                          color: Color(0xFF2C3E50),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$totalRecords kayıt',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              activeFilterCount == 0
+                                  ? 'Filtre yok'
+                                  : '$activeFilterCount filtre aktif',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Text(
+                        toggleLabel,
+                        style: const TextStyle(
+                          color: Color(0xFF2C3E50),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      AnimatedRotation(
+                        turns: _isMobileToolbarExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 220),
+                        child: const Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          color: Color(0xFF2C3E50),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+          AnimatedSize(
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeInOut,
+            child: !_isMobileToolbarExpanded
+                ? const SizedBox.shrink()
+                : Column(
+                    children: [
+                      Divider(height: 1, color: Colors.grey.shade200),
+                      ConstrainedBox(
+                        constraints: BoxConstraints(
+                          maxHeight: maxExpandedHeight,
+                        ),
+                        child: SingleChildScrollView(
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            children: [
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    height: 48,
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.grey.shade300,
+                                      ),
+                                      borderRadius: BorderRadius.circular(8),
+                                      color: Colors.white,
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton<int>(
+                                        mouseCursor:
+                                            WidgetStateMouseCursor.clickable,
+                                        dropdownMenuItemMouseCursor:
+                                            WidgetStateMouseCursor.clickable,
+                                        value: _mobileRowsPerPage,
+                                        items: [10, 25, 50, 100]
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e,
+                                                child: Text(e.toString()),
+                                              ),
+                                            )
+                                            .toList(),
+                                        onChanged: (val) {
+                                          if (val == null) return;
+                                          setState(() {
+                                            _mobileRowsPerPage = val;
+                                            _mobileCurrentPage = 1;
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _searchController,
+                                      focusNode: _searchFocusNode,
+                                      textInputAction: TextInputAction.search,
+                                      onChanged: (val) {
+                                        if (_debounce?.isActive ?? false) {
+                                          _debounce!.cancel();
+                                        }
+                                        _debounce = Timer(
+                                          const Duration(milliseconds: 300),
+                                          () {
+                                            if (!mounted) return;
+                                            if (_mobileCurrentPage != 1) {
+                                              setState(
+                                                () => _mobileCurrentPage = 1,
+                                              );
+                                            }
+                                            _applySearchQuery(val);
+                                          },
+                                        );
+                                      },
+                                      decoration: InputDecoration(
+                                        hintText: tr('common.search'),
+                                        prefixIcon: const Icon(
+                                          Icons.search,
+                                          color: Colors.grey,
+                                        ),
+                                        border: const UnderlineInputBorder(
+                                          borderSide: BorderSide(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        enabledBorder:
+                                            const UnderlineInputBorder(
+                                          borderSide: BorderSide(
+                                            color: Colors.grey,
+                                          ),
+                                        ),
+                                        focusedBorder:
+                                            const UnderlineInputBorder(
+                                          borderSide: BorderSide(
+                                            color: Color(0xFF2C3E50),
+                                          ),
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                          vertical: 12,
+                                        ),
+                                        filled: false,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (hasSelection)
+                                Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: MouseRegion(
+                                      cursor: SystemMouseCursors.click,
+                                      child: MouseRegion(
+                                        cursor: SystemMouseCursors.click,
+                                        hitTestBehavior:
+                                            HitTestBehavior.deferToChild,
+                                        child: GestureDetector(
+                                          onTap: _clearAllTableSelections,
+                                          child: Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 8,
+                                              vertical: 4,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: const Color(0xFF2C3E50),
+                                              borderRadius:
+                                                  BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              '${tr('common.clear')} (${_selectedTransactionIds.length})',
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontWeight: FontWeight.bold,
+                                                fontSize: 12,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 12),
+                              _buildMobileFilterGrid(),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileFilterGrid() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final bool singleColumn = constraints.maxWidth < 360;
+
+        if (_isSerialListMode) {
+          return Column(
+            children: [
+              _buildDateRangeFilter(width: double.infinity),
+            ],
+          );
+        }
+
+        if (singleColumn) {
+          return Column(
+            children: [
+              _buildDateRangeFilter(width: double.infinity),
+              const SizedBox(height: 12),
+              _buildWarehouseFilter(width: double.infinity),
+              const SizedBox(height: 12),
+              _buildUnitFilter(width: double.infinity),
+              const SizedBox(height: 12),
+              _buildTransactionFilter(width: double.infinity),
+              const SizedBox(height: 12),
+              _buildUserFilter(width: double.infinity),
+            ],
+          );
+        }
+
+        return Column(
+          children: [
+            Row(
+              children: [
+                Expanded(child: _buildDateRangeFilter(width: double.infinity)),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildWarehouseFilter(width: double.infinity),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildUnitFilter(width: double.infinity),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildTransactionFilter(width: double.infinity),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildUserFilter(width: double.infinity),
+                ),
+              ],
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  int _getActiveMobileFilterCount() {
+    int count = 0;
+    if (_searchController.text.trim().isNotEmpty) count++;
+    if (_startDate != null || _endDate != null) count++;
+    if (_isSerialListMode) return count;
+    if (_selectedWarehouse != null) count++;
+    if (_selectedUnit != null) count++;
+    if (_selectedTransactionType != null) count++;
+    if (_selectedUser != null) count++;
+    return count;
+  }
+
+  Widget _buildMobileTransactionCard(
+    Map<String, dynamic> tx, {
+    required int rowNumber,
+  }) {
+    final int? id = tx['id'] is int
+        ? tx['id'] as int
+        : int.tryParse(tx['id']?.toString() ?? '');
+    final bool isChecked =
+        id != null && (_isSelectAllActive || _selectedTransactionIds.contains(id));
+    final bool isFocused = id != null && _selectedRowId == id;
+    final bool isSelected = isChecked || isFocused;
+
+    final double qty = (tx['miktar'] as num?)?.toDouble() ?? 0.0;
+    final String unit = (tx['birim'] ?? _currentUrun.birim).toString().trim();
+    final bool isIncoming = (tx['isIncoming'] as bool?) ?? (qty > 0);
+
+    final dynamic customTypeLabel = tx['customTypeLabel'];
+    final String rawType =
+        (tx['customTypeLabel'] ?? tx['islem_turu'] ?? '').toString();
+    final String typeLabel = IslemCeviriYardimcisi.cevir(
+      IslemTuruRenkleri.getProfessionalLabel(
+        rawType.trim().isEmpty
+            ? (isIncoming
+                ? tr('warehouses.detail.type_in')
+                : tr('warehouses.detail.type_out'))
+            : rawType,
+        context: 'stock',
+      ),
+    );
+    final Color typeBg =
+        IslemTuruRenkleri.arkaplanRengiGetir(customTypeLabel, isIncoming);
+    final Color typeFg =
+        IslemTuruRenkleri.ikonRengiGetir(customTypeLabel, isIncoming);
+    final Color typeTextFg =
+        IslemTuruRenkleri.metinRengiGetir(customTypeLabel, isIncoming);
+
+    final String dateText = (tx['tarih'] ?? '').toString().trim();
+    final String warehouse = (tx['depo_adi'] ?? '').toString().trim();
+    final String user = (tx['kullanici'] ?? '').toString().trim();
+    final String relatedParty = (tx['relatedPartyName'] ?? '').toString().trim();
+    final String description = (tx['aciklama'] ?? '').toString().trim();
+    final String sourceSuffix = (tx['sourceSuffix'] ?? '').toString().trim();
+    final String translatedSourceSuffix = sourceSuffix.isNotEmpty
+        ? IslemCeviriYardimcisi.parantezliKaynakKisaltma(sourceSuffix)
+        : '';
+
+    final String qtyText = FormatYardimcisi.sayiFormatla(
+      qty.abs(),
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: _genelAyarlar.miktarOndalik,
+    );
+
+    final double unitPrice = (tx['birim_fiyat'] as num?)?.toDouble() ?? 0.0;
+    final double total = (tx['tutar'] as num?)?.toDouble() ?? 0.0;
+    final double unitPriceVat = tx['unitPriceVat'] != null
+        ? (tx['unitPriceVat'] as num).toDouble()
+        : unitPrice * (1 + _currentUrun.kdvOrani / 100);
+
+    final String unitPriceText =
+        '${FormatYardimcisi.sayiFormatlaOndalikli(unitPrice, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.fiyatOndalik)} ${_genelAyarlar.varsayilanParaBirimi}';
+    final String unitPriceVatText =
+        '${FormatYardimcisi.sayiFormatlaOndalikli(unitPriceVat, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.fiyatOndalik)} ${_genelAyarlar.varsayilanParaBirimi}';
+    final String totalText =
+        '${FormatYardimcisi.sayiFormatlaOndalikli(total, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.fiyatOndalik)} ${_genelAyarlar.varsayilanParaBirimi}';
+
+    final List devices = (tx['devices'] as List?) ?? const [];
+    final bool hasDevices = devices.isNotEmpty;
+
+    final bool isExpanded = id != null &&
+        hasDevices &&
+        (_effectiveKeepDetailsOpen ||
+            _expandedTransactionIds.contains(id) ||
+            _searchAutoExpandedTransactionIds.contains(id));
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      hitTestBehavior: HitTestBehavior.deferToChild,
+      child: GestureDetector(
+        onTap: () {
+          if (id == null) return;
+          setState(() => _selectedRowId = id);
+        },
+        child: Container(
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFF2C3E50).withValues(alpha: 0.04)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF2C3E50).withValues(alpha: 0.3)
+                  : Colors.grey.shade200,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isSelected
+                    ? const Color(0xFF2C3E50).withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.05),
+                blurRadius: isSelected ? 12 : 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              _buildUrunInfoCard(theme),
-              Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return _buildDesktopView(constraints);
-                  },
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: Checkbox(
+                      value: isChecked,
+                      onChanged: (v) {
+                        if (id == null) return;
+                        _onSelectRow(v, id);
+                      },
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      side: const BorderSide(color: Color(0xFFD1D1D1)),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              '#$rowNumber',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: BoxDecoration(
+                                color: typeBg,
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Icon(
+                                isIncoming
+                                    ? Icons.arrow_downward_rounded
+                                    : Icons.arrow_upward_rounded,
+                                color: typeFg,
+                                size: 14,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: RichText(
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                text: TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: typeLabel,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w700,
+                                        color: typeTextFg,
+                                      ),
+                                    ),
+                                    if (translatedSourceSuffix.isNotEmpty)
+                                      TextSpan(
+                                        text: ' $translatedSourceSuffix',
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.grey.shade600,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            if (dateText.isNotEmpty) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                dateText,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        if (relatedParty.isNotEmpty) ...[
+                          const SizedBox(height: 6),
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.link_rounded,
+                                size: 14,
+                                color: Colors.grey.shade500,
+                              ),
+                              const SizedBox(width: 6),
+                              Expanded(
+                                child: HighlightText(
+                                  text: relatedParty,
+                                  query: _searchQuery.trim(),
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.grey.shade800,
+                                  ),
+                                  maxLines: 1,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              '$qtyText $unit',
+                              style: TextStyle(
+                                color: isIncoming
+                                    ? const Color(0xFF2E7D32)
+                                    : const Color(0xFFC62828),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                            Text(
+                              totalText,
+                              style: const TextStyle(
+                                color: Color(0xFF2C3E50),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            '$unitPriceText (${tr('common.vat_short')}: $unitPriceVatText)',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade600,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              if (warehouse.isNotEmpty)
+                Row(
+                  children: [
+                    Icon(
+                      Icons.inventory_2_outlined,
+                      size: 14,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: HighlightText(
+                        text: warehouse,
+                        query: _searchQuery.trim(),
+                        maxLines: 1,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              if (warehouse.isNotEmpty) const SizedBox(height: 6),
+              Row(
+                children: [
+                  if (user.isNotEmpty) ...[
+                    Icon(
+                      Icons.person_outline,
+                      size: 14,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: HighlightText(
+                        text: user,
+                        query: _searchQuery.trim(),
+                        maxLines: 1,
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ] else
+                    const Spacer(),
+                  SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: _buildMobilePopupMenu(tx),
+                  ),
+                  if (hasDevices) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 32,
+                        minHeight: 32,
+                      ),
+                      icon: Icon(
+                        isExpanded ? Icons.expand_less : Icons.expand_more,
+                        color: const Color(0xFF2C3E50),
+                      ),
+                      onPressed: () {
+                        if (id == null) return;
+                        if (_effectiveKeepDetailsOpen) return;
+                        setState(() {
+                          if (isExpanded) {
+                            _expandedTransactionIds.remove(id);
+                            _searchAutoExpandedTransactionIds.remove(id);
+                          } else {
+                            if (!_keepDetailsOpen) {
+                              _expandedTransactionIds.clear();
+                            }
+                            _expandedTransactionIds.add(id);
+                          }
+                        });
+                      },
+                    ),
+                  ],
+                ],
+              ),
+              if (description.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.notes_outlined,
+                      size: 14,
+                      color: Colors.grey.shade500,
+                    ),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: HighlightText(
+                        text: description,
+                        query: _searchQuery.trim(),
+                        maxLines: 2,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade700,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+              AnimatedSize(
+                duration: const Duration(milliseconds: 300),
+                alignment: Alignment.topCenter,
+                child: !isExpanded
+                    ? const SizedBox.shrink()
+                    : Column(
+                        children: [
+                          const Divider(height: 24),
+                          if (description.isNotEmpty) ...[
+                            const SizedBox(height: 4),
+                            _buildMobileKeyValue(
+                              tr('common.description'),
+                              description,
+                              maxLines: 3,
+                            ),
+                          ],
+                          const SizedBox(height: 12),
+                          _buildMobileDevicesList(devices),
+                        ],
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileSerialRowCard(
+    Map<String, dynamic> row, {
+    required int rowNumber,
+  }) {
+    final int id = row['id'] is int
+        ? row['id'] as int
+        : int.tryParse(row['id']?.toString() ?? '') ?? 0;
+    final bool isChecked =
+        _isSelectAllActive || _selectedTransactionIds.contains(id);
+    final bool isFocused = _selectedRowId == id;
+    final bool isSelected = isChecked || isFocused;
+
+    final String identity = (row['imei_seri'] ?? '').toString().trim();
+    final String barcode = (row['barkod'] ?? '').toString().trim();
+    final String type = (row['islem'] ?? '').toString().trim();
+    final String dateText = (row['tarih'] ?? '').toString().trim();
+    final String buyText = (row['alis_fiyati_text'] ?? '').toString().trim();
+    final String sellText = (row['satis_fiyati_text'] ?? '').toString().trim();
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      hitTestBehavior: HitTestBehavior.deferToChild,
+      child: GestureDetector(
+        onTap: () => setState(() => _selectedRowId = id),
+        child: Container(
+          decoration: BoxDecoration(
+            color: isSelected
+                ? const Color(0xFF2C3E50).withValues(alpha: 0.04)
+                : Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isSelected
+                  ? const Color(0xFF2C3E50).withValues(alpha: 0.3)
+                  : Colors.grey.shade200,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: isSelected
+                    ? const Color(0xFF2C3E50).withValues(alpha: 0.08)
+                    : Colors.black.withValues(alpha: 0.05),
+                blurRadius: isSelected ? 12 : 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SizedBox(
+                width: 24,
+                height: 24,
+                child: Checkbox(
+                  value: isChecked,
+                  onChanged: (v) => _onSelectRow(v, id),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  side: const BorderSide(color: Color(0xFFD1D1D1)),
+                ),
+              ),
+              const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(
+                              '#$rowNumber',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                identity.isNotEmpty ? identity : '-',
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                    const SizedBox(height: 6),
+                    if (barcode.isNotEmpty && barcode != '-') ...[
+                      Text(
+                        '${tr('common.barcode')}: $barcode',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                    ],
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            type.isNotEmpty ? type : '-',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: Colors.grey.shade800,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          dateText.isNotEmpty ? dateText : '-',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          buyText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          sellText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF2C3E50),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -2666,6 +3837,252 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
         ),
       ),
     );
+  }
+
+  Widget _buildMobileKeyValue(
+    String label,
+    String value, {
+    int maxLines = 1,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 120,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            maxLines: maxLines,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12,
+              color: Colors.grey.shade800,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMobileDevicesList(List devices) {
+    final deviceMaps = devices
+        .whereType<Map>()
+        .map((e) => e.cast<String, dynamic>())
+        .map(_normalizeDeviceMap)
+        .where((d) => (d['identityValue'] ?? '').toString().trim().isNotEmpty)
+        .toList(growable: false);
+
+    if (deviceMaps.isEmpty) return const SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          tr('common.gadget.devices'),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: Colors.grey.shade700,
+          ),
+        ),
+        const SizedBox(height: 8),
+        ...deviceMaps.map((d) => _buildMobileDeviceCard(d)),
+      ],
+    );
+  }
+
+  Widget _buildMobileDeviceCard(Map<String, dynamic> device) {
+    final query = _searchQuery.trim();
+    final String identity = (device['identityValue'] ?? '').toString().trim();
+    final String condition = (device['condition'] ?? '').toString().trim();
+    final String color = (device['color'] ?? '').toString().trim();
+    final String capacity = (device['capacity'] ?? '').toString().trim();
+    final String warranty = _formatDateOrDash(device['warrantyEndDate']);
+
+    final bool hasBox = _toBool(device['hasBox']);
+    final bool hasInvoice = _toBool(device['hasInvoice']);
+    final bool hasCharger = _toBool(device['hasOriginalCharger']);
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          HighlightText(
+            text: identity,
+            query: query,
+            style: const TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.bold,
+              color: Colors.black87,
+            ),
+            maxLines: 1,
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              if (condition.isNotEmpty)
+                _buildMobileMetaChip(tr('products.table.status'), condition),
+              if (color.isNotEmpty)
+                _buildMobileMetaChip(tr('products.field.color'), color),
+              if (capacity.isNotEmpty)
+                _buildMobileMetaChip(tr('products.field.capacity'), capacity),
+              if (warranty.isNotEmpty && warranty != '-')
+                _buildMobileMetaChip(tr('report.warranty'), warranty),
+              if (hasBox) _buildMobileMetaChip(tr('common.gadget.box'), tr('common.yes')),
+              if (hasInvoice)
+                _buildMobileMetaChip(tr('common.gadget.invoice'), tr('common.yes')),
+              if (hasCharger)
+                _buildMobileMetaChip(tr('common.gadget.charger'), tr('common.yes')),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileMetaChip(String label, String value) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '$label: ',
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade500,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade800,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMobileActionButton({
+    required String label,
+    required IconData icon,
+    required Color color,
+    required Color textColor,
+    required Color borderColor,
+    required VoidCallback onTap,
+    bool hasDropdown = false,
+    double height = 48,
+    double iconSize = 20,
+    double fontSize = 14,
+    EdgeInsetsGeometry padding = const EdgeInsets.symmetric(horizontal: 16),
+  }) {
+    return Material(
+      color: color,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          height: height,
+          padding: padding,
+          decoration: BoxDecoration(
+            border: Border.all(color: borderColor),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, size: iconSize, color: textColor),
+              const SizedBox(width: 8),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: textColor,
+                    fontWeight: FontWeight.w600,
+                    fontSize: fontSize,
+                  ),
+                ),
+              ),
+              if (hasDropdown) ...[
+                const SizedBox(width: 8),
+                Icon(
+                  Icons.keyboard_arrow_down,
+                  size: iconSize > 4 ? iconSize - 2 : iconSize,
+                  color: textColor,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileSquareActionButton({
+    required IconData icon,
+    required VoidCallback onTap,
+    required Color color,
+    required Color iconColor,
+    Color borderColor = Colors.transparent,
+    double size = 40,
+    String? tooltip,
+  }) {
+    Widget child = Material(
+      color: color,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        mouseCursor: WidgetStateMouseCursor.clickable,
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: borderColor),
+          ),
+          child: Icon(icon, size: 18, color: iconColor),
+        ),
+      ),
+    );
+
+    if (tooltip == null || tooltip.isEmpty) {
+      return child;
+    }
+
+    return Tooltip(message: tooltip, child: child);
   }
 
   Widget _buildStockBox(UrunModel urun) {
@@ -2703,7 +4120,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
     );
   }
 
-  Widget _buildUrunInfoCard(ThemeData theme) {
+  Widget _buildUrunInfoCard(ThemeData theme, {EdgeInsets? margin}) {
     final urun = _currentUrun;
 
     Widget buildMainImage() {
@@ -2761,7 +4178,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
     }
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(24, 4, 24, 12),
+      margin: margin ?? const EdgeInsets.fromLTRB(24, 4, 24, 12),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -5549,6 +6966,30 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
           ),
         ),
       ],
+      onSelected: (value) {
+        // Handle actions
+      },
+    );
+  }
+
+  Widget _buildMobilePopupMenu(Map<String, dynamic> tx) {
+    return PopupMenuButton<String>(
+      padding: EdgeInsets.zero,
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          value: 'view',
+          child: Row(
+            children: [
+              Icon(Icons.visibility_outlined, size: 18),
+              SizedBox(width: 8),
+              Text(tr('common.view')),
+            ],
+          ),
+        ),
+      ],
+      child: const Center(
+        child: Icon(Icons.more_horiz, size: 20, color: Colors.grey),
+      ),
       onSelected: (value) {
         // Handle actions
       },

@@ -654,8 +654,415 @@ class VeritabaniYapilandirma {
     final wrappedContent = _wrapSchemaDumpInTransactionIfMissing(
       cleanedLines.join('\n'),
     );
-    await file.writeAsString(wrappedContent);
+    final finalContent = _appendManagedCloudHybridBootstrapSql(wrappedContent);
+    await file.writeAsString(finalContent);
   }
+
+  String _appendManagedCloudHybridBootstrapSql(String content) {
+    // Bu ek blok, Neon/Supabase gibi managed PostgreSQL'lerde uygulama rolüne
+    // DDL/trigger/sequence izni verilmediğinde bile hibrit senkronun "tam"
+    // çalışabilmesi için gerekli altyapıyı (outbox/tombstone/timestamp/sequence)
+    // tek seferde kurar. İndirilen şema SQL'inin en sonuna eklenir.
+    //
+    // Not: Script idempotent; boş/var olan DB üzerinde güvenle tekrar çalıştırılabilir.
+    if (content.contains('-- PATISYO_MANAGED_CLOUD_BOOTSTRAP')) return content;
+    final trimmed = content.trimRight();
+    return '$trimmed\n\n$_managedCloudHybridBootstrapSql\n';
+  }
+
+  static const String _managedCloudHybridBootstrapSql = r'''
+-- PATISYO_MANAGED_CLOUD_BOOTSTRAP
+-- Managed Cloud (Neon/Supabase) Hibrit Senkron Kurulumu
+--
+-- Bu blok, uygulama rolünün DDL/trigger/sequence yetkisi olmadığı senaryolarda
+-- bile "Karma (Yerel + Bulut)" modunun eksiksiz çalışması için gerekli altyapıyı kurar:
+--   - DELETE senkronu: sync_tombstones + AFTER DELETE trigger
+--   - Delta (upsert/delete) kuyruğu: sync_delta_outbox + AFTER INSERT/UPDATE/DELETE trigger
+--   - Timestamp altyapısı: created_at/updated_at + updated_at trigger (best-effort)
+--   - Sequence çakışma azaltma: cloud tarafında SERIAL/BIGSERIAL sequence'ları "even" yap (INCREMENT BY 2)
+--
+-- Not: Bu scripti Neon/Supabase SQL Editor'de DB owner/admin ile bir kez çalıştırın.
+
+BEGIN;
+
+-- 1) Sequence parity (Cloud: even)
+DO $$
+DECLARE
+  desired_parity int := 0; -- cloud = even
+  r RECORD;
+  maxv BIGINT;
+  nextv BIGINT;
+  seq_fqn TEXT;
+BEGIN
+  FOR r IN
+    SELECT
+      seq.relname AS seq_name,
+      tab.relname AS table_name,
+      att.attname AS column_name
+    FROM pg_class seq
+    JOIN pg_depend dep ON dep.objid = seq.oid
+    JOIN pg_class tab ON tab.oid = dep.refobjid
+    JOIN pg_attribute att
+      ON att.attrelid = tab.oid
+     AND att.attnum = dep.refobjsubid
+    JOIN pg_namespace ns_seq ON ns_seq.oid = seq.relnamespace
+    JOIN pg_namespace ns_tab ON ns_tab.oid = tab.relnamespace
+    WHERE seq.relkind = 'S'
+      AND ns_seq.nspname = 'public'
+      AND ns_tab.nspname = 'public'
+  LOOP
+    BEGIN
+      EXECUTE format(
+        'SELECT COALESCE(MAX(%I), 0) FROM public.%I',
+        r.column_name,
+        r.table_name
+      ) INTO maxv;
+
+      nextv := maxv + 1;
+      IF mod(nextv, 2) <> desired_parity THEN
+        nextv := nextv + 1;
+      END IF;
+
+      EXECUTE format('ALTER SEQUENCE public.%I INCREMENT BY 2', r.seq_name);
+
+      seq_fqn := format('%I.%I', 'public', r.seq_name);
+      EXECUTE format(
+        'SELECT setval(%L::regclass, %s, false)',
+        seq_fqn,
+        nextv
+      );
+    EXCEPTION WHEN others THEN
+      -- ignore
+    END;
+  END LOOP;
+END
+$$;
+
+-- 2) Tombstones: DELETE propagation
+CREATE TABLE IF NOT EXISTS public.sync_tombstones (
+  id BIGSERIAL PRIMARY KEY,
+  table_name TEXT NOT NULL,
+  pk JSONB NOT NULL,
+  pk_hash TEXT NOT NULL,
+  deleted_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS ux_sync_tombstones_table_pk
+  ON public.sync_tombstones (table_name, pk_hash);
+CREATE INDEX IF NOT EXISTS idx_sync_tombstones_deleted_at
+  ON public.sync_tombstones (deleted_at);
+
+CREATE OR REPLACE FUNCTION public.patisyo_capture_delete_tombstone()
+RETURNS trigger AS $$
+DECLARE
+  pk_cols TEXT[];
+  col TEXT;
+  pk JSONB := '{}'::jsonb;
+  row JSONB;
+BEGIN
+  -- Senkron uygulaması sırasında (remote tombstone apply) tekrar tombstone üretme.
+  IF COALESCE(current_setting('patisyo.sync_apply', true), '') = '1' THEN
+    RETURN OLD;
+  END IF;
+
+  -- Dahili tabloları asla tombstone'lama.
+  IF TG_TABLE_SCHEMA <> 'public' THEN
+    RETURN OLD;
+  END IF;
+  IF TG_TABLE_NAME = 'sync_tombstones'
+     OR TG_TABLE_NAME = 'sync_outbox'
+     OR TG_TABLE_NAME = 'sync_delta_outbox' THEN
+    RETURN OLD;
+  END IF;
+
+  row := to_jsonb(OLD);
+
+  SELECT array_agg(a.attname ORDER BY a.attnum)
+  INTO pk_cols
+  FROM pg_index i
+  JOIN pg_attribute a
+    ON a.attrelid = i.indrelid
+   AND a.attnum = ANY(i.indkey)
+  WHERE i.indrelid = TG_RELID
+    AND i.indisprimary;
+
+  IF pk_cols IS NULL OR array_length(pk_cols, 1) IS NULL THEN
+    RETURN OLD;
+  END IF;
+
+  FOREACH col IN ARRAY pk_cols LOOP
+    pk := pk || jsonb_build_object(col, row -> col);
+  END LOOP;
+
+  INSERT INTO public.sync_tombstones (table_name, pk, pk_hash, deleted_at)
+  VALUES (TG_TABLE_NAME, pk, md5(pk::text), CURRENT_TIMESTAMP)
+  ON CONFLICT (table_name, pk_hash) DO UPDATE
+    SET deleted_at = GREATEST(public.sync_tombstones.deleted_at, EXCLUDED.deleted_at),
+        pk = EXCLUDED.pk;
+
+  RETURN OLD;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT c.oid AS oid, c.relname AS name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind IN ('r', 'p')
+      AND c.relispartition = false
+      AND c.relname NOT IN ('sync_tombstones', 'sync_outbox', 'sync_delta_outbox')
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_trigger t
+      WHERE t.tgname = 'trg_patisyo_capture_delete'
+        AND t.tgrelid = r.oid
+    ) THEN
+      EXECUTE format(
+        'CREATE TRIGGER %s AFTER DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.%s()',
+        'trg_patisyo_capture_delete',
+        r.name,
+        'patisyo_capture_delete_tombstone'
+      );
+    END IF;
+  END LOOP;
+END
+$$;
+
+-- 3) Delta outbox: upsert/delete change capture
+CREATE TABLE IF NOT EXISTS public.sync_delta_outbox (
+  table_name TEXT NOT NULL,
+  pk JSONB NOT NULL,
+  pk_hash TEXT NOT NULL,
+  action TEXT NOT NULL, -- 'upsert' | 'delete'
+  touched_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  acked_at TIMESTAMPTZ,
+  retry_count INTEGER NOT NULL DEFAULT 0,
+  last_error TEXT,
+  dead BOOLEAN NOT NULL DEFAULT false,
+  PRIMARY KEY (table_name, pk_hash)
+);
+CREATE INDEX IF NOT EXISTS idx_sync_delta_outbox_touched_at
+  ON public.sync_delta_outbox (touched_at);
+CREATE INDEX IF NOT EXISTS idx_sync_delta_outbox_acked_at
+  ON public.sync_delta_outbox (acked_at);
+
+CREATE OR REPLACE FUNCTION public.patisyo_capture_delta_outbox()
+RETURNS trigger AS $$
+DECLARE
+  pk_cols TEXT[];
+  col TEXT;
+  pk JSONB := '{}'::jsonb;
+  row JSONB;
+  v_action TEXT;
+BEGIN
+  -- Senkron uygulanırken (remote -> local/cloud upsert/delete) outbox üretme.
+  IF COALESCE(current_setting('patisyo.sync_apply', true), '') = '1' THEN
+    IF TG_OP = 'DELETE' THEN
+      RETURN OLD;
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF TG_TABLE_SCHEMA <> 'public' THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  -- Dahili/derivatif tabloları asla delta outbox'a alma.
+  IF TG_TABLE_NAME IN (
+    'sync_tombstones',
+    'sync_delta_outbox',
+    'sync_outbox',
+    'table_counts',
+    'sequences',
+    'account_metadata'
+  ) THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  v_action := CASE WHEN TG_OP = 'DELETE' THEN 'delete' ELSE 'upsert' END;
+  row := to_jsonb(CASE WHEN TG_OP = 'DELETE' THEN OLD ELSE NEW END);
+
+  SELECT array_agg(a.attname ORDER BY a.attnum)
+  INTO pk_cols
+  FROM pg_index i
+  JOIN pg_attribute a
+    ON a.attrelid = i.indrelid
+   AND a.attnum = ANY(i.indkey)
+  WHERE i.indrelid = TG_RELID
+    AND i.indisprimary;
+
+  IF pk_cols IS NULL OR array_length(pk_cols, 1) IS NULL THEN
+    IF TG_OP = 'DELETE' THEN RETURN OLD; END IF;
+    RETURN NEW;
+  END IF;
+
+  FOREACH col IN ARRAY pk_cols LOOP
+    pk := pk || jsonb_build_object(col, row -> col);
+  END LOOP;
+
+  INSERT INTO public.sync_delta_outbox (
+    table_name,
+    pk,
+    pk_hash,
+    action,
+    touched_at,
+    acked_at,
+    retry_count,
+    last_error,
+    dead
+  )
+  VALUES (
+    TG_TABLE_NAME,
+    pk,
+    md5(pk::text),
+    v_action,
+    CURRENT_TIMESTAMP,
+    NULL,
+    0,
+    NULL,
+    false
+  )
+  ON CONFLICT (table_name, pk_hash) DO UPDATE
+    SET pk = EXCLUDED.pk,
+        action = EXCLUDED.action,
+        touched_at = EXCLUDED.touched_at,
+        acked_at = NULL,
+        retry_count = 0,
+        last_error = NULL,
+        dead = false;
+
+  IF TG_OP = 'DELETE' THEN
+    RETURN OLD;
+  END IF;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT c.oid AS oid, c.relname AS name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind IN ('r', 'p')
+      AND c.relispartition = false
+      AND c.relname NOT IN (
+        'sync_tombstones',
+        'sync_delta_outbox',
+        'sync_outbox',
+        'table_counts',
+        'sequences',
+        'account_metadata'
+      )
+  LOOP
+    IF NOT EXISTS (
+      SELECT 1
+      FROM pg_trigger t
+      WHERE t.tgname = 'trg_patisyo_capture_delta_outbox'
+        AND t.tgrelid = r.oid
+    ) THEN
+      EXECUTE format(
+        'CREATE TRIGGER %s AFTER INSERT OR UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.%s()',
+        'trg_patisyo_capture_delta_outbox',
+        r.name,
+        'patisyo_capture_delta_outbox'
+      );
+    END IF;
+  END LOOP;
+END
+$$;
+
+-- 4) Timestamp infra (best-effort): created_at/updated_at + updated_at trigger
+CREATE OR REPLACE FUNCTION public.patisyo_set_updated_at()
+RETURNS trigger AS $$
+BEGIN
+  -- Senkron uygulanırken (remote -> local/cloud upsert) updated_at'ı bozma.
+  IF COALESCE(current_setting('patisyo.sync_apply', true), '') = '1' THEN
+    RETURN NEW;
+  END IF;
+  NEW.updated_at = CURRENT_TIMESTAMP;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN
+    SELECT c.oid AS oid, c.relname AS name
+    FROM pg_class c
+    JOIN pg_namespace n ON n.oid = c.relnamespace
+    WHERE n.nspname = 'public'
+      AND c.relkind IN ('r', 'p')
+      AND c.relispartition = false
+  LOOP
+    BEGIN
+      EXECUTE format(
+        'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS created_at TIMESTAMP',
+        r.name
+      );
+    EXCEPTION WHEN others THEN
+      -- ignore
+    END;
+    BEGIN
+      EXECUTE format(
+        'ALTER TABLE public.%I ALTER COLUMN created_at SET DEFAULT CURRENT_TIMESTAMP',
+        r.name
+      );
+    EXCEPTION WHEN others THEN
+      -- ignore
+    END;
+    BEGIN
+      EXECUTE format(
+        'ALTER TABLE public.%I ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP',
+        r.name
+      );
+    EXCEPTION WHEN others THEN
+      -- ignore
+    END;
+    BEGIN
+      EXECUTE format(
+        'ALTER TABLE public.%I ALTER COLUMN updated_at SET DEFAULT CURRENT_TIMESTAMP',
+        r.name
+      );
+    EXCEPTION WHEN others THEN
+      -- ignore
+    END;
+
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM pg_trigger t
+        WHERE t.tgname = 'trg_patisyo_set_updated_at'
+          AND t.tgrelid = r.oid
+      ) THEN
+        EXECUTE format(
+          'CREATE TRIGGER %s BEFORE UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.%s()',
+          'trg_patisyo_set_updated_at',
+          r.name,
+          'patisyo_set_updated_at'
+        );
+      END IF;
+    EXCEPTION WHEN others THEN
+      -- ignore
+    END;
+  END LOOP;
+END
+$$;
+
+COMMIT;
+''';
 
   String _wrapSchemaDumpInTransactionIfMissing(String content) {
     final lines = content.split('\n');
