@@ -318,7 +318,9 @@ class UrunlerVeritabaniServisi {
   }
 
   Future<Pool> _poolOlustur() async {
-    return VeritabaniHavuzu().havuzAl(database: OturumServisi().aktifVeritabaniAdi);
+    return VeritabaniHavuzu().havuzAl(
+      database: OturumServisi().aktifVeritabaniAdi,
+    );
   }
 
   Future<Connection?> _yoneticiBaglantisiAl() async {
@@ -474,14 +476,17 @@ class UrunlerVeritabaniServisi {
       'CREATE INDEX IF NOT EXISTS idx_pd_product_sold_id ON product_devices (product_id, is_sold, id)',
     );
 
-      // [2026 GOOGLE-LIKE] product_devices search_tags (indexed deep search)
+    // [2026 GOOGLE-LIKE] product_devices search_tags (indexed deep search)
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
       // ParadeDB / BM25 (best-effort; extension yoksa no-op)
       try {
         await PgEklentiler.ensurePgSearch(_pool!);
       } catch (_) {}
-      await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'product_devices');
+      await PgEklentiler.ensureSearchTagsNotNullDefault(
+        _pool!,
+        'product_devices',
+      );
       await PgEklentiler.ensureSearchTagsFtsIndex(
         _pool!,
         table: 'product_devices',
@@ -1059,7 +1064,10 @@ class UrunlerVeritabaniServisi {
         await PgEklentiler.ensurePgSearch(_pool!);
       } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'products');
-      await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'stock_movements');
+      await PgEklentiler.ensureSearchTagsNotNullDefault(
+        _pool!,
+        'stock_movements',
+      );
       await PgEklentiler.ensureSearchTagsFtsIndex(
         _pool!,
         table: 'products',
@@ -1418,7 +1426,8 @@ class UrunlerVeritabaniServisi {
     List<int>? depoIds,
     String? islemTuru,
     String? kullanici,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId, // Keyset Pagination Cursor
   }) async {
     if (!_isInitialized) await baslat();
@@ -1472,11 +1481,14 @@ class UrunlerVeritabaniServisi {
     dynamic lastSortValue;
     if (lastId != null && lastId > 0 && sortColumn != 'id') {
       try {
-        final String cursorExpr =
-            sortColumn == 'depo_stogu' ? (depoStoguExpr ?? '0') : sortColumn;
+        final String cursorExpr = sortColumn == 'depo_stogu'
+            ? (depoStoguExpr ?? '0')
+            : sortColumn;
 
         final cursorParams = <String, dynamic>{'id': lastId};
-        if (sortColumn == 'depo_stogu' && depoIds != null && depoIds.isNotEmpty) {
+        if (sortColumn == 'depo_stogu' &&
+            depoIds != null &&
+            depoIds.isNotEmpty) {
           cursorParams['depoIdArray'] = depoIds;
         }
 
@@ -1550,7 +1562,7 @@ class UrunlerVeritabaniServisi {
       // Ancak '%' ile baslayan LIKE sorgulari normal B-Tree indekslerini oldurur,
       // fakat Trigram indeksler ile calisir. Yine de garanti performans icin ILIKE kullaniyoruz
       // ve "Full Text Search" mantigini simule ediyoruz.
-	      whereConditions.add('''
+      whereConditions.add('''
 	        (
 	          (
 	            products.search_tags ILIKE @search
@@ -1568,9 +1580,9 @@ class UrunlerVeritabaniServisi {
 	          )
 	        )
 	      '''); // Optimized for GIN
-	      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-	      params['fts'] = aramaTerimi.toLowerCase();
-	    }
+      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      params['fts'] = aramaTerimi.toLowerCase();
+    }
 
     if (aktifMi != null) {
       whereConditions.add('products.aktif_mi = @aktifMi');
@@ -1856,8 +1868,8 @@ class UrunlerVeritabaniServisi {
     // Add join clause to query if needed
     query += joinClause;
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      whereConditions.add('''
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      whereConditions.add('''
 	        (
 	          (
 	            products.search_tags LIKE @search
@@ -1875,9 +1887,9 @@ class UrunlerVeritabaniServisi {
 	          )
 	        )
 	      ''');
-	      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-	      params['fts'] = aramaTerimi.toLowerCase();
-	    }
+      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      params['fts'] = aramaTerimi.toLowerCase();
+    }
 
     if (aktifMi != null) {
       whereConditions.add('products.aktif_mi = @aktifMi');
@@ -2088,9 +2100,9 @@ class UrunlerVeritabaniServisi {
       double? vat,
       List<int>? depolar,
     }) {
-	      final String? trimmedQ = q?.trim();
-	      if (trimmedQ != null && trimmedQ.isNotEmpty) {
-	        conds.add('''
+      final String? trimmedQ = q?.trim();
+      if (trimmedQ != null && trimmedQ.isNotEmpty) {
+        conds.add('''
 	          (
 	            (
 	              products.search_tags ILIKE @search
@@ -2108,9 +2120,9 @@ class UrunlerVeritabaniServisi {
 	            )
 	          )
 	        ''');
-	        params['search'] = '%${trimmedQ.toLowerCase()}%';
-	        params['fts'] = trimmedQ.toLowerCase();
-	      }
+        params['search'] = '%${trimmedQ.toLowerCase()}%';
+        params['fts'] = trimmedQ.toLowerCase();
+      }
 
       if (aktif != null) {
         conds.add('products.aktif_mi = @aktifMi');
@@ -2404,7 +2416,8 @@ class UrunlerVeritabaniServisi {
         user: kullanici, // kullanıcı seçimi facet olarak dahil
       );
       if (exists.isNotEmpty) typeConds.add(exists);
-      final q = '''
+      final q =
+          '''
         SELECT COUNT(*)
         FROM products
         ${buildWhere(typeConds)}
@@ -3412,8 +3425,7 @@ class UrunlerVeritabaniServisi {
       "SELECT MAX((substring(trim(barkod) from '([0-9]+)\$'))::BIGINT) FROM products WHERE trim(barkod) ~ '[0-9]+\$'",
     );
 
-    final maxBarcode =
-        (result.isNotEmpty && result[0][0] != null)
+    final maxBarcode = (result.isNotEmpty && result[0][0] != null)
         ? (int.tryParse(result[0][0].toString()) ?? 0)
         : 0;
 
@@ -3918,8 +3930,11 @@ class UrunlerVeritabaniServisi {
       }
       if (bitisTarihi != null) {
         // inclusive end-of-day
-        final e = DateTime(bitisTarihi.year, bitisTarihi.month, bitisTarihi.day)
-            .add(const Duration(days: 1));
+        final e = DateTime(
+          bitisTarihi.year,
+          bitisTarihi.month,
+          bitisTarihi.day,
+        ).add(const Duration(days: 1));
         conds.add('pd.last_tx_at < @endDate');
         params['endDate'] = e.toIso8601String();
       }
@@ -4052,8 +4067,9 @@ class UrunlerVeritabaniServisi {
         final shipId = tx['id'] is int
             ? tx['id'] as int
             : int.tryParse(tx['id']?.toString() ?? '');
-        final DateTime? dt =
-            tx['date_raw'] is DateTime ? tx['date_raw'] as DateTime : null;
+        final DateTime? dt = tx['date_raw'] is DateTime
+            ? tx['date_raw'] as DateTime
+            : null;
         final String typeLabel = (tx['customTypeLabel'] ?? tx['type'] ?? '')
             .toString()
             .trim();
@@ -4100,14 +4116,12 @@ class UrunlerVeritabaniServisi {
       final prevDate = lastDate;
       final prevShipmentId = lastShipmentId;
 
-      final DateTime? nextDate =
-          last['date_raw'] is DateTime
-              ? last['date_raw'] as DateTime
-              : DateTime.tryParse(last['date_raw']?.toString() ?? '');
-      final int? nextShipmentId =
-          last['id'] is int
-              ? last['id'] as int
-              : int.tryParse(last['id']?.toString() ?? '');
+      final DateTime? nextDate = last['date_raw'] is DateTime
+          ? last['date_raw'] as DateTime
+          : DateTime.tryParse(last['date_raw']?.toString() ?? '');
+      final int? nextShipmentId = last['id'] is int
+          ? last['id'] as int
+          : int.tryParse(last['id']?.toString() ?? '');
 
       // Güvenlik: cursor ilerlemiyorsa sonsuz döngüye girme.
       if (nextDate == null && nextShipmentId == null) break;
@@ -4643,11 +4657,11 @@ class UrunlerVeritabaniServisi {
         (sm.quantity * sm.unit_price) as tutar,
         sm.description as aciklama,
         sm.created_by as kullanici,
-        w.name as depo_adi,
+        w.ad as depo_adi,
         sm.integration_ref,
         CASE WHEN sm.quantity > 0 THEN 'Giriş' ELSE 'Çıkış' END as yon
       FROM stock_movements sm
-      LEFT JOIN warehouses w ON sm.warehouse_id = w.id
+      LEFT JOIN depots w ON sm.warehouse_id = w.id
       WHERE sm.product_id = @urunId
     ''';
 
@@ -4911,7 +4925,11 @@ class UrunlerVeritabaniServisi {
     final maxDt = range.first[1] as DateTime?;
     if (minDt == null || maxDt == null) return;
 
-    await _ensureStockMovementPartitionsForRange(minDt, maxDt, session: executor);
+    await _ensureStockMovementPartitionsForRange(
+      minDt,
+      maxDt,
+      session: executor,
+    );
 
     await PgEklentiler.moveRowsFromDefaultPartition(
       executor: executor,

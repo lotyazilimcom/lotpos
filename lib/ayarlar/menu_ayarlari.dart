@@ -153,6 +153,12 @@ class MenuAyarlari {
       ],
     ),
     MenuItem(
+      id: 'reports',
+      labelKey: 'nav.reports',
+      icon: Icons.assessment_rounded,
+      index: 24,
+    ),
+    MenuItem(
       id: 'personnel_user',
       labelKey: 'nav.personnel_user',
       icon: Icons.people_alt_rounded,

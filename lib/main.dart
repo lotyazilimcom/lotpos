@@ -56,6 +56,7 @@ import 'sayfalar/baslangic/bootstrap_sayfasi.dart';
 import 'servisler/veritabani_yapilandirma.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'sayfalar/ana_sayfa/ana_sayfa.dart';
+import 'sayfalar/raporlar/raporlar_sayfasi.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1542,6 +1543,9 @@ class _HomePageState extends State<HomePage> {
     }
     if (index == 23) {
       return const HizliSatisSayfasi();
+    }
+    if (index == 24) {
+      return const RaporlarSayfasi();
     }
     if (index == 13) {
       final q = _pendingInitialSearchQuery;
