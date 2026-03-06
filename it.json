@@ -1,0 +1,343 @@
+{
+    "language": {
+        "name": "Italiano",
+        "short_form": "it",
+        "language_code": "it-IT",
+        "text_direction": "ltr",
+        "text_editor_lang": "it"
+    },
+    "translations": [
+        {
+            "label": "nav.home",
+            "translation": "Home"
+        },
+        {
+            "label": "nav.settings",
+            "translation": "Impostazioni"
+        },
+        {
+            "label": "nav.settings.users",
+            "translation": "Utenti"
+        },
+        {
+            "label": "nav.settings.roles_permissions",
+            "translation": "Ruoli e Permessi"
+        },
+        {
+            "label": "nav.settings.company",
+            "translation": "Impostazioni Azienda"
+        },
+        {
+            "label": "nav.settings.general",
+            "translation": "Impostazioni Generali"
+        },
+        {
+            "label": "nav.settings.language",
+            "translation": "Impostazioni Lingua"
+        },
+        {
+            "label": "nav.accounts",
+            "translation": "Conti Correnti"
+        },
+        {
+            "label": "nav.app.shortTitle",
+            "translation": "Patisyo"
+        },
+        {
+            "label": "nav.user.label",
+            "translation": "Utente"
+        },
+        {
+            "label": "nav.user.online",
+            "translation": "Online"
+        },
+        {
+            "label": "login.logout",
+            "translation": "Esci"
+        },
+        {
+            "label": "language.title",
+            "translation": "Lingue"
+        },
+        {
+            "label": "language.search",
+            "translation": "Cerca Lingua..."
+        },
+        {
+            "label": "language.export",
+            "translation": "Esporta"
+        },
+        {
+            "label": "language.import",
+            "translation": "Importa Lingua"
+        },
+        {
+            "label": "language.add",
+            "translation": "Aggiungi Lingua"
+        },
+        {
+            "label": "language.rowsPerPage",
+            "translation": "Righe"
+        },
+        {
+            "label": "language.table.orderNo",
+            "translation": "N. Ordine"
+        },
+        {
+            "label": "language.table.name",
+            "translation": "Nome Lingua"
+        },
+        {
+            "label": "language.table.default",
+            "translation": "Lingua Predefinita"
+        },
+        {
+            "label": "language.table.actions",
+            "translation": "Traduzione/Esporta"
+        },
+        {
+            "label": "language.table.status",
+            "translation": "Stato"
+        },
+        {
+            "label": "language.table.menu",
+            "translation": "Azioni"
+        },
+        {
+            "label": "language.default",
+            "translation": "Predefinito"
+        },
+        {
+            "label": "language.setAsDefault",
+            "translation": "Imposta come Predefinito"
+        },
+        {
+            "label": "language.editTranslations",
+            "translation": "Modifica Traduzioni"
+        },
+        {
+            "label": "language.exportLanguage",
+            "translation": "Esporta"
+        },
+        {
+            "label": "language.status.active",
+            "translation": "Attivo"
+        },
+        {
+            "label": "language.status.inactive",
+            "translation": "Inattivo"
+        },
+        {
+            "label": "language.menu.edit",
+            "translation": "Modifica"
+        },
+        {
+            "label": "language.menu.deactivate",
+            "translation": "Disattiva"
+        },
+        {
+            "label": "language.menu.activate",
+            "translation": "Attiva"
+        },
+        {
+            "label": "language.menu.delete",
+            "translation": "Elimina"
+        },
+        {
+            "label": "language.dialog.add.title",
+            "translation": "Aggiungi Nuova Lingua"
+        },
+        {
+            "label": "language.dialog.add.subtitle",
+            "translation": "Definisci una nuova lingua nel sistema."
+        },
+        {
+            "label": "language.dialog.add.name",
+            "translation": "Nome Lingua"
+        },
+        {
+            "label": "language.dialog.add.name.hint",
+            "translation": "Esempio: Italiano"
+        },
+        {
+            "label": "language.dialog.add.code",
+            "translation": "Codice Lingua"
+        },
+        {
+            "label": "language.dialog.add.code.hint",
+            "translation": "Esempio: it-IT"
+        },
+        {
+            "label": "language.dialog.add.shortForm",
+            "translation": "Forma Breve"
+        },
+        {
+            "label": "language.dialog.add.shortForm.hint",
+            "translation": "Esempio: it"
+        },
+        {
+            "label": "language.dialog.add.editor",
+            "translation": "Lingua Editor Testo"
+        },
+        {
+            "label": "language.dialog.add.editor.hint",
+            "translation": "Seleziona"
+        },
+        {
+            "label": "language.dialog.add.orderNo",
+            "translation": "Numero Ordine"
+        },
+        {
+            "label": "language.dialog.add.orderNo.hint",
+            "translation": "5"
+        },
+        {
+            "label": "language.dialog.add.direction",
+            "translation": "Direzione Testo"
+        },
+        {
+            "label": "language.dialog.add.direction.ltr",
+            "translation": "Da Sinistra a Destra"
+        },
+        {
+            "label": "language.dialog.add.direction.rtl",
+            "translation": "Da Destra a Sinistra"
+        },
+        {
+            "label": "language.dialog.add.status",
+            "translation": "Stato"
+        },
+        {
+            "label": "language.dialog.add.status.active",
+            "translation": "Attivo"
+        },
+        {
+            "label": "language.dialog.add.status.inactive",
+            "translation": "Inattivo"
+        },
+        {
+            "label": "language.dialog.add.cancel",
+            "translation": "Annulla"
+        },
+        {
+            "label": "language.dialog.add.save",
+            "translation": "Salva"
+        },
+        {
+            "label": "language.dialog.add.close",
+            "translation": "Chiudi"
+        },
+        {
+            "label": "language.dialog.import.title",
+            "translation": "Importa Lingua"
+        },
+        {
+            "label": "language.dialog.import.subtitle",
+            "translation": "Importa lingua e traduzioni incollando il contenuto JSON."
+        },
+        {
+            "label": "language.dialog.import.jsonContent",
+            "translation": "Contenuto JSON"
+        },
+        {
+            "label": "language.dialog.import.jsonHint",
+            "translation": "{ ... }"
+        },
+        {
+            "label": "language.dialog.import.selectFile",
+            "translation": "Seleziona File"
+        },
+        {
+            "label": "language.dialog.import.downloadSample",
+            "translation": "Scarica JSON Esempio"
+        },
+        {
+            "label": "language.dialog.import.cancel",
+            "translation": "Annulla"
+        },
+        {
+            "label": "language.dialog.import.upload",
+            "translation": "Carica"
+        },
+        {
+            "label": "language.dialog.import.close",
+            "translation": "Chiudi"
+        },
+        {
+            "label": "common.close",
+            "translation": "Chiudi"
+        },
+        {
+            "label": "common.cancel",
+            "translation": "Annulla"
+        },
+        {
+            "label": "common.save",
+            "translation": "Salva"
+        },
+        {
+            "label": "common.delete",
+            "translation": "Elimina"
+        },
+        {
+            "label": "common.edit",
+            "translation": "Modifica"
+        },
+        {
+            "label": "common.add",
+            "translation": "Aggiungi"
+        },
+        {
+            "label": "common.search",
+            "translation": "Cerca"
+        },
+        {
+            "label": "common.export",
+            "translation": "Esporta"
+        },
+        {
+            "label": "common.import",
+            "translation": "Importa"
+        },
+        {
+            "label": "common.esc",
+            "translation": "ESC"
+        },
+        {
+            "label": "app.title",
+            "translation": "Sistema di Tracciamento Inventario"
+        },
+        {
+            "label": "common.error.network",
+            "translation": "Impossibile raggiungere il server. Controlla la tua connessione."
+        },
+        {
+            "label": "common.select",
+            "translation": "Seleziona"
+        },
+        {
+            "label": "datatable.empty",
+            "translation": "Nessun record trovato"
+        },
+        {
+            "label": "datatable.keep_details_open",
+            "translation": "Mantieni dettagli aperti"
+        },
+        {
+            "label": "datatable.load_more",
+            "translation": "Carica Altro"
+        },
+        {
+            "label": "settings.codeGeneration.format.label",
+            "translation": "Formato"
+        },
+        {
+            "label": "settings.codeGeneration.format.numeric",
+            "translation": "Numerico"
+        },
+        {
+            "label": "settings.codeGeneration.format.alphanumeric",
+            "translation": "Alfanumerico"
+        }
+    ]
+}

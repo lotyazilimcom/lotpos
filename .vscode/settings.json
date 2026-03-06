@@ -1,0 +1,8 @@
+{
+    "cmake.sourceDirectory": "/Users/pateez/Desktop/patisyov10/linux/flutter",
+    "java.import.gradle.enabled": false,
+    "java.gradle.buildServer.enabled": false,
+    "java.jdt.ls.androidSupport.enabled": "off",
+    "java.configuration.updateBuildConfiguration": "disabled",
+    "java.project.importOnFirstTimeStartup": "disabled"
+}

@@ -1,0 +1,562 @@
+[
+  {
+    "name": "async.md",
+    "path": "src/content/language/async.md",
+    "sha": "6bb4d77b91b22d1dc7b12e49315154b7e64a366d",
+    "size": 7077,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/async.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/async.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/6bb4d77b91b22d1dc7b12e49315154b7e64a366d",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/async.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/async.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/6bb4d77b91b22d1dc7b12e49315154b7e64a366d",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/async.md"
+    }
+  },
+  {
+    "name": "branches.md",
+    "path": "src/content/language/branches.md",
+    "sha": "4f1fee84c9ec3c591b4089e672e56495c8f0b239",
+    "size": 9364,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/branches.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/branches.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/4f1fee84c9ec3c591b4089e672e56495c8f0b239",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/branches.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/branches.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/4f1fee84c9ec3c591b4089e672e56495c8f0b239",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/branches.md"
+    }
+  },
+  {
+    "name": "built-in-types.md",
+    "path": "src/content/language/built-in-types.md",
+    "sha": "dbd615e63d8b114a4d4f4dd338848c41c86bc604",
+    "size": 13741,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/built-in-types.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/built-in-types.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/dbd615e63d8b114a4d4f4dd338848c41c86bc604",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/built-in-types.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/built-in-types.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/dbd615e63d8b114a4d4f4dd338848c41c86bc604",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/built-in-types.md"
+    }
+  },
+  {
+    "name": "callable-objects.md",
+    "path": "src/content/language/callable-objects.md",
+    "sha": "ee238b190ae5919320001cc46449d8dd0ec534c5",
+    "size": 1295,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/callable-objects.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/callable-objects.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/ee238b190ae5919320001cc46449d8dd0ec534c5",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/callable-objects.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/callable-objects.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/ee238b190ae5919320001cc46449d8dd0ec534c5",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/callable-objects.md"
+    }
+  },
+  {
+    "name": "class-modifiers-for-apis.md",
+    "path": "src/content/language/class-modifiers-for-apis.md",
+    "sha": "a4d34cf23f865f4c23fb61f7d3197b5e274e7850",
+    "size": 14120,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/class-modifiers-for-apis.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/class-modifiers-for-apis.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/a4d34cf23f865f4c23fb61f7d3197b5e274e7850",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/class-modifiers-for-apis.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/class-modifiers-for-apis.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/a4d34cf23f865f4c23fb61f7d3197b5e274e7850",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/class-modifiers-for-apis.md"
+    }
+  },
+  {
+    "name": "class-modifiers.md",
+    "path": "src/content/language/class-modifiers.md",
+    "sha": "4d0f0c6fa76695b85782cad60a8f47c64e8c77ee",
+    "size": 10970,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/class-modifiers.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/class-modifiers.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/4d0f0c6fa76695b85782cad60a8f47c64e8c77ee",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/class-modifiers.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/class-modifiers.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/4d0f0c6fa76695b85782cad60a8f47c64e8c77ee",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/class-modifiers.md"
+    }
+  },
+  {
+    "name": "classes.md",
+    "path": "src/content/language/classes.md",
+    "sha": "0a06bd777dc10f5ac3c9fe6fc05c95dad657879a",
+    "size": 11570,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/classes.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/classes.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/0a06bd777dc10f5ac3c9fe6fc05c95dad657879a",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/classes.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/classes.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/0a06bd777dc10f5ac3c9fe6fc05c95dad657879a",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/classes.md"
+    }
+  },
+  {
+    "name": "collections.md",
+    "path": "src/content/language/collections.md",
+    "sha": "c4ccd60d3c7ecc7ae8b3657f84ef9f806bea892f",
+    "size": 21452,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/collections.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/collections.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/c4ccd60d3c7ecc7ae8b3657f84ef9f806bea892f",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/collections.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/collections.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/c4ccd60d3c7ecc7ae8b3657f84ef9f806bea892f",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/collections.md"
+    }
+  },
+  {
+    "name": "comments.md",
+    "path": "src/content/language/comments.md",
+    "sha": "7d8d63d40ab09a52ec2c2523a25a5cc36bb2ded5",
+    "size": 2883,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/comments.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/comments.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/7d8d63d40ab09a52ec2c2523a25a5cc36bb2ded5",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/comments.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/comments.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/7d8d63d40ab09a52ec2c2523a25a5cc36bb2ded5",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/comments.md"
+    }
+  },
+  {
+    "name": "concurrency.md",
+    "path": "src/content/language/concurrency.md",
+    "sha": "bd6450408d2e5507f66b3ce84e384caff7da0ab5",
+    "size": 20127,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/concurrency.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/concurrency.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/bd6450408d2e5507f66b3ce84e384caff7da0ab5",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/concurrency.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/concurrency.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/bd6450408d2e5507f66b3ce84e384caff7da0ab5",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/concurrency.md"
+    }
+  },
+  {
+    "name": "constructors.md",
+    "path": "src/content/language/constructors.md",
+    "sha": "1d831bd9e1c19d87d49889b933a3b972cc7a000d",
+    "size": 17071,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/constructors.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/constructors.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/1d831bd9e1c19d87d49889b933a3b972cc7a000d",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/constructors.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/constructors.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/1d831bd9e1c19d87d49889b933a3b972cc7a000d",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/constructors.md"
+    }
+  },
+  {
+    "name": "dot-shorthands.md",
+    "path": "src/content/language/dot-shorthands.md",
+    "sha": "a8a29ee2f8ccdc9150a9dafca6485ced481eaa5a",
+    "size": 10858,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/dot-shorthands.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/dot-shorthands.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/a8a29ee2f8ccdc9150a9dafca6485ced481eaa5a",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/dot-shorthands.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/dot-shorthands.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/a8a29ee2f8ccdc9150a9dafca6485ced481eaa5a",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/dot-shorthands.md"
+    }
+  },
+  {
+    "name": "enums.md",
+    "path": "src/content/language/enums.md",
+    "sha": "2c18be93162281dd9b258827a1c51583a0c2c8c4",
+    "size": 5299,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/enums.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/enums.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/2c18be93162281dd9b258827a1c51583a0c2c8c4",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/enums.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/enums.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/2c18be93162281dd9b258827a1c51583a0c2c8c4",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/enums.md"
+    }
+  },
+  {
+    "name": "error-handling.md",
+    "path": "src/content/language/error-handling.md",
+    "sha": "a6c24928658256cc26a80d22e447c81cc8d918b1",
+    "size": 6760,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/error-handling.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/error-handling.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/a6c24928658256cc26a80d22e447c81cc8d918b1",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/error-handling.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/error-handling.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/a6c24928658256cc26a80d22e447c81cc8d918b1",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/error-handling.md"
+    }
+  },
+  {
+    "name": "extend.md",
+    "path": "src/content/language/extend.md",
+    "sha": "d4f9c301340472684ab3d538b165104f6ef2bce1",
+    "size": 4033,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/extend.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/extend.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/d4f9c301340472684ab3d538b165104f6ef2bce1",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/extend.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/extend.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/d4f9c301340472684ab3d538b165104f6ef2bce1",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/extend.md"
+    }
+  },
+  {
+    "name": "extension-methods.md",
+    "path": "src/content/language/extension-methods.md",
+    "sha": "dd8d9b530406199d45cfde49dcbb45e84b61a119",
+    "size": 8990,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/extension-methods.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/extension-methods.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/dd8d9b530406199d45cfde49dcbb45e84b61a119",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/extension-methods.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/extension-methods.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/dd8d9b530406199d45cfde49dcbb45e84b61a119",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/extension-methods.md"
+    }
+  },
+  {
+    "name": "extension-types.md",
+    "path": "src/content/language/extension-types.md",
+    "sha": "56e4082ee79095287e86aa94c5577112660c0a2a",
+    "size": 17252,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/extension-types.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/extension-types.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/56e4082ee79095287e86aa94c5577112660c0a2a",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/extension-types.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/extension-types.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/56e4082ee79095287e86aa94c5577112660c0a2a",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/extension-types.md"
+    }
+  },
+  {
+    "name": "functions.md",
+    "path": "src/content/language/functions.md",
+    "sha": "7d8d793e49937dc02786cc3e437b69cfb12e267d",
+    "size": 20207,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/functions.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/functions.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/7d8d793e49937dc02786cc3e437b69cfb12e267d",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/functions.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/functions.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/7d8d793e49937dc02786cc3e437b69cfb12e267d",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/functions.md"
+    }
+  },
+  {
+    "name": "generics.md",
+    "path": "src/content/language/generics.md",
+    "sha": "bf7dde66f2f18656dd029f3ef2a61ffd58cff006",
+    "size": 8057,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/generics.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/generics.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/bf7dde66f2f18656dd029f3ef2a61ffd58cff006",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/generics.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/generics.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/bf7dde66f2f18656dd029f3ef2a61ffd58cff006",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/generics.md"
+    }
+  },
+  {
+    "name": "index.md",
+    "path": "src/content/language/index.md",
+    "sha": "6dd4b78443f097862306783b623a37245aebf1bd",
+    "size": 17847,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/index.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/index.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/6dd4b78443f097862306783b623a37245aebf1bd",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/index.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/index.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/6dd4b78443f097862306783b623a37245aebf1bd",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/index.md"
+    }
+  },
+  {
+    "name": "isolates.md",
+    "path": "src/content/language/isolates.md",
+    "sha": "3e524449040ab32e28d62db9f92d4b8cfbda6ce4",
+    "size": 40264,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/isolates.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/isolates.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/3e524449040ab32e28d62db9f92d4b8cfbda6ce4",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/isolates.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/isolates.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/3e524449040ab32e28d62db9f92d4b8cfbda6ce4",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/isolates.md"
+    }
+  },
+  {
+    "name": "keywords.md",
+    "path": "src/content/language/keywords.md",
+    "sha": "8e3fc5a52ccae605c1d0c00ea409eeef7215205f",
+    "size": 1212,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/keywords.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/keywords.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/8e3fc5a52ccae605c1d0c00ea409eeef7215205f",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/keywords.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/keywords.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/8e3fc5a52ccae605c1d0c00ea409eeef7215205f",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/keywords.md"
+    }
+  },
+  {
+    "name": "libraries.md",
+    "path": "src/content/language/libraries.md",
+    "sha": "85c4b2aa247b37f73e3e02a7a449f86bad0557d1",
+    "size": 6547,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/libraries.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/libraries.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/85c4b2aa247b37f73e3e02a7a449f86bad0557d1",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/libraries.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/libraries.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/85c4b2aa247b37f73e3e02a7a449f86bad0557d1",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/libraries.md"
+    }
+  },
+  {
+    "name": "loops.md",
+    "path": "src/content/language/loops.md",
+    "sha": "55cc140891c2defb3c2393ecb2950ec333c52f6f",
+    "size": 9144,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/loops.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/loops.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/55cc140891c2defb3c2393ecb2950ec333c52f6f",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/loops.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/loops.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/55cc140891c2defb3c2393ecb2950ec333c52f6f",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/loops.md"
+    }
+  },
+  {
+    "name": "metadata.md",
+    "path": "src/content/language/metadata.md",
+    "sha": "2066bbf908a0f3485607c2df924fb488d45149c6",
+    "size": 6472,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/metadata.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/metadata.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/2066bbf908a0f3485607c2df924fb488d45149c6",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/metadata.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/metadata.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/2066bbf908a0f3485607c2df924fb488d45149c6",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/metadata.md"
+    }
+  },
+  {
+    "name": "methods.md",
+    "path": "src/content/language/methods.md",
+    "sha": "570274f66841b879318f9e1bdc4cabdae9f83e0a",
+    "size": 4731,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/methods.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/methods.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/570274f66841b879318f9e1bdc4cabdae9f83e0a",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/methods.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/methods.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/570274f66841b879318f9e1bdc4cabdae9f83e0a",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/methods.md"
+    }
+  },
+  {
+    "name": "mixins.md",
+    "path": "src/content/language/mixins.md",
+    "sha": "e9cf526f4ac84f948abca49004b54b94d410c818",
+    "size": 5757,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/mixins.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/mixins.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/e9cf526f4ac84f948abca49004b54b94d410c818",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/mixins.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/mixins.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/e9cf526f4ac84f948abca49004b54b94d410c818",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/mixins.md"
+    }
+  },
+  {
+    "name": "modifier-reference.md",
+    "path": "src/content/language/modifier-reference.md",
+    "sha": "208c25579c47997b6c4bedb40f0b7e4fd5df1b9d",
+    "size": 4547,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/modifier-reference.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/modifier-reference.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/208c25579c47997b6c4bedb40f0b7e4fd5df1b9d",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/modifier-reference.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/modifier-reference.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/208c25579c47997b6c4bedb40f0b7e4fd5df1b9d",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/modifier-reference.md"
+    }
+  },
+  {
+    "name": "operators.md",
+    "path": "src/content/language/operators.md",
+    "sha": "3e42f458b3c72b9aab764e732a93be1a16f47fba",
+    "size": 22561,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/operators.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/operators.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/3e42f458b3c72b9aab764e732a93be1a16f47fba",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/operators.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/operators.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/3e42f458b3c72b9aab764e732a93be1a16f47fba",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/operators.md"
+    }
+  },
+  {
+    "name": "pattern-types.md",
+    "path": "src/content/language/pattern-types.md",
+    "sha": "5884e6318be430d978b28df46f50d2f2a19da6c7",
+    "size": 15147,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/pattern-types.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/pattern-types.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/5884e6318be430d978b28df46f50d2f2a19da6c7",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/pattern-types.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/pattern-types.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/5884e6318be430d978b28df46f50d2f2a19da6c7",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/pattern-types.md"
+    }
+  },
+  {
+    "name": "patterns.md",
+    "path": "src/content/language/patterns.md",
+    "sha": "ba7d83eabe162484c684cc450c51e19545ca0bd6",
+    "size": 14651,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/patterns.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/patterns.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/ba7d83eabe162484c684cc450c51e19545ca0bd6",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/patterns.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/patterns.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/ba7d83eabe162484c684cc450c51e19545ca0bd6",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/patterns.md"
+    }
+  },
+  {
+    "name": "records.md",
+    "path": "src/content/language/records.md",
+    "sha": "37748f7d981b440908d11692690368497065ccca",
+    "size": 11467,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/records.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/records.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/37748f7d981b440908d11692690368497065ccca",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/records.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/records.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/37748f7d981b440908d11692690368497065ccca",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/records.md"
+    }
+  },
+  {
+    "name": "type-system.md",
+    "path": "src/content/language/type-system.md",
+    "sha": "b88c61a38571e685fccaa2215a1ebfe56d4b345f",
+    "size": 22404,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/type-system.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/type-system.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/b88c61a38571e685fccaa2215a1ebfe56d4b345f",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/type-system.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/type-system.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/b88c61a38571e685fccaa2215a1ebfe56d4b345f",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/type-system.md"
+    }
+  },
+  {
+    "name": "typedefs.md",
+    "path": "src/content/language/typedefs.md",
+    "sha": "5595c9beb6f576bffe4690eea8c5d216ffd68808",
+    "size": 1702,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/typedefs.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/typedefs.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/5595c9beb6f576bffe4690eea8c5d216ffd68808",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/typedefs.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/typedefs.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/5595c9beb6f576bffe4690eea8c5d216ffd68808",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/typedefs.md"
+    }
+  },
+  {
+    "name": "variables.md",
+    "path": "src/content/language/variables.md",
+    "sha": "4ed321043388d153887da038af8982537267566f",
+    "size": 11640,
+    "url": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/variables.md?ref=main",
+    "html_url": "https://github.com/dart-lang/site-www/blob/main/src/content/language/variables.md",
+    "git_url": "https://api.github.com/repos/dart-lang/site-www/git/blobs/4ed321043388d153887da038af8982537267566f",
+    "download_url": "https://raw.githubusercontent.com/dart-lang/site-www/main/src/content/language/variables.md",
+    "type": "file",
+    "_links": {
+      "self": "https://api.github.com/repos/dart-lang/site-www/contents/src/content/language/variables.md?ref=main",
+      "git": "https://api.github.com/repos/dart-lang/site-www/git/blobs/4ed321043388d153887da038af8982537267566f",
+      "html": "https://github.com/dart-lang/site-www/blob/main/src/content/language/variables.md"
+    }
+  }
+]

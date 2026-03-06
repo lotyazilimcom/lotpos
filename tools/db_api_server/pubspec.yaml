@@ -1,0 +1,12 @@
+name: lotpos_db_api_server
+description: "LotPOS Postgres proxy API server (PgBouncer-first)."
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  args: ^2.6.0
+  postgres: ^3.5.9
+

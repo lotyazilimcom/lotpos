@@ -1,0 +1,343 @@
+{
+  "language": {
+    "name": "English",
+    "short_form": "en",
+    "language_code": "en-US",
+    "text_direction": "ltr",
+    "text_editor_lang": "en"
+  },
+  "translations": [
+    {
+      "label": "nav.home",
+      "translation": "Home"
+    },
+    {
+      "label": "nav.settings",
+      "translation": "Settings"
+    },
+    {
+      "label": "nav.settings.users",
+      "translation": "Users"
+    },
+    {
+      "label": "nav.settings.roles_permissions",
+      "translation": "Roles & Permissions"
+    },
+    {
+      "label": "nav.settings.company",
+      "translation": "Company Settings"
+    },
+    {
+      "label": "nav.settings.general",
+      "translation": "General Settings"
+    },
+    {
+      "label": "nav.settings.language",
+      "translation": "Language Settings"
+    },
+    {
+      "label": "nav.accounts",
+      "translation": "Accounts"
+    },
+    {
+      "label": "nav.app.shortTitle",
+      "translation": "Patisyo"
+    },
+    {
+      "label": "nav.user.label",
+      "translation": "User"
+    },
+    {
+      "label": "nav.user.online",
+      "translation": "Online"
+    },
+    {
+      "label": "login.logout",
+      "translation": "Logout"
+    },
+    {
+      "label": "language.title",
+      "translation": "Languages"
+    },
+    {
+      "label": "language.search",
+      "translation": "Search Language..."
+    },
+    {
+      "label": "language.export",
+      "translation": "Export"
+    },
+    {
+      "label": "language.import",
+      "translation": "Import Language"
+    },
+    {
+      "label": "language.add",
+      "translation": "Add Language"
+    },
+    {
+      "label": "language.rowsPerPage",
+      "translation": "Rows"
+    },
+    {
+      "label": "language.table.orderNo",
+      "translation": "Order No"
+    },
+    {
+      "label": "language.table.name",
+      "translation": "Language Name"
+    },
+    {
+      "label": "language.table.default",
+      "translation": "Default Language"
+    },
+    {
+      "label": "language.table.actions",
+      "translation": "Translation/Export"
+    },
+    {
+      "label": "language.table.status",
+      "translation": "Status"
+    },
+    {
+      "label": "language.table.menu",
+      "translation": "Actions"
+    },
+    {
+      "label": "language.default",
+      "translation": "Default"
+    },
+    {
+      "label": "language.setAsDefault",
+      "translation": "Set as Default"
+    },
+    {
+      "label": "language.editTranslations",
+      "translation": "Edit Translations"
+    },
+    {
+      "label": "language.exportLanguage",
+      "translation": "Export"
+    },
+    {
+      "label": "language.status.active",
+      "translation": "Active"
+    },
+    {
+      "label": "language.status.inactive",
+      "translation": "Inactive"
+    },
+    {
+      "label": "language.menu.edit",
+      "translation": "Edit"
+    },
+    {
+      "label": "language.menu.deactivate",
+      "translation": "Deactivate"
+    },
+    {
+      "label": "language.menu.activate",
+      "translation": "Activate"
+    },
+    {
+      "label": "language.menu.delete",
+      "translation": "Delete"
+    },
+    {
+      "label": "language.dialog.add.title",
+      "translation": "Add New Language"
+    },
+    {
+      "label": "language.dialog.add.subtitle",
+      "translation": "Define a new language in the system."
+    },
+    {
+      "label": "language.dialog.add.name",
+      "translation": "Language Name"
+    },
+    {
+      "label": "language.dialog.add.name.hint",
+      "translation": "Example: Turkish"
+    },
+    {
+      "label": "language.dialog.add.code",
+      "translation": "Language Code"
+    },
+    {
+      "label": "language.dialog.add.code.hint",
+      "translation": "Example: en-US"
+    },
+    {
+      "label": "language.dialog.add.shortForm",
+      "translation": "Short Form"
+    },
+    {
+      "label": "language.dialog.add.shortForm.hint",
+      "translation": "Example: en"
+    },
+    {
+      "label": "language.dialog.add.editor",
+      "translation": "Text Editor Language"
+    },
+    {
+      "label": "language.dialog.add.editor.hint",
+      "translation": "Select"
+    },
+    {
+      "label": "language.dialog.add.orderNo",
+      "translation": "Order Number"
+    },
+    {
+      "label": "language.dialog.add.orderNo.hint",
+      "translation": "5"
+    },
+    {
+      "label": "language.dialog.add.direction",
+      "translation": "Text Direction"
+    },
+    {
+      "label": "language.dialog.add.direction.ltr",
+      "translation": "Left to Right"
+    },
+    {
+      "label": "language.dialog.add.direction.rtl",
+      "translation": "Right to Left"
+    },
+    {
+      "label": "language.dialog.add.status",
+      "translation": "Status"
+    },
+    {
+      "label": "language.dialog.add.status.active",
+      "translation": "Active"
+    },
+    {
+      "label": "language.dialog.add.status.inactive",
+      "translation": "Inactive"
+    },
+    {
+      "label": "language.dialog.add.cancel",
+      "translation": "Cancel"
+    },
+    {
+      "label": "language.dialog.add.save",
+      "translation": "Save"
+    },
+    {
+      "label": "language.dialog.add.close",
+      "translation": "Close"
+    },
+    {
+      "label": "language.dialog.import.title",
+      "translation": "Import Language"
+    },
+    {
+      "label": "language.dialog.import.subtitle",
+      "translation": "Import language and translations by pasting JSON content."
+    },
+    {
+      "label": "language.dialog.import.jsonContent",
+      "translation": "JSON Content"
+    },
+    {
+      "label": "language.dialog.import.jsonHint",
+      "translation": "{ ... }"
+    },
+    {
+      "label": "language.dialog.import.selectFile",
+      "translation": "Select File"
+    },
+    {
+      "label": "language.dialog.import.downloadSample",
+      "translation": "Download Sample JSON"
+    },
+    {
+      "label": "language.dialog.import.cancel",
+      "translation": "Cancel"
+    },
+    {
+      "label": "language.dialog.import.upload",
+      "translation": "Upload"
+    },
+    {
+      "label": "language.dialog.import.close",
+      "translation": "Close"
+    },
+    {
+      "label": "common.close",
+      "translation": "Close"
+    },
+    {
+      "label": "common.cancel",
+      "translation": "Cancel"
+    },
+    {
+      "label": "common.save",
+      "translation": "Save"
+    },
+    {
+      "label": "common.delete",
+      "translation": "Delete"
+    },
+    {
+      "label": "common.edit",
+      "translation": "Edit"
+    },
+    {
+      "label": "common.add",
+      "translation": "Add"
+    },
+    {
+      "label": "common.search",
+      "translation": "Search"
+    },
+    {
+      "label": "common.export",
+      "translation": "Export"
+    },
+    {
+      "label": "common.import",
+      "translation": "Import"
+    },
+    {
+      "label": "common.esc",
+      "translation": "ESC"
+    },
+    {
+      "label": "app.title",
+      "translation": "Inventory Tracking System"
+    },
+    {
+      "label": "common.error.network",
+      "translation": "Could not reach the server. Please check your connection."
+    },
+    {
+      "label": "common.select",
+      "translation": "Select"
+    },
+    {
+      "label": "datatable.empty",
+      "translation": "No records found"
+    },
+    {
+      "label": "datatable.keep_details_open",
+      "translation": "Keep details open"
+    },
+    {
+      "label": "datatable.load_more",
+      "translation": "Load More"
+    },
+    {
+      "label": "settings.codeGeneration.format.label",
+      "translation": "Format"
+    },
+    {
+      "label": "settings.codeGeneration.format.numeric",
+      "translation": "Numeric"
+    },
+    {
+      "label": "settings.codeGeneration.format.alphanumeric",
+      "translation": "Alphanumeric"
+    }
+  ]
+}
