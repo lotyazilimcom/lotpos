@@ -415,6 +415,9 @@ class SiparislerVeritabaniServisi {
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_orders_tarih ON orders(tarih DESC)',
       );
+      await _pool!.execute(
+        'CREATE INDEX IF NOT EXISTS idx_orders_tarih_id ON orders(tarih, id)',
+      );
       // Partitioned tablolarda unique index partition key içermelidir, bu yüzden global unique yerine uygulama kontrolü tercih edilir
       // veya integration_ref + tarih composite key yapılır.
       // Şimdilik performans için normal index:

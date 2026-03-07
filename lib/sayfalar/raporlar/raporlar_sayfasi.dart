@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 
 import '../../bilesenler/genisletilebilir_tablo.dart';
+import '../../bilesenler/highlight_text.dart';
 import '../../bilesenler/tab_acici_scope.dart';
 import '../../bilesenler/tarih_araligi_secici_dialog.dart';
 import '../../sayfalar/ortak/genisletilebilir_print_preview_screen.dart';
@@ -32,6 +33,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   final TextEditingController _maxTutarController = TextEditingController();
   final TextEditingController _minMiktarController = TextEditingController();
   final TextEditingController _maxMiktarController = TextEditingController();
+  final FocusNode _tableSearchFocusNode = FocusNode();
 
   RaporFiltreKaynaklari _filtreKaynaklari = const RaporFiltreKaynaklari();
   RaporFiltreleri _filtreler = RaporFiltreleri.empty;
@@ -46,10 +48,16 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   bool _raporYukleniyor = true;
   bool _mobilFiltrelerAcik = false;
 
+  String? _seciliCariLabel;
+  String? _seciliUrunLabel;
+  bool _cariLabelResolving = false;
+  bool _urunLabelResolving = false;
+
   String _arama = '';
   int _mevcutSayfa = 1;
   int _satirSayisi = 25;
   int _paginationRevision = 0;
+  final Map<int, String?> _sayfaCursorlari = <int, String?>{1: null};
   bool _sortAscending = true;
   String? _sortKey;
   String _hizliTarihSecimi = 'this_month';
@@ -81,6 +89,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     _maxTutarController.dispose();
     _minMiktarController.dispose();
     _maxMiktarController.dispose();
+    _tableSearchFocusNode.dispose();
     super.dispose();
   }
 
@@ -119,21 +128,34 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       _aktifFiltreler = _aktifFiltreleriOlustur();
     });
 
+    final String? cursor = _mevcutSayfa <= 1
+        ? null
+        : _sayfaCursorlari[_mevcutSayfa];
     try {
       final sonuc = await _raporlarServisi.raporuGetir(
         rapor: rapor,
         filtreler: _aktifFiltreler,
-        arama: '',
-        sortKey: null,
-        sortAscending: true,
+        page: _mevcutSayfa,
+        pageSize: _satirSayisi,
+        arama: _arama,
+        cursor: cursor,
+        sortKey: _sortKey,
+        sortAscending: _sortAscending,
       );
 
       if (!mounted) return;
       setState(() {
         _sonuc = sonuc;
         _raporYukleniyor = false;
-        _mevcutSayfa = 1;
+        _mevcutSayfa = sonuc.page;
+        _satirSayisi = sonuc.pageSize;
         _paginationRevision++;
+        if (sonuc.cursorPagination) {
+          _sayfaCursorlari[1] = null;
+          if (sonuc.hasNextPage && sonuc.nextCursor != null) {
+            _sayfaCursorlari[sonuc.page + 1] = sonuc.nextCursor;
+          }
+        }
       });
     } catch (e) {
       if (!mounted) return;
@@ -218,42 +240,12 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   List<RaporSecenegi> get _kategoriRaporlari =>
       _tumRaporlar.where((rapor) => rapor.category == _seciliKategori).toList();
 
-  List<RaporSatiri> get _islenmisSatirlar {
-    final rows = [...(_sonuc?.rows ?? const <RaporSatiri>[])];
-    final arama = _arama.trim().toLowerCase();
-    Iterable<RaporSatiri> sonucRows = rows;
-
-    if (arama.isNotEmpty) {
-      sonucRows = sonucRows.where((row) {
-        final birlesik = [
-          ...row.cells.values,
-          ...row.details.keys,
-          ...row.details.values,
-        ].join(' ').toLowerCase();
-        return birlesik.contains(arama);
-      });
-    }
-
-    final list = sonucRows.toList();
-    if (_sortKey == null || _sortKey!.isEmpty) {
-      return list;
-    }
-
-    list.sort((a, b) {
-      final dynamic av = a.sortValues[_sortKey] ?? a.cells[_sortKey] ?? '';
-      final dynamic bv = b.sortValues[_sortKey] ?? b.cells[_sortKey] ?? '';
-      return _sortAscending ? _compareDynamic(av, bv) : _compareDynamic(bv, av);
-    });
-    return list;
-  }
-
-  int _compareDynamic(dynamic a, dynamic b) {
-    if (a == null && b == null) return 0;
-    if (a == null) return -1;
-    if (b == null) return 1;
-    if (a is DateTime && b is DateTime) return a.compareTo(b);
-    if (a is num && b is num) return a.compareTo(b);
-    return a.toString().toLowerCase().compareTo(b.toString().toLowerCase());
+  void _sayfalamayiSifirla() {
+    _mevcutSayfa = 1;
+    _paginationRevision++;
+    _sayfaCursorlari
+      ..clear()
+      ..[1] = null;
   }
 
   List<RaporKolonTanimi> get _gorunurKolonlar {
@@ -269,17 +261,11 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   }
 
   List<RaporSatiri> get _sayfaSatirlari {
-    final all = _islenmisSatirlar;
-    final int start = (_mevcutSayfa - 1) * _satirSayisi;
-    if (start >= all.length) {
-      return const <RaporSatiri>[];
-    }
-    final int end = (start + _satirSayisi).clamp(0, all.length);
-    return all.sublist(start, end);
+    return _sonuc?.rows ?? const <RaporSatiri>[];
   }
 
   List<RaporSatiri> get _aktarimSatirlari {
-    return _islenmisSatirlar;
+    return _sonuc?.rows ?? const <RaporSatiri>[];
   }
 
   void _kategoriSec(RaporKategori kategori) {
@@ -297,6 +283,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       _sortKey = null;
       _sortAscending = true;
       _arama = '';
+      _sayfalamayiSifirla();
       _kolonDurumunuHazirla();
     });
     _raporuYukle();
@@ -310,22 +297,10 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       _sortKey = null;
       _sortAscending = true;
       _arama = '';
+      _sayfalamayiSifirla();
       _kolonDurumunuHazirla();
     });
     _raporuYukle();
-  }
-
-  void _filtreleriTemizle() {
-    _metinFiltreDebounce?.cancel();
-    _belgeNoController.clear();
-    _referansNoController.clear();
-    _minTutarController.clear();
-    _maxTutarController.clear();
-    _minMiktarController.clear();
-    _maxMiktarController.clear();
-    _hizliTarihSecimi = 'this_month';
-    _filtreler = RaporFiltreleri.empty;
-    _hizliTarihSeciminiUygula(_hizliTarihSecimi, yukle: true);
   }
 
   void _hizliTarihSeciminiUygula(String secim, {required bool yukle}) {
@@ -368,6 +343,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         bitisTarihi: end,
         clearDates: start == null && end == null,
       );
+      _sayfalamayiSifirla();
     });
 
     if (yukle) {
@@ -392,6 +368,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         baslangicTarihi: result[0],
         bitisTarihi: result[1],
       );
+      _sayfalamayiSifirla();
     });
     _raporuYukle();
   }
@@ -445,8 +422,197 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         clearKrediKarti: clearKrediKarti,
         clearKullanici: clearKullanici,
       );
+      _sayfalamayiSifirla();
     });
     _raporuYukle();
+  }
+
+  void _ensureTypeaheadLabelsLoaded() {
+    final int? cariId = _filtreler.cariId;
+    if (cariId != null &&
+        (_seciliCariLabel == null || _seciliCariLabel!.trim().isEmpty) &&
+        !_cariLabelResolving) {
+      _cariLabelResolving = true;
+      unawaited(() async {
+        try {
+          final secenek = await _raporlarServisi.cariSecenegiGetir(cariId);
+          if (!mounted) return;
+          setState(() {
+            _seciliCariLabel = secenek?.label;
+            _cariLabelResolving = false;
+          });
+        } catch (_) {
+          if (!mounted) return;
+          setState(() => _cariLabelResolving = false);
+        }
+      }());
+    }
+
+    final String? urunKodu = _filtreler.urunKodu;
+    if (urunKodu != null &&
+        urunKodu.trim().isNotEmpty &&
+        (_seciliUrunLabel == null || _seciliUrunLabel!.trim().isEmpty) &&
+        !_urunLabelResolving) {
+      _urunLabelResolving = true;
+      unawaited(() async {
+        try {
+          final secenek = await _raporlarServisi.urunSecenegiGetir(urunKodu);
+          if (!mounted) return;
+          setState(() {
+            _seciliUrunLabel = secenek?.label;
+            _urunLabelResolving = false;
+          });
+        } catch (_) {
+          if (!mounted) return;
+          setState(() => _urunLabelResolving = false);
+        }
+      }());
+    }
+  }
+
+  Future<void> _cariSecimDialogAc() async {
+    final secenek = await _showTypeaheadDialog(
+      title: tr('reports.filters.current_account'),
+      icon: Icons.people_alt_outlined,
+      searcher: _raporlarServisi.cariSecenekleriAra,
+    );
+    if (!mounted || secenek == null) return;
+    final int? id = int.tryParse(secenek.value);
+    if (id == null) return;
+    setState(() => _seciliCariLabel = secenek.label);
+    _secimGuncelle(cariId: id, clearCari: false);
+  }
+
+  Future<void> _urunSecimDialogAc() async {
+    final secenek = await _showTypeaheadDialog(
+      title: tr('reports.filters.product'),
+      icon: Icons.inventory_2_outlined,
+      searcher: _raporlarServisi.urunSecenekleriAra,
+    );
+    if (!mounted || secenek == null) return;
+    final String kod = secenek.value.trim();
+    if (kod.isEmpty) return;
+    setState(() => _seciliUrunLabel = secenek.label);
+    _secimGuncelle(urunKodu: kod, clearUrun: false);
+  }
+
+  Future<RaporSecimSecenegi?> _showTypeaheadDialog({
+    required String title,
+    required IconData icon,
+    required Future<List<RaporSecimSecenegi>> Function(String query) searcher,
+  }) async {
+    final controller = TextEditingController();
+    Timer? debounce;
+    int revision = 0;
+    bool loading = false;
+    List<RaporSecimSecenegi> results = const <RaporSecimSecenegi>[];
+
+    Future<void> runSearch(
+      String query,
+      void Function(VoidCallback fn) setStateDialog,
+    ) async {
+      final trimmed = query.trim();
+      if (trimmed.length < 2) {
+        setStateDialog(() {
+          loading = false;
+          results = const <RaporSecimSecenegi>[];
+        });
+        return;
+      }
+
+      final int myRev = ++revision;
+      setStateDialog(() => loading = true);
+      try {
+        final list = await searcher(trimmed);
+        if (!mounted || myRev != revision) return;
+        setStateDialog(() => results = list);
+      } finally {
+        if (mounted && myRev == revision) {
+          setStateDialog(() => loading = false);
+        }
+      }
+    }
+
+    final selected = await showDialog<RaporSecimSecenegi>(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setStateDialog) {
+            return AlertDialog(
+              title: Text(title),
+              content: SizedBox(
+                width: 520,
+                height: 420,
+                child: Column(
+                  children: [
+                    TextField(
+                      controller: controller,
+                      autofocus: true,
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(icon),
+                        hintText: tr('common.search'),
+                      ),
+                      onChanged: (value) {
+                        debounce?.cancel();
+                        debounce = Timer(
+                          const Duration(milliseconds: 250),
+                          () => runSearch(value, setStateDialog),
+                        );
+                      },
+                      onSubmitted: (value) => runSearch(value, setStateDialog),
+                    ),
+                    const SizedBox(height: 10),
+                    if (loading)
+                      const LinearProgressIndicator(minHeight: 2)
+                    else
+                      const SizedBox(height: 2),
+                    const SizedBox(height: 10),
+                    Expanded(
+                      child: results.isEmpty
+                          ? Center(
+                              child: Text(
+                                controller.text.trim().length < 2
+                                    ? '${tr('common.search')}...'
+                                    : tr('common.no_results'),
+                                style: TextStyle(color: Colors.grey.shade600),
+                              ),
+                            )
+                          : ListView.separated(
+                              itemCount: results.length,
+                              separatorBuilder: (context, index) =>
+                                  const Divider(height: 1),
+                              itemBuilder: (context, index) {
+                                final item = results[index];
+                                return ListTile(
+                                  dense: true,
+                                  title: Text(
+                                    item.label,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  onTap: () => Navigator.of(context).pop(item),
+                                );
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(tr('common.cancel')),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    debounce?.cancel();
+    controller.dispose();
+    return selected;
   }
 
   void _uygulaMetinFiltreleri() {
@@ -456,7 +622,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
   void _metinFiltreDegisti() {
     _metinFiltreDebounce?.cancel();
-    setState(() {});
+    setState(_sayfalamayiSifirla);
     _metinFiltreDebounce = Timer(const Duration(milliseconds: 320), () {
       if (!mounted) return;
       _raporuYukle();
@@ -466,8 +632,12 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   void _aramaDegisti(String value) {
     setState(() {
       _arama = value;
-      _mevcutSayfa = 1;
-      _paginationRevision++;
+      _sayfalamayiSifirla();
+    });
+    _metinFiltreDebounce?.cancel();
+    _metinFiltreDebounce = Timer(const Duration(milliseconds: 260), () {
+      if (!mounted) return;
+      _raporuYukle();
     });
   }
 
@@ -475,9 +645,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     setState(() {
       _sortKey = key;
       _sortAscending = ascending;
-      _mevcutSayfa = 1;
-      _paginationRevision++;
+      _sayfalamayiSifirla();
     });
+    _raporuYukle();
   }
 
   void _showColumnVisibilityDialog() {
@@ -575,6 +745,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                             width: 180,
                             child: InkWell(
                               borderRadius: BorderRadius.circular(8),
+                              mouseCursor: SystemMouseCursors.click,
                               onTap: () {
                                 setDialogState(() {
                                   localVisibility[kolon.key] =
@@ -663,7 +834,21 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final sonuc = _sonuc;
     final rapor = _seciliRapor;
     if (sonuc == null || rapor == null || sonuc.isDisabled) return;
-    final rows = _aktarimSatirlari;
+    final int printLimit = math.min(
+      math.max(sonuc.totalCount, _satirSayisi).clamp(1, 5000),
+      5000,
+    );
+    final fullResult = await _raporlarServisi.raporuGetir(
+      rapor: rapor,
+      filtreler: _aktifFiltreler,
+      page: 1,
+      pageSize: printLimit,
+      arama: _arama,
+      sortKey: _sortKey,
+      sortAscending: _sortAscending,
+    );
+    if (!mounted) return;
+    final rows = fullResult.rows;
     if (rows.isEmpty) {
       MesajYardimcisi.bilgiGoster(context, tr('common.no_data'));
       return;
@@ -750,22 +935,29 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return const _RaporlarShimmer();
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bool isDesktop = constraints.maxWidth >= 1200;
-        final bool isTablet = constraints.maxWidth >= 800 && !isDesktop;
-        final bool isMobile = !isDesktop && !isTablet;
+    return ColoredBox(
+      color: Colors.white,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final bool isDesktop = constraints.maxWidth >= 1200;
+          final bool isTablet = constraints.maxWidth >= 800 && !isDesktop;
+          final bool isMobile = !isDesktop && !isTablet;
 
-        return Container(
-          color: const Color(0xFFF6F7F9),
-          padding: EdgeInsets.all(isMobile ? 12 : 20),
-          child: _buildWorkspace(
-            isDesktop: isDesktop,
-            isTablet: isTablet,
-            isMobile: isMobile,
-          ),
-        );
-      },
+          return Padding(
+            padding: EdgeInsets.fromLTRB(
+              isMobile ? 12 : 16,
+              isMobile ? 10 : 8,
+              isMobile ? 12 : 16,
+              isMobile ? 12 : 8,
+            ),
+            child: _buildWorkspace(
+              isDesktop: isDesktop,
+              isTablet: isTablet,
+              isMobile: isMobile,
+            ),
+          );
+        },
+      ),
     );
   }
 
@@ -776,8 +968,6 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   }) {
     final sonuc = _sonuc;
     final rapor = _seciliRapor;
-    final List<RaporSatiri> processedRows = _islenmisSatirlar;
-
     return LayoutBuilder(
       builder: (context, constraints) {
         final double viewportHeight = constraints.maxHeight.isFinite
@@ -797,18 +987,17 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _buildPageHeader(isMobile: isMobile),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 _buildSelectorSummaryBand(
                   isTablet: isTablet,
                   isMobile: isMobile,
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 8),
                 SizedBox(
                   height: reportCardHeight,
                   child: _buildReportCard(
                     sonuc: sonuc,
                     rapor: rapor,
-                    processedRows: processedRows,
                     isMobile: isMobile,
                     isTablet: isTablet,
                   ),
@@ -822,9 +1011,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   }
 
   Widget _buildPageHeader({required bool isMobile}) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      decoration: _cardDecoration(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 0, vertical: 0),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -841,17 +1029,19 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                     color: AppPalette.slate,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(
-                  tr('reports.subtitle'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    color: AppPalette.grey,
-                    height: 1.35,
+                if (isMobile) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    tr('reports.subtitle'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      color: AppPalette.grey,
+                      height: 1.35,
+                    ),
                   ),
-                ),
+                ],
               ],
             ),
           ),
@@ -861,16 +1051,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             runSpacing: 10,
             children: [
               _buildHeaderCategorySelect(isMobile: isMobile),
-              _buildHeaderButton(
-                label: tr('reports.actions.refresh'),
-                icon: Icons.refresh_rounded,
-                onTap: _raporuYukle,
-              ),
-              _buildHeaderButton(
-                label: tr('reports.actions.clear_filters'),
-                icon: Icons.filter_alt_off_outlined,
-                onTap: _filtreleriTemizle,
-              ),
+              _buildHeaderReportSelect(isMobile: isMobile),
               if (isMobile)
                 _buildHeaderButton(
                   label: _mobilFiltrelerAcik
@@ -894,127 +1075,255 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
   Widget _buildHeaderCategorySelect({required bool isMobile}) {
     final kategori = _seciliKategori;
-    return Container(
-      constraints: BoxConstraints(
-        minWidth: isMobile ? 180 : 220,
-        maxWidth: isMobile ? 240 : 290,
-      ),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppPalette.grey.withValues(alpha: 0.18)),
-      ),
-      child: PopupMenuButton<RaporKategori>(
-        tooltip: tr('reports.sections.categories'),
-        initialValue: kategori,
-        onSelected: _kategoriSec,
-        offset: const Offset(0, 42),
-        itemBuilder: (context) {
-          return RaporKategori.values.map((item) {
-            final bool secili = item == kategori;
-            return PopupMenuItem<RaporKategori>(
-              value: item,
+    return _buildHeaderPopupSelect<RaporKategori>(
+      isMobile: isMobile,
+      tooltip: tr('reports.sections.categories'),
+      title: tr('reports.sections.categories'),
+      valueText: tr(kategori.labelKey),
+      icon: _kategoriIcon(kategori),
+      accentColor: _accentColorForCategory(kategori),
+      initialValue: kategori,
+      onSelected: _kategoriSec,
+      itemBuilder: (currentValue) {
+        return RaporKategori.values.map((item) {
+          final bool secili = item == currentValue;
+          return PopupMenuItem<RaporKategori>(
+            value: item,
+            mouseCursor: SystemMouseCursors.click,
+            child: Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: _accentColorForCategory(
+                      item,
+                    ).withValues(alpha: secili ? 0.16 : 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    _kategoriIcon(item),
+                    size: 15,
+                    color: _accentColorForCategory(item),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    tr(item.labelKey),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppPalette.slate,
+                    ),
+                  ),
+                ),
+                if (secili)
+                  const Icon(
+                    Icons.check_rounded,
+                    size: 16,
+                    color: AppPalette.slate,
+                  ),
+              ],
+            ),
+          );
+        }).toList();
+      },
+    );
+  }
+
+  Widget _buildHeaderReportSelect({required bool isMobile}) {
+    final rapor = _seciliRapor;
+    if (rapor == null) {
+      return const SizedBox.shrink();
+    }
+
+    return _buildHeaderPopupSelect<RaporSecenegi>(
+      isMobile: isMobile,
+      tooltip: tr('reports.sections.report_types'),
+      title: tr('reports.sections.report_types'),
+      valueText: tr(rapor.labelKey),
+      icon: rapor.icon,
+      accentColor: _accentColorForCategory(rapor.category),
+      initialValue: rapor,
+      minWidth: isMobile ? 220 : 250,
+      maxWidth: isMobile ? 280 : 330,
+      onSelected: (selected) {
+        if (!selected.supported) {
+          MesajYardimcisi.uyariGoster(
+            context,
+            tr(selected.disabledReasonKey ?? 'reports.disabled.unknown'),
+          );
+          return;
+        }
+        _raporSec(selected);
+      },
+      itemBuilder: (currentValue) {
+        return _kategoriRaporlari.map((item) {
+          final bool secili = item.id == currentValue.id;
+          final bool disabled = !item.supported;
+          return PopupMenuItem<RaporSecenegi>(
+            value: item,
+            mouseCursor: disabled
+                ? SystemMouseCursors.basic
+                : SystemMouseCursors.click,
+            child: Row(
+              children: [
+                Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color:
+                        (disabled
+                                ? Colors.grey
+                                : _accentColorForCategory(item.category))
+                            .withValues(alpha: secili ? 0.16 : 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(
+                    item.icon,
+                    size: 15,
+                    color: disabled
+                        ? Colors.grey
+                        : _accentColorForCategory(item.category),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        tr(item.labelKey),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: disabled ? Colors.grey : AppPalette.slate,
+                        ),
+                      ),
+                      Text(
+                        tr(item.category.labelKey),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                          color: disabled ? Colors.grey : AppPalette.grey,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (secili)
+                  const Icon(
+                    Icons.check_rounded,
+                    size: 16,
+                    color: AppPalette.slate,
+                  ),
+              ],
+            ),
+          );
+        }).toList();
+      },
+    );
+  }
+
+  Widget _buildHeaderPopupSelect<T>({
+    required bool isMobile,
+    required String tooltip,
+    required String title,
+    required String valueText,
+    required IconData icon,
+    required Color accentColor,
+    required T initialValue,
+    required ValueChanged<T> onSelected,
+    required List<PopupMenuEntry<T>> Function(T currentValue) itemBuilder,
+    double? minWidth,
+    double? maxWidth,
+  }) {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: Container(
+        constraints: BoxConstraints(
+          minWidth: minWidth ?? (isMobile ? 180 : 220),
+          maxWidth: maxWidth ?? (isMobile ? 240 : 290),
+        ),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppPalette.grey.withValues(alpha: 0.18)),
+        ),
+        child: PopupMenuButton<T>(
+          tooltip: tooltip,
+          initialValue: initialValue,
+          onSelected: onSelected,
+          offset: const Offset(0, 42),
+          itemBuilder: (context) => itemBuilder(initialValue),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+          color: Colors.white,
+          padding: EdgeInsets.zero,
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
               child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 26,
-                    height: 26,
+                    width: 28,
+                    height: 28,
                     decoration: BoxDecoration(
-                      color: _accentColorForCategory(
-                        item,
-                      ).withValues(alpha: secili ? 0.16 : 0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      color: accentColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(9),
                     ),
-                    child: Icon(
-                      _kategoriIcon(item),
-                      size: 15,
-                      color: _accentColorForCategory(item),
-                    ),
+                    child: Icon(icon, size: 16, color: accentColor),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text(
-                      tr(item.labelKey),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w700,
-                        color: AppPalette.slate,
-                      ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: AppPalette.grey,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          valueText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            color: AppPalette.slate,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  if (secili)
-                    const Icon(
-                      Icons.check_rounded,
-                      size: 16,
-                      color: AppPalette.slate,
-                    ),
+                  const SizedBox(width: 8),
+                  const Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 18,
+                    color: AppPalette.slate,
+                  ),
                 ],
               ),
-            );
-          }).toList();
-        },
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        color: Colors.white,
-        padding: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                width: 28,
-                height: 28,
-                decoration: BoxDecoration(
-                  color: _accentColorForCategory(
-                    kategori,
-                  ).withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(9),
-                ),
-                child: Icon(
-                  _kategoriIcon(kategori),
-                  size: 16,
-                  color: _accentColorForCategory(kategori),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      tr('reports.sections.categories'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppPalette.grey,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      tr(kategori.labelKey),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        color: AppPalette.slate,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.keyboard_arrow_down_rounded,
-                size: 18,
-                color: AppPalette.slate,
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -1026,221 +1335,14 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     required bool isMobile,
   }) {
     final cards = _sonuc?.summaryCards ?? const <RaporOzetKarti>[];
-    if (isMobile || cards.isEmpty) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildReportSelector(isTablet: isTablet, isMobile: isMobile),
-          if (cards.isNotEmpty) ...[
-            const SizedBox(height: 10),
-            _buildSummaryCards(isMobile: isMobile, isTablet: isTablet),
-          ],
-        ],
-      );
+    if (cards.isEmpty) {
+      return const SizedBox.shrink();
     }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: _buildReportSelector(isTablet: isTablet, isMobile: isMobile),
-        ),
-        const SizedBox(width: 10),
-        SizedBox(
-          width: isTablet ? 230 : 280,
-          child: _buildSummaryCards(
-            isMobile: false,
-            isTablet: isTablet,
-            compact: true,
-          ),
-        ),
-      ],
+    return _buildSummaryCards(
+      isMobile: isMobile,
+      isTablet: isTablet,
+      compact: !isMobile,
     );
-  }
-
-  Widget _buildReportSelector({
-    required bool isTablet,
-    required bool isMobile,
-  }) {
-    final double tileWidth = isMobile ? 220 : 0;
-    final List<Widget> compactTiles = isMobile
-        ? const <Widget>[]
-        : _buildReportTypeTiles(tileWidth: tileWidth, compact: true);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: _cardDecoration(),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                tr('reports.sections.report_types'),
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                  color: AppPalette.slate,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                '${_kategoriRaporlari.length} ${tr('reports.summary.record')}',
-                style: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: AppPalette.grey,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          if (isMobile)
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(children: _buildReportTypeTiles(tileWidth: tileWidth)),
-            )
-          else
-            Row(
-              children: [
-                for (int index = 0; index < compactTiles.length; index++) ...[
-                  Expanded(child: compactTiles[index]),
-                  if (index != compactTiles.length - 1)
-                    const SizedBox(width: 8),
-                ],
-              ],
-            ),
-        ],
-      ),
-    );
-  }
-
-  List<Widget> _buildReportTypeTiles({
-    required double tileWidth,
-    bool compact = false,
-  }) {
-    return _kategoriRaporlari.map((rapor) {
-      final bool selected = _seciliRapor?.id == rapor.id;
-      final bool disabled = !rapor.supported;
-      return Tooltip(
-        message: disabled
-            ? tr(rapor.disabledReasonKey ?? 'reports.disabled.unknown')
-            : tr(rapor.labelKey),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(14),
-          onTap: () {
-            if (disabled) {
-              MesajYardimcisi.uyariGoster(
-                context,
-                tr(rapor.disabledReasonKey ?? 'reports.disabled.unknown'),
-              );
-              return;
-            }
-            _raporSec(rapor);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            width: tileWidth > 0 ? tileWidth : null,
-            height: compact ? 64 : 86,
-            padding: EdgeInsets.symmetric(
-              horizontal: compact ? 8 : 12,
-              vertical: compact ? 8 : 10,
-            ),
-            decoration: BoxDecoration(
-              color: selected
-                  ? AppPalette.slate.withValues(alpha: 0.08)
-                  : disabled
-                  ? Colors.grey.shade100
-                  : Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: selected
-                    ? AppPalette.slate.withValues(alpha: 0.3)
-                    : disabled
-                    ? Colors.grey.withValues(alpha: 0.2)
-                    : Colors.grey.withValues(alpha: 0.16),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                Container(
-                  width: compact ? 28 : 40,
-                  height: compact ? 28 : 40,
-                  decoration: BoxDecoration(
-                    color: disabled
-                        ? Colors.grey.withValues(alpha: 0.14)
-                        : _accentColorForCategory(
-                            rapor.category,
-                          ).withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    rapor.icon,
-                    size: compact ? 15 : 20,
-                    color: disabled
-                        ? Colors.grey
-                        : _accentColorForCategory(rapor.category),
-                  ),
-                ),
-                SizedBox(width: compact ? 8 : 12),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        height: compact ? 16 : 34,
-                        child: FittedBox(
-                          alignment: Alignment.centerLeft,
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            tr(rapor.labelKey),
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: compact ? 11 : 13,
-                              color: disabled ? Colors.grey : AppPalette.slate,
-                              height: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                      SizedBox(height: compact ? 2 : 4),
-                      SizedBox(
-                        height: compact ? 12 : 28,
-                        child: FittedBox(
-                          alignment: Alignment.centerLeft,
-                          fit: BoxFit.scaleDown,
-                          child: Text(
-                            tr(rapor.category.labelKey),
-                            maxLines: 1,
-                            style: TextStyle(
-                              fontSize: compact ? 9 : 11,
-                              color: disabled ? Colors.grey : AppPalette.grey,
-                              height: 1,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (selected)
-                  Padding(
-                    padding: EdgeInsets.only(left: compact ? 4 : 8),
-                    child: Icon(
-                      Icons.check_circle_rounded,
-                      size: compact ? 18 : 24,
-                      color: AppPalette.slate,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }).toList();
   }
 
   Widget _buildSummaryCards({
@@ -1287,7 +1389,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           SizedBox(
-                            height: 12,
+                            height: 13,
                             child: FittedBox(
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
@@ -1295,7 +1397,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                                 tr(cards[index].labelKey),
                                 maxLines: 1,
                                 style: const TextStyle(
-                                  fontSize: 9,
+                                  fontSize: 10,
                                   fontWeight: FontWeight.w700,
                                   color: AppPalette.grey,
                                 ),
@@ -1304,7 +1406,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                           ),
                           const SizedBox(height: 4),
                           SizedBox(
-                            height: 18,
+                            height: 20,
                             child: FittedBox(
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
@@ -1312,7 +1414,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                                 cards[index].value,
                                 maxLines: 1,
                                 style: const TextStyle(
-                                  fontSize: 15,
+                                  fontSize: 17,
                                   fontWeight: FontWeight.w800,
                                   color: AppPalette.slate,
                                 ),
@@ -1428,7 +1530,6 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   Widget _buildReportCard({
     required RaporSonucu? sonuc,
     required RaporSecenegi? rapor,
-    required List<RaporSatiri> processedRows,
     required bool isMobile,
     required bool isTablet,
   }) {
@@ -1471,22 +1572,14 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           allowSorting: kolon.allowSorting,
         ),
       ),
-      _TableColumnDefinition(
-        key: '_actions',
-        label: tr('common.actions'),
-        width: 58,
-        alignment: Alignment.center,
-        allowSorting: false,
-      ),
     ];
 
     final int? sortColumnIndex = _sortKey == null
         ? null
         : tableColumns.indexWhere((column) => column.key == _sortKey);
 
-    return Container(
-      decoration: _cardDecoration(),
-      padding: const EdgeInsets.all(14),
+    return Padding(
+      padding: const EdgeInsets.only(top: 4),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1505,7 +1598,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           ),
           if (_raporYukleniyor)
             const Expanded(child: _RaporTabloShimmer())
-          else if (processedRows.isEmpty)
+          else if (sonuc.rows.isEmpty)
             Expanded(
               child: _buildEmptyState(
                 title: tr('common.no_results'),
@@ -1517,9 +1610,10 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
               child: GenisletilebilirTablo<RaporSatiri>(
                 key: ValueKey('reports_table_${rapor.id}_$_paginationRevision'),
                 title: '',
-                totalRecords: processedRows.length,
+                totalRecords: sonuc.totalCount,
+                autofocusTable: false,
                 paginationResetKey: _paginationRevision,
-                searchFocusNode: FocusNode(),
+                searchFocusNode: _tableSearchFocusNode,
                 headerWidget: const SizedBox.shrink(),
                 headerPadding: const EdgeInsets.symmetric(horizontal: 12),
                 rowPadding: const EdgeInsets.symmetric(vertical: 9),
@@ -1530,6 +1624,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                     _mevcutSayfa = page;
                     _satirSayisi = rowsPerPage;
                   });
+                  unawaited(_raporuYukle());
                 },
                 extraWidgets: [
                   _buildIconToolbarButton(
@@ -1550,6 +1645,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                       ),
                     )
                     .toList(),
+                cursorPagination: sonuc.cursorPagination,
+                hasNextPage: sonuc.hasNextPage,
                 data: _sayfaSatirlari,
                 expandOnRowTap: false,
                 onRowDoubleTap: _openSource,
@@ -1576,6 +1673,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     if (rapor == null) {
       return const SizedBox.shrink();
     }
+
+    _ensureTypeaheadLabelsLoaded();
 
     final List<
       ({
@@ -1686,20 +1785,17 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         ),
       if (_supports(RaporFiltreTuru.cari))
         addFilter(
-          _buildDropdownField<int>(
+          _buildTypeaheadField(
             label: tr('reports.filters.current_account'),
             icon: Icons.people_alt_outlined,
-            value: _filtreler.cariId,
-            items: _filtreKaynaklari.cariler
-                .map(
-                  (item) => DropdownMenuItem<int>(
-                    value: int.tryParse(item.value),
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) =>
-                _secimGuncelle(cariId: value, clearCari: value == null),
+            valueLabel: _seciliCariLabel,
+            loading: _cariLabelResolving,
+            onTap: _cariSecimDialogAc,
+            onClear: () {
+              if (_filtreler.cariId == null) return;
+              setState(() => _seciliCariLabel = null);
+              _secimGuncelle(clearCari: true);
+            },
           ),
           desktopWidth: 190,
           tabletWidth: 180,
@@ -1707,20 +1803,17 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         ),
       if (_supports(RaporFiltreTuru.urun))
         addFilter(
-          _buildDropdownField<String>(
+          _buildTypeaheadField(
             label: tr('reports.filters.product'),
             icon: Icons.inventory_2_outlined,
-            value: _filtreler.urunKodu,
-            items: _filtreKaynaklari.urunler
-                .map(
-                  (item) => DropdownMenuItem<String>(
-                    value: item.value,
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) =>
-                _secimGuncelle(urunKodu: value, clearUrun: value == null),
+            valueLabel: _seciliUrunLabel,
+            loading: _urunLabelResolving,
+            onTap: _urunSecimDialogAc,
+            onClear: () {
+              if (_filtreler.urunKodu == null) return;
+              setState(() => _seciliUrunLabel = null);
+              _secimGuncelle(clearUrun: true);
+            },
           ),
           desktopWidth: 180,
           tabletWidth: 170,
@@ -1993,40 +2086,33 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         ),
     ];
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8F9FA),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.grey.withValues(alpha: 0.14)),
-      ),
-      child: filterItems.isEmpty
-          ? Text(
-              tr('reports.empty.no_filters'),
-              style: const TextStyle(color: AppPalette.grey),
-            )
-          : isMobile
-          ? buildFilterRow(
-              filterItems.map((item) => item.mobileWidth).toList(),
-              scrollable: true,
-            )
-          : LayoutBuilder(
-              builder: (context, constraints) {
-                final widths = resolveResponsiveWidths(constraints.maxWidth);
-                if (widths == null) {
-                  return buildFilterRow(
-                    filterItems
-                        .map(
-                          (item) =>
-                              isTablet ? item.tabletWidth : item.desktopWidth,
-                        )
-                        .toList(),
-                    scrollable: true,
-                  );
-                }
-                return buildFilterRow(widths, scrollable: false);
-              },
-            ),
+    if (filterItems.isEmpty) {
+      return Text(
+        tr('reports.empty.no_filters'),
+        style: const TextStyle(color: AppPalette.grey),
+      );
+    }
+
+    if (isMobile) {
+      return buildFilterRow(
+        filterItems.map((item) => item.mobileWidth).toList(),
+        scrollable: true,
+      );
+    }
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final widths = resolveResponsiveWidths(constraints.maxWidth);
+        if (widths == null) {
+          return buildFilterRow(
+            filterItems
+                .map((item) => isTablet ? item.tabletWidth : item.desktopWidth)
+                .toList(),
+            scrollable: true,
+          );
+        }
+        return buildFilterRow(widths, scrollable: false);
+      },
     );
   }
 
@@ -2075,6 +2161,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                 padding: const EdgeInsets.only(right: 6),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(8),
+                  mouseCursor: SystemMouseCursors.click,
                   onTap: () {
                     if (item.key == 'custom') {
                       _ozelTarihAraligiSec();
@@ -2153,6 +2240,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
               final bool selected = _hizliTarihSecimi == item.key;
               return InkWell(
                 borderRadius: BorderRadius.circular(10),
+                mouseCursor: SystemMouseCursors.click,
                 onTap: () {
                   if (item.key == 'custom') {
                     _ozelTarihAraligiSec();
@@ -2202,6 +2290,75 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     );
   }
 
+  Widget _buildTypeaheadField({
+    required String label,
+    required IconData icon,
+    required String? valueLabel,
+    required VoidCallback onTap,
+    required VoidCallback onClear,
+    bool loading = false,
+  }) {
+    final bool hasSelected = valueLabel != null && valueLabel.trim().isNotEmpty;
+    final String text = hasSelected ? valueLabel : label;
+
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: SizedBox(
+        height: 46,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(0, 6, 0, 6),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+            ),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: Colors.grey.shade600),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    text,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: hasSelected
+                          ? AppPalette.slate
+                          : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+                if (loading)
+                  const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                else
+                  Icon(
+                    Icons.keyboard_arrow_down_rounded,
+                    size: 20,
+                    color: Colors.grey.shade400,
+                  ),
+                if (hasSelected)
+                  IconButton(
+                    onPressed: onClear,
+                    icon: const Icon(Icons.close, size: 16, color: Colors.grey),
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    constraints: const BoxConstraints(minWidth: 32),
+                    splashRadius: 18,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildDropdownField<T>({
     required String label,
     required IconData icon,
@@ -2213,59 +2370,66 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final T? safeValue = items.any((item) => item.value == value)
         ? value
         : null;
-    return SizedBox(
-      height: 46,
-      child: Container(
-        padding: const EdgeInsets.fromLTRB(0, 6, 0, 6),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: SizedBox(
+        height: 46,
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(0, 6, 0, 6),
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+            ),
           ),
-        ),
-        child: Row(
-          children: [
-            Icon(icon, size: 18, color: Colors.grey.shade600),
-            const SizedBox(width: 8),
-            Expanded(
-              child: DropdownButtonHideUnderline(
-                child: DropdownButton<T>(
-                  key: ValueKey<String>('dropdown_${label}_${value ?? "null"}'),
-                  value: safeValue,
-                  isExpanded: true,
-                  hint: Text(
-                    label,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: Colors.grey.shade600),
+              const SizedBox(width: 8),
+              Expanded(
+                child: DropdownButtonHideUnderline(
+                  child: DropdownButton<T>(
+                    key: ValueKey<String>(
+                      'dropdown_${label}_${value ?? "null"}',
+                    ),
+                    value: safeValue,
+                    isExpanded: true,
+                    mouseCursor: SystemMouseCursors.click,
+                    hint: Text(
+                      label,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade700,
+                      ),
+                    ),
+                    style: const TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
-                      color: Colors.grey.shade700,
+                      color: AppPalette.slate,
                     ),
+                    icon: Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: Colors.grey.shade400,
+                    ),
+                    items: items,
+                    onChanged: onChanged,
                   ),
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
-                    color: AppPalette.slate,
-                  ),
-                  icon: Icon(
-                    Icons.keyboard_arrow_down_rounded,
-                    size: 20,
-                    color: Colors.grey.shade400,
-                  ),
-                  items: items,
-                  onChanged: onChanged,
                 ),
               ),
-            ),
-            if (hasSelectedValue)
-              InkWell(
-                borderRadius: BorderRadius.circular(10),
-                onTap: () => onChanged(null),
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4),
-                  child: Icon(Icons.close, size: 16, color: Colors.grey),
+              if (hasSelectedValue)
+                InkWell(
+                  borderRadius: BorderRadius.circular(10),
+                  mouseCursor: SystemMouseCursors.click,
+                  onTap: () => onChanged(null),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 4),
+                    child: Icon(Icons.close, size: 16, color: Colors.grey),
+                  ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -2313,6 +2477,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             if (controller.text.isNotEmpty)
               InkWell(
                 borderRadius: BorderRadius.circular(10),
+                mouseCursor: SystemMouseCursors.click,
                 onTap: () {
                   controller.clear();
                   _metinFiltreDegisti();
@@ -2355,6 +2520,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   }) {
     return InkWell(
       borderRadius: BorderRadius.circular(8),
+      mouseCursor: disabled
+          ? SystemMouseCursors.basic
+          : SystemMouseCursors.click,
       onTap: disabled ? null : onTap,
       child: Container(
         height: 40,
@@ -2398,6 +2566,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       message: tooltip,
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
+        mouseCursor: SystemMouseCursors.click,
         onTap: onTap,
         child: Container(
           width: 40,
@@ -2428,6 +2597,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   }) {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
+      mouseCursor: SystemMouseCursors.click,
       onTap: onTap,
       child: Container(
         height: 40,
@@ -2471,6 +2641,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                 message: tr('common.go_to_related_page'),
                 child: InkWell(
                   borderRadius: BorderRadius.circular(8),
+                  mouseCursor: SystemMouseCursors.click,
                   onTap: () => _openSource(row),
                   child: Container(
                     width: 30,
@@ -2551,17 +2722,17 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
     if (badgeLike && value != '-') {
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
         decoration: BoxDecoration(
           color: _badgeColor(value).withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(6),
         ),
         child: Text(
           value,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 12,
+            fontSize: 10,
             fontWeight: FontWeight.w700,
             color: _badgeColor(value),
           ),
@@ -2569,13 +2740,13 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       );
     }
 
-    return Text(
-      value,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
+    return HighlightText(
+      text: value,
+      query: _arama,
+      maxLines: 1,
       textAlign: numericAligned ? TextAlign.right : TextAlign.left,
       style: TextStyle(
-        fontSize: 14,
+        fontSize: 11,
         height: 1.35,
         fontWeight: numericAligned ? FontWeight.w700 : FontWeight.w500,
         color: color,

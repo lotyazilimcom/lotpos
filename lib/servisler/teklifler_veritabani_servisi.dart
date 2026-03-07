@@ -405,6 +405,9 @@ class TekliflerVeritabaniServisi {
         'CREATE INDEX IF NOT EXISTS idx_quotes_tarih ON quotes(tarih DESC)',
       );
       await _pool!.execute(
+        'CREATE INDEX IF NOT EXISTS idx_quotes_tarih_id ON quotes(tarih, id)',
+      );
+      await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_quotes_integration_ref ON quotes(integration_ref)',
       );
       await _pool!.execute(

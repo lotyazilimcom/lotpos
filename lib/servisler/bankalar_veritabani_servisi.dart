@@ -814,12 +814,21 @@ class BankalarVeritabaniServisi {
           );
           if (_config.allowBackgroundDbMaintenance &&
               _config.allowBackgroundHeavyMaintenance) {
-            await _backfillBankTransactionSearchTags();
+            try {
+              await _backfillBankTransactionSearchTags();
+            } catch (e) {
+              if (!_isConcurrentTupleUpdateError(e)) rethrow;
+            }
             // Initial Indeksleme: Arka planda çalıştır (Sayfa açılışını bloklama)
-            await verileriIndeksle(forceUpdate: false);
+            try {
+              await verileriIndeksle(forceUpdate: false);
+            } catch (e) {
+              if (!_isConcurrentTupleUpdateError(e)) rethrow;
+            }
           }
         } catch (e) {
           if (e is LisansYazmaEngelliHatasi) return;
+          if (_isConcurrentTupleUpdateError(e)) return;
           debugPrint('Banka arka plan ek kurulum hatası: $e');
         }
       }());
@@ -878,6 +887,10 @@ class BankalarVeritabaniServisi {
 
       if (updated.isEmpty) break;
     }
+  }
+
+  bool _isConcurrentTupleUpdateError(Object error) {
+    return error.toString().toLowerCase().contains('tuple concurrently updated');
   }
 
   /// Tüm bankalar için search_tags indekslemesi yapar (Batch Processing)

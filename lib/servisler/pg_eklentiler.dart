@@ -114,7 +114,7 @@ END;
           FROM pg_class c
           JOIN pg_namespace n ON n.oid = c.relnamespace
           WHERE n.nspname = 'public'
-            AND c.relkind = 'i'
+            AND c.relkind IN ('i', 'I')
             AND c.relname = @i
           LIMIT 1
         ''',

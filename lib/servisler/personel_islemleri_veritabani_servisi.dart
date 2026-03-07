@@ -330,6 +330,14 @@ class PersonelIslemleriVeritabaniServisi {
         WITH (pages_per_range = 128)
       ''');
 
+      // Keyset pagination (deep history): company_id + date + id
+      // Çok büyük tablolarda index build ağır olabilir; heavy maintenance açıkken kur.
+      if (_config.allowBackgroundHeavyMaintenance) {
+        await _pool!.execute(
+          "CREATE INDEX IF NOT EXISTS idx_ut_company_date_id ON user_transactions (COALESCE(company_id, '$_defaultCompanyId'), date DESC, id DESC)",
+        );
+      }
+
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_ut_type ON user_transactions (type)',
       );

@@ -279,6 +279,11 @@ class RaporSonucu {
     required this.rows,
     this.summaryCards = const <RaporOzetKarti>[],
     this.totalCount = 0,
+    this.page = 1,
+    this.pageSize = 25,
+    this.hasNextPage = false,
+    this.cursorPagination = false,
+    this.nextCursor,
     this.headerInfo = const <String, dynamic>{},
     this.mainTableLabel,
     this.detailTableLabel,
@@ -290,6 +295,11 @@ class RaporSonucu {
   final List<RaporSatiri> rows;
   final List<RaporOzetKarti> summaryCards;
   final int totalCount;
+  final int page;
+  final int pageSize;
+  final bool hasNextPage;
+  final bool cursorPagination;
+  final String? nextCursor;
   final Map<String, dynamic> headerInfo;
   final String? mainTableLabel;
   final String? detailTableLabel;

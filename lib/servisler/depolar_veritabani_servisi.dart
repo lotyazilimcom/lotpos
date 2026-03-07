@@ -714,6 +714,9 @@ class DepolarVeritabaniServisi {
                   'CREATE INDEX IF NOT EXISTS idx_sm_date ON stock_movements(movement_date)',
                 );
                 await _executeCreateIndexSafe(
+                  'CREATE INDEX IF NOT EXISTS idx_sm_movement_date_id ON stock_movements(movement_date, id)',
+                );
+                await _executeCreateIndexSafe(
                   'CREATE INDEX IF NOT EXISTS idx_sm_ref ON stock_movements(integration_ref)',
                 );
                 await _executeCreateIndexSafe(
@@ -781,6 +784,9 @@ class DepolarVeritabaniServisi {
               );
               await _pool!.execute(
                 'CREATE INDEX IF NOT EXISTS idx_shipments_date ON shipments(date)',
+              );
+              await _pool!.execute(
+                'CREATE INDEX IF NOT EXISTS idx_shipments_date_id ON shipments(date, id)',
               );
               await _pool!.execute(
                 'CREATE INDEX IF NOT EXISTS idx_shipments_source_id ON shipments(source_warehouse_id)',
