@@ -1760,7 +1760,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
       expandAll: _keepDetailsOpen,
       expandedIndices: _autoExpandedIndices,
       headerMaxLines: 1,
-      headerTextStyle: const TextStyle(fontSize: 14),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       headerPadding: const EdgeInsets.symmetric(horizontal: 8),
       onExpansionChanged: (index, isExpanded) {
         setState(() {

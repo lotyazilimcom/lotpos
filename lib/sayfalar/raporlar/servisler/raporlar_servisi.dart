@@ -5666,6 +5666,18 @@ class RaporlarServisi {
     applyCommonDateUser(kartWhere, 't.date', 't.user_name');
     _addSearchCondition(kartWhere, params, 't.search_tags', arama);
 
+    final yerCariHesapLabel = tr(
+      'cashregisters.transaction.type.current_account',
+    ).replaceAll("'", "''");
+    final yerPerakendeLabel = tr(
+      'reports.payment_types.retail',
+    ).replaceAll("'", "''");
+    final yerKasaLabel = tr('transactions.source.cash').replaceAll("'", "''");
+    final yerBankaLabel = tr('transactions.source.bank').replaceAll("'", "''");
+    final yerKrediKartiLabel = tr(
+      'transactions.source.credit_card',
+    ).replaceAll("'", "''");
+
     final unionQuery =
         '''
       SELECT *
@@ -5675,12 +5687,24 @@ class RaporlarServisi {
           cat.id,
           cat.date AS tarih,
           cat.source_type AS islem,
-          '${tr('nav.accounts').replaceAll("'", "''")}' AS yer,
+          '$yerCariHesapLabel' AS yer,
           ca.kod_no AS yer_kodu,
           ca.adi AS yer_adi,
           cat.amount AS tutar_num,
           cat.para_birimi AS para_birimi,
           cat.kur AS kur,
+          CASE
+            WHEN cat.integration_ref ILIKE 'CARI-PAV-CASH-%' THEN '$yerKasaLabel'
+            WHEN cat.integration_ref ILIKE 'CARI-PAV-BANK-%' THEN '$yerBankaLabel'
+            WHEN cat.integration_ref ILIKE 'CARI-PAV-CREDIT_CARD-%' THEN '$yerKrediKartiLabel'
+            WHEN LOWER(TRIM(COALESCE(cat.source_type, ''))) IN ('kasa', 'banka', 'kredi kartı', 'kredi karti') THEN
+              CASE LOWER(TRIM(COALESCE(cat.source_type, '')))
+                WHEN 'kasa' THEN '$yerKasaLabel'
+                WHEN 'banka' THEN '$yerBankaLabel'
+                ELSE '$yerKrediKartiLabel'
+              END
+            ELSE ''
+          END AS yer_2,
           COALESCE(cat.fatura_no, COALESCE(cat.irsaliye_no, COALESCE(cat.belge, COALESCE(cat.integration_ref, '-')))) AS belge_no,
           cat.e_belge AS e_belge,
           cat.irsaliye_no AS irsaliye_no,
@@ -5700,12 +5724,13 @@ class RaporlarServisi {
           t.id,
           t.date AS tarih,
           t.type AS islem,
-          '${tr('transactions.source.cash').replaceAll("'", "''")}' AS yer,
-          a.code AS yer_kodu,
-          a.name AS yer_adi,
+          COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel') AS yer,
+          COALESCE(t.location_code, '') AS yer_kodu,
+          COALESCE(t.location_name, '') AS yer_adi,
           t.amount AS tutar_num,
           'TRY' AS para_birimi,
           1 AS kur,
+          '$yerKasaLabel' AS yer_2,
           COALESCE(t.integration_ref, '-') AS belge_no,
           '-' AS e_belge,
           '-' AS irsaliye_no,
@@ -5725,12 +5750,13 @@ class RaporlarServisi {
           t.id,
           t.date AS tarih,
           t.type AS islem,
-          '${tr('transactions.source.bank').replaceAll("'", "''")}' AS yer,
-          a.code AS yer_kodu,
-          a.name AS yer_adi,
+          COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel') AS yer,
+          COALESCE(t.location_code, '') AS yer_kodu,
+          COALESCE(t.location_name, '') AS yer_adi,
           t.amount AS tutar_num,
           'TRY' AS para_birimi,
           1 AS kur,
+          '$yerBankaLabel' AS yer_2,
           COALESCE(t.integration_ref, '-') AS belge_no,
           '-' AS e_belge,
           '-' AS irsaliye_no,
@@ -5750,12 +5776,13 @@ class RaporlarServisi {
           t.id,
           t.date AS tarih,
           t.type AS islem,
-          '${tr('transactions.source.credit_card').replaceAll("'", "''")}' AS yer,
-          a.code AS yer_kodu,
-          a.name AS yer_adi,
+          COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel') AS yer,
+          COALESCE(t.location_code, '') AS yer_kodu,
+          COALESCE(t.location_name, '') AS yer_adi,
           t.amount AS tutar_num,
           'TRY' AS para_birimi,
           1 AS kur,
+          '$yerKrediKartiLabel' AS yer_2,
           COALESCE(t.integration_ref, '-') AS belge_no,
           '-' AS e_belge,
           '-' AS irsaliye_no,
@@ -5782,6 +5809,8 @@ class RaporlarServisi {
           return "COALESCE(base.yer_kodu, '')";
         case 'yer_adi':
           return "COALESCE(base.yer_adi, '')";
+        case 'yer_2':
+          return "COALESCE(base.yer_2, '')";
         case 'tarih':
           return 'base.tarih';
         case 'tutar':
@@ -5860,6 +5889,7 @@ class RaporlarServisi {
                   : '-',
               'tutar': _formatMoney(tutar),
               'kur': tx['kur']?.toString() ?? '',
+              'yer_2': tx['yer_2']?.toString() ?? '',
               'belge': belgeDurumu,
               'e_belge': tx['e_belge']?.toString() ?? '-',
               'irsaliye_no': tx['irsaliye_no']?.toString() ?? '',
@@ -5889,6 +5919,7 @@ class RaporlarServisi {
               'aciklama_2': tx['aciklama_2'],
               'vade_tarihi': vade,
               'kullanici': tx['kullanici'],
+              'yer_2': tx['yer_2'],
             },
           );
         })
@@ -8298,11 +8329,15 @@ class RaporlarServisi {
     bool allowSorting = true,
     bool visibleByDefault = true,
   }) {
+    final spec = _kolonStandartlari[key];
+    final resolvedWidth = spec == null
+        ? width
+        : math.max(width, spec.minWidth).toDouble();
     return RaporKolonTanimi(
       key: key,
       labelKey: labelKey,
-      width: width,
-      alignment: alignment,
+      width: resolvedWidth,
+      alignment: spec?.alignment ?? alignment,
       allowSorting: allowSorting,
       visibleByDefault: visibleByDefault,
     );
@@ -8545,6 +8580,161 @@ class RaporlarServisi {
     return FormatYardimcisi.sayiFormatlaOndalikli(amount);
   }
 }
+
+class _RaporKolonStandardi {
+  const _RaporKolonStandardi({required this.minWidth, this.alignment});
+
+  final double minWidth;
+  final Alignment? alignment;
+}
+
+const Map<String, _RaporKolonStandardi>
+_kolonStandartlari = <String, _RaporKolonStandardi>{
+  'islem': _RaporKolonStandardi(minWidth: 160),
+  'tur': _RaporKolonStandardi(minWidth: 130),
+  'durum': _RaporKolonStandardi(minWidth: 120),
+  'modul': _RaporKolonStandardi(minWidth: 140),
+  'kategori': _RaporKolonStandardi(minWidth: 150),
+  'grup': _RaporKolonStandardi(minWidth: 150),
+  'cari': _RaporKolonStandardi(minWidth: 220),
+  'hesap': _RaporKolonStandardi(minWidth: 220),
+  'ilgili_hesap': _RaporKolonStandardi(minWidth: 220),
+  'urun': _RaporKolonStandardi(minWidth: 220),
+  'urun_adi': _RaporKolonStandardi(minWidth: 220),
+  'kalem': _RaporKolonStandardi(minWidth: 220),
+  'yer_adi': _RaporKolonStandardi(minWidth: 190),
+  'depo': _RaporKolonStandardi(minWidth: 160),
+  'kaynak': _RaporKolonStandardi(minWidth: 160),
+  'hedef': _RaporKolonStandardi(minWidth: 160),
+  'yer': _RaporKolonStandardi(minWidth: 120),
+  'yer_2': _RaporKolonStandardi(minWidth: 120),
+  'kod': _RaporKolonStandardi(minWidth: 120),
+  'urun_kodu': _RaporKolonStandardi(minWidth: 120),
+  'yer_kodu': _RaporKolonStandardi(minWidth: 110),
+  'belge_no': _RaporKolonStandardi(minWidth: 130),
+  'belge_ref': _RaporKolonStandardi(minWidth: 130),
+  'fatura_no': _RaporKolonStandardi(minWidth: 130),
+  'irsaliye_no': _RaporKolonStandardi(minWidth: 130),
+  'e_belge': _RaporKolonStandardi(minWidth: 120),
+  'ref': _RaporKolonStandardi(minWidth: 130),
+  'no': _RaporKolonStandardi(minWidth: 120),
+  'portfoy': _RaporKolonStandardi(minWidth: 130),
+  'termin': _RaporKolonStandardi(minWidth: 120),
+  'donusum': _RaporKolonStandardi(minWidth: 120),
+  'kur': _RaporKolonStandardi(minWidth: 70, alignment: Alignment.centerRight),
+  'tarih': _RaporKolonStandardi(minWidth: 150),
+  'vade': _RaporKolonStandardi(minWidth: 120),
+  'vade_tarihi': _RaporKolonStandardi(minWidth: 120),
+  'donem': _RaporKolonStandardi(minWidth: 220),
+  'son_islem': _RaporKolonStandardi(minWidth: 140),
+  'son_hareket': _RaporKolonStandardi(minWidth: 140),
+  'son_islem_tarihi': _RaporKolonStandardi(minWidth: 140),
+  'son_islem_turu': _RaporKolonStandardi(minWidth: 170),
+  'tutar': _RaporKolonStandardi(
+    minWidth: 130,
+    alignment: Alignment.centerRight,
+  ),
+  'ara_toplam': _RaporKolonStandardi(
+    minWidth: 130,
+    alignment: Alignment.centerRight,
+  ),
+  'kdv': _RaporKolonStandardi(minWidth: 120, alignment: Alignment.centerRight),
+  'vergi': _RaporKolonStandardi(
+    minWidth: 120,
+    alignment: Alignment.centerRight,
+  ),
+  'genel_toplam': _RaporKolonStandardi(
+    minWidth: 140,
+    alignment: Alignment.centerRight,
+  ),
+  'borc': _RaporKolonStandardi(minWidth: 130, alignment: Alignment.centerRight),
+  'alacak': _RaporKolonStandardi(
+    minWidth: 130,
+    alignment: Alignment.centerRight,
+  ),
+  'net_bakiye': _RaporKolonStandardi(
+    minWidth: 140,
+    alignment: Alignment.centerRight,
+  ),
+  'maliyet': _RaporKolonStandardi(
+    minWidth: 120,
+    alignment: Alignment.centerRight,
+  ),
+  'stok_degeri': _RaporKolonStandardi(
+    minWidth: 130,
+    alignment: Alignment.centerRight,
+  ),
+  'alis': _RaporKolonStandardi(minWidth: 120, alignment: Alignment.centerRight),
+  'satis1': _RaporKolonStandardi(
+    minWidth: 120,
+    alignment: Alignment.centerRight,
+  ),
+  'satis2': _RaporKolonStandardi(
+    minWidth: 120,
+    alignment: Alignment.centerRight,
+  ),
+  'satis3': _RaporKolonStandardi(
+    minWidth: 120,
+    alignment: Alignment.centerRight,
+  ),
+  'ciro': _RaporKolonStandardi(minWidth: 130, alignment: Alignment.centerRight),
+  'gider': _RaporKolonStandardi(
+    minWidth: 130,
+    alignment: Alignment.centerRight,
+  ),
+  'brut_kar': _RaporKolonStandardi(
+    minWidth: 130,
+    alignment: Alignment.centerRight,
+  ),
+  'net_kar': _RaporKolonStandardi(
+    minWidth: 130,
+    alignment: Alignment.centerRight,
+  ),
+  'tutar_etkisi': _RaporKolonStandardi(
+    minWidth: 130,
+    alignment: Alignment.centerRight,
+  ),
+  'fark': _RaporKolonStandardi(minWidth: 120, alignment: Alignment.centerRight),
+  'giris': _RaporKolonStandardi(
+    minWidth: 105,
+    alignment: Alignment.centerRight,
+  ),
+  'cikis': _RaporKolonStandardi(
+    minWidth: 105,
+    alignment: Alignment.centerRight,
+  ),
+  'miktar': _RaporKolonStandardi(
+    minWidth: 100,
+    alignment: Alignment.centerRight,
+  ),
+  'stok': _RaporKolonStandardi(minWidth: 100, alignment: Alignment.centerRight),
+  'mevcut_stok': _RaporKolonStandardi(
+    minWidth: 100,
+    alignment: Alignment.centerRight,
+  ),
+  'kritik_stok': _RaporKolonStandardi(
+    minWidth: 100,
+    alignment: Alignment.centerRight,
+  ),
+  'kalem_sayisi': _RaporKolonStandardi(
+    minWidth: 100,
+    alignment: Alignment.centerRight,
+  ),
+  'kayit_sayisi': _RaporKolonStandardi(
+    minWidth: 110,
+    alignment: Alignment.centerRight,
+  ),
+  'toplam_miktar': _RaporKolonStandardi(
+    minWidth: 120,
+    alignment: Alignment.centerRight,
+  ),
+  'birim': _RaporKolonStandardi(minWidth: 90),
+  'odeme_turu': _RaporKolonStandardi(minWidth: 130),
+  'odeme_tipi': _RaporKolonStandardi(minWidth: 130),
+  'aciklama': _RaporKolonStandardi(minWidth: 220),
+  'aciklama_2': _RaporKolonStandardi(minWidth: 180),
+  'kullanici': _RaporKolonStandardi(minWidth: 110),
+};
 
 enum _CariRaporModu { satis, alis, karma, ekstre }
 

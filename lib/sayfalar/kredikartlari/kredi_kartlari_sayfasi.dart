@@ -2752,6 +2752,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
 
     return GenisletilebilirTablo<KrediKartiModel>(
       title: tr('creditcards.title'),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       searchFocusNode: _searchFocusNode,
       onFocusedRowChanged: (item, index) {
         if (item != null) {

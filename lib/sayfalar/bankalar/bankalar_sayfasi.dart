@@ -2851,6 +2851,7 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
 
     return GenisletilebilirTablo<BankaModel>(
       title: tr('nav.cash_bank.banks'),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       searchFocusNode: _searchFocusNode,
       onFocusedRowChanged: (item, index) {
         if (item != null) {

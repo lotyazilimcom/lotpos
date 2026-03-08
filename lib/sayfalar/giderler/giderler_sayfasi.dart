@@ -1913,6 +1913,7 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
 
     return GenisletilebilirTablo<GiderModel>(
       title: tr('expenses.title'),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       searchFocusNode: _searchFocusNode,
       onClearSelection: _clearAllTableSelections,
       onFocusedRowChanged: (item, index) {

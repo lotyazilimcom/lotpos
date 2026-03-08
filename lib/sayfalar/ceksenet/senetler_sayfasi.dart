@@ -2415,6 +2415,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
 
     return GenisletilebilirTablo<SenetModel>(
       title: tr('notes.title'),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       headerWidget: _buildFilters(),
       getDetailItemCount: (senet) =>
           _visibleTransactionIds[senet.id]?.length ?? 0,

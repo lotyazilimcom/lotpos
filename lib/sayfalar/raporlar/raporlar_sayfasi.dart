@@ -10,6 +10,7 @@ import '../../bilesenler/tarih_araligi_secici_dialog.dart';
 import '../../sayfalar/ortak/genisletilebilir_print_preview_screen.dart';
 import '../../temalar/app_theme.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
+import '../../yardimcilar/islem_turu_renkleri.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../carihesaplar/modeller/cari_hesap_model.dart';
@@ -25,6 +26,99 @@ class RaporlarSayfasi extends StatefulWidget {
 }
 
 class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
+  static const Set<String> _amountKeys = <String>{
+    'tutar',
+    'ara_toplam',
+    'kdv',
+    'genel_toplam',
+    'borc',
+    'alacak',
+    'net_bakiye',
+    'stok_degeri',
+    'maliyet',
+    'alis',
+    'satis1',
+    'satis2',
+    'satis3',
+    'ciro',
+    'gider',
+    'brut_kar',
+    'net_kar',
+    'tutar_etkisi',
+    'vergi',
+    'fark',
+  };
+
+  static const Set<String> _quantityKeys = <String>{
+    'giris',
+    'cikis',
+    'miktar',
+    'stok',
+    'mevcut_stok',
+    'kritik_stok',
+    'kalem_sayisi',
+    'toplam_miktar',
+    'kayit_sayisi',
+  };
+
+  static const Set<String> _badgeKeys = <String>{
+    'durum',
+    'tur',
+    'odeme_turu',
+    'odeme_tipi',
+    'modul',
+    'belge',
+    'portfoy',
+  };
+
+  static const Set<String> _entityKeys = <String>{
+    'cari',
+    'hesap',
+    'ilgili_hesap',
+    'urun',
+    'urun_adi',
+    'kalem',
+    'yer_adi',
+    'depo',
+    'kaynak',
+    'hedef',
+    'kategori',
+    'grup',
+    'ad',
+  };
+
+  static const Set<String> _secondaryTextKeys = <String>{
+    'kod',
+    'urun_kodu',
+    'yer_kodu',
+    'belge_no',
+    'belge_ref',
+    'fatura_no',
+    'irsaliye_no',
+    'ref',
+    'no',
+    'kur',
+    'kullanici',
+    'son_islem',
+    'son_hareket',
+    'son_islem_turu',
+    'son_islem_tarihi',
+    'termin',
+    'donusum',
+  };
+
+  static const Set<String> _dateKeys = <String>{
+    'tarih',
+    'vade',
+    'vade_tarihi',
+    'donem',
+  };
+
+  static const Set<String> _descriptionKeys = <String>{
+    'aciklama',
+    'aciklama_2',
+  };
+
   final RaporlarServisi _raporlarServisi = RaporlarServisi();
 
   final TextEditingController _belgeNoController = TextEditingController();
@@ -62,6 +156,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   String? _sortKey;
   String _hizliTarihSecimi = 'this_month';
   Timer? _metinFiltreDebounce;
+  int _aktifSorguNo = 0;
 
   final Map<String, Map<String, bool>> _kolonGorunurluklari =
       <String, Map<String, bool>>{};
@@ -119,12 +214,14 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     }
   }
 
-  Future<void> _raporuYukle() async {
+  Future<void> _raporuYukle({bool showLoading = true}) async {
     final rapor = _seciliRapor;
     if (rapor == null) return;
 
+    final int sorguNo = ++_aktifSorguNo;
+    final bool shouldShowLoading = showLoading || _sonuc == null;
     setState(() {
-      _raporYukleniyor = true;
+      _raporYukleniyor = shouldShowLoading;
       _aktifFiltreler = _aktifFiltreleriOlustur();
     });
 
@@ -143,13 +240,12 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         sortAscending: _sortAscending,
       );
 
-      if (!mounted) return;
+      if (!mounted || sorguNo != _aktifSorguNo) return;
       setState(() {
         _sonuc = sonuc;
         _raporYukleniyor = false;
         _mevcutSayfa = sonuc.page;
         _satirSayisi = sonuc.pageSize;
-        _paginationRevision++;
         if (sonuc.cursorPagination) {
           _sayfaCursorlari[1] = null;
           if (sonuc.hasNextPage && sonuc.nextCursor != null) {
@@ -158,12 +254,15 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         }
       });
     } catch (e) {
-      if (!mounted) return;
-      setState(() => _raporYukleniyor = false);
-      MesajYardimcisi.hataGoster(
-        context,
-        tr('reports.messages.load_failed').replaceAll('{error}', e.toString()),
-      );
+      if (mounted && sorguNo == _aktifSorguNo) {
+        setState(() => _raporYukleniyor = false);
+        MesajYardimcisi.hataGoster(
+          context,
+          tr(
+            'reports.messages.load_failed',
+          ).replaceAll('{error}', e.toString()),
+        );
+      }
     }
   }
 
@@ -630,14 +729,16 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   }
 
   void _aramaDegisti(String value) {
+    if (value == _arama) return;
+
     setState(() {
       _arama = value;
       _sayfalamayiSifirla();
     });
     _metinFiltreDebounce?.cancel();
-    _metinFiltreDebounce = Timer(const Duration(milliseconds: 260), () {
+    _metinFiltreDebounce = Timer(const Duration(milliseconds: 500), () {
       if (!mounted) return;
-      _raporuYukle();
+      _raporuYukle(showLoading: false);
     });
   }
 
@@ -1567,7 +1668,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           key: kolon.key,
           label: tr(kolon.labelKey),
           width: kolon.width,
-          flex: isMobile ? null : _flexFromWidth(kolon.width),
+          flex: isMobile || kolon.key == 'kur'
+              ? null
+              : _flexFromWidth(kolon.width),
           alignment: kolon.alignment,
           allowSorting: kolon.allowSorting,
         ),
@@ -1608,7 +1711,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           else
             Expanded(
               child: GenisletilebilirTablo<RaporSatiri>(
-                key: ValueKey('reports_table_${rapor.id}_$_paginationRevision'),
+                key: ValueKey('reports_table_${rapor.id}'),
                 title: '',
                 totalRecords: sonuc.totalCount,
                 autofocusTable: false,
@@ -1618,6 +1721,12 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                 headerPadding: const EdgeInsets.symmetric(horizontal: 12),
                 rowPadding: const EdgeInsets.symmetric(vertical: 9),
                 expandedContentPadding: const EdgeInsets.all(18),
+                headerTextStyle: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF5F6670),
+                  letterSpacing: 0.18,
+                ),
                 onSearch: _aramaDegisti,
                 onPageChanged: (page, rowsPerPage) {
                   setState(() {
@@ -2678,80 +2787,333 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
   Widget _buildValueCell(RaporSatiri row, String key) {
     final String value = row.cells[key] ?? '-';
-    final bool numericAligned = <String>{
-      'tutar',
-      'ara_toplam',
-      'kdv',
-      'genel_toplam',
-      'giris',
-      'cikis',
-      'borc',
-      'alacak',
-      'net_bakiye',
-      'stok',
-      'stok_degeri',
-      'maliyet',
-      'alis',
-      'satis1',
-      'satis2',
-      'satis3',
-      'ciro',
-      'gider',
-      'net_kar',
-      'brut_kar',
-      'tutar_etkisi',
-    }.contains(key);
-
-    final bool badgeLike = <String>{
-      'durum',
-      'tur',
-      'odeme_turu',
-      'modul',
-    }.contains(key);
-
-    Color color = AppPalette.slate;
-    if (key == 'giris' || key == 'alacak') {
-      color = const Color(0xFF27AE60);
-    } else if (key == 'cikis' || key == 'borc') {
-      color = AppPalette.red;
-    } else if (numericAligned &&
-        row.amountValue != null &&
-        row.amountValue! < 0) {
-      color = AppPalette.red;
+    if (key == 'islem') {
+      return _buildProcessCell(row, value);
     }
-
-    if (badgeLike && value != '-') {
-      return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-        decoration: BoxDecoration(
-          color: _badgeColor(value).withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(6),
+    if (_badgeKeys.contains(key) && value != '-') {
+      return _buildBadgeCell(key, value);
+    }
+    if (_descriptionKeys.contains(key)) {
+      return _buildDescriptionCell(key, value);
+    }
+    if (_amountKeys.contains(key)) {
+      return _buildAmountCell(row, key, value);
+    }
+    if (_quantityKeys.contains(key)) {
+      return _buildQuantityCell(row, key, value);
+    }
+    if (_dateKeys.contains(key)) {
+      return _buildHighlightedValue(
+        value,
+        style: const TextStyle(
+          fontSize: 12.5,
+          height: 1.35,
+          fontWeight: FontWeight.w600,
+          color: AppPalette.slate,
         ),
-        child: Text(
-          value,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w700,
-            color: _badgeColor(value),
-          ),
+      );
+    }
+    if (_entityKeys.contains(key)) {
+      final split = _trySplitCodeAndName(value);
+      if (split != null) {
+        return _buildCodeNameCell(code: split.code, name: split.name);
+      }
+      return _buildHighlightedValue(
+        value,
+        style: const TextStyle(
+          fontSize: 13,
+          height: 1.35,
+          fontWeight: FontWeight.w600,
+          color: AppPalette.slate,
+        ),
+      );
+    }
+    if (_secondaryTextKeys.contains(key)) {
+      return _buildHighlightedValue(
+        value,
+        style: TextStyle(
+          fontSize: 12,
+          height: 1.35,
+          fontWeight: key == 'kullanici' ? FontWeight.w600 : FontWeight.w500,
+          color: key == 'kullanici'
+              ? const Color(0xFF475467)
+              : AppPalette.lightText,
         ),
       );
     }
 
-    return HighlightText(
-      text: value,
-      query: _arama,
-      maxLines: 1,
-      textAlign: numericAligned ? TextAlign.right : TextAlign.left,
-      style: TextStyle(
-        fontSize: 11,
+    return _buildHighlightedValue(
+      value,
+      style: const TextStyle(
+        fontSize: 12.5,
         height: 1.35,
-        fontWeight: numericAligned ? FontWeight.w700 : FontWeight.w500,
+        fontWeight: FontWeight.w500,
+        color: AppPalette.slate,
+      ),
+    );
+  }
+
+  Widget _buildProcessCell(RaporSatiri row, String value) {
+    final bool incoming = _isIncomingLikeRow(row);
+    final Color background = IslemTuruRenkleri.arkaplanRengiGetir(
+      value,
+      incoming,
+    );
+    final Color iconColor = IslemTuruRenkleri.ikonRengiGetir(value, incoming);
+    final Color textColor = IslemTuruRenkleri.metinRengiGetir(value, incoming);
+
+    return Row(
+      children: [
+        Container(
+          width: 22,
+          height: 22,
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Icon(
+            incoming
+                ? Icons.arrow_downward_rounded
+                : Icons.arrow_upward_rounded,
+            size: 14,
+            color: iconColor,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _buildHighlightedValue(
+            value,
+            style: TextStyle(
+              fontSize: 12.75,
+              height: 1.3,
+              fontWeight: FontWeight.w700,
+              color: textColor,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBadgeCell(String key, String value) {
+    final Color badgeColor = _badgeColor(value);
+    final bool statusLike = key == 'durum';
+
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: statusLike ? 8 : 7,
+        vertical: statusLike ? 5 : 4,
+      ),
+      decoration: BoxDecoration(
+        color: badgeColor.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(statusLike ? 999 : 8),
+        border: Border.all(color: badgeColor.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (statusLike) ...[
+            Container(
+              width: 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color: badgeColor,
+                shape: BoxShape.circle,
+              ),
+            ),
+            const SizedBox(width: 6),
+          ],
+          Flexible(
+            child: Text(
+              value,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 10.5,
+                fontWeight: FontWeight.w700,
+                color: badgeColor,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDescriptionCell(String key, String value) {
+    return _buildHighlightedValue(
+      value,
+      style: TextStyle(
+        fontSize: key == 'aciklama' ? 11.5 : 11,
+        height: 1.45,
+        fontWeight: FontWeight.w600,
+        color: Colors.grey.shade600,
+      ),
+    );
+  }
+
+  Widget _buildAmountCell(RaporSatiri row, String key, String value) {
+    final Color color = _amountColor(row, key, value);
+    return _buildHighlightedValue(
+      value,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontSize: 12.75,
+        height: 1.35,
+        fontWeight: FontWeight.w700,
         color: color,
       ),
     );
+  }
+
+  Widget _buildQuantityCell(RaporSatiri row, String key, String value) {
+    final Color color;
+    if (key == 'giris') {
+      color = const Color(0xFF2E7D32);
+    } else if (key == 'cikis') {
+      color = const Color(0xFFC62828);
+    } else if (key == 'miktar' && !_isIncomingLikeRow(row) && value != '-') {
+      color = const Color(0xFFC62828);
+    } else {
+      color = AppPalette.slate;
+    }
+
+    return _buildHighlightedValue(
+      value,
+      textAlign: TextAlign.right,
+      style: TextStyle(
+        fontSize: 12.75,
+        height: 1.35,
+        fontWeight: FontWeight.w700,
+        color: color,
+      ),
+    );
+  }
+
+  Widget _buildCodeNameCell({required String code, required String name}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        _buildHighlightedValue(
+          name,
+          style: const TextStyle(
+            fontSize: 13,
+            height: 1.3,
+            fontWeight: FontWeight.w600,
+            color: AppPalette.slate,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF3F4F6),
+            borderRadius: BorderRadius.circular(5),
+            border: Border.all(color: const Color(0xFFE5E7EB)),
+          ),
+          child: _buildHighlightedValue(
+            code,
+            maxLines: 1,
+            style: const TextStyle(
+              fontSize: 10.5,
+              height: 1.2,
+              fontWeight: FontWeight.w700,
+              color: AppPalette.lightText,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHighlightedValue(
+    String value, {
+    required TextStyle style,
+    int? maxLines,
+    TextAlign textAlign = TextAlign.left,
+  }) {
+    return HighlightText(
+      text: value,
+      query: _arama,
+      maxLines: maxLines,
+      textAlign: textAlign,
+      style: style,
+    );
+  }
+
+  ({String code, String name})? _trySplitCodeAndName(String value) {
+    if (value == '-' || !value.contains(' - ')) return null;
+    final parts = value.split(' - ');
+    if (parts.length < 2) return null;
+    final code = parts.first.trim();
+    final name = parts.sublist(1).join(' - ').trim();
+    if (code.isEmpty ||
+        name.isEmpty ||
+        code.contains(' ') ||
+        code.length > 18) {
+      return null;
+    }
+    return (code: code, name: name);
+  }
+
+  bool _isIncomingLikeRow(RaporSatiri row) {
+    bool hasValue(String key) {
+      final value = row.cells[key]?.trim();
+      return value != null && value.isNotEmpty && value != '-';
+    }
+
+    if (hasValue('giris') || hasValue('alacak') || hasValue('bakiye_alacak')) {
+      return true;
+    }
+    if (hasValue('cikis') || hasValue('borc') || hasValue('bakiye_borc')) {
+      return false;
+    }
+
+    final status = (row.cells['durum'] ?? '').toLowerCase();
+    if (status.contains('alacak') ||
+        status.contains('credit') ||
+        status.contains('receivable') ||
+        status.contains('tahsil')) {
+      return true;
+    }
+    if (status.contains('borç') ||
+        status.contains('borc') ||
+        status.contains('debit') ||
+        status.contains('payable') ||
+        status.contains('ödeme') ||
+        status.contains('odeme')) {
+      return false;
+    }
+
+    final amount = row.amountValue;
+    if (amount != null) {
+      return amount >= 0;
+    }
+    return true;
+  }
+
+  Color _amountColor(RaporSatiri row, String key, String value) {
+    if (value == '-') return AppPalette.lightText;
+    if (key == 'alacak') return const Color(0xFF2E7D32);
+    if (key == 'borc') return const Color(0xFFC62828);
+    if (key == 'net_bakiye' ||
+        key == 'net_kar' ||
+        key == 'brut_kar' ||
+        key == 'tutar_etkisi' ||
+        key == 'fark') {
+      if (row.amountValue != null && row.amountValue! < 0) {
+        return const Color(0xFFC62828);
+      }
+      if (row.amountValue != null && row.amountValue! > 0) {
+        return const Color(0xFF2E7D32);
+      }
+      return AppPalette.slate;
+    }
+    if (key == 'tutar' && row.amountValue != null && row.amountValue! < 0) {
+      return const Color(0xFFC62828);
+    }
+    return AppPalette.slate;
   }
 
   Widget _buildEmptyState({

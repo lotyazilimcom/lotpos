@@ -3346,6 +3346,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
 
     return GenisletilebilirTablo<UretimModel>(
       title: tr('productions.title'),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       searchFocusNode: _searchFocusNode,
       onClearSelection: _clearAllTableSelections,
       onFocusedRowChanged: (item, index) {

@@ -2876,6 +2876,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
       getDetailItemCount: (kasa) =>
           _visibleTransactionIds[kasa.id]?.length ?? 0,
       title: tr('cashregisters.title'),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       searchFocusNode: _searchFocusNode,
       onFocusedRowChanged: (item, index) {
         if (item != null) {

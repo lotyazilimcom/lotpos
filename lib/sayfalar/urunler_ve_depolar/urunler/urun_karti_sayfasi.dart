@@ -5662,7 +5662,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
           setState(() => _selectedRowId = item['id'] as int?);
         }
       },
-      headerTextStyle: const TextStyle(fontSize: 13),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       headerPadding: const EdgeInsets.symmetric(
         horizontal: 4,
       ), // Tight padding for sticking columns
@@ -6109,7 +6109,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
           setState(() => _selectedRowId = item['id'] as int?);
         }
       },
-      headerTextStyle: const TextStyle(fontSize: 13),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       headerPadding: const EdgeInsets.symmetric(horizontal: 4),
       headerMaxLines: 1,
       headerOverflow: TextOverflow.ellipsis,

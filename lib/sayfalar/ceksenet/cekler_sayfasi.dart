@@ -2415,6 +2415,7 @@ class _CeklerSayfasiState extends State<CeklerSayfasi> {
 
     return GenisletilebilirTablo<CekModel>(
       title: tr('checks.title'),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       headerWidget: _buildFilters(),
       getDetailItemCount: (cek) => _visibleTransactionIds[cek.id]?.length ?? 0,
       searchFocusNode: _searchFocusNode,

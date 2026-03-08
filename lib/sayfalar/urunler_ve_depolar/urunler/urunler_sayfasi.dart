@@ -3660,11 +3660,7 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
 
     return GenisletilebilirTablo<UrunModel>(
       title: tr('products.title'),
-      headerTextStyle: TextStyle(
-        fontSize: constraints.maxWidth < 1300 ? 13 : 15,
-        fontWeight: FontWeight.bold,
-        color: Colors.black54,
-      ),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       headerMaxLines: 1,
       headerOverflow: TextOverflow.ellipsis,
       searchFocusNode: _searchFocusNode,

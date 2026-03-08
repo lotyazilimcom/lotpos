@@ -4771,6 +4771,7 @@ class _CariHesaplarSayfasiState extends State<CariHesaplarSayfasi> {
 
     return GenisletilebilirTablo<CariHesapModel>(
       title: tr('accounts.title'),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       totalRecords: _totalRecords,
       cursorPagination: true,
       hasNextPage: _hasNextPage,

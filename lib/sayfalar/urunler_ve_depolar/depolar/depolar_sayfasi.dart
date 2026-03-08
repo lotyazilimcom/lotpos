@@ -2919,6 +2919,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           _visibleTransactionIds[depo.id]?.length ?? 0,
       onRowTap: null, // Focus handled by table
       title: tr('warehouses.title'),
+      headerTextStyle: kCariKartTableHeaderTextStyle,
       searchFocusNode: _searchFocusNode,
       onClearSelection: _clearAllTableSelections,
       onFocusedRowChanged: (item, index) {

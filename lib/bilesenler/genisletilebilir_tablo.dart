@@ -4,6 +4,8 @@ import 'package:flutter/services.dart';
 import 'package:sticky_headers/sticky_headers.dart';
 import '../yardimcilar/ceviri/ceviri_servisi.dart';
 
+const TextStyle kCariKartTableHeaderTextStyle = TextStyle(fontSize: 14);
+
 class TableDetailFocusScope extends InheritedWidget {
   final int? focusedDetailIndex;
 
