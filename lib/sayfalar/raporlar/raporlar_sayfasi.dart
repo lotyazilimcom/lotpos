@@ -1701,13 +1701,6 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           ),
           if (_raporYukleniyor)
             const Expanded(child: _RaporTabloShimmer())
-          else if (sonuc.rows.isEmpty)
-            Expanded(
-              child: _buildEmptyState(
-                title: tr('common.no_results'),
-                description: tr('reports.empty.no_rows'),
-              ),
-            )
           else
             Expanded(
               child: GenisletilebilirTablo<RaporSatiri>(

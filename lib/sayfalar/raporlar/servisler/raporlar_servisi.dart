@@ -688,20 +688,18 @@ class RaporlarServisi {
     String aramaTerimi, {
     int limit = 20,
   }) async {
-    final normalized = _normalizeArama(aramaTerimi);
-    if (normalized.length < 2) return const <RaporSecimSecenegi>[];
+    final tokens = _searchTokens(aramaTerimi);
+    if (tokens.isEmpty) return const <RaporSecimSecenegi>[];
 
     final pool = await _havuzAl();
-    final params = <String, dynamic>{
-      'limit': limit.clamp(1, 50),
-      'search': '%$normalized%',
-      'fts': normalized,
-    };
+    final params = <String, dynamic>{'limit': limit.clamp(1, 50)};
+    _bindSearchTokenParams(params, tokens);
+    final where = _tokenLikeClause('ca.search_tags', tokens.length);
 
     final rows = await _queryMaps(pool, '''
       SELECT ca.id, ca.kod_no, ca.adi
       FROM current_accounts ca
-      WHERE ${_searchClause('ca.search_tags')}
+      WHERE $where
       ORDER BY ca.adi ASC, ca.id ASC
       LIMIT @limit
       ''', params);
@@ -739,20 +737,18 @@ class RaporlarServisi {
     String aramaTerimi, {
     int limit = 20,
   }) async {
-    final normalized = _normalizeArama(aramaTerimi);
-    if (normalized.length < 2) return const <RaporSecimSecenegi>[];
+    final tokens = _searchTokens(aramaTerimi);
+    if (tokens.isEmpty) return const <RaporSecimSecenegi>[];
 
     final pool = await _havuzAl();
-    final params = <String, dynamic>{
-      'limit': limit.clamp(1, 50),
-      'search': '%$normalized%',
-      'fts': normalized,
-    };
+    final params = <String, dynamic>{'limit': limit.clamp(1, 50)};
+    _bindSearchTokenParams(params, tokens);
+    final where = _tokenLikeClause('p.search_tags', tokens.length);
 
     final rows = await _queryMaps(pool, '''
       SELECT p.kod, p.ad, p.grubu
       FROM products p
-      WHERE ${_searchClause('p.search_tags')}
+      WHERE $where
       ORDER BY p.ad ASC NULLS LAST, p.kod ASC
       LIMIT @limit
       ''', params);
@@ -1310,15 +1306,46 @@ class RaporlarServisi {
     String expression,
     String arama,
   ) {
-    final normalized = _normalizeArama(arama);
-    if (normalized.isEmpty) return;
-    params['search'] = '%$normalized%';
-    params['fts'] = normalized;
-    conditions.add(_searchClause(expression));
+    final tokens = _searchTokens(arama);
+    if (tokens.isEmpty) return;
+    _bindSearchTokenParams(params, tokens);
+    conditions.add(_tokenLikeClause(expression, tokens.length));
   }
 
-  String _searchClause(String expression) {
-    return '($expression LIKE @search OR to_tsvector(\'simple\', $expression) @@ plainto_tsquery(\'simple\', @fts))';
+  /// [2026 PERF] Raporlar araması tamamen index-dostu (GIN+trgm) LIKE üzerinden akar.
+  ///
+  /// - `to_tsvector(...)` OR koşulu büyük tablolarda planı bozup seq-scan'a iter.
+  /// - Bunun yerine token'ları AND'leyerek FTS benzeri davranışı koruruz:
+  ///   `col LIKE %t1% AND col LIKE %t2% ...`
+  /// - Tokenlar en az 2 karakter olmalı (1 harf araması 100B'de patlar).
+  List<String> _searchTokens(String arama) {
+    final normalized = _normalizeArama(arama);
+    if (normalized.isEmpty) return const <String>[];
+    final raw = normalized
+        .split(RegExp(r'\s+'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty && e.length >= 2)
+        .toList(growable: false);
+    if (raw.isEmpty) return const <String>[];
+    // Güvenlik üst sınırı: çok uzun sorgu AND zinciri üretmesin.
+    return raw.length <= 8 ? raw : raw.take(8).toList(growable: false);
+  }
+
+  void _bindSearchTokenParams(
+    Map<String, dynamic> params,
+    List<String> tokens,
+  ) {
+    for (var i = 0; i < tokens.length; i++) {
+      params['search$i'] = '%${tokens[i]}%';
+    }
+  }
+
+  String _tokenLikeClause(String expression, int tokenCount) {
+    final parts = <String>[];
+    for (var i = 0; i < tokenCount; i++) {
+      parts.add('$expression LIKE @search$i');
+    }
+    return '(${parts.join(' AND ')})';
   }
 
   void _addSearchConditionAny(
@@ -1327,13 +1354,13 @@ class RaporlarServisi {
     List<String> expressions,
     String arama,
   ) {
-    final normalized = _normalizeArama(arama);
-    if (normalized.isEmpty) return;
-    params['search'] = '%$normalized%';
-    params['fts'] = normalized;
+    final tokens = _searchTokens(arama);
+    if (tokens.isEmpty) return;
+    _bindSearchTokenParams(params, tokens);
+    final tokenCount = tokens.length;
 
     final parts = expressions
-        .map((expr) => _searchClause(expr))
+        .map((expr) => _tokenLikeClause(expr, tokenCount))
         .toList(growable: false);
     if (parts.isEmpty) return;
     conditions.add('(${parts.join(' OR ')})');
@@ -3524,20 +3551,13 @@ class RaporlarServisi {
     }
 
     final params = <String, dynamic>{'companyId': _companyId};
-    final normalizedSearch = _normalizeArama(arama);
-    if (normalizedSearch.isNotEmpty) {
-      params['search'] = '%$normalizedSearch%';
-      params['fts'] = normalizedSearch;
-    }
 
     final cariWhere = <String>[];
     if (filtreler.cariId != null) {
       cariWhere.add('ca.id = @cariId');
       params['cariId'] = filtreler.cariId;
     }
-    if (normalizedSearch.isNotEmpty) {
-      cariWhere.add(_searchClause('ca.search_tags'));
-    }
+    _addSearchCondition(cariWhere, params, 'ca.search_tags', arama);
 
     final kasaWhere = <String>[
       "COALESCE(cr.company_id, '$_defaultCompanyId') = @companyId",
@@ -3546,9 +3566,7 @@ class RaporlarServisi {
       kasaWhere.add('cr.id = @kasaId');
       params['kasaId'] = filtreler.kasaId;
     }
-    if (normalizedSearch.isNotEmpty) {
-      kasaWhere.add(_searchClause('cr.search_tags'));
-    }
+    _addSearchCondition(kasaWhere, params, 'cr.search_tags', arama);
 
     final bankaWhere = <String>[
       "COALESCE(b.company_id, '$_defaultCompanyId') = @companyId",
@@ -3557,9 +3575,7 @@ class RaporlarServisi {
       bankaWhere.add('b.id = @bankaId');
       params['bankaId'] = filtreler.bankaId;
     }
-    if (normalizedSearch.isNotEmpty) {
-      bankaWhere.add(_searchClause('b.search_tags'));
-    }
+    _addSearchCondition(bankaWhere, params, 'b.search_tags', arama);
 
     final kartWhere = <String>[
       "COALESCE(cc.company_id, '$_defaultCompanyId') = @companyId",
@@ -3568,9 +3584,7 @@ class RaporlarServisi {
       kartWhere.add('cc.id = @krediKartiId');
       params['krediKartiId'] = filtreler.krediKartiId;
     }
-    if (normalizedSearch.isNotEmpty) {
-      kartWhere.add(_searchClause('cc.search_tags'));
-    }
+    _addSearchCondition(kartWhere, params, 'cc.search_tags', arama);
 
     final String cariWhereSql = cariWhere.isEmpty
         ? ''
@@ -5650,22 +5664,6 @@ class RaporlarServisi {
       }
     }
 
-    final cariWhere = <String>[];
-    applyCommonDateUser(cariWhere, 'cat.date', 'cat.user_name');
-    _addSearchCondition(cariWhere, params, 'cat.search_tags', arama);
-
-    final kasaWhere = <String>[];
-    applyCommonDateUser(kasaWhere, 't.date', 't.user_name');
-    _addSearchCondition(kasaWhere, params, 't.search_tags', arama);
-
-    final bankaWhere = <String>[];
-    applyCommonDateUser(bankaWhere, 't.date', 't.user_name');
-    _addSearchCondition(bankaWhere, params, 't.search_tags', arama);
-
-    final kartWhere = <String>[];
-    applyCommonDateUser(kartWhere, 't.date', 't.user_name');
-    _addSearchCondition(kartWhere, params, 't.search_tags', arama);
-
     final yerCariHesapLabel = tr(
       'cashregisters.transaction.type.current_account',
     ).replaceAll("'", "''");
@@ -5677,6 +5675,40 @@ class RaporlarServisi {
     final yerKrediKartiLabel = tr(
       'transactions.source.credit_card',
     ).replaceAll("'", "''");
+
+    final cariYerExpr = "normalize_text('$yerCariHesapLabel')";
+    final kasaYer2Expr = "normalize_text('$yerKasaLabel')";
+    final bankaYer2Expr = "normalize_text('$yerBankaLabel')";
+    final krediKartiYer2Expr = "normalize_text('$yerKrediKartiLabel')";
+
+    final cariWhere = <String>[];
+    applyCommonDateUser(cariWhere, 'cat.date', 'cat.user_name');
+    _addSearchConditionAny(cariWhere, params, [
+      'cat.search_tags',
+      'ca.search_tags',
+      cariYerExpr,
+    ], arama);
+
+    final kasaWhere = <String>[];
+    applyCommonDateUser(kasaWhere, 't.date', 't.user_name');
+    _addSearchConditionAny(kasaWhere, params, [
+      't.search_tags',
+      kasaYer2Expr,
+    ], arama);
+
+    final bankaWhere = <String>[];
+    applyCommonDateUser(bankaWhere, 't.date', 't.user_name');
+    _addSearchConditionAny(bankaWhere, params, [
+      't.search_tags',
+      bankaYer2Expr,
+    ], arama);
+
+    final kartWhere = <String>[];
+    applyCommonDateUser(kartWhere, 't.date', 't.user_name');
+    _addSearchConditionAny(kartWhere, params, [
+      't.search_tags',
+      krediKartiYer2Expr,
+    ], arama);
 
     final unionQuery =
         '''
