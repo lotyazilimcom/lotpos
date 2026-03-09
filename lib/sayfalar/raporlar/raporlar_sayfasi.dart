@@ -152,7 +152,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   int _satirSayisi = 25;
   int _paginationRevision = 0;
   final Map<int, String?> _sayfaCursorlari = <int, String?>{1: null};
-  bool _sortAscending = true;
+  bool _sortAscending = false;
   String? _sortKey;
   String _hizliTarihSecimi = 'this_month';
   Timer? _metinFiltreDebounce;
@@ -380,7 +380,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       _seciliKategori = kategori;
       _seciliRapor = yeniRapor;
       _sortKey = null;
-      _sortAscending = true;
+      _sortAscending = false;
       _arama = '';
       _sayfalamayiSifirla();
       _kolonDurumunuHazirla();
@@ -394,7 +394,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       _seciliKategori = rapor.category;
       _seciliRapor = rapor;
       _sortKey = null;
-      _sortAscending = true;
+      _sortAscending = false;
       _arama = '';
       _sayfalamayiSifirla();
       _kolonDurumunuHazirla();
