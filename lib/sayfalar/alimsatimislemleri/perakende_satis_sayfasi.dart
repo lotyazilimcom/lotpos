@@ -25,18 +25,14 @@ import '../bankalar/modeller/banka_model.dart';
 import '../kasalar/kasalar_sayfasi.dart';
 import '../kasalar/modeller/kasa_model.dart';
 import '../kredikartlari/modeller/kredi_karti_model.dart';
+import 'modeller/transaction_item.dart';
 import '../ortak/print_preview_screen.dart';
 import '../urunler_ve_depolar/depolar/modeller/depo_model.dart';
 import '../../bilesenler/tek_tarih_secici_dialog.dart';
 import '../../servisler/sayfa_senkronizasyon_servisi.dart';
 import '../urunler_ve_depolar/urunler/modeller/urun_model.dart';
 
-enum _RetailNumericKeypadTarget {
-  barkod,
-  miktar,
-  aciklama,
-  odeme,
-}
+enum _RetailNumericKeypadTarget { barkod, miktar, aciklama, odeme }
 
 class _PerakendeSepetItem {
   final String kodNo;
@@ -47,6 +43,13 @@ class _PerakendeSepetItem {
   final double miktar;
   final String olcu;
   final double toplamFiyat;
+  final double kdvOrani;
+  final bool kdvDahil;
+  final double otvOrani;
+  final bool otvDahil;
+  final double oivOrani;
+  final bool oivDahil;
+  final double kdvTevkifatOrani;
   final String paraBirimi;
   final int? depoId;
   final String? depoAdi;
@@ -60,6 +63,13 @@ class _PerakendeSepetItem {
     required this.miktar,
     required this.olcu,
     required this.toplamFiyat,
+    this.kdvOrani = 0,
+    this.kdvDahil = false,
+    this.otvOrani = 0,
+    this.otvDahil = false,
+    this.oivOrani = 0,
+    this.oivDahil = false,
+    this.kdvTevkifatOrani = 0,
     required this.paraBirimi,
     required this.depoId,
     required this.depoAdi,
@@ -70,6 +80,13 @@ class _PerakendeSepetItem {
     double? iskontoOrani,
     double? birimFiyati,
     double? toplamFiyat,
+    double? kdvOrani,
+    bool? kdvDahil,
+    double? otvOrani,
+    bool? otvDahil,
+    double? oivOrani,
+    bool? oivDahil,
+    double? kdvTevkifatOrani,
     int? depoId,
     String? depoAdi,
   }) {
@@ -82,6 +99,13 @@ class _PerakendeSepetItem {
       miktar: miktar ?? this.miktar,
       olcu: olcu,
       toplamFiyat: toplamFiyat ?? this.toplamFiyat,
+      kdvOrani: kdvOrani ?? this.kdvOrani,
+      kdvDahil: kdvDahil ?? this.kdvDahil,
+      otvOrani: otvOrani ?? this.otvOrani,
+      otvDahil: otvDahil ?? this.otvDahil,
+      oivOrani: oivOrani ?? this.oivOrani,
+      oivDahil: oivDahil ?? this.oivDahil,
+      kdvTevkifatOrani: kdvTevkifatOrani ?? this.kdvTevkifatOrani,
       paraBirimi: paraBirimi,
       depoId: depoId ?? this.depoId,
       depoAdi: depoAdi ?? this.depoAdi,
@@ -455,8 +479,9 @@ class _PerakendeParcaliOdemeDialogState
   @override
   void initState() {
     super.initState();
-    _nakitController =
-        TextEditingController(text: widget.formatTutar(widget.total));
+    _nakitController = TextEditingController(
+      text: widget.formatTutar(widget.total),
+    );
     _kartController = TextEditingController(text: widget.formatTutar(0));
     _havaleController = TextEditingController(text: widget.formatTutar(0));
 
@@ -551,8 +576,10 @@ class _PerakendeParcaliOdemeDialogState
       if (!mounted) return;
       final latestLength = controller.text.length;
       if (latestLength <= 0) return;
-      controller.selection =
-          TextSelection(baseOffset: 0, extentOffset: latestLength);
+      controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: latestLength,
+      );
     });
   }
 
@@ -637,9 +664,9 @@ class _PerakendeParcaliOdemeDialogState
       return;
     }
 
-    Navigator.of(context).pop(
-      _ParcaliOdemeResult(nakit: nakit, krediKarti: kart, havale: havale),
-    );
+    Navigator.of(
+      context,
+    ).pop(_ParcaliOdemeResult(nakit: nakit, krediKarti: kart, havale: havale));
   }
 
   Widget _buildAmountField({
@@ -771,8 +798,8 @@ class _PerakendeParcaliOdemeDialogState
                   final Color remainingColor = remainingMinor == 0
                       ? _nakitColor
                       : remainingMinor > 0
-                          ? _primaryColor
-                          : _dangerColor;
+                      ? _primaryColor
+                      : _dangerColor;
 
                   return Column(
                     mainAxisSize: MainAxisSize.min,
@@ -843,9 +870,7 @@ class _PerakendeParcaliOdemeDialogState
                         decoration: BoxDecoration(
                           color: const Color(0xFFF8F9FA),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: const Color(0xFFE0E0E0),
-                          ),
+                          border: Border.all(color: const Color(0xFFE0E0E0)),
                         ),
                         child: Row(
                           children: [
@@ -935,8 +960,9 @@ class _PerakendeParcaliOdemeDialogState
                               ),
                               const SizedBox(height: 18),
                               _buildAmountField(
-                                label:
-                                    tr('retail.partial_payment.field.transfer'),
+                                label: tr(
+                                  'retail.partial_payment.field.transfer',
+                                ),
                                 controller: _havaleController,
                                 focusNode: _havaleFocusNode,
                                 icon: Icons.account_balance,
@@ -963,7 +989,9 @@ class _PerakendeParcaliOdemeDialogState
                             icon: const Icon(Icons.restart_alt, size: 18),
                             label: Text(
                               tr('retail.partial_payment.action.reset'),
-                              style: const TextStyle(fontWeight: FontWeight.w800),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF5F6368),
@@ -1074,10 +1102,7 @@ class _IskontoResult {
   final double percent;
   final double amount;
 
-  const _IskontoResult({
-    required this.percent,
-    required this.amount,
-  });
+  const _IskontoResult({required this.percent, required this.amount});
 }
 
 class _PerakendeIskontoDialog extends StatefulWidget {
@@ -1096,7 +1121,8 @@ class _PerakendeIskontoDialog extends StatefulWidget {
   });
 
   @override
-  State<_PerakendeIskontoDialog> createState() => _PerakendeIskontoDialogState();
+  State<_PerakendeIskontoDialog> createState() =>
+      _PerakendeIskontoDialogState();
 }
 
 class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
@@ -1143,12 +1169,15 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
     ];
 
     final initialPercent = widget.initialPercent.clamp(0, 100).toDouble();
-    final initialAmount =
-        widget.grossTotal <= 0 ? 0.0 : widget.grossTotal * initialPercent / 100;
+    final initialAmount = widget.grossTotal <= 0
+        ? 0.0
+        : widget.grossTotal * initialPercent / 100;
 
     if (initialPercent > 0) {
-      _percentController.text =
-          widget.formatTutar(initialPercent, decimalDigits: 2);
+      _percentController.text = widget.formatTutar(
+        initialPercent,
+        decimalDigits: 2,
+      );
     }
     if (initialAmount > 0) {
       _amountController.text = widget.formatTutar(initialAmount);
@@ -1209,9 +1238,7 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
       if (rawPercent != percent && gross > 0) {
         _setControllerValue(
           _percentController,
-          percent <= 0
-              ? ''
-              : widget.formatTutar(percent, decimalDigits: 2),
+          percent <= 0 ? '' : widget.formatTutar(percent, decimalDigits: 2),
         );
       }
       _setControllerValue(
@@ -1265,8 +1292,9 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
   void _submit() {
     final gross = widget.grossTotal;
     final percentFromField = _parse(_percentController.text).clamp(0, 100);
-    final amountFromField =
-        gross <= 0 ? 0.0 : _parse(_amountController.text).clamp(0, gross);
+    final amountFromField = gross <= 0
+        ? 0.0
+        : _parse(_amountController.text).clamp(0, gross);
 
     final double percent;
     final double amount;
@@ -1283,9 +1311,7 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
       return;
     }
 
-    Navigator.of(context).pop(
-      _IskontoResult(percent: percent, amount: amount),
-    );
+    Navigator.of(context).pop(_IskontoResult(percent: percent, amount: amount));
   }
 
   Widget _buildField({
@@ -1367,7 +1393,10 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
           autofocus: true,
           child: Dialog(
             backgroundColor: Colors.white,
-            insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+            insetPadding: const EdgeInsets.symmetric(
+              horizontal: 32,
+              vertical: 24,
+            ),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(dialogRadius),
             ),
@@ -1384,13 +1413,20 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
                 isCompact ? 16 : 22,
               ),
               child: AnimatedBuilder(
-                animation: Listenable.merge([_percentController, _amountController]),
+                animation: Listenable.merge([
+                  _percentController,
+                  _amountController,
+                ]),
                 builder: (context, child) {
                   final gross = widget.grossTotal;
-                  final percent = _parse(_percentController.text).clamp(0, 100).toDouble();
+                  final percent = _parse(
+                    _percentController.text,
+                  ).clamp(0, 100).toDouble();
                   final amount = gross <= 0
                       ? 0.0
-                      : _parse(_amountController.text).clamp(0, gross).toDouble();
+                      : _parse(
+                          _amountController.text,
+                        ).clamp(0, gross).toDouble();
 
                   final effectivePercent = _lastEdited == 'amount'
                       ? (gross <= 0 ? 0.0 : (amount / gross) * 100)
@@ -1399,7 +1435,9 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
                       ? amount
                       : (gross <= 0 ? 0.0 : gross * effectivePercent / 100);
 
-                  final newTotal = (gross - effectiveAmount).clamp(0, gross).toDouble();
+                  final newTotal = (gross - effectiveAmount)
+                      .clamp(0, gross)
+                      .toDouble();
 
                   final discountText = effectiveAmount <= 0
                       ? ''
@@ -1563,14 +1601,17 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
                         builder: (context, constraints) {
                           final bool stack = constraints.maxWidth < 520;
                           final percentField = _buildField(
-                            label: '${tr('common.discount')} ${tr('common.symbol.percent')}',
+                            label:
+                                '${tr('common.discount')} ${tr('common.symbol.percent')}',
                             controller: _percentController,
                             focusNode: _percentFocusNode,
                             icon: Icons.percent,
                             borderColor: _primaryColor,
                             formatters: _percentFormatters,
                             suffixText: tr('common.symbol.percent'),
-                            textInputAction: stack ? TextInputAction.next : TextInputAction.done,
+                            textInputAction: stack
+                                ? TextInputAction.next
+                                : TextInputAction.done,
                             onSubmitted: (_) => _amountFocusNode.requestFocus(),
                           );
 
@@ -1614,7 +1655,9 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
                             icon: const Icon(Icons.refresh_rounded, size: 18),
                             label: Text(
                               tr('retail.partial_payment.action.reset'),
-                              style: const TextStyle(fontWeight: FontWeight.w700),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                             style: OutlinedButton.styleFrom(
                               foregroundColor: const Color(0xFF5F6368),
@@ -2290,12 +2333,8 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     required double keypadHeight,
   }) {
     final maxDx = math.max(16.0, constraints.maxWidth - keypadWidth - 16);
-    final maxDy =
-        math.max(16.0, constraints.maxHeight - keypadHeight - 16);
-    return Offset(
-      desired.dx.clamp(16.0, maxDx),
-      desired.dy.clamp(16.0, maxDy),
-    );
+    final maxDy = math.max(16.0, constraints.maxHeight - keypadHeight - 16);
+    return Offset(desired.dx.clamp(16.0, maxDx), desired.dy.clamp(16.0, maxDy));
   }
 
   Widget _buildNumericKeypadOverlay({
@@ -2314,7 +2353,8 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       math.max(200.0, constraints.maxHeight - 32),
     );
 
-    final baseOffset = _numericKeypadOffset ??
+    final baseOffset =
+        _numericKeypadOffset ??
         Offset(
           constraints.maxWidth -
               keypadWidth -
@@ -2401,7 +2441,8 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
 
   String _formatMiktar(double miktar) {
     final decimals = _genelAyarlar.miktarOndalik;
-    final hasFraction = (miktar - miktar.truncateToDouble()).abs() > 0.000000001;
+    final hasFraction =
+        (miktar - miktar.truncateToDouble()).abs() > 0.000000001;
     if (!hasFraction || decimals <= 0) {
       return FormatYardimcisi.sayiFormatla(
         miktar,
@@ -2457,6 +2498,123 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       default:
         return item.satisFiyati1;
     }
+  }
+
+  T? _tryReadDynamic<T>(T Function() reader) {
+    try {
+      return reader();
+    } catch (_) {
+      return null;
+    }
+  }
+
+  double _toDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0.0;
+  }
+
+  double _readOptionalRate(dynamic item, List<dynamic Function()> readers) {
+    for (final reader in readers) {
+      final raw = _tryReadDynamic<dynamic>(reader);
+      if (raw == null) continue;
+      return _toDouble(raw);
+    }
+    return 0.0;
+  }
+
+  bool _readVatIncluded(dynamic item) {
+    for (final reader in <dynamic Function()>[
+      () => item.vatIncluded,
+      () => item.vatStatus,
+      () => item.vat_status,
+      () => item.kdvDurumu,
+    ]) {
+      final raw = _tryReadDynamic<dynamic>(reader);
+      if (raw is bool) return raw;
+      final normalized = raw?.toString().trim().toLowerCase();
+      if (normalized == 'included') return true;
+      if (normalized == 'excluded') return false;
+    }
+    return _genelAyarlar.varsayilanKdvDurumu == 'included';
+  }
+
+  TransactionItem _transactionItemFromSepet(_PerakendeSepetItem item) {
+    return TransactionItem(
+      code: item.kodNo,
+      name: item.adi,
+      barcode: item.barkodNo,
+      unit: item.olcu,
+      quantity: item.miktar,
+      unitPrice: item.birimFiyati,
+      currency: item.paraBirimi,
+      exchangeRate: 1.0,
+      vatRate: item.kdvOrani,
+      discountRate: item.iskontoOrani,
+      warehouseId: item.depoId ?? 0,
+      warehouseName: item.depoAdi ?? '',
+      vatIncluded: item.kdvDahil,
+      otvRate: item.otvOrani,
+      otvIncluded: item.otvDahil,
+      oivRate: item.oivOrani,
+      oivIncluded: item.oivDahil,
+      kdvTevkifatOrani: item.kdvTevkifatOrani,
+    );
+  }
+
+  double _indirimMatrahi(_PerakendeSepetItem item) {
+    final tx = _transactionItemFromSepet(item);
+    return (tx.quantity * tx.netUnitPrice) + tx.otvAmount + tx.oivAmount;
+  }
+
+  double _indirimTutari(_PerakendeSepetItem item) {
+    final tx = _transactionItemFromSepet(item);
+    return _indirimMatrahi(item) * (tx.discountRate / 100);
+  }
+
+  _PerakendeSepetItem _satirToplaminiYenidenHesapla(_PerakendeSepetItem item) {
+    final tx = _transactionItemFromSepet(item);
+    return item.copyWith(toplamFiyat: tx.total);
+  }
+
+  void _guncelleSepetSatiri(
+    int index, {
+    double? miktar,
+    double? iskontoOrani,
+    double? birimFiyati,
+  }) {
+    final current = _sepetItems[index];
+    _sepetItems[index] = _satirToplaminiYenidenHesapla(
+      current.copyWith(
+        miktar: miktar,
+        iskontoOrani: iskontoOrani,
+        birimFiyati: birimFiyati,
+      ),
+    );
+  }
+
+  Map<String, dynamic> _buildSatisPayloadItem(_PerakendeSepetItem item) {
+    final tx = _transactionItemFromSepet(item);
+    return {
+      'code': item.kodNo,
+      'name': item.adi,
+      'unit': item.olcu,
+      'quantity': item.miktar,
+      'price': tx.netUnitPrice,
+      'total': tx.total,
+      'discountRate': item.iskontoOrani,
+      'vatRate': item.kdvOrani,
+      'vatIncluded': item.kdvDahil,
+      'otvRate': item.otvOrani,
+      'otvIncluded': item.otvDahil,
+      'oivRate': item.oivOrani,
+      'oivIncluded': item.oivDahil,
+      'kdvTevkifatOrani': item.kdvTevkifatOrani,
+      'currency': item.paraBirimi,
+      'exchangeRate': 1.0,
+      'warehouseId': item.depoId,
+      'warehouseName': item.depoAdi,
+    };
   }
 
   Future<void> _barkodAraVeEkle({bool dialogAc = true}) async {
@@ -2526,40 +2684,67 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     final depoId = _selectedDepoId;
     final birimFiyat = _secilenFiyat(item);
     final iskonto = _faturaIskontoOrani;
-    final toplam = (birimFiyat * miktar) * (1 - (iskonto / 100));
+    final kdvOrani = _toDouble(item.kdvOrani);
+    final kdvDahil = _readVatIncluded(item);
+    final otvOrani = _readOptionalRate(item, [
+      () => item.otvOrani,
+      () => item.otvRate,
+    ]);
+    final otvDahil =
+        _genelAyarlar.otvKullanimi && _genelAyarlar.otvKdvDurumu == 'included';
+    final oivOrani = _readOptionalRate(item, [
+      () => item.oivOrani,
+      () => item.oivRate,
+    ]);
+    final oivDahil =
+        _genelAyarlar.oivKullanimi && _genelAyarlar.oivKdvDurumu == 'included';
+    final kdvTevkifatOrani = _genelAyarlar.kdvTevkifati
+        ? _readOptionalRate(item, [
+            () => item.kdvTevkifatOrani,
+            () => item.tevkifatOrani,
+          ])
+        : 0.0;
 
     final existingIndex = _sepetItems.indexWhere(
       (x) =>
           x.kodNo == item.kod &&
           x.birimFiyati == birimFiyat &&
           x.iskontoOrani == iskonto &&
-          x.depoId == depoId,
+          x.depoId == depoId &&
+          x.kdvOrani == kdvOrani &&
+          x.kdvDahil == kdvDahil,
     );
 
     if (existingIndex >= 0) {
       final existing = _sepetItems[existingIndex];
-      final yeniMiktar = existing.miktar + miktar;
-      final yeniToplam = (birimFiyat * yeniMiktar) * (1 - (iskonto / 100));
-      _sepetItems[existingIndex] = existing.copyWith(
-        miktar: yeniMiktar,
-        toplamFiyat: yeniToplam,
+      _sepetItems[existingIndex] = _satirToplaminiYenidenHesapla(
+        existing.copyWith(miktar: existing.miktar + miktar),
       );
       return;
     }
 
     _sepetItems.add(
-      _PerakendeSepetItem(
-        kodNo: item.kod,
-        barkodNo: item.barkod,
-        adi: item.ad,
-        birimFiyati: birimFiyat,
-        iskontoOrani: iskonto,
-        miktar: miktar,
-        olcu: item.birim,
-        toplamFiyat: toplam,
-        paraBirimi: _selectedParaBirimi,
-        depoId: depoId,
-        depoAdi: depoAdi,
+      _satirToplaminiYenidenHesapla(
+        _PerakendeSepetItem(
+          kodNo: item.kod,
+          barkodNo: item.barkod,
+          adi: item.ad,
+          birimFiyati: birimFiyat,
+          iskontoOrani: iskonto,
+          miktar: miktar,
+          olcu: item.birim,
+          toplamFiyat: 0,
+          kdvOrani: kdvOrani,
+          kdvDahil: kdvDahil,
+          otvOrani: otvOrani,
+          otvDahil: otvDahil,
+          oivOrani: oivOrani,
+          oivDahil: oivDahil,
+          kdvTevkifatOrani: kdvTevkifatOrani,
+          paraBirimi: _selectedParaBirimi,
+          depoId: depoId,
+          depoAdi: depoAdi,
+        ),
       ),
     );
   }
@@ -2675,18 +2860,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
         'paraBirimi': _selectedParaBirimi,
         'payments': payments,
         'items': _sepetItems
-            .map(
-              (e) => {
-                'code': e.kodNo,
-                'name': e.adi,
-                'unit': e.olcu,
-                'quantity': e.miktar,
-                'price': e.birimFiyati,
-                'total': e.toplamFiyat,
-                'discountRate': e.iskontoOrani,
-                'warehouseId': _selectedDepoId,
-              },
-            )
+            .map(_buildSatisPayloadItem)
             .toList(growable: false),
       };
 
@@ -2840,7 +3014,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
 
     final grossTotal = _sepetItems.fold<double>(
       0.0,
-      (sum, item) => sum + (item.birimFiyati * item.miktar),
+      (sum, item) => sum + _indirimMatrahi(item),
     );
 
     final result = await showDialog<_IskontoResult>(
@@ -2859,13 +3033,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     setState(() {
       _faturaIskontoOrani = val;
       for (var i = 0; i < _sepetItems.length; i++) {
-        final item = _sepetItems[i];
-        final yeniToplam =
-            (item.birimFiyati * item.miktar) * (1 - (val / 100));
-        _sepetItems[i] = item.copyWith(
-          iskontoOrani: val,
-          toplamFiyat: yeniToplam,
-        );
+        _guncelleSepetSatiri(i, iskontoOrani: val);
       }
     });
   }
@@ -2898,7 +3066,10 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     'credit_card',
   };
 
-  String _normalizeRetailPostingTarget(String value, {required String fallback}) {
+  String _normalizeRetailPostingTarget(
+    String value, {
+    required String fallback,
+  }) {
     if (_retailPostingTargets.contains(value)) return value;
     return fallback;
   }
@@ -3041,8 +3212,8 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       }
       return v;
     }();
-    final paidMinor =
-        ((nakitTutar + krediKartiTutar + havaleTutar) * factor).round();
+    final paidMinor = ((nakitTutar + krediKartiTutar + havaleTutar) * factor)
+        .round();
     final totalMinor = (genelToplam * factor).round();
 
     if (paidMinor > totalMinor) {
@@ -3054,7 +3225,10 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     }
 
     if (paidMinor != totalMinor) {
-      MesajYardimcisi.hataGoster(context, tr('retail.error.insufficient_payment'));
+      MesajYardimcisi.hataGoster(
+        context,
+        tr('retail.error.insufficient_payment'),
+      );
       return;
     }
 
@@ -3123,18 +3297,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
           'paraBirimi': _selectedParaBirimi,
           'payments': payments,
           'items': _sepetItems
-              .map(
-                (e) => {
-                  'code': e.kodNo,
-                  'name': e.adi,
-                  'unit': e.olcu,
-                  'quantity': e.miktar,
-                  'price': e.birimFiyati,
-                  'total': e.toplamFiyat,
-                  'discountRate': e.iskontoOrani,
-                  'warehouseId': _selectedDepoId,
-                },
-              )
+              .map(_buildSatisPayloadItem)
               .toList(growable: false),
         },
       );
@@ -3164,71 +3327,71 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     }
   }
 
-	@override
-	Widget build(BuildContext context) {
-	    final theme = Theme.of(context);
-	    final isTablet = ResponsiveYardimcisi.tabletMi(context);
-	    final isLandscape =
-	        MediaQuery.orientationOf(context) == Orientation.landscape;
-	    final useTabletLandscapeLayout = isTablet && isLandscape;
-	    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isTablet = ResponsiveYardimcisi.tabletMi(context);
+    final isLandscape =
+        MediaQuery.orientationOf(context) == Orientation.landscape;
+    final useTabletLandscapeLayout = isTablet && isLandscape;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
-	    return CallbackShortcuts(
-	      bindings: <ShortcutActivator, VoidCallback>{
-	        LogicalKeySet(LogicalKeyboardKey.f1): () {
-	          _miktarFocusNode.requestFocus();
-	          _miktarController.selection = TextSelection(
-	            baseOffset: 0,
-	            extentOffset: _miktarController.text.length,
-	          );
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f2): () {
-	          _odenenTutarFocusNode.requestFocus();
-	          _odenenTutarController.selection = TextSelection(
-	            baseOffset: 0,
-	            extentOffset: _odenenTutarController.text.length,
-	          );
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f3): () {
-	          Navigator.of(context).push(
-	            MaterialPageRoute(builder: (context) => const KasalarSayfasi()),
-	          );
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f4): () {
-	          _tamamlaSatisTekOdeme(odemeYeri: 'Kasa');
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f5): () {
-	          _tamamlaSatisTekOdeme(odemeYeri: 'Havale');
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f6): () {
-	          _tamamlaSatisTekOdeme(odemeYeri: 'Kredi Kartı');
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f7): () {
-	          _showPartialPaymentDialog();
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f8): () {
-	          _tamamlaCariSatis();
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f9): () {
-	          _showInvoiceDiscountDialog();
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f10): () {
-	          _tumunuSil();
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f11): () {
-	          final isCompact = MediaQuery.sizeOf(context).width < 1100;
-	          if (isCompact) {
-	            _openHizliUrunlerSheet();
-	            return;
-	          }
-	          setState(() => _showHizliUrunler = !_showHizliUrunler);
-	        },
-	        LogicalKeySet(LogicalKeyboardKey.f12): _toggleNumericKeypad,
-	      },
-	      child: Scaffold(
-	        key: _scaffoldKey,
-	        backgroundColor: const Color(0xFFF5F5F5),
-	        appBar: AppBar(
+    return CallbackShortcuts(
+      bindings: <ShortcutActivator, VoidCallback>{
+        LogicalKeySet(LogicalKeyboardKey.f1): () {
+          _miktarFocusNode.requestFocus();
+          _miktarController.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _miktarController.text.length,
+          );
+        },
+        LogicalKeySet(LogicalKeyboardKey.f2): () {
+          _odenenTutarFocusNode.requestFocus();
+          _odenenTutarController.selection = TextSelection(
+            baseOffset: 0,
+            extentOffset: _odenenTutarController.text.length,
+          );
+        },
+        LogicalKeySet(LogicalKeyboardKey.f3): () {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => const KasalarSayfasi()),
+          );
+        },
+        LogicalKeySet(LogicalKeyboardKey.f4): () {
+          _tamamlaSatisTekOdeme(odemeYeri: 'Kasa');
+        },
+        LogicalKeySet(LogicalKeyboardKey.f5): () {
+          _tamamlaSatisTekOdeme(odemeYeri: 'Havale');
+        },
+        LogicalKeySet(LogicalKeyboardKey.f6): () {
+          _tamamlaSatisTekOdeme(odemeYeri: 'Kredi Kartı');
+        },
+        LogicalKeySet(LogicalKeyboardKey.f7): () {
+          _showPartialPaymentDialog();
+        },
+        LogicalKeySet(LogicalKeyboardKey.f8): () {
+          _tamamlaCariSatis();
+        },
+        LogicalKeySet(LogicalKeyboardKey.f9): () {
+          _showInvoiceDiscountDialog();
+        },
+        LogicalKeySet(LogicalKeyboardKey.f10): () {
+          _tumunuSil();
+        },
+        LogicalKeySet(LogicalKeyboardKey.f11): () {
+          final isCompact = MediaQuery.sizeOf(context).width < 1100;
+          if (isCompact) {
+            _openHizliUrunlerSheet();
+            return;
+          }
+          setState(() => _showHizliUrunler = !_showHizliUrunler);
+        },
+        LogicalKeySet(LogicalKeyboardKey.f12): _toggleNumericKeypad,
+      },
+      child: Scaffold(
+        key: _scaffoldKey,
+        backgroundColor: const Color(0xFFF5F5F5),
+        appBar: AppBar(
           backgroundColor: Colors.white,
           elevation: 0,
           leading: IconButton(
@@ -3244,46 +3407,47 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
           ),
           centerTitle: false,
         ),
-		        body: LayoutBuilder(
-		          builder: (context, constraints) {
-		            final bool tightHeightForKeyboard =
-		                useTabletLandscapeLayout && constraints.maxHeight < 320;
-		            final bool treatAsKeyboardVisible =
-		                keyboardVisible || tightHeightForKeyboard;
-		            final collapseSecondRow = useTabletLandscapeLayout &&
-		                treatAsKeyboardVisible &&
-		                !_aciklamaFocusNode.hasFocus;
-		            final hideBottomAreaForKeyboard =
-		                useTabletLandscapeLayout && treatAsKeyboardVisible;
+        body: LayoutBuilder(
+          builder: (context, constraints) {
+            final bool tightHeightForKeyboard =
+                useTabletLandscapeLayout && constraints.maxHeight < 320;
+            final bool treatAsKeyboardVisible =
+                keyboardVisible || tightHeightForKeyboard;
+            final collapseSecondRow =
+                useTabletLandscapeLayout &&
+                treatAsKeyboardVisible &&
+                !_aciklamaFocusNode.hasFocus;
+            final hideBottomAreaForKeyboard =
+                useTabletLandscapeLayout && treatAsKeyboardVisible;
 
-		            final isCompact = constraints.maxWidth < 1100 || isTablet;
+            final isCompact = constraints.maxWidth < 1100 || isTablet;
 
-		            if (isCompact) {
-		              return Stack(
-		                fit: StackFit.expand,
-		                children: [
-		                  SafeArea(
-		                    top: false,
-		                    child: ListView(
-		                      padding: EdgeInsets.zero,
-		                      keyboardDismissBehavior:
-		                          ScrollViewKeyboardDismissBehavior.onDrag,
-		                      children: [
-		                        _buildTopControlArea(),
-		                        _buildProductTable(compactMode: true),
-		                        _buildCompactActionBar(),
-		                        _buildBottomArea(),
-		                      ],
-		                    ),
-		                  ),
-		                  if (_showNumericKeypad)
-		                    _buildNumericKeypadOverlay(
-		                      constraints: constraints,
-		                      hasRightActionPanel: false,
-		                    ),
-		                ],
-		              );
-	            }
+            if (isCompact) {
+              return Stack(
+                fit: StackFit.expand,
+                children: [
+                  SafeArea(
+                    top: false,
+                    child: ListView(
+                      padding: EdgeInsets.zero,
+                      keyboardDismissBehavior:
+                          ScrollViewKeyboardDismissBehavior.onDrag,
+                      children: [
+                        _buildTopControlArea(),
+                        _buildProductTable(compactMode: true),
+                        _buildCompactActionBar(),
+                        _buildBottomArea(),
+                      ],
+                    ),
+                  ),
+                  if (_showNumericKeypad)
+                    _buildNumericKeypadOverlay(
+                      constraints: constraints,
+                      hasRightActionPanel: false,
+                    ),
+                ],
+              );
+            }
 
             final allowQuickSidePanel = constraints.maxWidth >= 1300;
             if (!allowQuickSidePanel && _showHizliUrunler) {
@@ -3294,47 +3458,47 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
               });
             }
 
-		            return Stack(
-		              fit: StackFit.expand,
-		              children: [
-		                Row(
-		                  children: [
-		                    // Ana İçerik (Tablo, Üst Alan, Alt Alan)
-		                    Expanded(
-		                      child: Column(
-		                        children: [
-		                          // Üst kontrol alanı
-		                          _buildTopControlArea(
-		                            collapseSecondRow: collapseSecondRow,
-		                          ),
-		                          // Tablo
-		                          Expanded(child: _buildProductTable()),
-		                          // Alt para butonları ve toplam
-		                          if (hideBottomAreaForKeyboard)
-		                            _buildKeyboardSummaryBar()
-		                          else
-		                            _buildBottomArea(),
-		                        ],
-		                      ),
-		                    ),
-		                    // Entegre Hızlı Ürünler Paneli
-		                    if (allowQuickSidePanel && _showHizliUrunler)
-		                      _buildHizliUrunlerSidePanel(),
-		                    // Sağ Dar Aksiyon Paneli
-		                    _buildRightActionPanel(
-		                      useQuickProductsSheet: !allowQuickSidePanel,
-		                    ),
-		                  ],
-		                ),
-		                if (_showNumericKeypad)
-		                  _buildNumericKeypadOverlay(
-		                    constraints: constraints,
-		                    hasRightActionPanel: true,
-		                  ),
-		              ],
-		            );
-	          },
-	        ),
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                Row(
+                  children: [
+                    // Ana İçerik (Tablo, Üst Alan, Alt Alan)
+                    Expanded(
+                      child: Column(
+                        children: [
+                          // Üst kontrol alanı
+                          _buildTopControlArea(
+                            collapseSecondRow: collapseSecondRow,
+                          ),
+                          // Tablo
+                          Expanded(child: _buildProductTable()),
+                          // Alt para butonları ve toplam
+                          if (hideBottomAreaForKeyboard)
+                            _buildKeyboardSummaryBar()
+                          else
+                            _buildBottomArea(),
+                        ],
+                      ),
+                    ),
+                    // Entegre Hızlı Ürünler Paneli
+                    if (allowQuickSidePanel && _showHizliUrunler)
+                      _buildHizliUrunlerSidePanel(),
+                    // Sağ Dar Aksiyon Paneli
+                    _buildRightActionPanel(
+                      useQuickProductsSheet: !allowQuickSidePanel,
+                    ),
+                  ],
+                ),
+                if (_showNumericKeypad)
+                  _buildNumericKeypadOverlay(
+                    constraints: constraints,
+                    hasRightActionPanel: true,
+                  ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -3368,8 +3532,9 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
           child: FractionallySizedBox(
             heightFactor: 0.92,
             child: ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(18)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(18),
+              ),
               child: Material(
                 color: Colors.white,
                 child: _PerakendeHizliUrunlerPaneli(
@@ -3398,8 +3563,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
         return SafeArea(
           top: false,
           child: ClipRRect(
-            borderRadius:
-                const BorderRadius.vertical(top: Radius.circular(18)),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
             child: Material(
               color: Colors.white,
               child: Padding(
@@ -3519,8 +3683,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                   shortcut: '',
                   color: const Color(0xFF4CAF50),
                   icon: Icons.monetization_on,
-                  onPressed: () =>
-                      _tamamlaSatisTekOdeme(odemeYeri: 'Kasa'),
+                  onPressed: () => _tamamlaSatisTekOdeme(odemeYeri: 'Kasa'),
                 ),
               ),
               const SizedBox(width: 8),
@@ -3545,8 +3708,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                   shortcut: '',
                   color: const Color(0xFF1E88E5),
                   icon: Icons.account_balance,
-                  onPressed: () =>
-                      _tamamlaSatisTekOdeme(odemeYeri: 'Havale'),
+                  onPressed: () => _tamamlaSatisTekOdeme(odemeYeri: 'Havale'),
                 ),
               ),
               const SizedBox(width: 8),
@@ -3628,604 +3790,596 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
           ),
         ],
       ),
-	      child: Column(
-	        children: [
-	          // Birinci satır: Miktar, Barkod arama
-	          LayoutBuilder(
-	            builder: (context, constraints) {
-	              final bool isNarrow = constraints.maxWidth < 640;
-	              final bool isVeryNarrow = constraints.maxWidth < 480;
-	              final double fieldHeight = isVeryNarrow ? 44 : 48;
+      child: Column(
+        children: [
+          // Birinci satır: Miktar, Barkod arama
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final bool isNarrow = constraints.maxWidth < 640;
+              final bool isVeryNarrow = constraints.maxWidth < 480;
+              final double fieldHeight = isVeryNarrow ? 44 : 48;
 
-	              final quantitySection = Column(
-	                crossAxisAlignment: CrossAxisAlignment.start,
-	                children: [
-	                  Row(
-	                    children: [
-	                      Text(
-	                        tr('retail.quantity'),
-	                        style: TextStyle(
-	                          fontSize: 12,
-	                          fontWeight: FontWeight.w500,
-	                          color: Colors.grey.shade600,
-	                        ),
-	                      ),
-	                      const SizedBox(width: 4),
-	                      _buildShortcutBadge('F1'),
-	                    ],
-	                  ),
-	                  const SizedBox(height: 4),
-	                  Row(
-	                    crossAxisAlignment: CrossAxisAlignment.end,
-	                    children: [
-	                      SizedBox(
-	                        width: 60,
-	                        height: fieldHeight,
-	                        child: TextField(
-	                          controller: _miktarController,
-	                          focusNode: _miktarFocusNode,
-	                          onSubmitted: (_) =>
-	                              _barkodFocusNode.requestFocus(),
-	                          textAlign: TextAlign.center,
-	                          keyboardType: TextInputType.number,
-	                          style: const TextStyle(
-	                            fontSize: 16,
-	                            fontWeight: FontWeight.w600,
-	                          ),
-	                          decoration: InputDecoration(
-	                            contentPadding: const EdgeInsets.symmetric(
-	                              horizontal: 8,
-	                            ),
-	                            border: OutlineInputBorder(
-	                              borderRadius: BorderRadius.circular(8),
-	                              borderSide: BorderSide(
-	                                color: Colors.grey.shade300,
-	                              ),
-	                            ),
-	                            enabledBorder: OutlineInputBorder(
-	                              borderRadius: BorderRadius.circular(8),
-	                              borderSide: BorderSide(
-	                                color: Colors.grey.shade300,
-	                              ),
-	                            ),
-	                          ),
-	                        ),
-	                      ),
-	                      const SizedBox(width: 8),
-	                      _buildSmallButton(
-	                        icon: Icons.add,
-	                        label: tr('retail.add'),
-	                        onPressed: () => _barkodAraVeEkle(),
-	                        iconOnly: isVeryNarrow,
-	                        height: fieldHeight,
-	                      ),
-	                    ],
-	                  ),
-	                ],
-	              );
-
-	              final barcodeSection = Row(
-	                crossAxisAlignment: CrossAxisAlignment.end,
-	                children: [
-	                  Expanded(
-	                    child: Container(
-	                      height: fieldHeight,
-	                      decoration: BoxDecoration(
-	                        color: Colors.white,
-	                        borderRadius: BorderRadius.circular(8),
-	                        border: Border.all(
-	                          color: const Color(0xFF1E88E5),
-	                          width: 2,
-	                        ),
-	                      ),
-	                      child: TextField(
-	                        controller: _barkodController,
-	                        focusNode: _barkodFocusNode,
-	                        style: const TextStyle(
-	                          fontSize: 18,
-	                          fontWeight: FontWeight.w500,
-	                        ),
-	                        onSubmitted: (_) => _barkodAraVeEkle(),
-	                        decoration: InputDecoration(
-	                          hintText: tr('retail.barcode_placeholder'),
-	                          hintStyle: TextStyle(
-	                            color: Colors.grey.shade400,
-	                            fontSize: 18,
-	                            fontWeight: FontWeight.w400,
-	                          ),
-	                          contentPadding: EdgeInsets.symmetric(
-	                            horizontal: isVeryNarrow ? 12 : 16,
-	                          ),
-	                          border: InputBorder.none,
-	                        ),
-	                      ),
-	                    ),
-	                  ),
-	                  const SizedBox(width: 8),
-	                  SizedBox(
-	                    height: fieldHeight,
-	                    child: isVeryNarrow
-	                        ? ElevatedButton(
-	                            onPressed: () => _barkodAraVeEkle(),
-	                            style: ElevatedButton.styleFrom(
-	                              backgroundColor: const Color(0xFF1E88E5),
-	                              foregroundColor: Colors.white,
-	                              padding: EdgeInsets.zero,
-	                              minimumSize: const Size(48, 44),
-	                              shape: RoundedRectangleBorder(
-	                                borderRadius: BorderRadius.circular(8),
-	                              ),
-	                            ),
-	                            child: const Icon(Icons.search, size: 20),
-	                          )
-	                        : ElevatedButton.icon(
-	                            onPressed: () => _barkodAraVeEkle(),
-	                            icon: const Icon(Icons.search, size: 20),
-	                            label: Text(
-	                              tr('retail.find'),
-	                              style: const TextStyle(
-	                                fontWeight: FontWeight.w600,
-	                                fontSize: 15,
-	                              ),
-	                            ),
-	                            style: ElevatedButton.styleFrom(
-	                              backgroundColor: const Color(0xFF1E88E5),
-	                              foregroundColor: Colors.white,
-	                              padding: const EdgeInsets.symmetric(
-	                                horizontal: 20,
-	                                vertical: 14,
-	                              ),
-	                              shape: RoundedRectangleBorder(
-	                                borderRadius: BorderRadius.circular(8),
-	                              ),
-	                            ),
-	                          ),
-	                  ),
-	                ],
-	              );
-
-	              if (!isNarrow) {
-	                return Row(
-	                  crossAxisAlignment: CrossAxisAlignment.end,
-	                  children: [
-	                    quantitySection,
-	                    const SizedBox(width: 24),
-	                    Expanded(child: barcodeSection),
-	                  ],
-	                );
-	              }
-
-	              if (!isVeryNarrow) {
-	                return Column(
-	                  crossAxisAlignment: CrossAxisAlignment.stretch,
-	                  children: [
-	                    quantitySection,
-	                    const SizedBox(height: 12),
-	                    barcodeSection,
-	                  ],
-	                );
-	              }
-
-	              return Column(
-	                crossAxisAlignment: CrossAxisAlignment.stretch,
-	                children: [
-	                  Row(
-	                    children: [
-	                      Text(
-	                        tr('retail.quantity'),
-	                        style: TextStyle(
-	                          fontSize: 12,
-	                          fontWeight: FontWeight.w500,
-	                          color: Colors.grey.shade600,
-	                        ),
-	                      ),
-	                      const SizedBox(width: 4),
-	                      _buildShortcutBadge('F1'),
-	                    ],
-	                  ),
-	                  const SizedBox(height: 6),
-	                  Row(
-	                    crossAxisAlignment: CrossAxisAlignment.end,
-	                    children: [
-	                      SizedBox(
-	                        width: 56,
-	                        height: fieldHeight,
-	                        child: TextField(
-	                          controller: _miktarController,
-	                          focusNode: _miktarFocusNode,
-	                          onSubmitted: (_) =>
-	                              _barkodFocusNode.requestFocus(),
-	                          textAlign: TextAlign.center,
-	                          keyboardType: TextInputType.number,
-	                          style: const TextStyle(
-	                            fontSize: 16,
-	                            fontWeight: FontWeight.w600,
-	                          ),
-	                          decoration: InputDecoration(
-	                            contentPadding: const EdgeInsets.symmetric(
-	                              horizontal: 8,
-	                            ),
-	                            border: OutlineInputBorder(
-	                              borderRadius: BorderRadius.circular(8),
-	                              borderSide: BorderSide(
-	                                color: Colors.grey.shade300,
-	                              ),
-	                            ),
-	                            enabledBorder: OutlineInputBorder(
-	                              borderRadius: BorderRadius.circular(8),
-	                              borderSide: BorderSide(
-	                                color: Colors.grey.shade300,
-	                              ),
-	                            ),
-	                          ),
-	                        ),
-	                      ),
-	                      const SizedBox(width: 8),
-	                      _buildSmallButton(
-	                        icon: Icons.add,
-	                        label: tr('retail.add'),
-	                        onPressed: () => _barkodAraVeEkle(),
-	                        iconOnly: true,
-	                        height: fieldHeight,
-	                      ),
-	                      const SizedBox(width: 12),
-	                      Expanded(child: barcodeSection),
-	                    ],
-	                  ),
-	                ],
-	              );
-	            },
-	          ),
-	          if (!collapseSecondRow) ...[
-	            SizedBox(height: isPhoneNarrow ? 12 : 16),
-	            // İkinci satır: Fiyat grubu, Depo, Tarih, Açıklama, Fiş Yazdır
-	            LayoutBuilder(
-	              builder: (context, constraints) {
-	              final isTablet = ResponsiveYardimcisi.tabletMi(context);
-	              final isCompact = constraints.maxWidth < 900;
-	              final bool isPhone = !isTablet && constraints.maxWidth < 520;
-	
-	              final labelFontSize = isTablet || isPhone ? 11.0 : 12.0;
-	              final fieldFontSize = isTablet || isPhone ? 12.0 : 13.0;
-	              final fieldHeight = (isTablet || isPhone) ? 34.0 : 36.0;
-	              final priceGroupButtonSize = isTablet ? 28.0 : 32.0;
-	              final priceGroupButtonFontSize = isTablet ? 11.0 : 12.0;
-	              final allowFlexibleFields = (isTablet && isCompact) || isPhone;
-
-	              final priceGroup = Column(
-	                crossAxisAlignment: CrossAxisAlignment.start,
-	                children: [
-	                  Text(
-	                    tr('retail.price_group'),
-	                    style: TextStyle(
-	                      fontSize: labelFontSize,
-	                      fontWeight: FontWeight.w500,
-	                      color: Colors.grey.shade600,
-	                    ),
-	                  ),
-	                  const SizedBox(height: 4),
-	                  Row(
-	                    children: [
-	                      _buildPriceGroupButton(
-	                        1,
-	                        size: priceGroupButtonSize,
-	                        fontSize: priceGroupButtonFontSize,
-	                      ),
-	                      const SizedBox(width: 4),
-	                      _buildPriceGroupButton(
-	                        2,
-	                        size: priceGroupButtonSize,
-	                        fontSize: priceGroupButtonFontSize,
-	                      ),
-	                      const SizedBox(width: 4),
-	                      _buildPriceGroupButton(
-	                        3,
-	                        size: priceGroupButtonSize,
-	                        fontSize: priceGroupButtonFontSize,
-	                      ),
-	                    ],
-	                  ),
-	                ],
-	              );
-
-	              final warehouse = Column(
-	                crossAxisAlignment: CrossAxisAlignment.start,
-	                children: [
-	                  Text(
-	                    tr('retail.warehouse'),
-	                    style: TextStyle(
-	                      fontSize: labelFontSize,
-	                      fontWeight: FontWeight.w500,
-	                      color: Colors.grey.shade600,
-	                    ),
-	                  ),
-	                  const SizedBox(height: 4),
-	                  Container(
-	                    width: allowFlexibleFields ? null : 220,
-	                    height: fieldHeight,
-	                    padding: EdgeInsets.symmetric(horizontal: isTablet ? 10 : 12),
-	                    decoration: BoxDecoration(
-	                      color: Colors.white,
-	                      borderRadius: BorderRadius.circular(6),
-	                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: InkWell(
-                      mouseCursor: WidgetStateMouseCursor.clickable,
-                      onTap: _selectWarehouses,
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-	                              _selectedDepoIds.isEmpty
-	                                  ? tr("retail.select_warehouse")
-	                                  : _selectedDepoIds.length == 1
-	                                      ? _depolar
-	                                            .firstWhere(
-                                              (d) =>
-                                                  d.id ==
-                                                  _selectedDepoIds.first,
-                                              orElse: () => _depolar.first,
-                                            )
-                                            .ad
-	                                      : "${_selectedDepoIds.length} ${tr("retail.warehouses_selected")}",
-	                              style: TextStyle(
-	                                fontSize: fieldFontSize,
-	                                fontWeight: FontWeight.w500,
-	                                color: Color(0xFF333333),
-	                              ),
-	                              overflow: TextOverflow.ellipsis,
-	                            ),
-                          ),
-                          Icon(
-                            Icons.keyboard_arrow_down,
-                            color: Colors.grey.shade600,
-                            size: 20,
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-
-	              final date = Column(
-	                crossAxisAlignment: CrossAxisAlignment.start,
-	                children: [
-	                  Text(
-	                    tr('common.date'),
-	                    style: TextStyle(
-	                      fontSize: labelFontSize,
-	                      fontWeight: FontWeight.w500,
-	                      color: Colors.grey.shade600,
-	                    ),
-	                  ),
-	                  const SizedBox(height: 4),
-                  InkWell(
-                    onTap: _selectDate,
-                    mouseCursor: SystemMouseCursors.click,
-                    borderRadius: BorderRadius.circular(6),
-	                    child: Container(
-	                      width: allowFlexibleFields ? null : 180,
-	                      height: fieldHeight,
-	                      padding: EdgeInsets.symmetric(horizontal: isTablet ? 10 : 12),
-	                      decoration: BoxDecoration(
-	                        color: Colors.white,
-	                        borderRadius: BorderRadius.circular(6),
-	                        border: Border.all(color: Colors.grey.shade300),
-	                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Icon(
-                            Icons.calendar_today_rounded,
-                            size: 16,
-                            color: Colors.grey.shade600,
-                          ),
-                          const SizedBox(width: 8),
-	                          Expanded(
-	                            child: Text(
-	                              DateFormat('dd.MM.yyyy').format(_selectedDate),
-	                              style: TextStyle(
-	                                fontSize: fieldFontSize,
-	                                fontWeight: FontWeight.w500,
-	                                color: Color(0xFF333333),
-	                              ),
-	                              maxLines: 1,
-	                              overflow: TextOverflow.ellipsis,
-	                            ),
-	                          ),
-	                          IconButton(
-	                            padding: EdgeInsets.zero,
-	                            constraints: const BoxConstraints(),
-                            icon: const Icon(
-                              Icons.clear,
-                              size: 16,
-                              color: Colors.red,
-                            ),
-                            onPressed: () {
-                              setState(() => _selectedDate = DateTime.now());
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              );
-
-	              final description = Column(
-	                crossAxisAlignment: CrossAxisAlignment.start,
-	                children: [
-	                  Text(
-	                    tr('retail.description'),
-	                    style: TextStyle(
-	                      fontSize: labelFontSize,
-	                      fontWeight: FontWeight.w500,
-	                      color: Colors.grey.shade600,
-	                    ),
-	                  ),
-	                  const SizedBox(height: 4),
-	                  SizedBox(
-	                    height: fieldHeight,
-	                    child: TextField(
-	                      controller: _aciklamaController,
-	                      focusNode: _aciklamaFocusNode,
-	                      style: TextStyle(fontSize: fieldFontSize),
-	                      decoration: InputDecoration(
-	                        contentPadding: const EdgeInsets.symmetric(
-	                          horizontal: 12,
-	                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(6),
-                          borderSide: BorderSide(color: Colors.grey.shade300),
+              final quantitySection = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        tr('retail.quantity'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
                         ),
                       ),
-                    ),
+                      const SizedBox(width: 4),
+                      _buildShortcutBadge('F1'),
+                    ],
                   ),
-                ],
-              );
-
-	              final printReceipt = Column(
-	                crossAxisAlignment: CrossAxisAlignment.start,
-	                children: [
-	                  Text(
-	                    tr('retail.print_receipt'),
-	                    style: TextStyle(
-	                      fontSize: labelFontSize,
-	                      fontWeight: FontWeight.w500,
-	                      color: Colors.grey.shade600,
-	                    ),
-	                  ),
-	                  const SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      _buildToggleSwitch(),
+                      SizedBox(
+                        width: 60,
+                        height: fieldHeight,
+                        child: TextField(
+                          controller: _miktarController,
+                          focusNode: _miktarFocusNode,
+                          onSubmitted: (_) => _barkodFocusNode.requestFocus(),
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
                       const SizedBox(width: 8),
-                      Container(
-                        width: 32,
-                        height: 32,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade100,
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: IconButton(
-                          padding: EdgeInsets.zero,
-                          icon: Icon(
-                            Icons.settings,
-                            size: 18,
-                            color: Colors.grey.shade600,
-                          ),
-                          onPressed: () => MesajYardimcisi.bilgiGoster(
-                            context,
-                            tr('common.feature_coming_soon'),
-                          ),
-                        ),
+                      _buildSmallButton(
+                        icon: Icons.add,
+                        label: tr('retail.add'),
+                        onPressed: () => _barkodAraVeEkle(),
+                        iconOnly: isVeryNarrow,
+                        height: fieldHeight,
                       ),
                     ],
                   ),
                 ],
               );
 
-	              if (isCompact) {
-	                if (isTablet) {
-	                  final gap = constraints.maxWidth < 760 ? 8.0 : 12.0;
-	                  return Row(
-	                    crossAxisAlignment: CrossAxisAlignment.end,
-	                    children: [
-	                      priceGroup,
-	                      SizedBox(width: gap),
-	                      Expanded(flex: 3, child: warehouse),
-	                      SizedBox(width: gap),
-	                      Expanded(flex: 3, child: date),
-	                      SizedBox(width: gap),
-	                      printReceipt,
-	                      SizedBox(width: gap),
-	                      Expanded(flex: 4, child: description),
-	                    ],
-	                  );
-	                }
-
-	                if (isPhone) {
-	                  const gap = 12.0;
-	                  return Column(
-	                    crossAxisAlignment: CrossAxisAlignment.stretch,
-	                    children: [
-	                      Row(
-	                        crossAxisAlignment: CrossAxisAlignment.end,
-	                        children: [
-	                          Expanded(flex: 3, child: warehouse),
-	                          const SizedBox(width: gap),
-	                          Expanded(flex: 2, child: date),
-	                        ],
-	                      ),
-	                      const SizedBox(height: gap),
-	                      Row(
-	                        crossAxisAlignment: CrossAxisAlignment.end,
-	                        children: [
-	                          priceGroup,
-	                          const Spacer(),
-	                          printReceipt,
-	                        ],
-	                      ),
-	                      const SizedBox(height: gap),
-	                      description,
-	                    ],
-	                  );
-	                }
-
-	                return Column(
-	                  crossAxisAlignment: CrossAxisAlignment.stretch,
-	                  children: [
-	                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      crossAxisAlignment: WrapCrossAlignment.end,
-                      children: [
-                        priceGroup,
-                        warehouse,
-                        date,
-                        printReceipt,
-                      ],
+              final barcodeSection = Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Container(
+                      height: fieldHeight,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: const Color(0xFF1E88E5),
+                          width: 2,
+                        ),
+                      ),
+                      child: TextField(
+                        controller: _barkodController,
+                        focusNode: _barkodFocusNode,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        onSubmitted: (_) => _barkodAraVeEkle(),
+                        decoration: InputDecoration(
+                          hintText: tr('retail.barcode_placeholder'),
+                          hintStyle: TextStyle(
+                            color: Colors.grey.shade400,
+                            fontSize: 18,
+                            fontWeight: FontWeight.w400,
+                          ),
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: isVeryNarrow ? 12 : 16,
+                          ),
+                          border: InputBorder.none,
+                        ),
+                      ),
                     ),
-                    const SizedBox(height: 12),
-                    description,
+                  ),
+                  const SizedBox(width: 8),
+                  SizedBox(
+                    height: fieldHeight,
+                    child: isVeryNarrow
+                        ? ElevatedButton(
+                            onPressed: () => _barkodAraVeEkle(),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E88E5),
+                              foregroundColor: Colors.white,
+                              padding: EdgeInsets.zero,
+                              minimumSize: const Size(48, 44),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                            child: const Icon(Icons.search, size: 20),
+                          )
+                        : ElevatedButton.icon(
+                            onPressed: () => _barkodAraVeEkle(),
+                            icon: const Icon(Icons.search, size: 20),
+                            label: Text(
+                              tr('retail.find'),
+                              style: const TextStyle(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                              ),
+                            ),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1E88E5),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 20,
+                                vertical: 14,
+                              ),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              );
+
+              if (!isNarrow) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    quantitySection,
+                    const SizedBox(width: 24),
+                    Expanded(child: barcodeSection),
                   ],
                 );
-	              }
+              }
 
-	              final wideGap = isTablet ? 16.0 : 24.0;
-	              final trailingGap = isTablet ? 12.0 : 16.0;
-	              return Row(
-	                crossAxisAlignment: CrossAxisAlignment.end,
-	                children: [
-	                  priceGroup,
-	                  SizedBox(width: wideGap),
-	                  warehouse,
-	                  SizedBox(width: wideGap),
-	                  date,
-	                  SizedBox(width: wideGap),
-	                  Expanded(child: description),
-	                  SizedBox(width: trailingGap),
-	                  printReceipt,
-	                ],
-	              );
-	            },
-	          ),
-	          ],
-	        ],
-	      ),
-	    );
-	  }
+              if (!isVeryNarrow) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    quantitySection,
+                    const SizedBox(height: 12),
+                    barcodeSection,
+                  ],
+                );
+              }
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        tr('retail.quantity'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      _buildShortcutBadge('F1'),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      SizedBox(
+                        width: 56,
+                        height: fieldHeight,
+                        child: TextField(
+                          controller: _miktarController,
+                          focusNode: _miktarFocusNode,
+                          onSubmitted: (_) => _barkodFocusNode.requestFocus(),
+                          textAlign: TextAlign.center,
+                          keyboardType: TextInputType.number,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          decoration: InputDecoration(
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                            ),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(8),
+                              borderSide: BorderSide(
+                                color: Colors.grey.shade300,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      _buildSmallButton(
+                        icon: Icons.add,
+                        label: tr('retail.add'),
+                        onPressed: () => _barkodAraVeEkle(),
+                        iconOnly: true,
+                        height: fieldHeight,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(child: barcodeSection),
+                    ],
+                  ),
+                ],
+              );
+            },
+          ),
+          if (!collapseSecondRow) ...[
+            SizedBox(height: isPhoneNarrow ? 12 : 16),
+            // İkinci satır: Fiyat grubu, Depo, Tarih, Açıklama, Fiş Yazdır
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isTablet = ResponsiveYardimcisi.tabletMi(context);
+                final isCompact = constraints.maxWidth < 900;
+                final bool isPhone = !isTablet && constraints.maxWidth < 520;
+
+                final labelFontSize = isTablet || isPhone ? 11.0 : 12.0;
+                final fieldFontSize = isTablet || isPhone ? 12.0 : 13.0;
+                final fieldHeight = (isTablet || isPhone) ? 34.0 : 36.0;
+                final priceGroupButtonSize = isTablet ? 28.0 : 32.0;
+                final priceGroupButtonFontSize = isTablet ? 11.0 : 12.0;
+                final allowFlexibleFields = (isTablet && isCompact) || isPhone;
+
+                final priceGroup = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('retail.price_group'),
+                      style: TextStyle(
+                        fontSize: labelFontSize,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        _buildPriceGroupButton(
+                          1,
+                          size: priceGroupButtonSize,
+                          fontSize: priceGroupButtonFontSize,
+                        ),
+                        const SizedBox(width: 4),
+                        _buildPriceGroupButton(
+                          2,
+                          size: priceGroupButtonSize,
+                          fontSize: priceGroupButtonFontSize,
+                        ),
+                        const SizedBox(width: 4),
+                        _buildPriceGroupButton(
+                          3,
+                          size: priceGroupButtonSize,
+                          fontSize: priceGroupButtonFontSize,
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+
+                final warehouse = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('retail.warehouse'),
+                      style: TextStyle(
+                        fontSize: labelFontSize,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Container(
+                      width: allowFlexibleFields ? null : 220,
+                      height: fieldHeight,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isTablet ? 10 : 12,
+                      ),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(6),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: InkWell(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
+                        onTap: _selectWarehouses,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                _selectedDepoIds.isEmpty
+                                    ? tr("retail.select_warehouse")
+                                    : _selectedDepoIds.length == 1
+                                    ? _depolar
+                                          .firstWhere(
+                                            (d) =>
+                                                d.id == _selectedDepoIds.first,
+                                            orElse: () => _depolar.first,
+                                          )
+                                          .ad
+                                    : "${_selectedDepoIds.length} ${tr("retail.warehouses_selected")}",
+                                style: TextStyle(
+                                  fontSize: fieldFontSize,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF333333),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Icon(
+                              Icons.keyboard_arrow_down,
+                              color: Colors.grey.shade600,
+                              size: 20,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+
+                final date = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('common.date'),
+                      style: TextStyle(
+                        fontSize: labelFontSize,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    InkWell(
+                      onTap: _selectDate,
+                      mouseCursor: SystemMouseCursors.click,
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        width: allowFlexibleFields ? null : 180,
+                        height: fieldHeight,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: isTablet ? 10 : 12,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.grey.shade300),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Icon(
+                              Icons.calendar_today_rounded,
+                              size: 16,
+                              color: Colors.grey.shade600,
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                DateFormat('dd.MM.yyyy').format(_selectedDate),
+                                style: TextStyle(
+                                  fontSize: fieldFontSize,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF333333),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            IconButton(
+                              padding: EdgeInsets.zero,
+                              constraints: const BoxConstraints(),
+                              icon: const Icon(
+                                Icons.clear,
+                                size: 16,
+                                color: Colors.red,
+                              ),
+                              onPressed: () {
+                                setState(() => _selectedDate = DateTime.now());
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+
+                final description = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('retail.description'),
+                      style: TextStyle(
+                        fontSize: labelFontSize,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      height: fieldHeight,
+                      child: TextField(
+                        controller: _aciklamaController,
+                        focusNode: _aciklamaFocusNode,
+                        style: TextStyle(fontSize: fieldFontSize),
+                        decoration: InputDecoration(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(6),
+                            borderSide: BorderSide(color: Colors.grey.shade300),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+
+                final printReceipt = Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tr('retail.print_receipt'),
+                      style: TextStyle(
+                        fontSize: labelFontSize,
+                        fontWeight: FontWeight.w500,
+                        color: Colors.grey.shade600,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        _buildToggleSwitch(),
+                        const SizedBox(width: 8),
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: IconButton(
+                            padding: EdgeInsets.zero,
+                            icon: Icon(
+                              Icons.settings,
+                              size: 18,
+                              color: Colors.grey.shade600,
+                            ),
+                            onPressed: () => MesajYardimcisi.bilgiGoster(
+                              context,
+                              tr('common.feature_coming_soon'),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                );
+
+                if (isCompact) {
+                  if (isTablet) {
+                    final gap = constraints.maxWidth < 760 ? 8.0 : 12.0;
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        priceGroup,
+                        SizedBox(width: gap),
+                        Expanded(flex: 3, child: warehouse),
+                        SizedBox(width: gap),
+                        Expanded(flex: 3, child: date),
+                        SizedBox(width: gap),
+                        printReceipt,
+                        SizedBox(width: gap),
+                        Expanded(flex: 4, child: description),
+                      ],
+                    );
+                  }
+
+                  if (isPhone) {
+                    const gap = 12.0;
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(flex: 3, child: warehouse),
+                            const SizedBox(width: gap),
+                            Expanded(flex: 2, child: date),
+                          ],
+                        ),
+                        const SizedBox(height: gap),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [priceGroup, const Spacer(), printReceipt],
+                        ),
+                        const SizedBox(height: gap),
+                        description,
+                      ],
+                    );
+                  }
+
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Wrap(
+                        spacing: 12,
+                        runSpacing: 12,
+                        crossAxisAlignment: WrapCrossAlignment.end,
+                        children: [priceGroup, warehouse, date, printReceipt],
+                      ),
+                      const SizedBox(height: 12),
+                      description,
+                    ],
+                  );
+                }
+
+                final wideGap = isTablet ? 16.0 : 24.0;
+                final trailingGap = isTablet ? 12.0 : 16.0;
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    priceGroup,
+                    SizedBox(width: wideGap),
+                    warehouse,
+                    SizedBox(width: wideGap),
+                    date,
+                    SizedBox(width: wideGap),
+                    Expanded(child: description),
+                    SizedBox(width: trailingGap),
+                    printReceipt,
+                  ],
+                );
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 
   Widget _buildKeyboardSummaryBar() {
     final rawDiscountAmount = _sepetItems.fold<double>(
       0.0,
-      (sum, item) => sum + ((item.birimFiyati * item.miktar) - item.toplamFiyat),
+      (sum, item) => sum + _indirimTutari(item),
     );
     final discountAmount = rawDiscountAmount > 0 ? rawDiscountAmount : 0.0;
     final bool showDiscountLine =
@@ -4300,81 +4454,85 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     );
   }
 
-	  Widget _buildPriceGroupButton(
-	    int group, {
-	    double size = 32,
-	    double fontSize = 12,
-	  }) {
-	    final isSelected = _selectedFiyatGrubu == group;
-	    return InkWell(
-	      mouseCursor: WidgetStateMouseCursor.clickable,
-	      onTap: () => setState(() => _selectedFiyatGrubu = group),
-	      child: Container(
-	        width: size,
-	        height: size,
-	        decoration: BoxDecoration(
-	          color: isSelected ? const Color(0xFF1E88E5) : Colors.white,
-	          borderRadius: BorderRadius.circular(6),
-	          border: Border.all(
+  Widget _buildPriceGroupButton(
+    int group, {
+    double size = 32,
+    double fontSize = 12,
+  }) {
+    final isSelected = _selectedFiyatGrubu == group;
+    return InkWell(
+      mouseCursor: WidgetStateMouseCursor.clickable,
+      onTap: () => setState(() => _selectedFiyatGrubu = group),
+      child: Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: isSelected ? const Color(0xFF1E88E5) : Colors.white,
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(
             color: isSelected ? const Color(0xFF1E88E5) : Colors.grey.shade300,
           ),
         ),
-	        child: Center(
-	          child: Text(
-	            '[$group]',
-	            style: TextStyle(
-	              fontSize: fontSize,
-	              fontWeight: FontWeight.w600,
-	              color: isSelected ? Colors.white : Colors.grey.shade700,
-	            ),
-	          ),
-	        ),
-	      ),
-	    );
-	  }
-
-  Widget _buildToggleSwitch() {
-    return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-      onTap: () => setState(() => _fisYazdir = !_fisYazdir),
-      child: Container(
-        width: 60,
-        height: 30,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(15),
-          color: _fisYazdir ? const Color(0xFF4CAF50) : Colors.grey.shade300,
-        ),
-        child: Stack(
-          children: [
-            AnimatedPositioned(
-              duration: const Duration(milliseconds: 200),
-              left: _fisYazdir ? 32 : 4,
-              top: 4,
-              child: Container(
-                width: 22,
-                height: 22,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                ),
-              ),
+        child: Center(
+          child: Text(
+            '[$group]',
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w600,
+              color: isSelected ? Colors.white : Colors.grey.shade700,
             ),
-            Positioned(
-              left: _fisYazdir ? 8 : null,
-              right: _fisYazdir ? null : 8,
-              top: 7,
-              child: Text(
-                _fisYazdir ? tr('common.on') : tr('common.off'),
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: _fisYazdir ? Colors.white : Colors.grey.shade600,
-                ),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
-    ));
+    );
+  }
+
+  Widget _buildToggleSwitch() {
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      hitTestBehavior: HitTestBehavior.deferToChild,
+      child: GestureDetector(
+        onTap: () => setState(() => _fisYazdir = !_fisYazdir),
+        child: Container(
+          width: 60,
+          height: 30,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(15),
+            color: _fisYazdir ? const Color(0xFF4CAF50) : Colors.grey.shade300,
+          ),
+          child: Stack(
+            children: [
+              AnimatedPositioned(
+                duration: const Duration(milliseconds: 200),
+                left: _fisYazdir ? 32 : 4,
+                top: 4,
+                child: Container(
+                  width: 22,
+                  height: 22,
+                  decoration: const BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+              Positioned(
+                left: _fisYazdir ? 8 : null,
+                right: _fisYazdir ? null : 8,
+                top: 7,
+                child: Text(
+                  _fisYazdir ? tr('common.on') : tr('common.off'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: _fisYazdir ? Colors.white : Colors.grey.shade600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildSmallButton({
@@ -4627,12 +4785,9 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                                 align: TextAlign.right,
                                 onSubmitted: (val) {
                                   final newPrice = val < 0 ? 0.0 : val;
-                                  final current = _sepetItems[index];
-                                  final newTotal = (newPrice * current.miktar) *
-                                      (1 - (current.iskontoOrani / 100));
-                                  _sepetItems[index] = current.copyWith(
+                                  _guncelleSepetSatiri(
+                                    index,
                                     birimFiyati: newPrice,
-                                    toplamFiyat: newTotal,
                                   );
                                 },
                               ),
@@ -4643,15 +4798,12 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                                 flex: 1,
                                 align: TextAlign.center,
                                 onSubmitted: (val) {
-                                  final newDiscount =
-                                      val.clamp(0, 100).toDouble();
-                                  final current = _sepetItems[index];
-                                  final newTotal =
-                                      (current.birimFiyati * current.miktar) *
-                                          (1 - (newDiscount / 100));
-                                  _sepetItems[index] = current.copyWith(
+                                  final newDiscount = val
+                                      .clamp(0, 100)
+                                      .toDouble();
+                                  _guncelleSepetSatiri(
+                                    index,
                                     iskontoOrani: newDiscount,
-                                    toplamFiyat: newTotal,
                                   );
                                 },
                               ),
@@ -4671,14 +4823,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                                     );
                                     return;
                                   }
-                                  final current = _sepetItems[index];
-                                  final newTotal =
-                                      (current.birimFiyati * newQty) *
-                                          (1 - (current.iskontoOrani / 100));
-                                  _sepetItems[index] = current.copyWith(
-                                    miktar: newQty,
-                                    toplamFiyat: newTotal,
-                                  );
+                                  _guncelleSepetSatiri(index, miktar: newQty);
                                 },
                               ),
                               _buildTableCell(
@@ -4888,13 +5033,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                         );
                         return;
                       }
-                      final current = _sepetItems[index];
-                      final newTotal = (current.birimFiyati * newQty) *
-                          (1 - (current.iskontoOrani / 100));
-                      _sepetItems[index] = current.copyWith(
-                        miktar: newQty,
-                        toplamFiyat: newTotal,
-                      );
+                      _guncelleSepetSatiri(index, miktar: newQty);
                     },
                   ),
                   _buildCompactEditableField(
@@ -4904,13 +5043,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                     value: item.birimFiyati,
                     onSubmitted: (val) {
                       final newPrice = val < 0 ? 0.0 : val;
-                      final current = _sepetItems[index];
-                      final newTotal = (newPrice * current.miktar) *
-                          (1 - (current.iskontoOrani / 100));
-                      _sepetItems[index] = current.copyWith(
-                        birimFiyati: newPrice,
-                        toplamFiyat: newTotal,
-                      );
+                      _guncelleSepetSatiri(index, birimFiyati: newPrice);
                     },
                   ),
                   _buildCompactEditableField(
@@ -4920,13 +5053,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                     value: item.iskontoOrani,
                     onSubmitted: (val) {
                       final newDiscount = val.clamp(0, 100).toDouble();
-                      final current = _sepetItems[index];
-                      final newTotal = (current.birimFiyati * current.miktar) *
-                          (1 - (newDiscount / 100));
-                      _sepetItems[index] = current.copyWith(
-                        iskontoOrani: newDiscount,
-                        toplamFiyat: newTotal,
-                      );
+                      _guncelleSepetSatiri(index, iskontoOrani: newDiscount);
                     },
                   ),
                 ],
@@ -5172,44 +5299,44 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     );
   }
 
-		  Widget _buildTableHeader(
-		    String text, {
-		    int flex = 1,
-		    TextAlign align = TextAlign.left,
-        EdgeInsetsGeometry padding = EdgeInsets.zero,
-	  }) {
-	    final isTablet = ResponsiveYardimcisi.tabletMi(context);
-	    final alignment = switch (align) {
-	      TextAlign.right => Alignment.centerRight,
-	      TextAlign.center => Alignment.center,
-	      _ => Alignment.centerLeft,
-	    };
-	    return Expanded(
-	      flex: flex,
-	      child: Padding(
-	        padding: padding,
-	        child: Align(
-	          alignment: alignment,
-	          child: FittedBox(
-	            fit: BoxFit.scaleDown,
-	            alignment: alignment,
-	            child: Text(
-	              text,
-	              textAlign: align,
-	              style: TextStyle(
-	                fontSize: isTablet ? 10 : 11,
-	                fontWeight: FontWeight.w700,
-	                color: Colors.grey.shade700,
-	              ),
-	              maxLines: 1,
-	              softWrap: false,
-	              overflow: TextOverflow.visible,
-	            ),
-	          ),
-	        ),
-	      ),
-	    );
-	  }
+  Widget _buildTableHeader(
+    String text, {
+    int flex = 1,
+    TextAlign align = TextAlign.left,
+    EdgeInsetsGeometry padding = EdgeInsets.zero,
+  }) {
+    final isTablet = ResponsiveYardimcisi.tabletMi(context);
+    final alignment = switch (align) {
+      TextAlign.right => Alignment.centerRight,
+      TextAlign.center => Alignment.center,
+      _ => Alignment.centerLeft,
+    };
+    return Expanded(
+      flex: flex,
+      child: Padding(
+        padding: padding,
+        child: Align(
+          alignment: alignment,
+          child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: alignment,
+            child: Text(
+              text,
+              textAlign: align,
+              style: TextStyle(
+                fontSize: isTablet ? 10 : 11,
+                fontWeight: FontWeight.w700,
+                color: Colors.grey.shade700,
+              ),
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.visible,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _buildTableCell(
     String text, {
@@ -5235,10 +5362,10 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     );
   }
 
-	  Widget _buildBottomArea() {
-	    final nakitButonlari = _nakitButonDegerleri();
+  Widget _buildBottomArea() {
+    final nakitButonlari = _nakitButonDegerleri();
 
-	    return Container(
+    return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -5250,210 +5377,205 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
           ),
         ],
       ),
-	      child: LayoutBuilder(
-		        builder: (context, constraints) {
-		          final isTablet = ResponsiveYardimcisi.tabletMi(context);
-			          final isLandscape =
-			              MediaQuery.orientationOf(context) == Orientation.landscape;
-			          final forceRowLayout = isTablet && isLandscape;
-			          final isNarrow = constraints.maxWidth < 980 && !forceRowLayout;
-			          final usePortraitTabletSplitLayout = isTablet && !isLandscape;
-			          final moneyButtonGap = isTablet ? 3.0 : 4.0;
-			          final sectionGap = isTablet ? 10.0 : 12.0;
-			          final aboveButtonsGap = isTablet ? 4.0 : 6.0;
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isTablet = ResponsiveYardimcisi.tabletMi(context);
+          final isLandscape =
+              MediaQuery.orientationOf(context) == Orientation.landscape;
+          final forceRowLayout = isTablet && isLandscape;
+          final isNarrow = constraints.maxWidth < 980 && !forceRowLayout;
+          final usePortraitTabletSplitLayout = isTablet && !isLandscape;
+          final moneyButtonGap = isTablet ? 3.0 : 4.0;
+          final sectionGap = isTablet ? 10.0 : 12.0;
+          final aboveButtonsGap = isTablet ? 4.0 : 6.0;
 
-			          final rowCountText = Text(
-			            '${tr('retail.row_count')}: $_satirSayisi',
-			            style: TextStyle(
-			              fontSize: 11,
-			              fontWeight: FontWeight.w600,
-			              color: Colors.grey.shade600,
-			            ),
-			          );
+          final rowCountText = Text(
+            '${tr('retail.row_count')}: $_satirSayisi',
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.grey.shade600,
+            ),
+          );
 
-			          final paymentEntry = Column(
-			            mainAxisSize: MainAxisSize.min,
-			            children: [
-			              Row(
-			                mainAxisSize: MainAxisSize.min,
-			                children: [
-			                  _buildShortcutBadge('F2'),
-			                  const SizedBox(width: 4),
-			                  Text(
-			                    tr('retail.payment_entry'),
-			                    style: const TextStyle(
-			                      fontSize: 10,
-			                      fontWeight: FontWeight.w500,
-			                      color: Colors.grey,
-			                    ),
-			                  ),
-			                ],
-			              ),
-			              const SizedBox(height: 4),
-			              SizedBox(
-			                width: 85,
-			                height: 36,
-			                child: TextField(
-			                  controller: _odenenTutarController,
-			                  focusNode: _odenenTutarFocusNode,
-			                  textAlign: TextAlign.center,
-			                  keyboardType: const TextInputType.numberWithOptions(
-			                    decimal: true,
-			                  ),
-			                  style: const TextStyle(
-			                    fontSize: 14,
-			                    fontWeight: FontWeight.w600,
-			                    color: Color(0xFF333333),
-			                  ),
-			                  decoration: InputDecoration(
-			                    contentPadding: EdgeInsets.zero,
-			                    filled: true,
-			                    fillColor: Colors.white,
-			                    enabledBorder: OutlineInputBorder(
-			                      borderRadius: BorderRadius.circular(4),
-			                      borderSide: BorderSide(color: Colors.grey.shade300),
-			                    ),
-			                    focusedBorder: OutlineInputBorder(
-			                      borderRadius: BorderRadius.circular(4),
-			                      borderSide: const BorderSide(
-			                        color: Color(0xFF1E88E5),
-			                        width: 1.5,
-			                      ),
-			                    ),
-			                  ),
-			                  onChanged: (val) {
-			                    setState(() {
-			                      _odenenTutar = FormatYardimcisi.parseDouble(
-			                        val,
-			                        binlik: _genelAyarlar.binlikAyiraci,
-			                        ondalik: _genelAyarlar.ondalikAyiraci,
-			                      );
-			                    });
-			                  },
-			                ),
-			              ),
-			              const SizedBox(height: 4),
-			              SizedBox(height: isTablet ? 12 : 24),
-			            ],
-			          );
+          final paymentEntry = Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _buildShortcutBadge('F2'),
+                  const SizedBox(width: 4),
+                  Text(
+                    tr('retail.payment_entry'),
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              SizedBox(
+                width: 85,
+                height: 36,
+                child: TextField(
+                  controller: _odenenTutarController,
+                  focusNode: _odenenTutarFocusNode,
+                  textAlign: TextAlign.center,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF333333),
+                  ),
+                  decoration: InputDecoration(
+                    contentPadding: EdgeInsets.zero,
+                    filled: true,
+                    fillColor: Colors.white,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(4),
+                      borderSide: const BorderSide(
+                        color: Color(0xFF1E88E5),
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                  onChanged: (val) {
+                    setState(() {
+                      _odenenTutar = FormatYardimcisi.parseDouble(
+                        val,
+                        binlik: _genelAyarlar.binlikAyiraci,
+                        ondalik: _genelAyarlar.ondalikAyiraci,
+                      );
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 4),
+              SizedBox(height: isTablet ? 12 : 24),
+            ],
+          );
 
-			          final changeCard = Container(
-			            padding: EdgeInsets.fromLTRB(
-			              24,
-			              12,
-			              24,
-			              isTablet ? 8 : 12,
-			            ),
-			            decoration: BoxDecoration(
-			              gradient: const LinearGradient(
-			                colors: [Color(0xFF26C6DA), Color(0xFF00ACC1)],
-			                begin: Alignment.topLeft,
-			                end: Alignment.bottomRight,
-			              ),
-			              borderRadius: BorderRadius.circular(24),
-			            ),
-			            child: Column(
-			              children: [
-			                Text(
-			                  tr('retail.change'),
-			                  style: const TextStyle(
-			                    fontSize: 11,
-			                    fontWeight: FontWeight.w500,
-			                    color: Colors.white70,
-			                  ),
-			                ),
-			                if (isTablet) const SizedBox(height: 2),
-			                Text(
-			                  _formatParaBirimiGosterimi(_paraUstu),
-			                  style: TextStyle(
-			                    fontSize: isTablet ? 17 : 18,
-			                    fontWeight: FontWeight.w700,
-			                    color: Colors.white,
-			                  ),
-			                ),
-			              ],
-			            ),
-			          );
+          final changeCard = Container(
+            padding: EdgeInsets.fromLTRB(24, 12, 24, isTablet ? 8 : 12),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [Color(0xFF26C6DA), Color(0xFF00ACC1)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(24),
+            ),
+            child: Column(
+              children: [
+                Text(
+                  tr('retail.change'),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                    color: Colors.white70,
+                  ),
+                ),
+                if (isTablet) const SizedBox(height: 2),
+                Text(
+                  _formatParaBirimiGosterimi(_paraUstu),
+                  style: TextStyle(
+                    fontSize: isTablet ? 17 : 18,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          );
 
-			          final leftControls = Column(
-			            crossAxisAlignment: CrossAxisAlignment.start,
-			            mainAxisSize: MainAxisSize.min,
-			            children: [
-			              rowCountText,
-			              SizedBox(height: aboveButtonsGap),
-			              if (usePortraitTabletSplitLayout)
-			                SingleChildScrollView(
-			                  scrollDirection: Axis.horizontal,
-			                  child: Column(
-			                    mainAxisSize: MainAxisSize.min,
-			                    crossAxisAlignment: CrossAxisAlignment.start,
-			                    children: [
-			                      Row(
-			                        mainAxisSize: MainAxisSize.min,
-			                        crossAxisAlignment: CrossAxisAlignment.end,
-			                        children: [
-			                          _buildMoneyButton(nakitButonlari[0]),
-			                          SizedBox(width: moneyButtonGap),
-			                          _buildMoneyButton(nakitButonlari[1]),
-			                          SizedBox(width: moneyButtonGap),
-			                          _buildMoneyButton(nakitButonlari[2]),
-			                        ],
-			                      ),
-			                      SizedBox(height: isTablet ? 6 : 8),
-			                      Row(
-			                        mainAxisSize: MainAxisSize.min,
-			                        crossAxisAlignment: CrossAxisAlignment.end,
-			                        children: [
-			                          _buildMoneyButton(nakitButonlari[3]),
-			                          SizedBox(width: moneyButtonGap),
-			                          _buildMoneyButton(nakitButonlari[4]),
-			                          SizedBox(width: moneyButtonGap),
-			                          _buildMoneyButton(nakitButonlari[5]),
-			                          SizedBox(width: sectionGap),
-			                          paymentEntry,
-			                          SizedBox(width: sectionGap),
-			                          changeCard,
-			                        ],
-			                      ),
-			                    ],
-			                  ),
-			                )
-			              else
-			                SingleChildScrollView(
-			                  scrollDirection: Axis.horizontal,
-			                  child: Row(
-			                    mainAxisSize: MainAxisSize.min,
-			                    crossAxisAlignment: CrossAxisAlignment.end,
-			                    children: [
-			                      // Para butonları
-			                      _buildMoneyButton(nakitButonlari[0]),
-			                      SizedBox(width: moneyButtonGap),
-			                      _buildMoneyButton(nakitButonlari[1]),
-			                      SizedBox(width: moneyButtonGap),
-			                      _buildMoneyButton(nakitButonlari[2]),
-			                      SizedBox(width: moneyButtonGap),
-			                      _buildMoneyButton(nakitButonlari[3]),
-			                      SizedBox(width: moneyButtonGap),
-			                      _buildMoneyButton(nakitButonlari[4]),
-			                      SizedBox(width: moneyButtonGap),
-			                      _buildMoneyButton(nakitButonlari[5]),
-			                      SizedBox(width: sectionGap),
-			                      paymentEntry,
-			                      SizedBox(width: sectionGap),
-			                      changeCard,
-			                    ],
-			                  ),
-			                ),
-			            ],
-			          );
+          final leftControls = Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              rowCountText,
+              SizedBox(height: aboveButtonsGap),
+              if (usePortraitTabletSplitLayout)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildMoneyButton(nakitButonlari[0]),
+                          SizedBox(width: moneyButtonGap),
+                          _buildMoneyButton(nakitButonlari[1]),
+                          SizedBox(width: moneyButtonGap),
+                          _buildMoneyButton(nakitButonlari[2]),
+                        ],
+                      ),
+                      SizedBox(height: isTablet ? 6 : 8),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          _buildMoneyButton(nakitButonlari[3]),
+                          SizedBox(width: moneyButtonGap),
+                          _buildMoneyButton(nakitButonlari[4]),
+                          SizedBox(width: moneyButtonGap),
+                          _buildMoneyButton(nakitButonlari[5]),
+                          SizedBox(width: sectionGap),
+                          paymentEntry,
+                          SizedBox(width: sectionGap),
+                          changeCard,
+                        ],
+                      ),
+                    ],
+                  ),
+                )
+              else
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      // Para butonları
+                      _buildMoneyButton(nakitButonlari[0]),
+                      SizedBox(width: moneyButtonGap),
+                      _buildMoneyButton(nakitButonlari[1]),
+                      SizedBox(width: moneyButtonGap),
+                      _buildMoneyButton(nakitButonlari[2]),
+                      SizedBox(width: moneyButtonGap),
+                      _buildMoneyButton(nakitButonlari[3]),
+                      SizedBox(width: moneyButtonGap),
+                      _buildMoneyButton(nakitButonlari[4]),
+                      SizedBox(width: moneyButtonGap),
+                      _buildMoneyButton(nakitButonlari[5]),
+                      SizedBox(width: sectionGap),
+                      paymentEntry,
+                      SizedBox(width: sectionGap),
+                      changeCard,
+                    ],
+                  ),
+                ),
+            ],
+          );
 
           final rawDiscountAmount = _sepetItems.fold<double>(
             0.0,
-            (sum, item) =>
-                sum + ((item.birimFiyati * item.miktar) - item.toplamFiyat),
+            (sum, item) => sum + _indirimTutari(item),
           );
-          final discountAmount =
-              rawDiscountAmount > 0 ? rawDiscountAmount : 0.0;
+          final discountAmount = rawDiscountAmount > 0
+              ? rawDiscountAmount
+              : 0.0;
           final bool showDiscountLine =
               _faturaIskontoOrani > 0 && discountAmount > 0.000001;
 
@@ -5543,16 +5665,13 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
             ],
           );
 
-	          if (isNarrow && !usePortraitTabletSplitLayout) {
-	            return Column(
-	              crossAxisAlignment: CrossAxisAlignment.stretch,
-	              children: [
-	                leftControls,
+          if (isNarrow && !usePortraitTabletSplitLayout) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                leftControls,
                 const SizedBox(height: 12),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: grandTotal,
-                ),
+                Align(alignment: Alignment.centerRight, child: grandTotal),
               ],
             );
           }
@@ -5978,7 +6097,8 @@ class _InlineNumberEditor extends StatefulWidget {
     required int decimalDigits,
     required String binlik,
     required String ondalik,
-  })? onBindNumericKeypad;
+  })?
+  onBindNumericKeypad;
 
   const _InlineNumberEditor({
     required this.value,
@@ -6205,20 +6325,50 @@ class _FloatingNumericKeypad extends StatelessWidget {
     );
 
     final numericKeys = <Widget>[
-      buildKey(child: Text('7', style: digitStyle), onPressed: () => onInsert('7')),
-      buildKey(child: Text('8', style: digitStyle), onPressed: () => onInsert('8')),
-      buildKey(child: Text('9', style: digitStyle), onPressed: () => onInsert('9')),
-      buildKey(child: Text('4', style: digitStyle), onPressed: () => onInsert('4')),
-      buildKey(child: Text('5', style: digitStyle), onPressed: () => onInsert('5')),
-      buildKey(child: Text('6', style: digitStyle), onPressed: () => onInsert('6')),
-      buildKey(child: Text('1', style: digitStyle), onPressed: () => onInsert('1')),
-      buildKey(child: Text('2', style: digitStyle), onPressed: () => onInsert('2')),
-      buildKey(child: Text('3', style: digitStyle), onPressed: () => onInsert('3')),
+      buildKey(
+        child: Text('7', style: digitStyle),
+        onPressed: () => onInsert('7'),
+      ),
+      buildKey(
+        child: Text('8', style: digitStyle),
+        onPressed: () => onInsert('8'),
+      ),
+      buildKey(
+        child: Text('9', style: digitStyle),
+        onPressed: () => onInsert('9'),
+      ),
+      buildKey(
+        child: Text('4', style: digitStyle),
+        onPressed: () => onInsert('4'),
+      ),
+      buildKey(
+        child: Text('5', style: digitStyle),
+        onPressed: () => onInsert('5'),
+      ),
+      buildKey(
+        child: Text('6', style: digitStyle),
+        onPressed: () => onInsert('6'),
+      ),
+      buildKey(
+        child: Text('1', style: digitStyle),
+        onPressed: () => onInsert('1'),
+      ),
+      buildKey(
+        child: Text('2', style: digitStyle),
+        onPressed: () => onInsert('2'),
+      ),
+      buildKey(
+        child: Text('3', style: digitStyle),
+        onPressed: () => onInsert('3'),
+      ),
       buildKey(
         child: Text(decimalSeparator, style: digitStyle),
         onPressed: () => onInsert(decimalSeparator),
       ),
-      buildKey(child: Text('0', style: digitStyle), onPressed: () => onInsert('0')),
+      buildKey(
+        child: Text('0', style: digitStyle),
+        onPressed: () => onInsert('0'),
+      ),
       buildKey(
         child: const Icon(Icons.backspace_outlined, size: 20),
         onPressed: onBackspace,
@@ -6292,14 +6442,12 @@ class _FloatingNumericKeypad extends StatelessWidget {
                 const SizedBox(height: 6),
                 buildRow(row3.map(letterKey).toList(growable: false)),
                 const SizedBox(height: 6),
-                buildRow(
-                  [
-                    buildKeyExpanded(
-                      child: const Icon(Icons.space_bar_rounded, size: 18),
-                      onPressed: () => onInsert(' '),
-                    ),
-                  ],
-                ),
+                buildRow([
+                  buildKeyExpanded(
+                    child: const Icon(Icons.space_bar_rounded, size: 18),
+                    onPressed: () => onInsert(' '),
+                  ),
+                ]),
               ],
             ),
           ),
@@ -6608,8 +6756,9 @@ class _PerakendeHizliUrunlerPaneliState
                       prefixIcon: const Icon(Icons.search, size: 20),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding:
-                          const EdgeInsets.symmetric(horizontal: 16),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(8),
                         borderSide: BorderSide(color: Colors.blue.shade200),

@@ -3051,15 +3051,24 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   }
 
   bool _isIncomingLikeRow(RaporSatiri row) {
+    return _resolveRowDirection(row) ?? true;
+  }
+
+  bool? _resolveRowDirection(RaporSatiri row) {
+    final dynamic explicitDirection = row.extra['isIncoming'];
+    if (explicitDirection is bool) {
+      return explicitDirection;
+    }
+
     bool hasValue(String key) {
       final value = row.cells[key]?.trim();
       return value != null && value.isNotEmpty && value != '-';
     }
 
-    if (hasValue('giris') || hasValue('alacak') || hasValue('bakiye_alacak')) {
+    if (hasValue('giris') || hasValue('alacak')) {
       return true;
     }
-    if (hasValue('cikis') || hasValue('borc') || hasValue('bakiye_borc')) {
+    if (hasValue('cikis') || hasValue('borc')) {
       return false;
     }
 
@@ -3079,11 +3088,102 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return false;
     }
 
-    final amount = row.amountValue;
-    if (amount != null) {
-      return amount >= 0;
+    if (row.sourceMenuIndex == 100) {
+      return false;
     }
-    return true;
+
+    final String rawText = [
+      row.sortValues['islem']?.toString(),
+      row.cells['islem'],
+      row.cells['son_islem_turu'],
+      row.cells['tur'],
+      row.cells['odeme_tipi'],
+    ].whereType<String>().join(' ').toLowerCase();
+
+    if (rawText.isNotEmpty) {
+      if (row.sourceMenuIndex == TabAciciScope.cariKartiIndex) {
+        if (rawText.contains('satış yapıldı') ||
+            rawText.contains('satis yapildi') ||
+            rawText.contains('para verildi') ||
+            rawText.contains('ödeme') ||
+            rawText.contains('odeme') ||
+            rawText.contains('borç') ||
+            rawText.contains('borc') ||
+            rawText.contains('çek verildi') ||
+            rawText.contains('cek verildi') ||
+            rawText.contains('senet verildi')) {
+          return false;
+        }
+        if (rawText.contains('alış yapıldı') ||
+            rawText.contains('alis yapildi') ||
+            rawText.contains('para alındı') ||
+            rawText.contains('para alindi') ||
+            rawText.contains('tahsilat') ||
+            rawText.contains('alacak') ||
+            rawText.contains('çek alındı') ||
+            rawText.contains('cek alindi') ||
+            rawText.contains('senet alındı') ||
+            rawText.contains('senet alindi')) {
+          return true;
+        }
+      } else if (row.sourceMenuIndex == 13 ||
+          row.sourceMenuIndex == 15 ||
+          row.sourceMenuIndex == 16) {
+        if (rawText.contains('satış yapıldı') ||
+            rawText.contains('satis yapildi') ||
+            rawText.contains('para alındı') ||
+            rawText.contains('para alindi') ||
+            rawText.contains('tahsilat') ||
+            rawText.contains('giriş') ||
+            rawText.contains('giris') ||
+            rawText.contains('çek alındı') ||
+            rawText.contains('cek alindi') ||
+            rawText.contains('senet alındı') ||
+            rawText.contains('senet alindi')) {
+          return true;
+        }
+        if (rawText.contains('alış yapıldı') ||
+            rawText.contains('alis yapildi') ||
+            rawText.contains('para verildi') ||
+            rawText.contains('ödeme') ||
+            rawText.contains('odeme') ||
+            rawText.contains('çıkış') ||
+            rawText.contains('cikis') ||
+            rawText.contains('çıktı') ||
+            rawText.contains('cikti') ||
+            rawText.contains('çek verildi') ||
+            rawText.contains('cek verildi') ||
+            rawText.contains('senet verildi') ||
+            rawText.contains('personel ödemesi')) {
+          return false;
+        }
+      }
+
+      if (rawText.contains('alınan') ||
+          rawText.contains('alinan') ||
+          rawText.contains('receivable') ||
+          rawText.contains('credit') ||
+          rawText.contains('alacak') ||
+          rawText.contains('tahsil')) {
+        return true;
+      }
+      if (rawText.contains('verilen') ||
+          rawText.contains('gider') ||
+          rawText.contains('payable') ||
+          rawText.contains('debit') ||
+          rawText.contains('borç') ||
+          rawText.contains('borc') ||
+          rawText.contains('ödeme') ||
+          rawText.contains('odeme')) {
+        return false;
+      }
+    }
+
+    final amount = row.amountValue;
+    if (amount != null && amount < 0) {
+      return false;
+    }
+    return null;
   }
 
   Color _amountColor(RaporSatiri row, String key, String value) {
@@ -3103,8 +3203,20 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       }
       return AppPalette.slate;
     }
-    if (key == 'tutar' && row.amountValue != null && row.amountValue! < 0) {
-      return const Color(0xFFC62828);
+    if (key == 'tutar' ||
+        key == 'ara_toplam' ||
+        key == 'genel_toplam' ||
+        key == 'maliyet') {
+      final bool? incoming = _resolveRowDirection(row);
+      if (incoming == true) {
+        return const Color(0xFF2E7D32);
+      }
+      if (incoming == false) {
+        return const Color(0xFFC62828);
+      }
+      if (row.amountValue != null && row.amountValue! < 0) {
+        return const Color(0xFFC62828);
+      }
     }
     return AppPalette.slate;
   }

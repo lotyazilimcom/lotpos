@@ -24,6 +24,7 @@ import '../../../temalar/app_theme.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
+import '../../../yardimcilar/islem_turu_renkleri.dart';
 import '../../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
 import '../../ayarlar/kullanicilar/modeller/kullanici_hareket_model.dart';
 import '../../ayarlar/kullanicilar/modeller/kullanici_model.dart';
@@ -4855,6 +4856,22 @@ class RaporlarServisi {
         cat.belge,
         cat.vade_tarihi,
         cat.description AS aciklama,
+        cat.aciklama2,
+        CASE
+          WHEN cat.source_type ILIKE '%Çek%' THEN (
+            SELECT collection_status
+            FROM cheques
+            WHERE id = cat.source_id
+            LIMIT 1
+          )
+          WHEN cat.source_type ILIKE '%Senet%' THEN (
+            SELECT collection_status
+            FROM promissory_notes
+            WHERE id = cat.source_id
+            LIMIT 1
+          )
+          ELSE NULL
+        END AS guncel_durum,
         cat.bakiye_borc,
         cat.bakiye_alacak,
         ca.id AS cari_id,
@@ -4897,14 +4914,13 @@ class RaporlarServisi {
           final String paraBirimi = tx['para_birimi']?.toString() ?? 'TRY';
           final DateTime? tarih = _toDateTime(tx['tarih']);
           final DateTime? vade = _toDateTime(tx['vade_tarihi']);
+          final sunum = _cariIslemSunumunuHazirla(tx);
 
           if (mod == _CariRaporModu.ekstre) {
             return RaporSatiri(
               id: 'cari_tx_${tx['id']}',
               cells: {
-                'islem': IslemCeviriYardimcisi.cevir(
-                  tx['islem_turu']?.toString() ?? '-',
-                ),
+                'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
                 'tarih': _formatDate(tarih, includeTime: true),
                 'tutar': _formatMoney(tutar, currency: paraBirimi),
                 'bakiye_borc': bakiyeBorc > 0
@@ -4914,7 +4930,7 @@ class RaporlarServisi {
                     ? _formatMoney(bakiyeAlacak, currency: paraBirimi)
                     : '-',
                 'ilgili_hesap': tx['ilgili_hesap']?.toString() ?? '-',
-                'aciklama': tx['aciklama']?.toString() ?? '-',
+                'aciklama': sunum.aciklama,
                 'vade': _formatDate(vade),
                 'kullanici': tx['kullanici']?.toString() ?? '-',
               },
@@ -4926,6 +4942,8 @@ class RaporlarServisi {
                 'tutar': tutar,
                 'bakiye_borc': bakiyeBorc,
                 'bakiye_alacak': bakiyeAlacak,
+                'islem': sunum.islem,
+                'aciklama': sunum.aciklama,
                 'kullanici': tx['kullanici'],
               },
             );
@@ -5279,16 +5297,17 @@ class RaporlarServisi {
           final tutar = _toDouble(tx['tutar']);
           final giris = _toDouble(tx['giris_num']);
           final cikis = _toDouble(tx['cikis_num']);
+          final sunum = _finansIslemSunumunuHazirla(tx, mod: mod);
           return RaporSatiri(
             id: '${mod.name}_${tx['id']}',
             cells: {
               'tarih': _formatDate(tarih, includeTime: true),
               'hesap': tx['hesap']?.toString() ?? '-',
-              'islem': tx['islem_turu']?.toString() ?? '-',
+              'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
               'ilgili_hesap': tx['ilgili_hesap']?.toString() ?? '-',
               'giris': giris > 0 ? _formatMoney(giris) : '-',
               'cikis': cikis > 0 ? _formatMoney(cikis) : '-',
-              'aciklama': tx['aciklama']?.toString() ?? '-',
+              'aciklama': sunum.aciklama,
               'kullanici': tx['kullanici']?.toString() ?? '-',
             },
             sourceMenuIndex: menuIndex,
@@ -5297,9 +5316,10 @@ class RaporlarServisi {
             sortValues: {
               'tarih': tarih,
               'hesap': tx['hesap'],
-              'islem': tx['islem_turu'],
+              'islem': sunum.islem,
               'giris': giris,
               'cikis': cikis,
+              'aciklama': sunum.aciklama,
               'kullanici': tx['kullanici'],
             },
             extra: {'modul': modulLabel},
@@ -5512,13 +5532,14 @@ class RaporlarServisi {
           final fiyat = _toDouble(tx['birim_fiyat']);
           final toplam = miktar * fiyat;
           final bool giris = tx['is_giris'] == true;
+          final sunum = _stokIslemSunumunuHazirla(tx);
           return RaporSatiri(
             id: 'urun_hareket_${tx['id']}',
             cells: {
               'tarih': _formatDate(tarih, includeTime: true),
               'urun_kodu': tx['urun_kodu']?.toString() ?? '-',
               'urun_adi': tx['urun_adi']?.toString() ?? '-',
-              'islem': tx['islem_turu']?.toString() ?? '-',
+              'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
               'depo': tx['depo_adi']?.toString() ?? '-',
               'giris': giris ? _formatNumber(miktar) : '-',
               'cikis': giris ? '-' : _formatNumber(miktar),
@@ -5534,6 +5555,7 @@ class RaporlarServisi {
               'tarih': tarih,
               'urun_kodu': tx['urun_kodu'],
               'urun_adi': tx['urun_adi'],
+              'islem': sunum.islem,
               'depo': tx['depo_adi'],
               'giris': giris ? miktar : 0.0,
               'cikis': giris ? 0.0 : miktar,
@@ -5685,6 +5707,11 @@ class RaporlarServisi {
     ).replaceAll("'", "''");
 
     final cariYerExpr = "normalize_text('$yerCariHesapLabel')";
+    const cariMirrorYerSql =
+        "normalize_text(COALESCE(t.location, '')) NOT IN ("
+        "normalize_text('Cari Hesap'), "
+        "normalize_text('Cari İşlem'), "
+        "normalize_text('current_account'))";
     final kasaYer2Expr = "normalize_text('$yerKasaLabel')";
     final bankaYer2Expr = "normalize_text('$yerBankaLabel')";
     final krediKartiYer2Expr = "normalize_text('$yerKrediKartiLabel')";
@@ -5699,6 +5726,8 @@ class RaporlarServisi {
 
     final kasaWhere = <String>[];
     applyCommonDateUser(kasaWhere, 't.date', 't.user_name');
+    kasaWhere.add("COALESCE(t.integration_ref, '') NOT ILIKE 'CARI-PAV-%'");
+    kasaWhere.add(cariMirrorYerSql);
     _addSearchConditionAny(kasaWhere, params, [
       't.search_tags',
       kasaYer2Expr,
@@ -5706,6 +5735,8 @@ class RaporlarServisi {
 
     final bankaWhere = <String>[];
     applyCommonDateUser(bankaWhere, 't.date', 't.user_name');
+    bankaWhere.add("COALESCE(t.integration_ref, '') NOT ILIKE 'CARI-PAV-%'");
+    bankaWhere.add(cariMirrorYerSql);
     _addSearchConditionAny(bankaWhere, params, [
       't.search_tags',
       bankaYer2Expr,
@@ -5713,6 +5744,8 @@ class RaporlarServisi {
 
     final kartWhere = <String>[];
     applyCommonDateUser(kartWhere, 't.date', 't.user_name');
+    kartWhere.add("COALESCE(t.integration_ref, '') NOT ILIKE 'CARI-PAV-%'");
+    kartWhere.add(cariMirrorYerSql);
     _addSearchConditionAny(kartWhere, params, [
       't.search_tags',
       krediKartiYer2Expr,
@@ -5727,6 +5760,23 @@ class RaporlarServisi {
           cat.id,
           cat.date AS tarih,
           cat.source_type AS islem,
+          cat.type AS yon,
+          cat.integration_ref,
+          CASE
+            WHEN cat.source_type ILIKE '%Çek%' THEN (
+              SELECT collection_status
+              FROM cheques
+              WHERE id = cat.source_id
+              LIMIT 1
+            )
+            WHEN cat.source_type ILIKE '%Senet%' THEN (
+              SELECT collection_status
+              FROM promissory_notes
+              WHERE id = cat.source_id
+              LIMIT 1
+            )
+            ELSE NULL
+          END AS guncel_durum,
           '$yerCariHesapLabel' AS yer,
           ca.kod_no AS yer_kodu,
           ca.adi AS yer_adi,
@@ -5750,7 +5800,7 @@ class RaporlarServisi {
           cat.irsaliye_no AS irsaliye_no,
           cat.fatura_no AS fatura_no,
           cat.description AS aciklama,
-          '' AS aciklama_2,
+          COALESCE(cat.aciklama2, '') AS aciklama_2,
           NULL AS vade_tarihi,
           COALESCE(cat.user_name, '-') AS kullanici,
           ${TabAciciScope.cariKartiIndex} AS source_menu_index,
@@ -5764,6 +5814,9 @@ class RaporlarServisi {
           t.id,
           t.date AS tarih,
           t.type AS islem,
+          NULL AS yon,
+          t.integration_ref,
+          NULL AS guncel_durum,
           COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel') AS yer,
           COALESCE(t.location_code, '') AS yer_kodu,
           COALESCE(t.location_name, '') AS yer_adi,
@@ -5790,6 +5843,9 @@ class RaporlarServisi {
           t.id,
           t.date AS tarih,
           t.type AS islem,
+          NULL AS yon,
+          t.integration_ref,
+          NULL AS guncel_durum,
           COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel') AS yer,
           COALESCE(t.location_code, '') AS yer_kodu,
           COALESCE(t.location_name, '') AS yer_adi,
@@ -5816,6 +5872,9 @@ class RaporlarServisi {
           t.id,
           t.date AS tarih,
           t.type AS islem,
+          NULL AS yon,
+          t.integration_ref,
+          NULL AS guncel_durum,
           COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel') AS yer,
           COALESCE(t.location_code, '') AS yer_kodu,
           COALESCE(t.location_name, '') AS yer_adi,
@@ -5902,6 +5961,7 @@ class RaporlarServisi {
           final tarih = _toDateTime(tx['tarih']);
           final vade = _toDateTime(tx['vade_tarihi']);
           final tutar = _toDouble(tx['tutar_num']);
+          final sunum = _genelHareketSunumunuHazirla(tx);
           final faturaNo =
               tx['fatura_no']?.toString().replaceAll('-', '').trim() ?? '';
           final irsaliyeNo =
@@ -5918,9 +5978,7 @@ class RaporlarServisi {
           return RaporSatiri(
             id: 'hareket_${tx['source_menu_index']}_${tx['id']}',
             cells: {
-              'islem': IslemCeviriYardimcisi.cevir(
-                tx['islem']?.toString() ?? '-',
-              ),
+              'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
               'yer': tx['yer']?.toString() ?? '-',
               'yer_kodu': tx['yer_kodu']?.toString() ?? '-',
               'yer_adi': tx['yer_adi']?.toString() ?? '-',
@@ -5934,8 +5992,8 @@ class RaporlarServisi {
               'e_belge': tx['e_belge']?.toString() ?? '-',
               'irsaliye_no': tx['irsaliye_no']?.toString() ?? '',
               'fatura_no': tx['fatura_no']?.toString() ?? '',
-              'aciklama': tx['aciklama']?.toString() ?? '-',
-              'aciklama_2': tx['aciklama_2']?.toString() ?? '',
+              'aciklama': sunum.aciklama,
+              'aciklama_2': sunum.aciklama2,
               'vade_tarihi': vade != null
                   ? DateFormat('dd.MM.yyyy').format(vade)
                   : '',
@@ -5945,7 +6003,7 @@ class RaporlarServisi {
             sourceSearchQuery: tx['source_search_query']?.toString(),
             amountValue: tutar,
             sortValues: {
-              'islem': tx['islem'],
+              'islem': sunum.islem,
               'yer': tx['yer'],
               'yer_kodu': tx['yer_kodu'],
               'yer_adi': tx['yer_adi'],
@@ -5955,8 +6013,8 @@ class RaporlarServisi {
               'e_belge': tx['e_belge'],
               'irsaliye_no': tx['irsaliye_no'],
               'fatura_no': tx['fatura_no'],
-              'aciklama': tx['aciklama'],
-              'aciklama_2': tx['aciklama_2'],
+              'aciklama': sunum.aciklama,
+              'aciklama_2': sunum.aciklama2,
               'vade_tarihi': vade,
               'kullanici': tx['kullanici'],
               'yer_2': tx['yer_2'],
@@ -6052,11 +6110,11 @@ class RaporlarServisi {
 
     final List<RaporSatiri> rows = filtreli.map((tx) {
       final cari = tx['__cari'] as CariHesapModel?;
-      final rawType = tx['islem_turu']?.toString() ?? '';
       final double tutar = _toDouble(tx['tutar']);
       final bool isBorc = _isDebit(tx['yon']?.toString());
       final double runningBalance = _toDouble(tx['running_balance']);
       final detailItems = _extractDetailItems(tx['hareket_detaylari']);
+      final sunum = _cariIslemSunumunuHazirla(tx);
       final String rawFaturaNo =
           tx['fatura_no']?.toString().replaceAll('-', '').trim() ?? '';
       final String rawIrsaliyeNo =
@@ -6070,10 +6128,6 @@ class RaporlarServisi {
         belgeNo = 'İrsaliye';
       }
       final String odemeTipi = _detectPaymentType(tx);
-      final String aciklama =
-          tx['aciklama']?.toString().trim().isNotEmpty == true
-          ? tx['aciklama'].toString()
-          : IslemCeviriYardimcisi.cevir(rawType);
       final DateTime? tarih = _toDateTime(tx['tarih']);
       final DateTime? vade = _toDateTime(tx['vade_tarihi']);
 
@@ -6103,7 +6157,7 @@ class RaporlarServisi {
               ? tr('reports.badges.debit')
               : tr('reports.badges.credit'),
           'kullanici': tx['kullanici']?.toString() ?? '-',
-          'islem': IslemCeviriYardimcisi.cevir(rawType),
+          'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
           'tutar': _formatMoney(tutar, currency: cari?.paraBirimi ?? 'TRY'),
           'bakiye_borc': runningBalance > 0
               ? _formatMoney(
@@ -6122,12 +6176,14 @@ class RaporlarServisi {
             tx['kaynak_kodu']?.toString(),
             '-',
           ]),
-          'aciklama': aciklama,
+          'aciklama': sunum.aciklama,
           'vade': _formatDate(vade),
         },
         details: {
-          tr('common.description'): aciklama,
-          tr('common.transaction_type'): IslemCeviriYardimcisi.cevir(rawType),
+          tr('common.description'): sunum.aciklama,
+          tr('common.transaction_type'): IslemCeviriYardimcisi.cevir(
+            sunum.islem,
+          ),
           tr('common.related_account'): _firstNonEmpty([
             tx['kaynak_adi']?.toString(),
             tx['kaynak_kodu']?.toString(),
@@ -6151,6 +6207,8 @@ class RaporlarServisi {
           'tutar': tutar,
           'bakiye_borc': runningBalance > 0 ? runningBalance : 0.0,
           'bakiye_alacak': runningBalance < 0 ? runningBalance.abs() : 0.0,
+          'islem': sunum.islem,
+          'aciklama': sunum.aciklama,
         },
         extra: {
           'cariModel': cari,
@@ -6331,13 +6389,14 @@ class RaporlarServisi {
       final DateTime? tarih = _toDateTime(tx['tarih']);
       final double tutar = _toDouble(tx['tutar']);
       final bool incoming = tx['isIncoming'] == true;
+      final sunum = _finansIslemSunumunuHazirla(tx, mod: mod);
 
       return RaporSatiri(
         id: 'fin_${tx['id']}_${mod.name}',
         cells: {
           'tarih': _formatDate(tarih, includeTime: true),
           'hesap': '$hesapKod - $hesapAdi'.trim(),
-          'islem': IslemCeviriYardimcisi.cevir(tx['islem']?.toString() ?? '-'),
+          'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
           'ilgili_hesap': _firstNonEmpty([
             tx['yerAdi']?.toString(),
             tx['yerKodu']?.toString(),
@@ -6346,7 +6405,7 @@ class RaporlarServisi {
           ]),
           'giris': incoming ? _formatMoney(tutar) : '-',
           'cikis': incoming ? '-' : _formatMoney(tutar),
-          'aciklama': tx['aciklama']?.toString() ?? '-',
+          'aciklama': sunum.aciklama,
           'kullanici': tx['kullanici']?.toString() ?? '-',
         },
         details: {
@@ -6365,9 +6424,10 @@ class RaporlarServisi {
         sortValues: {
           'tarih': tarih,
           'hesap': hesapAdi,
-          'islem': tx['islem']?.toString(),
+          'islem': sunum.islem,
           'giris': incoming ? tutar : 0.0,
           'cikis': incoming ? 0.0 : tutar,
+          'aciklama': sunum.aciklama,
         },
       );
     }).toList();
@@ -6794,6 +6854,7 @@ class RaporlarServisi {
       final double miktar = _toDouble(tx['miktar']);
       final double fiyat = _toDouble(tx['birim_fiyat']);
       final double tutar = _toDouble(tx['tutar']);
+      final sunum = _stokIslemSunumunuHazirla(tx);
 
       return RaporSatiri(
         id: 'urun_hareket_${tx['id']}',
@@ -6801,9 +6862,7 @@ class RaporlarServisi {
           'tarih': _formatDate(tarih, includeTime: true),
           'urun_kodu': urun?.kod ?? '-',
           'urun_adi': urun?.ad ?? '-',
-          'islem': IslemCeviriYardimcisi.cevir(
-            tx['islem_turu']?.toString() ?? '-',
-          ),
+          'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
           'depo': tx['depo_adi']?.toString() ?? '-',
           'giris': miktar > 0 ? _formatNumber(miktar) : '-',
           'cikis': miktar < 0 ? _formatNumber(miktar.abs()) : '-',
@@ -6813,7 +6872,7 @@ class RaporlarServisi {
           'kullanici': tx['kullanici']?.toString() ?? '-',
         },
         details: {
-          tr('common.description'): tx['aciklama']?.toString() ?? '-',
+          tr('common.description'): sunum.aciklama,
           tr('reports.columns.running_total'): _formatMoney(tutar),
         },
         sourceMenuIndex: TabAciciScope.urunKartiIndex,
@@ -6823,7 +6882,7 @@ class RaporlarServisi {
           'tarih': tarih,
           'urun_kodu': urun?.kod,
           'urun_adi': urun?.ad,
-          'islem': tx['islem_turu']?.toString(),
+          'islem': sunum.islem,
           'giris': miktar > 0 ? miktar : 0.0,
           'cikis': miktar < 0 ? miktar.abs() : 0.0,
           'maliyet': fiyat,
@@ -7869,16 +7928,31 @@ class RaporlarServisi {
     RaporSecenegi rapor,
     RaporFiltreleri filtreler,
   ) async {
+    bool mirroredFinanceRow(Map<String, dynamic> tx) {
+      final String integrationRef = tx['integration_ref']?.toString() ?? '';
+      final String locationType = _firstNonEmpty([
+        tx['yer']?.toString(),
+        tx['location']?.toString(),
+        '',
+      ]);
+      return integrationRef.toUpperCase().startsWith('CARI-PAV-') ||
+          _isCurrentAccountFinanceLocation(locationType);
+    }
+
     final List<Map<String, dynamic>> cariRows = await _tumCariIslemleriniGetir(
       filtreler,
     );
     final List<Map<String, dynamic>> kasaRows = await _tumKasaIslemleriniGetir(
       filtreler,
-    );
+    ).then((rows) => rows.where((tx) => !mirroredFinanceRow(tx)).toList());
     final List<Map<String, dynamic>> bankaRows =
-        await _tumBankaIslemleriniGetir(filtreler);
+        await _tumBankaIslemleriniGetir(
+          filtreler,
+        ).then((rows) => rows.where((tx) => !mirroredFinanceRow(tx)).toList());
     final List<Map<String, dynamic>> krediKartiRows =
-        await _tumKrediKartiIslemleriniGetir(filtreler);
+        await _tumKrediKartiIslemleriniGetir(
+          filtreler,
+        ).then((rows) => rows.where((tx) => !mirroredFinanceRow(tx)).toList());
 
     final List<RaporSatiri> rows = <RaporSatiri>[
       ...cariRows.map(_rowFromAnyCariMovement),
@@ -8004,14 +8078,13 @@ class RaporlarServisi {
     final DateTime? tarih = _toDateTime(tx['tarih']);
     final double tutar = _toDouble(tx['tutar']);
     final bool debit = _isDebit(tx['yon']?.toString());
+    final sunum = _cariIslemSunumunuHazirla(tx);
     return RaporSatiri(
       id: 'all_cari_${tx['id']}',
       cells: {
         'tarih': _formatDate(tarih, includeTime: true),
         'modul': tr('nav.accounts'),
-        'islem': IslemCeviriYardimcisi.cevir(
-          tx['islem_turu']?.toString() ?? '-',
-        ),
+        'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
         'belge_no': _firstNonEmpty([
           tx['fatura_no']?.toString(),
           tx['irsaliye_no']?.toString(),
@@ -8019,7 +8092,7 @@ class RaporlarServisi {
           '-',
         ]),
         'hesap': cari == null ? '-' : '${cari.kodNo} - ${cari.adi}',
-        'aciklama': tx['aciklama']?.toString() ?? '-',
+        'aciklama': sunum.aciklama,
         'borc': debit
             ? _formatMoney(tutar, currency: cari?.paraBirimi ?? 'TRY')
             : '-',
@@ -8035,9 +8108,10 @@ class RaporlarServisi {
       sortValues: {
         'tarih': tarih,
         'modul': tr('nav.accounts'),
-        'islem': tx['islem_turu']?.toString(),
+        'islem': sunum.islem,
         'hesap': cari?.adi,
         'tutar': tutar,
+        'aciklama': sunum.aciklama,
       },
       extra: {'cariModel': cari},
     );
@@ -8057,15 +8131,24 @@ class RaporlarServisi {
       tx['krediKartiAdi']?.toString(),
       '-',
     ]);
+    final sunum = switch (menuIndex) {
+      13 => _finansIslemSunumunuHazirla(tx, mod: _FinansRaporModu.kasa),
+      15 => _finansIslemSunumunuHazirla(tx, mod: _FinansRaporModu.banka),
+      16 => _finansIslemSunumunuHazirla(tx, mod: _FinansRaporModu.krediKarti),
+      _ => _RaporIslemSunumu(
+        islem: tx['islem']?.toString() ?? '-',
+        aciklama: tx['aciklama']?.toString() ?? '-',
+      ),
+    };
     return RaporSatiri(
       id: 'all_fin_${menuIndex}_${tx['id']}',
       cells: {
         'tarih': _formatDate(tarih, includeTime: true),
         'modul': type,
-        'islem': IslemCeviriYardimcisi.cevir(tx['islem']?.toString() ?? '-'),
+        'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
         'belge_no': tx['integration_ref']?.toString() ?? '#${tx['id']}',
         'hesap': hesapAdi,
-        'aciklama': tx['aciklama']?.toString() ?? '-',
+        'aciklama': sunum.aciklama,
         'borc': incoming ? '-' : _formatMoney(tutar),
         'alacak': incoming ? _formatMoney(tutar) : '-',
         'tutar': _formatMoney(tutar),
@@ -8077,9 +8160,10 @@ class RaporlarServisi {
       sortValues: {
         'tarih': tarih,
         'modul': type,
-        'islem': tx['islem']?.toString(),
+        'islem': sunum.islem,
         'hesap': hesapAdi,
         'tutar': tutar,
+        'aciklama': sunum.aciklama,
       },
     );
   }
@@ -8585,6 +8669,370 @@ class RaporlarServisi {
     return tr('common.passive');
   }
 
+  _RaporIslemSunumu _cariIslemSunumunuHazirla(Map<String, dynamic> tx) {
+    final String rawType = _firstNonEmpty([
+      tx['islem_turu']?.toString(),
+      tx['islem']?.toString(),
+      '-',
+    ]);
+    final String yon = _firstNonEmpty([
+      tx['yon']?.toString(),
+      tx['type']?.toString(),
+      '',
+    ]);
+    final String integrationRef = tx['integration_ref']?.toString() ?? '';
+    final String lowType = rawType.toLowerCase();
+    final String guncelDurum = tx['guncel_durum']?.toString() ?? '';
+    final bool isCheck = _isCheckReference(rawType, integrationRef);
+    final bool isNote = _isNoteReference(rawType, integrationRef);
+    final bool isCheckNote = isCheck || isNote;
+    final bool isIncoming = _cariIslemGirisMi(rawType, yon);
+
+    String displayType = IslemTuruRenkleri.getProfessionalLabel(
+      rawType,
+      context: 'cari',
+      yon: yon,
+      fallback: rawType,
+    );
+
+    if (_isCurrentAccountPaymentReference(integrationRef) ||
+        _isCurrentAccountFinanceSourceType(lowType)) {
+      displayType = isIncoming ? 'Para Alındı' : 'Para Verildi';
+    } else if (_isSaleReference(integrationRef)) {
+      displayType = 'Satış Yapıldı';
+    } else if (_isPurchaseReference(integrationRef)) {
+      displayType = 'Alış Yapıldı';
+    } else if (isCheckNote) {
+      if (guncelDurum == 'Ciro Edildi') {
+        displayType = isCheck
+            ? 'Çek Alındı (Ciro Edildi)'
+            : 'Senet Alındı (Ciro Edildi)';
+      } else if (guncelDurum == 'Tahsil Edildi' || guncelDurum == 'Ödendi') {
+        final String statusLabel = guncelDurum;
+        displayType = isCheck
+            ? 'Çek ${isIncoming ? 'Alındı' : 'Verildi'} ($statusLabel)'
+            : 'Senet ${isIncoming ? 'Alındı' : 'Verildi'} ($statusLabel)';
+      } else if (isCheck) {
+        displayType = isIncoming ? 'Çek Alındı' : 'Çek Verildi';
+      } else if (isNote) {
+        displayType = isIncoming ? 'Senet Alındı' : 'Senet Verildi';
+      }
+    }
+
+    String displayDescription = tx['aciklama']?.toString() ?? '';
+    if (isCheckNote && _isAutomatedCheckNoteDescription(displayDescription)) {
+      displayDescription = '';
+    }
+
+    return _RaporIslemSunumu(
+      islem: displayType,
+      aciklama: displayDescription.trim().isEmpty ? '-' : displayDescription,
+      aciklama2:
+          tx['aciklama2']?.toString() ?? tx['aciklama_2']?.toString() ?? '',
+    );
+  }
+
+  _RaporIslemSunumu _finansIslemSunumunuHazirla(
+    Map<String, dynamic> tx, {
+    required _FinansRaporModu mod,
+  }) {
+    final String rawType = _firstNonEmpty([
+      tx['islem_turu']?.toString(),
+      tx['islem']?.toString(),
+      '-',
+    ]);
+    final String integrationRef = tx['integration_ref']?.toString() ?? '';
+    final String locationType = tx['yer']?.toString() ?? '';
+    final String lowType = rawType.toLowerCase();
+    final String lowDescription = (tx['aciklama']?.toString() ?? '')
+        .toLowerCase();
+    bool isIncoming = tx['isIncoming'] == true;
+    if (_isIncomingFinanceType(lowType)) {
+      isIncoming = true;
+    } else if (_isOutgoingFinanceType(lowType)) {
+      isIncoming = false;
+    }
+
+    String displayType = isIncoming ? 'Para Alındı' : 'Para Verildi';
+    final bool isCheck = _isCheckReference(rawType, integrationRef);
+    final bool isNote = _isNoteReference(rawType, integrationRef);
+    final bool isCheckNote = isCheck || isNote;
+
+    if (_isSaleReference(integrationRef)) {
+      displayType = 'Satış Yapıldı';
+    } else if (_isPurchaseReference(integrationRef)) {
+      displayType = 'Alış Yapıldı';
+    } else if (_isOpeningStockReference(integrationRef, lowDescription)) {
+      displayType = 'Açılış Stoğu';
+    } else if (_isProductionReference(integrationRef, lowDescription)) {
+      displayType = 'Üretim';
+    } else if (_isTransferReference(integrationRef, lowDescription)) {
+      displayType = 'Devir';
+    } else if (mod != _FinansRaporModu.kasa &&
+        integrationRef.toLowerCase().contains('collection')) {
+      displayType = 'Tahsilat';
+    } else if (mod != _FinansRaporModu.kasa &&
+        integrationRef.toLowerCase().contains('payment')) {
+      displayType = 'Ödeme';
+    } else if (isCheck) {
+      displayType = isIncoming
+          ? 'Çek Alındı (Tahsil Edildi)'
+          : 'Çek Verildi (Ödendi)';
+    } else if (isNote) {
+      displayType = isIncoming
+          ? 'Senet Alındı (Tahsil Edildi)'
+          : 'Senet Verildi (Ödendi)';
+    }
+
+    if (!isIncoming &&
+        displayType == 'Para Verildi' &&
+        locationType.toLowerCase().contains('personel')) {
+      displayType = 'Personel Ödemesi';
+    }
+
+    String displayDescription = tx['aciklama']?.toString() ?? '';
+    if (isCheckNote && _isAutomatedCheckNoteDescription(displayDescription)) {
+      displayDescription = '';
+    }
+
+    return _RaporIslemSunumu(
+      islem: displayType,
+      aciklama: displayDescription.trim().isEmpty ? '-' : displayDescription,
+      aciklama2:
+          tx['aciklama2']?.toString() ?? tx['aciklama_2']?.toString() ?? '',
+    );
+  }
+
+  _RaporIslemSunumu _stokIslemSunumunuHazirla(Map<String, dynamic> tx) {
+    final String rawType = _firstNonEmpty([
+      tx['customTypeLabel']?.toString(),
+      tx['islem_turu']?.toString(),
+      tx['islem']?.toString(),
+      '',
+    ]);
+    final String integrationRef = tx['integration_ref']?.toString() ?? '';
+    final String lowDescription =
+        (tx['aciklama']?.toString() ?? tx['description']?.toString() ?? '')
+            .toLowerCase();
+    final bool isIncoming =
+        tx['is_giris'] == true ||
+        tx['isIncoming'] == true ||
+        _toDouble(tx['miktar']) >= 0;
+    final String fallbackType = rawType.trim().isEmpty
+        ? (isIncoming ? 'Giriş' : 'Çıkış')
+        : rawType;
+
+    String displayType = IslemTuruRenkleri.getProfessionalLabel(
+      fallbackType,
+      context: 'stock',
+      fallback: fallbackType,
+    );
+
+    if (_isOpeningStockReference(integrationRef, lowDescription)) {
+      displayType = 'Açılış Stoğu';
+    } else if (_isSaleReference(integrationRef)) {
+      displayType = 'Satış Yapıldı';
+    } else if (_isPurchaseReference(integrationRef)) {
+      displayType = 'Alış Yapıldı';
+    } else if (_isProductionOutputReference(integrationRef, lowDescription)) {
+      displayType = 'Üretim Çıkışı';
+    } else if (_isProductionInputReference(fallbackType, lowDescription)) {
+      displayType = 'Üretim Girişi';
+    } else if (_isWarehouseTransferType(fallbackType)) {
+      displayType = isIncoming ? 'Devir Giriş' : 'Devir Çıkış';
+    } else if (_isShipmentType(fallbackType)) {
+      displayType = 'Sevkiyat';
+    }
+
+    final String description =
+        tx['aciklama']?.toString() ?? tx['description']?.toString() ?? '';
+    return _RaporIslemSunumu(
+      islem: displayType,
+      aciklama: description.trim().isEmpty ? '-' : description,
+      aciklama2:
+          tx['aciklama2']?.toString() ?? tx['aciklama_2']?.toString() ?? '',
+    );
+  }
+
+  _RaporIslemSunumu _genelHareketSunumunuHazirla(Map<String, dynamic> tx) {
+    final int sourceMenuIndex = _toInt(tx['source_menu_index']) ?? -1;
+    final Map<String, dynamic> normalized = <String, dynamic>{
+      ...tx,
+      'islem_turu': tx['islem_turu'] ?? tx['islem'],
+      'aciklama2': tx['aciklama2'] ?? tx['aciklama_2'],
+    };
+    switch (sourceMenuIndex) {
+      case TabAciciScope.cariKartiIndex:
+        return _cariIslemSunumunuHazirla(normalized);
+      case 13:
+        return _finansIslemSunumunuHazirla(
+          normalized,
+          mod: _FinansRaporModu.kasa,
+        );
+      case 15:
+        return _finansIslemSunumunuHazirla(
+          normalized,
+          mod: _FinansRaporModu.banka,
+        );
+      case 16:
+        return _finansIslemSunumunuHazirla(
+          normalized,
+          mod: _FinansRaporModu.krediKarti,
+        );
+      default:
+        final String islem = normalized['islem_turu']?.toString() ?? '-';
+        final String aciklama = normalized['aciklama']?.toString() ?? '-';
+        return _RaporIslemSunumu(
+          islem: islem,
+          aciklama: aciklama.trim().isEmpty ? '-' : aciklama,
+          aciklama2: normalized['aciklama2']?.toString() ?? '',
+        );
+    }
+  }
+
+  bool _cariIslemGirisMi(String rawType, String yon) {
+    final String lowType = rawType.toLowerCase();
+    final String lowYon = yon.toLowerCase();
+    return lowYon.contains('alacak') ||
+        lowType.contains('tahsilat') ||
+        lowType.contains('alış') ||
+        lowType.contains('alis') ||
+        lowType.contains('girdi') ||
+        lowType.contains('giriş') ||
+        lowType.contains('giris') ||
+        lowType.contains('alındı') ||
+        lowType.contains('alindi') ||
+        lowType.contains('alınan') ||
+        lowType.contains('alinan');
+  }
+
+  bool _isIncomingFinanceType(String lowType) {
+    return lowType.contains('tahsil') ||
+        lowType.contains('girdi') ||
+        lowType.contains('giriş') ||
+        lowType.contains('giris') ||
+        lowType.contains('havale') ||
+        lowType.contains('eft');
+  }
+
+  bool _isOutgoingFinanceType(String lowType) {
+    return lowType.contains('ödeme') ||
+        lowType.contains('odeme') ||
+        lowType.contains('harcama') ||
+        lowType.contains('çıktı') ||
+        lowType.contains('cikti') ||
+        lowType.contains('çıkış') ||
+        lowType.contains('cikis');
+  }
+
+  bool _isSaleReference(String integrationRef) {
+    final String lowRef = integrationRef.toLowerCase();
+    return lowRef.startsWith('sale-') || lowRef.startsWith('retail-');
+  }
+
+  bool _isPurchaseReference(String integrationRef) {
+    return integrationRef.toLowerCase().startsWith('purchase-');
+  }
+
+  bool _isCurrentAccountPaymentReference(String integrationRef) {
+    final String lowRef = integrationRef.toLowerCase();
+    return lowRef.startsWith('cari-pav-cash-') ||
+        lowRef.startsWith('cari-pav-bank-') ||
+        lowRef.startsWith('cari-pav-credit_card-');
+  }
+
+  bool _isCurrentAccountFinanceSourceType(String lowType) {
+    return lowType == 'kasa' ||
+        lowType == 'banka' ||
+        lowType == 'kredi kartı' ||
+        lowType == 'kredi karti';
+  }
+
+  bool _isCurrentAccountFinanceLocation(String rawLocation) {
+    final String lowLocation = rawLocation.trim().toLowerCase();
+    return lowLocation == 'cari hesap' ||
+        lowLocation == 'current_account' ||
+        lowLocation == 'cari işlem' ||
+        lowLocation == 'cari islem';
+  }
+
+  bool _isCheckReference(String rawType, String integrationRef) {
+    final String lowType = rawType.toLowerCase();
+    final String lowRef = integrationRef.toLowerCase();
+    return lowType.contains('çek') ||
+        lowType.contains('cek') ||
+        lowRef.startsWith('cheque') ||
+        lowRef.startsWith('cek-');
+  }
+
+  bool _isNoteReference(String rawType, String integrationRef) {
+    final String lowType = rawType.toLowerCase();
+    final String lowRef = integrationRef.toLowerCase();
+    return lowType.contains('senet') ||
+        lowRef.startsWith('note') ||
+        lowRef.startsWith('senet-') ||
+        lowRef.contains('promissory');
+  }
+
+  bool _isAutomatedCheckNoteDescription(String description) {
+    final String lowDescription = description.toLowerCase();
+    return lowDescription.contains('tahsilat') ||
+        lowDescription.contains('ödeme') ||
+        lowDescription.contains('odeme') ||
+        lowDescription.contains('no:');
+  }
+
+  bool _isOpeningStockReference(String integrationRef, String lowDescription) {
+    final String lowRef = integrationRef.toLowerCase();
+    return lowRef == 'opening_stock' ||
+        lowRef.contains('opening_stock') ||
+        lowDescription.contains('açılış') ||
+        lowDescription.contains('acilis');
+  }
+
+  bool _isProductionReference(String integrationRef, String lowDescription) {
+    final String lowRef = integrationRef.toLowerCase();
+    return lowRef.contains('production') ||
+        lowDescription.contains('üretim') ||
+        lowDescription.contains('uretim');
+  }
+
+  bool _isTransferReference(String integrationRef, String lowDescription) {
+    final String lowRef = integrationRef.toLowerCase();
+    return lowRef.contains('transfer') || lowDescription.contains('devir');
+  }
+
+  bool _isProductionOutputReference(
+    String integrationRef,
+    String lowDescription,
+  ) {
+    final String lowRef = integrationRef.toLowerCase();
+    return lowRef == 'production_output' ||
+        lowDescription.contains('üretim (çıktı)') ||
+        lowDescription.contains('uretim (cikti)');
+  }
+
+  bool _isProductionInputReference(String rawType, String lowDescription) {
+    final String lowType = rawType.toLowerCase();
+    return lowType.contains('uretim_giris') ||
+        lowType.contains('üretim (girdi)') ||
+        lowType.contains('uretim (girdi)') ||
+        lowDescription.contains('üretim (girdi)') ||
+        lowDescription.contains('üretim (giriş)') ||
+        lowDescription.contains('uretim (girdi)') ||
+        lowDescription.contains('uretim (giris)');
+  }
+
+  bool _isWarehouseTransferType(String rawType) {
+    final String lowType = rawType.toLowerCase();
+    return lowType.contains('devir');
+  }
+
+  bool _isShipmentType(String rawType) {
+    final String lowType = rawType.toLowerCase();
+    return lowType.contains('sevkiyat') || lowType.contains('transfer');
+  }
+
   int? _toInt(dynamic value) {
     if (value == null) return null;
     if (value is int) return value;
@@ -8613,14 +9061,23 @@ class RaporlarServisi {
 
   String _formatMoney(dynamic amount, {String currency = 'TRY'}) {
     final value = _toDouble(amount);
-    final int decimalDigits = _guncelAyarlar?.kurOndalik ?? 2;
-    return '${FormatYardimcisi.sayiFormatlaOndalikli(value, decimalDigits: decimalDigits)} ${FormatYardimcisi.paraBirimiSembol(currency)}';
+    final int decimalDigits = _guncelAyarlar?.fiyatOndalik ?? 2;
+    final String formatted = FormatYardimcisi.sayiFormatlaOndalikli(
+      value,
+      binlik: _guncelAyarlar?.binlikAyiraci ?? '.',
+      ondalik: _guncelAyarlar?.ondalikAyiraci ?? ',',
+      decimalDigits: decimalDigits,
+    );
+    final String currencyText = _formatCurrencySuffix(currency);
+    return currencyText.isEmpty ? formatted : '$formatted $currencyText';
   }
 
   String _formatNumber(dynamic amount) {
     final int decimalDigits = _guncelAyarlar?.miktarOndalik ?? 2;
     return FormatYardimcisi.sayiFormatlaOndalikli(
       amount,
+      binlik: _guncelAyarlar?.binlikAyiraci ?? '.',
+      ondalik: _guncelAyarlar?.ondalikAyiraci ?? ',',
       decimalDigits: decimalDigits,
     );
   }
@@ -8631,8 +9088,19 @@ class RaporlarServisi {
     final int decimalDigits = _guncelAyarlar?.kurOndalik ?? 4;
     return FormatYardimcisi.sayiFormatlaOndalikli(
       value,
+      binlik: _guncelAyarlar?.binlikAyiraci ?? '.',
+      ondalik: _guncelAyarlar?.ondalikAyiraci ?? ',',
       decimalDigits: decimalDigits,
     );
+  }
+
+  String _formatCurrencySuffix(String currency) {
+    final String normalized = currency.trim().toUpperCase();
+    if (normalized.isEmpty) return '';
+    if (_guncelAyarlar?.sembolGoster ?? true) {
+      return FormatYardimcisi.paraBirimiSembol(normalized);
+    }
+    return normalized;
   }
 }
 
@@ -8794,3 +9262,15 @@ _kolonStandartlari = <String, _RaporKolonStandardi>{
 enum _CariRaporModu { satis, alis, karma, ekstre }
 
 enum _FinansRaporModu { kasa, banka, krediKarti }
+
+class _RaporIslemSunumu {
+  const _RaporIslemSunumu({
+    required this.islem,
+    required this.aciklama,
+    this.aciklama2 = '',
+  });
+
+  final String islem;
+  final String aciklama;
+  final String aciklama2;
+}

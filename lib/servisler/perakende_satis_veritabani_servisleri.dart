@@ -95,10 +95,7 @@ class PerakendeSatisVeritabaniServisi {
 
       await UrunlerVeritabaniServisi().stokIslemiSilByRef(ref, session: s);
 
-      await CariHesaplarVeritabaniServisi().cariIslemSilByRef(
-        ref,
-        session: s,
-      );
+      await CariHesaplarVeritabaniServisi().cariIslemSilByRef(ref, session: s);
     }
 
     if (session != null) {
@@ -273,8 +270,8 @@ class PerakendeSatisVeritabaniServisi {
           String displayCariAdi = cariAdi;
           if (integrationRef.startsWith('RETAIL-')) {
             final String lowSource = pSourceType.toLowerCase();
-            final String suffix = lowSource.contains('nakit') ||
-                    lowSource.contains('kasa')
+            final String suffix =
+                lowSource.contains('nakit') || lowSource.contains('kasa')
                 ? '(Nakit)'
                 : lowSource.contains('kredi')
                 ? '(K. Kartı)'
@@ -322,10 +319,7 @@ class PerakendeSatisVeritabaniServisi {
             kartId = defaults.first.id;
           } else {
             final first = await KrediKartlariVeritabaniServisi()
-                .krediKartlariniGetir(
-                  sayfaBasinaKayit: 1,
-                  session: s,
-                );
+                .krediKartlariniGetir(sayfaBasinaKayit: 1, session: s);
             if (first.isNotEmpty) kartId = first.first.id;
           }
         }
@@ -360,6 +354,12 @@ class PerakendeSatisVeritabaniServisi {
     required String entegrasyonRef,
     required TxSession session,
   }) async {
+    double toDouble(dynamic value) {
+      if (value == null) return 0.0;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0.0;
+    }
+
     final Map<int, List<Map<String, dynamic>>> byWarehouse = {};
     for (final raw in items) {
       final int? warehouseId = int.tryParse(
@@ -371,17 +371,24 @@ class PerakendeSatisVeritabaniServisi {
         'code': raw['code'],
         'name': raw['name'],
         'unit': raw['unit'] ?? 'Adet',
-        'quantity': double.tryParse(raw['quantity']?.toString() ?? '0') ?? 0.0,
-        'unitCost': double.tryParse(raw['price']?.toString() ?? '0') ?? 0.0,
-        'total': double.tryParse(raw['total']?.toString() ?? '0') ?? 0.0,
-        'discountRate':
-            double.tryParse(
-              ((raw['discountRate'] ?? raw['discount'] ?? raw['iskonto'])
-                          ?.toString() ??
-                      '0')
-                  .replaceAll(',', '.'),
-            ) ??
-            0.0,
+        'quantity': toDouble(raw['quantity']),
+        'unitCost': toDouble(raw['price']),
+        'total': toDouble(raw['total']),
+        'discountRate': toDouble(
+          raw['discountRate'] ?? raw['discount'] ?? raw['iskonto'],
+        ),
+        'vatRate': toDouble(raw['vatRate'] ?? raw['vat_rate']),
+        'vatIncluded': raw['vatIncluded'] == true,
+        'otvRate': toDouble(raw['otvRate'] ?? raw['otv_rate']),
+        'otvIncluded': raw['otvIncluded'] == true,
+        'oivRate': toDouble(raw['oivRate'] ?? raw['oiv_rate']),
+        'oivIncluded': raw['oivIncluded'] == true,
+        'kdvTevkifatOrani': toDouble(
+          raw['kdvTevkifatOrani'] ??
+              raw['kdv_tevkifat_orani'] ??
+              raw['tevkifatOrani'] ??
+              raw['tevkifat'],
+        ),
       });
     }
     final Map<int, int> shipmentIds = {};
