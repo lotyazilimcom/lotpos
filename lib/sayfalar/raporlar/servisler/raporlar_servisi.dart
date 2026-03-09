@@ -27,6 +27,7 @@ import '../../../yardimcilar/format_yardimcisi.dart';
 import '../../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
 import '../../ayarlar/kullanicilar/modeller/kullanici_hareket_model.dart';
 import '../../ayarlar/kullanicilar/modeller/kullanici_model.dart';
+import '../../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../../bankalar/modeller/banka_model.dart';
 import '../../carihesaplar/modeller/cari_hesap_model.dart';
 import '../../giderler/modeller/gider_model.dart';
@@ -57,6 +58,7 @@ class RaporlarServisi {
   final UretimlerVeritabaniServisi _uretimServisi =
       UretimlerVeritabaniServisi();
   final AyarlarVeritabaniServisi _ayarlarServisi = AyarlarVeritabaniServisi();
+  GenelAyarlarModel? _guncelAyarlar;
   RaporFiltreKaynaklari? _cachedFilterKaynaklari;
   Future<RaporFiltreKaynaklari>? _filtreKaynaklariFuture;
   DateTime? _filtreKaynaklariAt;
@@ -792,6 +794,12 @@ class RaporlarServisi {
     String? sortKey,
     required bool sortAscending,
   }) async {
+    try {
+      _guncelAyarlar = await _ayarlarServisi.genelAyarlariGetir();
+    } catch (e) {
+      // Hata durumunda yoksay
+    }
+
     if (!rapor.supported) {
       return RaporSonucu(
         report: rapor,
@@ -5920,7 +5928,7 @@ class RaporlarServisi {
                   ? DateFormat('dd.MM.yyyy HH:mm').format(tarih)
                   : '-',
               'tutar': _formatMoney(tutar),
-              'kur': tx['kur']?.toString() ?? '',
+              'kur': _formatExchangeRate(tx['kur']),
               'yer_2': tx['yer_2']?.toString() ?? '',
               'belge': belgeDurumu,
               'e_belge': tx['e_belge']?.toString() ?? '-',
@@ -8605,11 +8613,26 @@ class RaporlarServisi {
 
   String _formatMoney(dynamic amount, {String currency = 'TRY'}) {
     final value = _toDouble(amount);
-    return '${FormatYardimcisi.sayiFormatlaOndalikli(value)} ${FormatYardimcisi.paraBirimiSembol(currency)}';
+    final int decimalDigits = _guncelAyarlar?.kurOndalik ?? 2;
+    return '${FormatYardimcisi.sayiFormatlaOndalikli(value, decimalDigits: decimalDigits)} ${FormatYardimcisi.paraBirimiSembol(currency)}';
   }
 
   String _formatNumber(dynamic amount) {
-    return FormatYardimcisi.sayiFormatlaOndalikli(amount);
+    final int decimalDigits = _guncelAyarlar?.miktarOndalik ?? 2;
+    return FormatYardimcisi.sayiFormatlaOndalikli(
+      amount,
+      decimalDigits: decimalDigits,
+    );
+  }
+
+  String _formatExchangeRate(dynamic rate) {
+    if (rate == null || rate.toString().isEmpty) return '';
+    final value = _toDouble(rate);
+    final int decimalDigits = _guncelAyarlar?.kurOndalik ?? 4;
+    return FormatYardimcisi.sayiFormatlaOndalikli(
+      value,
+      decimalDigits: decimalDigits,
+    );
   }
 }
 
