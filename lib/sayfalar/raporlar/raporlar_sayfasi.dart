@@ -51,6 +51,11 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     'tutar_etkisi',
     'vergi',
     'fark',
+    // Kar/Zarar (Ürün bazlı)
+    'dev_ekl_stok_degeri',
+    'sat_mal_top_alis_degeri',
+    'toplam_satis_degeri',
+    'kalan_stok_degeri',
   };
 
   static const Set<String> _quantityKeys = <String>{
@@ -63,6 +68,12 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     'kalem_sayisi',
     'toplam_miktar',
     'kayit_sayisi',
+    // Kar/Zarar (Ürün bazlı)
+    'devreden',
+    'eklenen',
+    'devreden_eklenen',
+    'satilan',
+    'kalan',
   };
 
   static const Set<String> _badgeKeys = <String>{
@@ -1261,23 +1272,23 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         ? visibleColumns.map((col) {
             switch (col.key) {
               case 'islem':
-                return 2.0;
+                return 2.1;
               case 'yer':
-                return 1.3;
+                return 1.7;
               case 'yer_kodu':
-                return 0.8;
+                return 0.6;
               case 'yer_adi':
-                return 2.6;
+                return 3.2;
               case 'tarih':
-                return 1.6;
+                return 1.8;
               case 'tutar':
-                return 1.2;
-              case 'kur':
-                return 0.9;
-              case 'yer_2':
                 return 1.1;
+              case 'kur':
+                return 0.75;
+              case 'yer_2':
+                return 0.85;
               case 'belge':
-                return 0.9;
+                return 0.75;
               case 'aciklama':
               case 'aciklama_2':
                 return 2.2;
@@ -1286,7 +1297,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
               case 'fatura_no':
               case 'vade_tarihi':
               case 'kullanici':
-                return 1.1;
+                return 1.2;
               default:
                 return 1.0;
             }
@@ -1861,15 +1872,26 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     required bool isMobile,
   }) {
     final sonuc = _sonuc;
-    final cards = sonuc?.summaryCards ?? const <RaporOzetKarti>[];
+    if (sonuc == null) {
+      return const SizedBox.shrink();
+    }
+
+    final profitLossBand = _buildProfitLossSummaryBand(
+      sonuc: sonuc,
+      isTablet: isTablet,
+      isMobile: isMobile,
+    );
+    if (profitLossBand != null) {
+      return profitLossBand;
+    }
+
+    final cards = sonuc.summaryCards;
     if (cards.isEmpty) {
       return const SizedBox.shrink();
     }
 
     final bool showIslemToplamlari =
-        sonuc != null &&
-        sonuc.report.id == 'all_movements' &&
-        sonuc.islemToplamlari.isNotEmpty;
+        sonuc.report.id == 'all_movements' && sonuc.islemToplamlari.isNotEmpty;
 
     final String? seciliIslemTuru = _bosIseNull(_filtreler.islemTuru);
     final List<RaporIslemToplami> islemToplamlariForCards = !showIslemToplamlari
@@ -1894,6 +1916,194 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       isTablet: isTablet,
       compact: !isMobile,
       cards: mergedCards,
+    );
+  }
+
+  Widget? _buildProfitLossSummaryBand({
+    required RaporSonucu sonuc,
+    required bool isTablet,
+    required bool isMobile,
+  }) {
+    if (sonuc.report.id != 'profit_loss') return null;
+
+    final rawTotals = sonuc.headerInfo['profit_loss_totals'];
+    if (rawTotals is! List) return null;
+
+    ({IconData icon, Color accentColor}) styleForLabel(String label) {
+      final String low = label.toLowerCase();
+
+      if (low.contains('brüt') && low.contains('kar')) {
+        return (
+          icon: Icons.trending_up_rounded,
+          accentColor: const Color(0xFF27AE60),
+        );
+      }
+      if (low.contains('satış') && low.contains('değer')) {
+        return (icon: Icons.payments_outlined, accentColor: AppPalette.red);
+      }
+      if (low.contains('alış') && low.contains('değer')) {
+        return (
+          icon: Icons.shopping_bag_outlined,
+          accentColor: AppPalette.amber,
+        );
+      }
+      if (low.contains('stok') && low.contains('değer')) {
+        return (
+          icon: Icons.inventory_2_outlined,
+          accentColor: AppPalette.amber,
+        );
+      }
+      if (low.contains('eklenen')) {
+        return (icon: Icons.add_circle_outline, accentColor: AppPalette.slate);
+      }
+      if (low.contains('satılan')) {
+        return (icon: Icons.shopping_cart_outlined, accentColor: AppPalette.slate);
+      }
+      if (low.contains('kalan')) {
+        return (icon: Icons.inventory_outlined, accentColor: AppPalette.slate);
+      }
+      if (low.contains('devreden')) {
+        return (icon: Icons.history_rounded, accentColor: AppPalette.slate);
+      }
+
+      return (icon: Icons.summarize_outlined, accentColor: AppPalette.slate);
+    }
+
+    final List<RaporOzetKarti> cards = [];
+    for (final item in rawTotals) {
+      if (item is! Map) continue;
+      final label = item['label']?.toString() ?? '';
+      final value = item['value']?.toString() ?? '';
+      final unit = item['unit']?.toString() ?? '';
+      if (label.trim().isEmpty || value.trim().isEmpty) continue;
+
+      final style = styleForLabel(label);
+      final String valueText = unit.trim().isEmpty ? value : '$value $unit';
+
+      cards.add(
+        RaporOzetKarti(
+          labelKey: label, // tr() fallback shows label as-is
+          value: valueText,
+          icon: style.icon,
+          accentColor: style.accentColor,
+        ),
+      );
+    }
+
+    if (cards.isEmpty && sonuc.summaryCards.isEmpty) return null;
+    cards.addAll(sonuc.summaryCards);
+
+    const double spacing = 8;
+    const double minSingleRowCardWidth = 110;
+    const double minWrapCardWidth = 220;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double maxWidth = constraints.maxWidth.isFinite
+            ? constraints.maxWidth
+            : MediaQuery.sizeOf(context).width;
+
+        final double perCardWidth = cards.length <= 1
+            ? maxWidth
+            : (maxWidth - (spacing * (cards.length - 1))) / cards.length;
+
+        if (!isMobile && perCardWidth >= minSingleRowCardWidth) {
+          return SizedBox(
+            height: 72,
+            child: Row(
+              children: [
+                for (int i = 0; i < cards.length; i++) ...[
+                  Expanded(child: _buildCompactSummaryCard(cards[i])),
+                  if (i != cards.length - 1) const SizedBox(width: spacing),
+                ],
+              ],
+            ),
+          );
+        }
+
+        final int columns = math
+            .max(
+              1,
+              ((maxWidth + spacing) / (minWrapCardWidth + spacing)).floor(),
+            )
+            .clamp(1, cards.length);
+
+        final double cardWidth =
+            (maxWidth - (spacing * (columns - 1))) / columns;
+
+        return Wrap(
+          spacing: spacing,
+          runSpacing: spacing,
+          children: [
+            for (final card in cards)
+              SizedBox(width: cardWidth, child: _buildCompactSummaryCard(card)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildCompactSummaryCard(RaporOzetKarti card) {
+    return Container(
+      height: 72,
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: _cardDecoration(),
+      child: Row(
+        children: [
+          Container(
+            width: 28,
+            height: 28,
+            decoration: BoxDecoration(
+              color: card.accentColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: Icon(card.icon, color: card.accentColor, size: 15),
+          ),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 28,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      tr(card.labelKey),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        height: 1.15,
+                        fontWeight: FontWeight.w700,
+                        color: AppPalette.grey,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                SizedBox(
+                  height: 20,
+                  child: FittedBox(
+                    alignment: Alignment.centerLeft,
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      card.value,
+                      maxLines: 1,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        color: AppPalette.slate,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2194,6 +2404,18 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                     // boşluğu diğer kolonlara dağıt (tasarımı bozmadan).
                     return math.max(2, (baseFlex * 0.6).round());
                   }
+                  if (rapor.id == 'all_movements' && kolon.key == 'tarih') {
+                    // Raporlar: Tarih kolonu biraz daralsın (diğer kolonlara alan kalsın).
+                    return math.max(2, (baseFlex * 0.85).round());
+                  }
+                  if (rapor.id == 'all_movements' && kolon.key == 'yer') {
+                    // Raporlar: Yer kolonu biraz daralsın.
+                    return math.max(2, (baseFlex * 0.85).round());
+                  }
+                  if (rapor.id == 'all_movements' && kolon.key == 'yer_2') {
+                    // Raporlar: (Kasa vb.) kısa değerler için ikinci Yer kolonu daha dar olsun.
+                    return math.max(2, (baseFlex * 0.7).round());
+                  }
                   return baseFlex;
                 }(),
           alignment: kolon.alignment,
@@ -2425,25 +2647,54 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         0,
         (sum, width) => sum + width,
       );
-      final double ratio =
-          ((usableWidth - minWidthSum) / (baseWidthSum - minWidthSum)).clamp(
-            0.0,
-            1.0,
-          );
+      final bool prioritizeDateFilter =
+          filterItems.length > 1 && _supports(RaporFiltreTuru.tarihAraligi);
+      if (!prioritizeDateFilter) {
+        final double ratio =
+            ((usableWidth - minWidthSum) / (baseWidthSum - minWidthSum)).clamp(
+              0.0,
+              1.0,
+            );
 
-      return List<double>.generate(filterItems.length, (index) {
-        return minWidths[index] +
-            (baseWidths[index] - minWidths[index]) * ratio;
-      });
+        return List<double>.generate(filterItems.length, (index) {
+          return minWidths[index] +
+              (baseWidths[index] - minWidths[index]) * ratio;
+        });
+      }
+
+      // Tarih aralığı filtresinin (ilk filtre) tam görünmesi için önce onu büyüt,
+      // kalan alanı diğer filtrelere orantılı dağıt.
+      final List<double> widths = List<double>.from(minWidths);
+      double remaining = usableWidth - minWidthSum;
+      if (remaining <= 0) return widths;
+
+      final double primaryCapacity = math.max(0, baseWidths[0] - minWidths[0]);
+      final double primaryAdd = math.min(remaining, primaryCapacity);
+      widths[0] += primaryAdd;
+      remaining -= primaryAdd;
+      if (remaining <= 0) return widths;
+
+      double othersCapacity = 0;
+      for (int i = 1; i < widths.length; i++) {
+        othersCapacity += math.max(0, baseWidths[i] - minWidths[i]);
+      }
+      if (othersCapacity <= 0) return widths;
+
+      final double ratio = (remaining / othersCapacity).clamp(0.0, 1.0);
+      for (int i = 1; i < widths.length; i++) {
+        widths[i] += math.max(0, baseWidths[i] - minWidths[i]) * ratio;
+      }
+
+      return widths;
     }
 
     if (rapor.id == 'all_movements') {
       if (_supports(RaporFiltreTuru.tarihAraligi)) {
         addFilter(
           _buildQuickDateFilter(compact: true),
-          desktopWidth: 410,
-          tabletWidth: 380,
-          mobileWidth: 390,
+          desktopWidth: 480,
+          tabletWidth: 450,
+          mobileWidth: 450,
           minWidth: 320,
         );
       }
@@ -2630,9 +2881,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         if (_supports(RaporFiltreTuru.tarihAraligi))
           addFilter(
             _buildQuickDateFilter(compact: true),
-            desktopWidth: 410,
-            tabletWidth: 380,
-            mobileWidth: 390,
+            desktopWidth: 480,
+            tabletWidth: 450,
+            mobileWidth: 450,
             minWidth: 320,
           ),
         if (_supports(RaporFiltreTuru.cari))
@@ -2975,6 +3226,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
   Widget _buildQuickDateFilter({bool compact = false}) {
     final items = <MapEntry<String, String>>[
+      MapEntry('all', tr('common.all')),
       MapEntry('today', tr('reports.presets.today')),
       MapEntry('this_week', tr('reports.presets.this_week')),
       MapEntry('this_month', tr('reports.presets.this_month')),
@@ -4104,6 +4356,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     if (key == 'islem') {
       return _buildProcessCell(row, value);
     }
+    if (key == 'ozellik' && _sonuc?.report.id == 'profit_loss') {
+      return _buildFeatureBadgesCell(row, value);
+    }
     if (_badgeKeys.contains(key) && value != '-') {
       return _buildBadgeCell(key, value);
     }
@@ -4164,6 +4419,85 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         fontWeight: FontWeight.w500,
         color: AppPalette.slate,
       ),
+    );
+  }
+
+  Widget _buildFeatureBadgesCell(RaporSatiri row, String value) {
+    final dynamic raw = row.extra['features'];
+    final List<({String name, Color? color})> features = [];
+
+    if (raw is List) {
+      for (final item in raw) {
+        if (item is! Map) continue;
+        final String name = item['name']?.toString().trim() ?? '';
+        if (name.isEmpty) continue;
+        final dynamic rawColor = item['color'];
+        Color? color;
+        if (rawColor is int) {
+          color = Color(rawColor);
+        } else if (rawColor is num) {
+          color = Color(rawColor.toInt());
+        } else if (rawColor is String) {
+          final parsed = int.tryParse(rawColor);
+          if (parsed != null) color = Color(parsed);
+        }
+        features.add((name: name, color: color));
+        if (features.length >= 3) break;
+      }
+    }
+
+    if (features.isEmpty) {
+      return _buildHighlightedValue(
+        value == '[]' || value.trim().isEmpty ? '-' : value,
+        style: const TextStyle(
+          fontSize: 11,
+          height: 1.35,
+          fontWeight: FontWeight.w600,
+          color: AppPalette.slate,
+        ),
+      );
+    }
+
+    Widget badgeFor(({String name, Color? color}) feature) {
+      final Color? color = feature.color;
+      final Color background = color ?? Colors.grey.shade100;
+      final Color borderColor = color != null
+          ? color.withValues(alpha: 0.2)
+          : Colors.grey.shade300;
+      final Color textColor = color != null
+          ? (ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+                ? Colors.white
+                : Colors.black87)
+          : Colors.black87;
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: background,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: borderColor),
+        ),
+        child: Text(
+          feature.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            color: textColor,
+          ),
+        ),
+      );
+    }
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (int i = 0; i < features.length; i++) ...[
+          badgeFor(features[i]),
+          if (i != features.length - 1) const SizedBox(height: 6),
+        ],
+      ],
     );
   }
 

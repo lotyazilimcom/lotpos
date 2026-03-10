@@ -78,6 +78,20 @@ class RaporlarServisi {
       <String, ({DateTime at, List<RaporIslemToplami> totals})>{};
   final Map<String, Future<List<RaporIslemToplami>>> _islemToplamlariInFlight =
       <String, Future<List<RaporIslemToplami>>>{};
+  final Map<
+    String,
+    ({
+      DateTime at,
+      ({List<RaporOzetKarti> cards, Map<String, dynamic> headerInfo}) data,
+    })
+  >
+  _profitLossTopSummaryCache =
+      <String, ({DateTime at, ({List<RaporOzetKarti> cards, Map<String, dynamic> headerInfo}) data})>{};
+  final Map<
+    String,
+    Future<({List<RaporOzetKarti> cards, Map<String, dynamic> headerInfo})>
+  >
+  _profitLossTopSummaryInFlight = <String, Future<({List<RaporOzetKarti> cards, Map<String, dynamic> headerInfo})>>{};
 
   static final List<RaporSecenegi> _raporlar = <RaporSecenegi>[
     RaporSecenegi(
@@ -457,6 +471,48 @@ class RaporlarServisi {
     } finally {
       if (identical(_summaryCardsInFlight[cacheKey], future)) {
         _summaryCardsInFlight.remove(cacheKey);
+      }
+    }
+  }
+
+  Future<({List<RaporOzetKarti> cards, Map<String, dynamic> headerInfo})>
+  _getOrComputeProfitLossTopSummary({
+    required String cacheKey,
+    required Future<
+          ({List<RaporOzetKarti> cards, Map<String, dynamic> headerInfo})
+        >
+        Function()
+        loader,
+  }) async {
+    final now = DateTime.now();
+    final cached = _profitLossTopSummaryCache[cacheKey];
+    if (cached != null && now.difference(cached.at) < _summaryCacheTtl) {
+      return cached.data;
+    }
+
+    final inFlight = _profitLossTopSummaryInFlight[cacheKey];
+    if (inFlight != null) return await inFlight;
+
+    final future = loader();
+    _profitLossTopSummaryInFlight[cacheKey] = future;
+    try {
+      final data = await future;
+      _profitLossTopSummaryCache[cacheKey] = (at: now, data: data);
+      if (_profitLossTopSummaryCache.length > _summaryCacheMaxEntries) {
+        final entries = _profitLossTopSummaryCache.entries.toList()
+          ..sort((a, b) => a.value.at.compareTo(b.value.at));
+        final removeCount = math.max(
+          0,
+          entries.length - _summaryCacheMaxEntries,
+        );
+        for (int i = 0; i < removeCount; i++) {
+          _profitLossTopSummaryCache.remove(entries[i].key);
+        }
+      }
+      return data;
+    } finally {
+      if (identical(_profitLossTopSummaryInFlight[cacheKey], future)) {
+        _profitLossTopSummaryInFlight.remove(cacheKey);
       }
     }
   }
@@ -4316,9 +4372,57 @@ class RaporlarServisi {
   }) async {
     final pool = await _havuzAl();
 
+    String sortExpr(String? key) {
+      switch (key) {
+        case 'kod':
+          return "COALESCE(base.kod, '')";
+        case 'ad':
+          return "COALESCE(base.ad, '')";
+        case 'grup':
+          return "COALESCE(base.grup, '')";
+        case 'devreden':
+          return 'base.devreden';
+        case 'eklenen':
+          return 'base.eklenen';
+        case 'devreden_eklenen':
+          return 'base.devreden_eklenen';
+        case 'satilan':
+          return 'base.satilan';
+        case 'kalan':
+          return 'base.kalan';
+        case 'birim':
+          return "COALESCE(base.birim, '')";
+        case 'dev_ekl_stok_degeri':
+          return 'base.dev_ekl_stok_degeri';
+        case 'sat_mal_top_alis_degeri':
+          return 'base.sat_mal_top_alis_degeri';
+        case 'toplam_satis_degeri':
+          return 'base.toplam_satis_degeri';
+        case 'kalan_stok_degeri':
+          return 'base.kalan_stok_degeri';
+        case 'brut_kar':
+          return 'base.brut_kar';
+        default:
+          return "COALESCE(base.ad, '')";
+      }
+    }
+
     final params = <String, dynamic>{};
-    final catWhere = <String>[];
-    final expWhere = <String>[];
+
+    final purchaseWhere = <String>[
+      'sm.is_giris = true',
+      '('
+          "COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%'"
+          " OR COALESCE(sm.integration_ref, '') = 'opening_stock'"
+          ')',
+    ];
+    final saleWhere = <String>[
+      'sm.is_giris = false',
+      '('
+          "COALESCE(sm.integration_ref, '') LIKE 'SALE-%'"
+          " OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%'"
+          ')',
+    ];
 
     if (filtreler.baslangicTarihi != null) {
       params['baslangic'] = DateTime(
@@ -4326,154 +4430,514 @@ class RaporlarServisi {
         filtreler.baslangicTarihi!.month,
         filtreler.baslangicTarihi!.day,
       ).toIso8601String();
-      catWhere.add('cat.date >= @baslangic');
-      expWhere.add('e.tarih >= @baslangic');
+      purchaseWhere.add('sm.movement_date >= @baslangic');
+      saleWhere.add('sm.movement_date >= @baslangic');
     }
+
     if (filtreler.bitisTarihi != null) {
       params['bitis'] = DateTime(
         filtreler.bitisTarihi!.year,
         filtreler.bitisTarihi!.month,
         filtreler.bitisTarihi!.day,
       ).add(const Duration(days: 1)).toIso8601String();
-      catWhere.add('cat.date < @bitis');
-      expWhere.add('e.tarih < @bitis');
+      purchaseWhere.add('sm.movement_date < @bitis');
+      saleWhere.add('sm.movement_date < @bitis');
     }
 
-    final String catWhereSql = catWhere.isEmpty
-        ? ''
-        : 'AND ${catWhere.join(' AND ')}';
-    final String expWhereSql = expWhere.isEmpty
-        ? ''
-        : 'WHERE ${expWhere.join(' AND ')}';
+    final startSnapshotCte = filtreler.baslangicTarihi == null
+        ? '''
+      start_snapshot AS (
+        SELECT NULL::bigint AS product_id,
+               0::numeric AS devreden_qty,
+               0::numeric AS devreden_cost
+        WHERE FALSE
+      )
+      '''
+        : '''
+      start_snapshot AS (
+        SELECT DISTINCT ON (sm.product_id)
+          sm.product_id,
+          COALESCE(sm.running_stock, 0) AS devreden_qty,
+          COALESCE(sm.running_cost, 0) AS devreden_cost
+        FROM stock_movements sm
+        WHERE sm.movement_date < @baslangic
+        ORDER BY sm.product_id, sm.movement_date DESC, sm.id DESC
+      )
+      ''';
 
-    final rows = await _queryMaps(pool, '''
+    final where = <String>[
+      '(COALESCE(ss.devreden_qty, 0) <> 0 '
+          'OR COALESCE(pur.eklenen_qty, 0) <> 0 '
+          'OR COALESCE(sal.satilan_qty, 0) <> 0)',
+    ];
+    _addSearchCondition(where, params, 'p.search_tags', arama);
+
+    final String whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
+
+    final baseSelect =
+        '''
+      WITH
+      $startSnapshotCte,
+      purchases AS (
+        SELECT
+          sm.product_id,
+          COALESCE(SUM(sm.quantity), 0) AS eklenen_qty,
+          COALESCE(
+            SUM(
+              sm.quantity
+              * COALESCE(sm.unit_price, 0)
+              * COALESCE(sm.currency_rate, 1)
+            ),
+            0
+          ) AS eklenen_value
+        FROM stock_movements sm
+        WHERE ${purchaseWhere.join(' AND ')}
+        GROUP BY sm.product_id
+      ),
+      sales AS (
+        SELECT
+          sm.product_id,
+          COALESCE(SUM(sm.quantity), 0) AS satilan_qty,
+          COALESCE(
+            SUM(
+              sm.quantity
+              * COALESCE(sm.unit_price, 0)
+              * COALESCE(sm.currency_rate, 1)
+            ),
+            0
+          ) AS satis_value,
+          COALESCE(
+            SUM(sm.quantity * COALESCE(sm.running_cost, 0)),
+            0
+          ) AS cogs_value
+        FROM stock_movements sm
+        WHERE ${saleWhere.join(' AND ')}
+        GROUP BY sm.product_id
+      )
       SELECT
+        p.id,
+        p.kod,
+        p.ad,
+        COALESCE(p.grubu, '') AS grup,
+        p.ozellikler,
+        COALESCE(p.birim, 'Adet') AS birim,
+        COALESCE(ss.devreden_qty, 0) AS devreden,
+        COALESCE(pur.eklenen_qty, 0) AS eklenen,
+        (COALESCE(ss.devreden_qty, 0) + COALESCE(pur.eklenen_qty, 0)) AS devreden_eklenen,
+        COALESCE(sal.satilan_qty, 0) AS satilan,
+        (COALESCE(ss.devreden_qty, 0) + COALESCE(pur.eklenen_qty, 0) - COALESCE(sal.satilan_qty, 0)) AS kalan,
         (
-          SELECT COALESCE(SUM(cat.amount), 0)
-          FROM current_account_transactions cat
-          WHERE
-            (
-              LOWER(COALESCE(cat.source_type, '')) LIKE '%satis%'
-              OR LOWER(COALESCE(cat.source_type, '')) LIKE '%satış%'
-            )
-            $catWhereSql
-        ) AS ciro,
+          (COALESCE(ss.devreden_qty, 0) * COALESCE(ss.devreden_cost, 0))
+          + COALESCE(pur.eklenen_value, 0)
+        ) AS dev_ekl_stok_degeri,
+        COALESCE(sal.cogs_value, 0) AS sat_mal_top_alis_degeri,
+        COALESCE(sal.satis_value, 0) AS toplam_satis_degeri,
         (
-          SELECT COALESCE(SUM(cat.amount), 0)
-          FROM current_account_transactions cat
-          WHERE
-            (
-              LOWER(COALESCE(cat.source_type, '')) LIKE '%alis%'
-              OR LOWER(COALESCE(cat.source_type, '')) LIKE '%alış%'
-            )
-            $catWhereSql
-        ) AS maliyet,
-        (
-          SELECT COALESCE(SUM(e.tutar), 0)
+          (
+            (COALESCE(ss.devreden_qty, 0) * COALESCE(ss.devreden_cost, 0))
+            + COALESCE(pur.eklenen_value, 0)
+          )
+          - COALESCE(sal.cogs_value, 0)
+        ) AS kalan_stok_degeri,
+        (COALESCE(sal.satis_value, 0) - COALESCE(sal.cogs_value, 0)) AS brut_kar
+      FROM products p
+      LEFT JOIN start_snapshot ss ON ss.product_id = p.id
+      LEFT JOIN purchases pur ON pur.product_id = p.id
+      LEFT JOIN sales sal ON sal.product_id = p.id
+      $whereSql
+    ''';
+
+    final baseQuery =
+        '''
+      SELECT base.*, ${sortExpr(sortKey)} AS sort_val
+      FROM ($baseSelect) base
+    ''';
+
+    final pageResult = await _fetchKeysetPageById(
+      pool: pool,
+      baseQuery: baseQuery,
+      paramsBase: params,
+      sortAlias: 'sort_val',
+      sortAscending: sortAscending,
+      pageSize: pageSize,
+      cursor: cursor,
+      idColumn: 'id',
+    );
+
+    final mappedRows = pageResult.rows
+        .map((item) {
+          final features = _parseFirstThreeFeatureBadges(item['ozellikler']);
+          final String featuresText = features.isEmpty
+              ? '-'
+              : features.map((item) => item.name).join('\n');
+
+          final devreden = _toDouble(item['devreden']);
+          final eklenen = _toDouble(item['eklenen']);
+          final devredenEklenen = _toDouble(item['devreden_eklenen']);
+          final satilan = _toDouble(item['satilan']);
+          final kalan = _toDouble(item['kalan']);
+
+          final devEklStokDegeri = _toDouble(item['dev_ekl_stok_degeri']);
+          final satMalTopAlisDegeri = _toDouble(
+            item['sat_mal_top_alis_degeri'],
+          );
+          final toplamSatisDegeri = _toDouble(item['toplam_satis_degeri']);
+          final kalanStokDegeri = _toDouble(item['kalan_stok_degeri']);
+          final brutKar = _toDouble(item['brut_kar']);
+
+          return RaporSatiri(
+            id: 'profit_loss_${item['id']}',
+            cells: {
+              'kod': item['kod']?.toString() ?? '-',
+              'ad': item['ad']?.toString() ?? '-',
+              'grup': item['grup']?.toString() ?? '-',
+              'ozellik': featuresText,
+              'devreden': _formatNumber(devreden),
+              'eklenen': _formatNumber(eklenen),
+              'devreden_eklenen': _formatNumber(devredenEklenen),
+              'satilan': _formatNumber(satilan),
+              'kalan': _formatNumber(kalan),
+              'birim': item['birim']?.toString() ?? '-',
+              'dev_ekl_stok_degeri': _formatMoney(devEklStokDegeri),
+              'sat_mal_top_alis_degeri': _formatMoney(satMalTopAlisDegeri),
+              'toplam_satis_degeri': _formatMoney(toplamSatisDegeri),
+              'kalan_stok_degeri': _formatMoney(kalanStokDegeri),
+              'brut_kar': _formatMoney(brutKar),
+            },
+            extra: {
+              'features': features
+                  .map(
+                    (item) => <String, dynamic>{
+                      'name': item.name,
+                      'color': item.color,
+                    },
+                  )
+                  .toList(growable: false),
+            },
+            amountValue: brutKar,
+            sortValues: {
+              'kod': item['kod'],
+              'ad': item['ad'],
+              'grup': item['grup'],
+              'devreden': devreden,
+              'eklenen': eklenen,
+              'devreden_eklenen': devredenEklenen,
+              'satilan': satilan,
+              'kalan': kalan,
+              'birim': item['birim'],
+              'dev_ekl_stok_degeri': devEklStokDegeri,
+              'sat_mal_top_alis_degeri': satMalTopAlisDegeri,
+              'toplam_satis_degeri': toplamSatisDegeri,
+              'kalan_stok_degeri': kalanStokDegeri,
+              'brut_kar': brutKar,
+            },
+          );
+        })
+        .toList(growable: false);
+
+    final topSummaryKey = _summaryCacheKey(
+      reportId: rapor.id,
+      filtreler: filtreler,
+      arama: arama,
+      extra: 'profit_loss_top',
+    );
+    final topSummary = await _getOrComputeProfitLossTopSummary(
+      cacheKey: topSummaryKey,
+      loader: () async {
+        final summaryRows = await _queryMaps(pool, '''
+          SELECT
+            COUNT(*) AS kayit,
+            COUNT(DISTINCT base.birim) AS birim_sayisi,
+            MIN(base.birim) AS birim_tek,
+            COALESCE(SUM(base.devreden), 0) AS devreden,
+            COALESCE(SUM(base.eklenen), 0) AS eklenen,
+            COALESCE(SUM(base.devreden_eklenen), 0) AS devreden_eklenen,
+            COALESCE(SUM(base.satilan), 0) AS satilan,
+            COALESCE(SUM(base.kalan), 0) AS kalan,
+            COALESCE(SUM(base.dev_ekl_stok_degeri), 0) AS dev_ekl_stok_degeri,
+            COALESCE(SUM(base.sat_mal_top_alis_degeri), 0) AS sat_mal_top_alis_degeri,
+            COALESCE(SUM(base.toplam_satis_degeri), 0) AS toplam_satis_degeri,
+            COALESCE(SUM(base.kalan_stok_degeri), 0) AS kalan_stok_degeri,
+            COALESCE(SUM(base.brut_kar), 0) AS brut_kar
+          FROM ($baseSelect) base
+          ''', params);
+
+        final data = summaryRows.isEmpty
+            ? const <String, dynamic>{}
+            : summaryRows.first;
+        final birimSayisi = _toInt(data['birim_sayisi']) ?? 0;
+        final String birim = birimSayisi == 1
+            ? (data['birim_tek']?.toString() ?? '')
+            : '';
+
+        final devreden = _toDouble(data['devreden']);
+        final eklenen = _toDouble(data['eklenen']);
+        final devredenEklenen = _toDouble(data['devreden_eklenen']);
+        final satilan = _toDouble(data['satilan']);
+        final kalan = _toDouble(data['kalan']);
+        final devEklStokDegeri = _toDouble(data['dev_ekl_stok_degeri']);
+        final satMalTopAlisDegeri = _toDouble(data['sat_mal_top_alis_degeri']);
+        final toplamSatisDegeri = _toDouble(data['toplam_satis_degeri']);
+        final kalanStokDegeri = _toDouble(data['kalan_stok_degeri']);
+        final brutKar = _toDouble(data['brut_kar']);
+
+        final expWhere = <String>[];
+        if (filtreler.baslangicTarihi != null) {
+          expWhere.add('e.tarih >= @baslangic');
+        }
+        if (filtreler.bitisTarihi != null) {
+          expWhere.add('e.tarih < @bitis');
+        }
+        final String expWhereSql =
+            expWhere.isEmpty ? '' : 'WHERE ${expWhere.join(' AND ')}';
+        final expRows = await _queryMaps(pool, '''
+          SELECT COALESCE(SUM(e.tutar), 0) AS gider
           FROM expenses e
           $expWhereSql
-        ) AS gider
-      ''', params);
+          ''', params);
+        final gider = expRows.isEmpty ? 0.0 : _toDouble(expRows.first['gider']);
+        final netKar = brutKar - gider;
 
-    final data = rows.isEmpty ? const <String, dynamic>{} : rows.first;
-    final double ciro = _toDouble(data['ciro']);
-    final double maliyet = _toDouble(data['maliyet']);
-    final double giderToplam = _toDouble(data['gider']);
+        final headerInfo = <String, dynamic>{
+          'profit_loss_totals': <Map<String, String>>[
+            {
+              'label': 'Devreden',
+              'value': _formatNumber(devreden),
+              'unit': birim,
+            },
+            {
+              'label': 'Eklenen',
+              'value': _formatNumber(eklenen),
+              'unit': birim,
+            },
+            {
+              'label': 'Devreden + Eklenen',
+              'value': _formatNumber(devredenEklenen),
+              'unit': birim,
+            },
+            {
+              'label': 'Satılan',
+              'value': _formatNumber(satilan),
+              'unit': birim,
+            },
+            {
+              'label': 'Kalan',
+              'value': _formatNumber(kalan),
+              'unit': birim,
+            },
+            {
+              'label': 'Dev. + Ekl. Stok Değeri',
+              'value': _formatMoney(devEklStokDegeri),
+              'unit': '',
+            },
+            {
+              'label': 'Sat. Mal. Top. Alış Değeri',
+              'value': _formatMoney(satMalTopAlisDegeri),
+              'unit': '',
+            },
+            {
+              'label': 'Toplam Satış Değeri',
+              'value': _formatMoney(toplamSatisDegeri),
+              'unit': '',
+            },
+            {
+              'label': 'Kalan Stok Değeri',
+              'value': _formatMoney(kalanStokDegeri),
+              'unit': '',
+            },
+            {
+              'label': 'Brüt Kar',
+              'value': _formatMoney(brutKar),
+              'unit': '',
+            },
+          ],
+        };
 
-    final double brutKar = ciro - maliyet;
-    final double netKar = brutKar - giderToplam;
-
-    final String donem = filtreOzetiniOlustur(filtreler).isEmpty
-        ? tr('common.all')
-        : filtreOzetiniOlustur(filtreler);
-
-    final List<RaporSatiri> allRows = [
-      RaporSatiri(
-        id: 'kar_zarar_ciro',
-        cells: {
-          'donem': donem,
-          'ciro': _formatMoney(ciro),
-          'maliyet': _formatMoney(maliyet),
-          'brut_kar': _formatMoney(brutKar),
-          'gider': _formatMoney(giderToplam),
-          'net_kar': _formatMoney(netKar),
-        },
-        amountValue: netKar,
-        sortValues: {
-          'ciro': ciro,
-          'maliyet': maliyet,
-          'brut_kar': brutKar,
-          'gider': giderToplam,
-          'net_kar': netKar,
-        },
-      ),
-    ];
-
-    final filteredRows = _applySearch(allRows, arama);
+        return (
+          cards: <RaporOzetKarti>[
+            RaporOzetKarti(
+              labelKey: 'reports.summary.net_profit',
+              value: _formatMoney(netKar),
+              icon: Icons.analytics_outlined,
+              accentColor: AppPalette.slate,
+            ),
+          ],
+          headerInfo: headerInfo,
+        );
+      },
+    );
 
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('donem', 'common.date_range', 280),
+        _column('kod', 'Kod no', 110),
+        _column('ad', 'Adı', 220),
+        _column('grup', 'Grubu', 120),
+        _column('ozellik', 'Özellik', 170, allowSorting: false),
         _column(
-          'ciro',
-          'reports.columns.turnover',
-          130,
+          'devreden',
+          'Devreden',
+          110,
           alignment: Alignment.centerRight,
         ),
         _column(
-          'maliyet',
-          'reports.columns.cost',
-          130,
+          'eklenen',
+          'Eklenen',
+          110,
+          alignment: Alignment.centerRight,
+        ),
+        _column(
+          'devreden_eklenen',
+          'Devreden + eklenen',
+          140,
+          alignment: Alignment.centerRight,
+        ),
+        _column(
+          'satilan',
+          'Satılan',
+          110,
+          alignment: Alignment.centerRight,
+        ),
+        _column('kalan', 'Kalan', 110, alignment: Alignment.centerRight),
+        _column('birim', 'Ölçü', 90),
+        _column(
+          'dev_ekl_stok_degeri',
+          'Dev. + ekl. stok değeri',
+          170,
+          alignment: Alignment.centerRight,
+        ),
+        _column(
+          'sat_mal_top_alis_degeri',
+          'Sat. mal. top. alış değeri',
+          190,
+          alignment: Alignment.centerRight,
+        ),
+        _column(
+          'toplam_satis_degeri',
+          'Toplam satış değeri',
+          170,
+          alignment: Alignment.centerRight,
+        ),
+        _column(
+          'kalan_stok_degeri',
+          'Kalan stok değeri',
+          170,
           alignment: Alignment.centerRight,
         ),
         _column(
           'brut_kar',
-          'reports.columns.gross_profit',
-          130,
-          alignment: Alignment.centerRight,
-        ),
-        _column(
-          'gider',
-          'reports.columns.expense',
-          130,
-          alignment: Alignment.centerRight,
-        ),
-        _column(
-          'net_kar',
-          'reports.columns.net_profit',
-          130,
+          'Brüt kar',
+          140,
           alignment: Alignment.centerRight,
         ),
       ],
-      rows: filteredRows,
-      summaryCards: [
-        RaporOzetKarti(
-          labelKey: 'reports.summary.turnover',
-          value: _formatMoney(ciro),
-          icon: Icons.point_of_sale_rounded,
-          accentColor: AppPalette.red,
-        ),
-        RaporOzetKarti(
-          labelKey: 'reports.summary.gross_profit',
-          value: _formatMoney(brutKar),
-          icon: Icons.show_chart_rounded,
-          accentColor: const Color(0xFF27AE60),
-        ),
-        RaporOzetKarti(
-          labelKey: 'reports.summary.net_profit',
-          value: _formatMoney(netKar),
-          icon: Icons.analytics_outlined,
-          accentColor: AppPalette.slate,
-        ),
-      ],
-      totalCount: filteredRows.length,
-      page: 1,
+      rows: mappedRows,
+      summaryCards: topSummary.cards,
+      headerInfo: topSummary.headerInfo,
+      totalCount: 0,
+      page: page,
       pageSize: pageSize,
-      hasNextPage: false,
-      cursorPagination: false,
+      hasNextPage: pageResult.hasNextPage,
+      cursorPagination: true,
+      nextCursor: pageResult.nextCursor,
       mainTableLabel: tr(rapor.labelKey),
     );
+  }
+
+  List<({String name, int? color})> _parseFirstThreeFeatureBadges(dynamic raw) {
+    final String text = (raw?.toString() ?? '').trim();
+    if (text.isEmpty) return const <({String name, int? color})>[];
+    if (text == '[]') return const <({String name, int? color})>[];
+
+    try {
+      final decoded = jsonDecode(text);
+      if (decoded is List) {
+        if (decoded.isEmpty) return const <({String name, int? color})>[];
+
+        final result = <({String name, int? color})>[];
+        for (final item in decoded) {
+          if (item is! Map) continue;
+          final name = item['name']?.toString().trim() ?? '';
+          if (name.isEmpty) continue;
+
+          final dynamic rawColor = item['color'];
+          int? color;
+          if (rawColor is int) {
+            color = rawColor;
+          } else if (rawColor is num) {
+            color = rawColor.toInt();
+          } else if (rawColor is String) {
+            color = int.tryParse(rawColor);
+          }
+
+          result.add((name: name, color: color));
+          if (result.length >= 3) break;
+        }
+        return result;
+      }
+    } catch (_) {
+      // ignore
+    }
+
+    // JSON benzeri bir format varsa parçalamayalım (UI'de ham JSON görünmesin).
+    if (text.startsWith('[') || text.startsWith('{')) {
+      return const <({String name, int? color})>[];
+    }
+
+    final String normalized = text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+    List<String> parts;
+    if (normalized.contains('|')) {
+      parts = normalized.split('|');
+    } else if (normalized.contains('\n')) {
+      parts = normalized.split('\n');
+    } else if (normalized.contains(';')) {
+      parts = normalized.split(';');
+    } else if (normalized.contains(',')) {
+      parts = normalized.split(',');
+    } else {
+      parts = <String>[normalized];
+    }
+
+    final cleaned = parts
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+
+    return cleaned
+        .take(3)
+        .map((name) => (name: name, color: null))
+        .toList(growable: false);
+  }
+
+  (String, String, String) _splitFirstThreeFeatures(dynamic raw) {
+    final String text = (raw?.toString() ?? '').trim();
+    if (text.isEmpty) return ('-', '-', '-');
+
+    final String normalized =
+        text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+
+    List<String> parts;
+    if (normalized.contains('|')) {
+      parts = normalized.split('|');
+    } else if (normalized.contains('\n')) {
+      parts = normalized.split('\n');
+    } else if (normalized.contains(',')) {
+      parts = normalized.split(',');
+    } else if (normalized.contains(';')) {
+      parts = normalized.split(';');
+    } else {
+      parts = <String>[normalized];
+    }
+
+    final cleaned = parts
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+
+    final String a = cleaned.isNotEmpty ? cleaned[0] : '-';
+    final String b = cleaned.length > 1 ? cleaned[1] : '-';
+    final String c = cleaned.length > 2 ? cleaned[2] : '-';
+    return (a, b, c);
   }
 
   Future<RaporSonucu> _buildOptimizedKullaniciIslemRaporu(
@@ -10079,6 +10543,46 @@ _kolonStandartlari = <String, _RaporKolonStandardi>{
   ),
   'toplam_miktar': _RaporKolonStandardi(
     minWidth: 120,
+    alignment: Alignment.centerRight,
+  ),
+  // Kar/Zarar (Ürün bazlı)
+  'ozellik1': _RaporKolonStandardi(minWidth: 120),
+  'ozellik2': _RaporKolonStandardi(minWidth: 120),
+  'ozellik3': _RaporKolonStandardi(minWidth: 120),
+  'devreden': _RaporKolonStandardi(
+    minWidth: 110,
+    alignment: Alignment.centerRight,
+  ),
+  'eklenen': _RaporKolonStandardi(
+    minWidth: 110,
+    alignment: Alignment.centerRight,
+  ),
+  'devreden_eklenen': _RaporKolonStandardi(
+    minWidth: 140,
+    alignment: Alignment.centerRight,
+  ),
+  'satilan': _RaporKolonStandardi(
+    minWidth: 110,
+    alignment: Alignment.centerRight,
+  ),
+  'kalan': _RaporKolonStandardi(
+    minWidth: 110,
+    alignment: Alignment.centerRight,
+  ),
+  'dev_ekl_stok_degeri': _RaporKolonStandardi(
+    minWidth: 170,
+    alignment: Alignment.centerRight,
+  ),
+  'sat_mal_top_alis_degeri': _RaporKolonStandardi(
+    minWidth: 190,
+    alignment: Alignment.centerRight,
+  ),
+  'toplam_satis_degeri': _RaporKolonStandardi(
+    minWidth: 170,
+    alignment: Alignment.centerRight,
+  ),
+  'kalan_stok_degeri': _RaporKolonStandardi(
+    minWidth: 170,
     alignment: Alignment.centerRight,
   ),
   'birim': _RaporKolonStandardi(minWidth: 90),

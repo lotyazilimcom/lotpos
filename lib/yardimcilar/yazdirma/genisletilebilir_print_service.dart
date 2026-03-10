@@ -1190,13 +1190,12 @@ class GenisletilebilirPrintService {
     List<ExpandableRowData> data,
     pw.Context context,
     bool printFeatures,
-    bool
-    showBackground, // Parametre olarak kaldı ama kullanmayacağız (Classic style)
+    bool showBackground, // Parametre olarak kaldı ama kullanmayacağız (Classic style)
     {
-    List<double>? mainColumnFlexes,
-    Set<int>? rightAlignedMainColumnIndices,
-    bool forceSingleLine = false,
-  }
+      List<double>? mainColumnFlexes,
+      Set<int>? rightAlignedMainColumnIndices,
+      bool forceSingleLine = false,
+    }
   ) {
     // Column Width Calculation
     Map<int, pw.TableColumnWidth> columnWidths = {};
@@ -1291,14 +1290,11 @@ class GenisletilebilirPrintService {
       };
     }
 
-    final bool hasFlexOverride =
-        mainColumnFlexes != null && mainColumnFlexes.length == headers.length;
-
     for (int index = 0; index < headers.length; index++) {
       double flexValue = 1;
 
-      if (hasFlexOverride) {
-        flexValue = mainColumnFlexes![index];
+      if (mainColumnFlexes != null && mainColumnFlexes.length == headers.length) {
+        flexValue = mainColumnFlexes[index];
         if (flexValue <= 0) flexValue = 1;
         columnWidths[index] = pw.FlexColumnWidth(flexValue);
         continue;
@@ -1554,7 +1550,15 @@ class GenisletilebilirPrintService {
                   pw.TableRow(
                     children: item.mainRow.asMap().entries.map((e) {
                       final idx = e.key;
-                      final cellData = e.value;
+                      String cellData = e.value;
+                      if (forceSingleLine) {
+                        cellData = cellData
+                            .replaceAll('\r\n', ' ')
+                            .replaceAll('\n', ' ')
+                            .replaceAll('\r', ' ')
+                            .replaceAll(RegExp(r'\s+'), ' ')
+                            .trim();
+                      }
                       return pw.Padding(
                         padding: const pw.EdgeInsets.only(
                           top: 4,

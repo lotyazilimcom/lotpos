@@ -476,9 +476,11 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
           oldWidget.data != widget.data ||
           oldWidget.totalRecords != widget.totalRecords;
 
-      // CRITICAL FIX: When rows are expanded or data changes, ensure we have a focused row
-      // but only if there isn't one already to avoid jumping.
-      if (_focusedRowIndex == null && widget.data.isNotEmpty) {
+      // When focusRowOnExpand is disabled, expansion should not force selection/focus.
+      // (Used by Raporlar: chevron should expand without selecting the row.)
+      if (widget.focusRowOnExpand &&
+          _focusedRowIndex == null &&
+          widget.data.isNotEmpty) {
         setState(() {
           _focusedRowIndex = targetIndex;
           _focusedDetailRowIndex = null;
