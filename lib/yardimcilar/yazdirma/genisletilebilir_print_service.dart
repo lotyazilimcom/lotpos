@@ -108,6 +108,11 @@ class GenisletilebilirPrintService {
     String? dateInterval,
     Map<String, dynamic>? headerInfo,
     Map<String, bool>? headerFieldToggles,
+    List<double>? mainColumnFlexes,
+    Set<int>? rightAlignedMainColumnIndices,
+    bool forceMainSingleLine = false,
+    Map<String, String>? footerTotals,
+    String? footerTotalsTitle,
   }) async {
     final doc = pw.Document();
 
@@ -189,12 +194,83 @@ class GenisletilebilirPrintService {
             context,
             printFeatures,
             showBackground,
+            mainColumnFlexes: mainColumnFlexes,
+            rightAlignedMainColumnIndices: rightAlignedMainColumnIndices,
+            forceSingleLine: forceMainSingleLine,
           ),
+          if (footerTotals != null && footerTotals.isNotEmpty)
+            _buildFooterTotalsBlock(
+              title: footerTotalsTitle ?? '',
+              totals: footerTotals,
+            ),
         ],
       ),
     );
 
     return doc.save();
+  }
+
+  static pw.Widget _buildFooterTotalsBlock({
+    required String title,
+    required Map<String, String> totals,
+  }) {
+    final entries = totals.entries.toList()
+      ..sort((a, b) => a.key.compareTo(b.key));
+    return pw.Container(
+      margin: const pw.EdgeInsets.only(top: 14),
+      child: pw.Align(
+        alignment: pw.Alignment.centerRight,
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.end,
+          children: [
+            if (title.trim().isNotEmpty)
+              pw.Text(
+                title.trim(),
+                style: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  fontSize: 9,
+                ),
+              ),
+            if (title.trim().isNotEmpty) pw.SizedBox(height: 6),
+            pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.end,
+              children: entries.map((entry) {
+                return pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 2),
+                  child: pw.Row(
+                    mainAxisSize: pw.MainAxisSize.min,
+                    children: [
+                      pw.Container(
+                        constraints: const pw.BoxConstraints(
+                          minWidth: 120,
+                          maxWidth: 220,
+                        ),
+                        child: pw.Text(
+                          entry.key,
+                          style: const pw.TextStyle(fontSize: 8),
+                        ),
+                      ),
+                      pw.SizedBox(width: 12),
+                      pw.Container(
+                        width: 90,
+                        alignment: pw.Alignment.centerRight,
+                        child: pw.Text(
+                          entry.value,
+                          style: pw.TextStyle(
+                            fontSize: 8,
+                            fontWeight: pw.FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   static pw.Widget _buildInfoCard(
@@ -1116,6 +1192,11 @@ class GenisletilebilirPrintService {
     bool printFeatures,
     bool
     showBackground, // Parametre olarak kaldı ama kullanmayacağız (Classic style)
+    {
+    List<double>? mainColumnFlexes,
+    Set<int>? rightAlignedMainColumnIndices,
+    bool forceSingleLine = false,
+  }
   ) {
     // Column Width Calculation
     Map<int, pw.TableColumnWidth> columnWidths = {};
@@ -1202,8 +1283,26 @@ class GenisletilebilirPrintService {
       rightAlignedColumns = {5, 6, 9};
     }
 
+    if (rightAlignedMainColumnIndices != null &&
+        rightAlignedMainColumnIndices.isNotEmpty) {
+      rightAlignedColumns = <int>{
+        ...rightAlignedColumns,
+        ...rightAlignedMainColumnIndices,
+      };
+    }
+
+    final bool hasFlexOverride =
+        mainColumnFlexes != null && mainColumnFlexes.length == headers.length;
+
     for (int index = 0; index < headers.length; index++) {
       double flexValue = 1;
+
+      if (hasFlexOverride) {
+        flexValue = mainColumnFlexes![index];
+        if (flexValue <= 0) flexValue = 1;
+        columnWidths[index] = pw.FlexColumnWidth(flexValue);
+        continue;
+      }
 
       if (isProductCardSerialListTable) {
         switch (index) {
@@ -1496,6 +1595,10 @@ class GenisletilebilirPrintService {
                           textAlign: rightAlignedColumns.contains(idx)
                               ? pw.TextAlign.right
                               : pw.TextAlign.left,
+                          maxLines: forceSingleLine ? 1 : null,
+                          overflow: forceSingleLine
+                              ? pw.TextOverflow.clip
+                              : pw.TextOverflow.visible,
                         ),
                       );
                     }).toList(),

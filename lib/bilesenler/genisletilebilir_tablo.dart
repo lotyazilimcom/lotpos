@@ -88,6 +88,16 @@ class GenisletilebilirTablo<T> extends StatefulWidget {
   final int? headerMaxLines;
   final TextOverflow? headerOverflow;
 
+  /// When enabled, tapping the already focused row clears focus/selection.
+  ///
+  /// This does not affect keyboard navigation; it only applies to pointer taps.
+  final bool deselectOnRepeatedRowTap;
+
+  /// When enabled, expanding a row moves focus to that row.
+  ///
+  /// Set to false if you want expansion (chevron tap) to not change selection.
+  final bool focusRowOnExpand;
+
   /// Helper to get count of items in detail view for keyboard navigation
   final int Function(T item)? getDetailItemCount;
 
@@ -143,6 +153,8 @@ class GenisletilebilirTablo<T> extends StatefulWidget {
     this.headerTextStyle,
     this.headerMaxLines,
     this.headerOverflow,
+    this.deselectOnRepeatedRowTap = false,
+    this.focusRowOnExpand = true,
     this.getDetailItemCount,
     this.focusNode,
     this.searchFocusNode,
@@ -240,9 +252,11 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
 
     // CRITICAL: Set _focusedRowIndex when expanding (for detail navigation)
     if (!isCurrentlyExpanded) {
-      setState(() {
-        _focusedRowIndex = index;
-      });
+      if (widget.focusRowOnExpand) {
+        setState(() {
+          _focusedRowIndex = index;
+        });
+      }
     }
 
     if (widget.onExpansionChanged != null) {
@@ -545,7 +559,9 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
       } else {
         _expandedIndex = index;
         // CRITICAL: Set focused row to the expanded row for keyboard navigation
-        _focusedRowIndex = index;
+        if (widget.focusRowOnExpand) {
+          _focusedRowIndex = index;
+        }
       }
     });
 
@@ -956,15 +972,6 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                             mouseCursor: WidgetStateMouseCursor
                                                 .clickable,
                                             onTap: () {
-                                              setState(
-                                                () => _focusedRowIndex = index,
-                                              );
-
-                                              widget.onFocusedRowChanged?.call(
-                                                item,
-                                                index,
-                                              );
-
                                               final isDoubleTap =
                                                   widget.onRowDoubleTap !=
                                                       null &&
@@ -978,6 +985,22 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                                 );
                                                 return;
                                               }
+
+                                              if (widget
+                                                      .deselectOnRepeatedRowTap &&
+                                                  _focusedRowIndex == index) {
+                                                _clearAllSelections();
+                                                return;
+                                              }
+
+                                              setState(
+                                                () => _focusedRowIndex = index,
+                                              );
+
+                                              widget.onFocusedRowChanged?.call(
+                                                item,
+                                                index,
+                                              );
 
                                               if (widget.expandOnRowTap) {
                                                 _toggleExpand(index);
@@ -1221,14 +1244,6 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                                     WidgetStateMouseCursor
                                                         .clickable,
                                                 onTap: () {
-                                                  setState(
-                                                    () => _focusedRowIndex =
-                                                        index,
-                                                  );
-
-                                                  widget.onFocusedRowChanged
-                                                      ?.call(item, index);
-
                                                   final isDoubleTap =
                                                       widget.onRowDoubleTap !=
                                                           null &&
@@ -1245,6 +1260,22 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                                     );
                                                     return;
                                                   }
+
+                                                  if (widget
+                                                          .deselectOnRepeatedRowTap &&
+                                                      _focusedRowIndex ==
+                                                          index) {
+                                                    _clearAllSelections();
+                                                    return;
+                                                  }
+
+                                                  setState(
+                                                    () => _focusedRowIndex =
+                                                        index,
+                                                  );
+
+                                                  widget.onFocusedRowChanged
+                                                      ?.call(item, index);
 
                                                   if (widget.expandOnRowTap) {
                                                     _toggleExpand(index);

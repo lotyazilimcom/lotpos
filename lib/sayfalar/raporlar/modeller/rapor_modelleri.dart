@@ -104,6 +104,25 @@ class RaporOzetKarti {
   final String? subtitle;
 }
 
+class RaporIslemToplami {
+  const RaporIslemToplami({
+    required this.rawIslem,
+    required this.islem,
+    required this.tutar,
+    required this.adet,
+  });
+
+  /// Filtre değeri olarak backend'e gönderilecek ham işlem etiketi.
+  final String rawIslem;
+
+  /// UI'de gösterilecek işlem etiketi (çevirilmiş/profesyonel).
+  final String islem;
+  final String tutar;
+
+  /// Bu işlem türüne ait kayıt adedi (facet count).
+  final int adet;
+}
+
 class RaporSatiri {
   const RaporSatiri({
     required this.id,
@@ -278,6 +297,7 @@ class RaporSonucu {
     required this.columns,
     required this.rows,
     this.summaryCards = const <RaporOzetKarti>[],
+    this.islemToplamlari = const <RaporIslemToplami>[],
     this.totalCount = 0,
     this.page = 1,
     this.pageSize = 25,
@@ -294,6 +314,7 @@ class RaporSonucu {
   final List<RaporKolonTanimi> columns;
   final List<RaporSatiri> rows;
   final List<RaporOzetKarti> summaryCards;
+  final List<RaporIslemToplami> islemToplamlari;
   final int totalCount;
   final int page;
   final int pageSize;

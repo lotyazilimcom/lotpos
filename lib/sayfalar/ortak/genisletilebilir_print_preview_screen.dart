@@ -45,6 +45,10 @@ class GenisletilebilirPrintPreviewScreen extends StatefulWidget {
   final String? dateInterval;
   final bool initialShowDetails;
   final List<bool>? initialMainColumnVisibility;
+  final List<bool>? defaultMainColumnVisibility;
+  final List<double>? mainColumnFlexes;
+  final Set<int>? rightAlignedMainColumnIndices;
+  final bool forceMainSingleLine;
   final Map<String, dynamic>? headerInfo;
   final String? mainTableLabel;
   final String? detailTableLabel;
@@ -52,6 +56,8 @@ class GenisletilebilirPrintPreviewScreen extends StatefulWidget {
   final List<CustomContentToggle>? headerToggles;
   final ProcessDetailCellCallback? onProcessDetailCell;
   final bool hideFeaturesCheckbox;
+  final Map<String, String>? footerTotals;
+  final String? footerTotalsTitle;
 
   const GenisletilebilirPrintPreviewScreen({
     super.key,
@@ -61,6 +67,10 @@ class GenisletilebilirPrintPreviewScreen extends StatefulWidget {
     this.dateInterval,
     this.initialShowDetails = false,
     this.initialMainColumnVisibility,
+    this.defaultMainColumnVisibility,
+    this.mainColumnFlexes,
+    this.rightAlignedMainColumnIndices,
+    this.forceMainSingleLine = false,
     this.headerInfo,
     this.mainTableLabel,
     this.detailTableLabel,
@@ -68,6 +78,8 @@ class GenisletilebilirPrintPreviewScreen extends StatefulWidget {
     this.headerToggles,
     this.onProcessDetailCell,
     this.hideFeaturesCheckbox = false,
+    this.footerTotals,
+    this.footerTotalsTitle,
   });
 
   @override
@@ -133,8 +145,12 @@ class _GenisletilebilirPrintPreviewScreenState
 
     // Initialize Main Column Visibility (default: all true)
     final initialMain = widget.initialMainColumnVisibility;
+    final defaultMain = widget.defaultMainColumnVisibility;
     if (initialMain != null && initialMain.length == widget.headers.length) {
       _visibleMainIndices = List<bool>.from(initialMain);
+    } else if (defaultMain != null &&
+        defaultMain.length == widget.headers.length) {
+      _visibleMainIndices = List<bool>.from(defaultMain);
     } else {
       _visibleMainIndices = List.filled(widget.headers.length, true);
     }
@@ -386,6 +402,32 @@ class _GenisletilebilirPrintPreviewScreenState
       );
     }).toList();
 
+    List<double>? filteredMainFlexes;
+    final originalFlexes = widget.mainColumnFlexes;
+    if (originalFlexes != null && originalFlexes.length == widget.headers.length) {
+      filteredMainFlexes = <double>[];
+      for (int i = 0; i < _visibleMainIndices.length; i++) {
+        if (_visibleMainIndices[i]) {
+          filteredMainFlexes.add(originalFlexes[i]);
+        }
+      }
+    }
+
+    Set<int>? filteredRightAlignedIndices;
+    final originalRightAligned = widget.rightAlignedMainColumnIndices;
+    if (originalRightAligned != null && originalRightAligned.isNotEmpty) {
+      final mapped = <int>{};
+      int newIndex = 0;
+      for (int i = 0; i < _visibleMainIndices.length; i++) {
+        if (!_visibleMainIndices[i]) continue;
+        if (originalRightAligned.contains(i)) {
+          mapped.add(newIndex);
+        }
+        newIndex++;
+      }
+      filteredRightAlignedIndices = mapped;
+    }
+
     // Call the SPECIALIZED service
     final bytes = await GenisletilebilirPrintService.generatePdf(
       format: format,
@@ -399,6 +441,11 @@ class _GenisletilebilirPrintPreviewScreenState
       dateInterval: widget.dateInterval,
       headerInfo: widget.headerInfo,
       headerFieldToggles: _headerTogglesState,
+      mainColumnFlexes: filteredMainFlexes,
+      rightAlignedMainColumnIndices: filteredRightAlignedIndices,
+      forceMainSingleLine: widget.forceMainSingleLine,
+      footerTotals: widget.footerTotals,
+      footerTotalsTitle: widget.footerTotalsTitle,
     );
 
     if (mounted) {

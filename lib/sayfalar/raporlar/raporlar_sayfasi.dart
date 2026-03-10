@@ -8,11 +8,15 @@ import '../../bilesenler/highlight_text.dart';
 import '../../bilesenler/tab_acici_scope.dart';
 import '../../bilesenler/tarih_araligi_secici_dialog.dart';
 import '../../sayfalar/ortak/genisletilebilir_print_preview_screen.dart';
+import '../../servisler/cari_hesaplar_veritabani_servisi.dart';
 import '../../temalar/app_theme.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
+import '../../yardimcilar/format_yardimcisi.dart';
 import '../../yardimcilar/islem_turu_renkleri.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import '../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
+import '../alimsatimislemleri/satis_sonrasi_yazdir_sayfasi.dart';
 import '../carihesaplar/modeller/cari_hesap_model.dart';
 import '../urunler_ve_depolar/urunler/modeller/urun_model.dart';
 import 'modeller/rapor_modelleri.dart';
@@ -161,6 +165,17 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   final Map<String, Map<String, bool>> _kolonGorunurluklari =
       <String, Map<String, bool>>{};
 
+  OverlayEntry? _filterDropdownOverlayEntry;
+  String? _filterDropdownExpandedKey;
+  final Map<String, LayerLink> _filterDropdownLayerLinks =
+      <String, LayerLink>{};
+
+  bool _keepDetailsOpen = false;
+  final Set<String> _expandedRowIds = <String>{};
+  final Map<String, Future<DetailTable?>> _integrationDetailFutures =
+      <String, Future<DetailTable?>>{};
+  String? _selectedRowId;
+
   @override
   void initState() {
     super.initState();
@@ -177,6 +192,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
   @override
   void dispose() {
+    _closeFilterDropdownOverlay(rebuild: false);
     _metinFiltreDebounce?.cancel();
     _belgeNoController.dispose();
     _referansNoController.dispose();
@@ -246,6 +262,16 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         _raporYukleniyor = false;
         _mevcutSayfa = sonuc.page;
         _satirSayisi = sonuc.pageSize;
+        final selectedId = _selectedRowId;
+        if (selectedId != null &&
+            !sonuc.rows.any((row) => row.id == selectedId)) {
+          _selectedRowId = null;
+        }
+        if (!_keepDetailsOpen &&
+            _expandedRowIds.isNotEmpty &&
+            !sonuc.rows.any((row) => _expandedRowIds.contains(row.id))) {
+          _expandedRowIds.clear();
+        }
         if (sonuc.cursorPagination) {
           _sayfaCursorlari[1] = null;
           if (sonuc.hasNextPage && sonuc.nextCursor != null) {
@@ -271,6 +297,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     if (rapor == null) return RaporFiltreleri.empty;
 
     bool destekler(RaporFiltreTuru tur) => rapor.supportedFilters.contains(tur);
+    final bool isTumHareketler = rapor.id == 'all_movements';
 
     return RaporFiltreleri(
       baslangicTarihi: destekler(RaporFiltreTuru.tarihAraligi)
@@ -301,10 +328,14 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           ? _filtreler.kullaniciId
           : null,
       belgeNo: destekler(RaporFiltreTuru.belgeNo)
-          ? _bosIseNull(_belgeNoController.text)
+          ? (isTumHareketler
+                ? _bosIseNull(_filtreler.belgeNo)
+                : _bosIseNull(_belgeNoController.text))
           : null,
       referansNo: destekler(RaporFiltreTuru.referansNo)
-          ? _bosIseNull(_referansNoController.text)
+          ? (isTumHareketler
+                ? _bosIseNull(_filtreler.referansNo)
+                : _bosIseNull(_referansNoController.text))
           : null,
       minTutar: destekler(RaporFiltreTuru.minTutar)
           ? _parseDouble(_minTutarController.text)
@@ -345,6 +376,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     _sayfaCursorlari
       ..clear()
       ..[1] = null;
+    _expandedRowIds.clear();
+    _selectedRowId = null;
   }
 
   List<RaporKolonTanimi> get _gorunurKolonlar {
@@ -484,6 +517,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     int? bankaId,
     int? krediKartiId,
     String? kullaniciId,
+    String? belgeNo,
+    String? referansNo,
     bool clearCari = false,
     bool clearUrun = false,
     bool clearUrunGrubu = false,
@@ -495,6 +530,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     bool clearBanka = false,
     bool clearKrediKarti = false,
     bool clearKullanici = false,
+    bool clearBelgeNo = false,
+    bool clearReferansNo = false,
   }) {
     setState(() {
       _filtreler = _filtreler.copyWith(
@@ -509,6 +546,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         bankaId: bankaId,
         krediKartiId: krediKartiId,
         kullaniciId: kullaniciId,
+        belgeNo: belgeNo,
+        referansNo: referansNo,
         clearCari: clearCari,
         clearUrun: clearUrun,
         clearUrunGrubu: clearUrunGrubu,
@@ -520,6 +559,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         clearBanka: clearBanka,
         clearKrediKarti: clearKrediKarti,
         clearKullanici: clearKullanici,
+        clearBelgeNo: clearBelgeNo,
+        clearReferansNo: clearReferansNo,
       );
       _sayfalamayiSifirla();
     });
@@ -932,44 +973,453 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   }
 
   Future<void> _openPrintPreview() async {
+    await _openPrintPreviewInternal(selectedOnly: false);
+  }
+
+  Future<void> _openSelectedPrintPreview() async {
+    await _openPrintPreviewInternal(selectedOnly: true);
+  }
+
+  bool _isSaleIntegrationRef(String integrationRef) {
+    final String lowRef = integrationRef.trim().toLowerCase();
+    return lowRef.startsWith('sale-') || lowRef.startsWith('retail-');
+  }
+
+  Future<void> _openSelectedDocumentPrint() async {
+    final String? selectedRowId = _selectedRowId;
+    if (selectedRowId == null) return;
+
+    RaporSatiri? selectedRow;
+    for (final row in _sayfaSatirlari) {
+      if (row.id == selectedRowId) {
+        selectedRow = row;
+        break;
+      }
+    }
+    if (selectedRow == null) return;
+
+    final String integrationRef =
+        selectedRow.extra['integrationRef']?.toString().trim() ?? '';
+    if (integrationRef.isEmpty) return;
+    if (!_isSaleIntegrationRef(integrationRef)) return;
+
+    int? parseInt(dynamic value) {
+      if (value is int) return value;
+      if (value is num) return value.toInt();
+      return int.tryParse(value?.toString() ?? '');
+    }
+
+    double parseDouble(dynamic value) {
+      if (value is num) return value.toDouble();
+      return double.tryParse(value?.toString() ?? '') ?? 0.0;
+    }
+
+    DateTime? parseDateTime(dynamic value) {
+      if (value is DateTime) return value;
+      if (value is String && value.trim().isNotEmpty) {
+        return DateTime.tryParse(value.trim());
+      }
+      return null;
+    }
+
+    final cariServisi = CariHesaplarVeritabaniServisi();
+
+    Map<String, dynamic>? cariIslem;
+    try {
+      cariIslem = await cariServisi.cariIslemGetirByRef(integrationRef);
+    } catch (e) {
+      debugPrint('Rapor belge yazdır cari işlemi alınamadı: $e');
+    }
+
+    CariHesapModel? cari;
+    final int? cariId = parseInt(cariIslem?['current_account_id']);
+    if (cariId != null) {
+      try {
+        cari = await cariServisi.cariHesapGetir(cariId);
+      } catch (e) {
+        debugPrint('Rapor belge yazdır cari bilgisi alınamadı: $e');
+      }
+    }
+
+    final String paraBirimi = () {
+      final raw = cariIslem?['para_birimi']?.toString().trim() ?? '';
+      if (raw.isNotEmpty) return raw;
+      return (cari?.paraBirimi.trim().isNotEmpty ?? false)
+          ? cari!.paraBirimi
+          : 'TRY';
+    }();
+
+    final double genelToplam =
+        (cariIslem == null
+                ? selectedRow.amountValue
+                : parseDouble(cariIslem['amount'] ?? cariIslem['tutar']))
+            ?.abs() ??
+        0.0;
+
+    final DateTime initialTarih =
+        (parseDateTime(cariIslem?['date'] ?? cariIslem?['tarih']) ??
+                (selectedRow.sortValues['tarih'] is DateTime
+                    ? selectedRow.sortValues['tarih'] as DateTime
+                    : null) ??
+                DateTime.now())
+            .toLocal();
+
+    final String initialFaturaNo =
+        (cariIslem?['fatura_no']?.toString() ??
+                selectedRow.cells['fatura_no'] ??
+                '')
+            .trim();
+    final String initialIrsaliyeNo =
+        (cariIslem?['irsaliye_no']?.toString() ??
+                selectedRow.cells['irsaliye_no'] ??
+                '')
+            .trim();
+
+    final String cariAdi = (cari?.adi.trim().isNotEmpty ?? false)
+        ? cari!.adi
+        : ((selectedRow.cells['yer_adi'] ?? '').trim().isNotEmpty
+              ? selectedRow.cells['yer_adi']!.trim()
+              : ((selectedRow.cells['yer'] ?? '').trim().isNotEmpty
+                    ? selectedRow.cells['yer']!.trim()
+                    : '-'));
+
+    final String cariKodu = (cari?.kodNo.trim().isNotEmpty ?? false)
+        ? cari!.kodNo
+        : ((selectedRow.cells['yer_kodu'] ?? '').trim() == '-' ||
+                  (selectedRow.cells['yer_kodu'] ?? '').trim().isEmpty
+              ? ''
+              : selectedRow.cells['yer_kodu']!.trim());
+
+    final List<Map<String, dynamic>> itemsForPrint = [];
+    try {
+      final shipments = await cariServisi.entegrasyonShipmentsGetir(
+        integrationRef,
+      );
+      for (final shipment in shipments) {
+        final raw = shipment['items'];
+        final List<dynamic> rawItems = raw is List
+            ? raw
+            : (raw is Map ? <dynamic>[raw] : const <dynamic>[]);
+
+        for (final it in rawItems) {
+          if (it is! Map) continue;
+          final map = Map<String, dynamic>.from(it);
+          itemsForPrint.add({
+            'name': map['name'] ?? map['code'] ?? '',
+            'code': map['code'] ?? '',
+            'barcode': map['barcode'] ?? '',
+            'quantity': parseDouble(map['quantity']),
+            'unit': map['unit'] ?? '',
+            'unitCost': parseDouble(
+              map['unitCost'] ??
+                  map['unit_cost'] ??
+                  map['price'] ??
+                  map['unitPrice'] ??
+                  map['unit_price'],
+            ),
+            'total': parseDouble(
+              map['total'] ??
+                  map['lineTotal'] ??
+                  map['line_total'] ??
+                  map['tutar'],
+            ),
+            'discountRate': map['discountRate'] ?? map['discount_rate'],
+            'vatRate': map['vatRate'] ?? map['vat_rate'],
+            'currency': map['currency'] ?? paraBirimi,
+            'exchangeRate': map['exchangeRate'] ?? map['exchange_rate'] ?? 1,
+            'warehouseId': map['warehouseId'] ?? map['warehouse_id'],
+            'warehouseName': map['warehouseName'] ?? map['warehouse_name'],
+            'serialNumber': map['serialNumber'] ?? map['serial_number'],
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Rapor belge yazdır ürünleri alınamadı: $e');
+    }
+
+    if (!mounted) return;
+    final bool? res = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(
+        builder: (context) => SatisSonrasiYazdirSayfasi(
+          entegrasyonRef: integrationRef,
+          cariAdi: cariAdi,
+          cariKodu: cariKodu,
+          genelToplam: genelToplam,
+          paraBirimi: paraBirimi,
+          initialFaturaNo: initialFaturaNo,
+          initialIrsaliyeNo: initialIrsaliyeNo,
+          initialTarih: initialTarih,
+          items: itemsForPrint,
+        ),
+      ),
+    );
+
+    if (res == true && mounted) {
+      await _raporuYukle(showLoading: false);
+    }
+  }
+
+  Future<DetailTable?> _resolveIntegrationDetailTable(RaporSatiri row) async {
+    final String integrationRef =
+        row.extra['integrationRef']?.toString().trim() ?? '';
+    if (integrationRef.isEmpty) return null;
+
+    final String aciklamaRaw = (row.cells['aciklama'] ?? '').trim();
+    final String? aciklama = (aciklamaRaw.isEmpty || aciklamaRaw == '-')
+        ? null
+        : aciklamaRaw;
+
+    final future = _integrationDetailFutures.putIfAbsent(
+      integrationRef,
+      () => _raporlarServisi.entegrasyonUrunDetayTablosuGetir(
+        integrationRef,
+        aciklama: aciklama,
+      ),
+    );
+
+    try {
+      return await future;
+    } catch (e) {
+      debugPrint('Rapor yazdırma detay yüklenemedi ($integrationRef): $e');
+      return null;
+    }
+  }
+
+  Future<List<ExpandableRowData>> _buildPrintableRows({
+    required List<RaporSatiri> rows,
+    required List<RaporKolonTanimi> visibleColumns,
+    required Set<String> expandedIds,
+    required bool keepDetailsOpen,
+  }) async {
+    bool shouldExpand(RaporSatiri row) =>
+        row.expandable && (keepDetailsOpen || expandedIds.contains(row.id));
+
+    final Map<String, DetailTable?> resolvedTablesByRowId =
+        <String, DetailTable?>{};
+
+    final loaders = <Future<void> Function()>[];
+    for (final row in rows) {
+      if (!shouldExpand(row)) continue;
+      if (row.detailTable != null) continue;
+      final String integrationRef =
+          row.extra['integrationRef']?.toString().trim() ?? '';
+      if (integrationRef.isEmpty) continue;
+      loaders.add(() async {
+        final table = await _resolveIntegrationDetailTable(row);
+        resolvedTablesByRowId[row.id] = table;
+      });
+    }
+
+    const int chunkSize = 6;
+    for (int i = 0; i < loaders.length; i += chunkSize) {
+      final chunk = loaders.sublist(i, math.min(i + chunkSize, loaders.length));
+      await Future.wait(chunk.map((fn) => fn()));
+    }
+
+    return rows.map((row) {
+      final List<String> mainRow = visibleColumns
+          .map((column) => row.cells[column.key] ?? '-')
+          .toList();
+
+      final bool expanded = shouldExpand(row);
+      final table = row.detailTable ?? resolvedTablesByRowId[row.id];
+
+      return ExpandableRowData(
+        mainRow: mainRow,
+        details: row.details,
+        transactions: table,
+        isExpanded: expanded,
+        isSourceExpanded: expanded,
+      );
+    }).toList();
+  }
+
+  Future<void> _openPrintPreviewInternal({required bool selectedOnly}) async {
     final sonuc = _sonuc;
     final rapor = _seciliRapor;
     if (sonuc == null || rapor == null || sonuc.isDisabled) return;
-    final int printLimit = math.min(
-      math.max(sonuc.totalCount, _satirSayisi).clamp(1, 5000),
-      5000,
-    );
-    final fullResult = await _raporlarServisi.raporuGetir(
-      rapor: rapor,
-      filtreler: _aktifFiltreler,
-      page: 1,
-      pageSize: printLimit,
-      arama: _arama,
-      sortKey: _sortKey,
-      sortAscending: _sortAscending,
-    );
-    if (!mounted) return;
-    final rows = fullResult.rows;
+
+    final visibleColumns = _gorunurKolonlar;
+    final Set<String> expandedIds = Set<String>.from(_expandedRowIds);
+    final bool keepDetailsOpen = _keepDetailsOpen;
+    final bool isAllMovementsPrint = rapor.id == 'all_movements';
+    final List<bool> defaultPrintVisibility = () {
+      const keys = <String>{
+        'islem',
+        'yer',
+        'yer_kodu',
+        'yer_adi',
+        'tarih',
+        'tutar',
+        'kur',
+        'yer_2',
+        'belge',
+      };
+      return visibleColumns.map((col) => keys.contains(col.key)).toList();
+    }();
+    final List<double>? mainColumnFlexes = isAllMovementsPrint
+        ? visibleColumns.map((col) {
+            switch (col.key) {
+              case 'islem':
+                return 2.0;
+              case 'yer':
+                return 1.3;
+              case 'yer_kodu':
+                return 0.8;
+              case 'yer_adi':
+                return 2.6;
+              case 'tarih':
+                return 1.6;
+              case 'tutar':
+                return 1.2;
+              case 'kur':
+                return 0.9;
+              case 'yer_2':
+                return 1.1;
+              case 'belge':
+                return 0.9;
+              case 'aciklama':
+              case 'aciklama_2':
+                return 2.2;
+              case 'e_belge':
+              case 'irsaliye_no':
+              case 'fatura_no':
+              case 'vade_tarihi':
+              case 'kullanici':
+                return 1.1;
+              default:
+                return 1.0;
+            }
+          }).toList()
+        : null;
+    final Set<int>? rightAlignedMainColumnIndices = isAllMovementsPrint
+        ? () {
+            const keys = <String>{
+              'tutar',
+              'kur',
+              'ara_toplam',
+              'kdv',
+              'genel_toplam',
+              'borc',
+              'alacak',
+              'net_bakiye',
+              'stok_degeri',
+              'maliyet',
+              'alis',
+              'satis1',
+              'satis2',
+              'satis3',
+              'ciro',
+              'gider',
+              'brut_kar',
+              'net_kar',
+              'tutar_etkisi',
+              'vergi',
+              'fark',
+            };
+            final indices = <int>{};
+            for (int i = 0; i < visibleColumns.length; i++) {
+              if (keys.contains(visibleColumns[i].key)) {
+                indices.add(i);
+              }
+            }
+            return indices;
+          }()
+        : null;
+
+    late final List<RaporSatiri> rows;
+    if (selectedOnly) {
+      final String? selectedRowId = _selectedRowId;
+      if (selectedRowId == null) return;
+
+      RaporSatiri? selectedRow;
+      for (final item in _sayfaSatirlari) {
+        if (item.id == selectedRowId) {
+          selectedRow = item;
+          break;
+        }
+      }
+      if (selectedRow == null) {
+        MesajYardimcisi.bilgiGoster(context, tr('common.no_data'));
+        return;
+      }
+      rows = <RaporSatiri>[selectedRow];
+    } else {
+      final int printLimit = math.min(
+        math.max(sonuc.totalCount, _satirSayisi).clamp(1, 5000),
+        5000,
+      );
+      final fullResult = await _raporlarServisi.raporuGetir(
+        rapor: rapor,
+        filtreler: _aktifFiltreler,
+        page: 1,
+        pageSize: printLimit,
+        arama: _arama,
+        sortKey: _sortKey,
+        sortAscending: _sortAscending,
+      );
+      if (!mounted) return;
+      rows = fullResult.rows;
+    }
+
     if (rows.isEmpty) {
       MesajYardimcisi.bilgiGoster(context, tr('common.no_data'));
       return;
     }
 
-    final visibleColumns = _gorunurKolonlar;
-    final printRows = _raporlarServisi.yazdirmaSatirlariniHazirla(
+    Map<String, String>? footerTotals;
+    String? footerTotalsTitle;
+    if (rapor.id == 'all_movements') {
+      final Map<String, double> totalsByProcess = <String, double>{};
+      for (final row in rows) {
+        final String label = (row.cells['islem'] ?? '').trim();
+        if (label.isEmpty || label == '-') continue;
+        final double amount = (row.amountValue ?? 0).abs();
+        if (amount == 0) continue;
+        totalsByProcess[label] = (totalsByProcess[label] ?? 0) + amount;
+      }
+
+      String currencySuffix = '';
+      for (final row in rows) {
+        final String raw = (row.cells['tutar'] ?? '').trim();
+        if (raw.isEmpty || raw == '-') continue;
+        final int lastSpace = raw.lastIndexOf(' ');
+        if (lastSpace != -1 && lastSpace < raw.length - 1) {
+          currencySuffix = raw.substring(lastSpace + 1).trim();
+        }
+        break;
+      }
+
+      if (totalsByProcess.isNotEmpty) {
+        final sortedKeys = totalsByProcess.keys.toList()..sort();
+        final Map<String, String> formattedTotals = <String, String>{};
+        for (final key in sortedKeys) {
+          final String formattedValue = FormatYardimcisi.sayiFormatlaOndalikli(
+            totalsByProcess[key] ?? 0,
+            decimalDigits: 2,
+          );
+          formattedTotals[key] = currencySuffix.isEmpty
+              ? formattedValue
+              : '$formattedValue $currencySuffix';
+        }
+        footerTotals = formattedTotals;
+        footerTotalsTitle = 'İŞLEM TOPLAMLARI';
+      }
+    }
+
+    final printRows = await _buildPrintableRows(
       rows: rows,
       visibleColumns: visibleColumns,
-      expandedIds: const <String>{},
-      keepDetailsOpen: false,
+      expandedIds: expandedIds,
+      keepDetailsOpen: keepDetailsOpen,
     );
 
+    final filtreOzeti = _raporlarServisi.filtreOzetiniOlustur(_aktifFiltreler);
     final headerInfo = <String, dynamic>{
       tr('reports.columns.report_name'): tr(rapor.labelKey),
       tr(
         'common.date_range',
-      ): _raporlarServisi.filtreOzetiniOlustur(_aktifFiltreler).isEmpty
-          ? tr('common.all')
-          : _raporlarServisi.filtreOzetiniOlustur(_aktifFiltreler),
+      ): filtreOzeti.isEmpty ? tr('common.all') : filtreOzeti,
       tr('reports.summary.record'): rows.length.toString(),
     };
 
@@ -980,11 +1430,17 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           title: tr(rapor.labelKey),
           headers: visibleColumns.map((col) => tr(col.labelKey)).toList(),
           data: printRows,
-          dateInterval: _raporlarServisi.filtreOzetiniOlustur(_aktifFiltreler),
+          dateInterval: filtreOzeti,
           initialShowDetails: false,
+          defaultMainColumnVisibility: defaultPrintVisibility,
+          mainColumnFlexes: mainColumnFlexes,
+          rightAlignedMainColumnIndices: rightAlignedMainColumnIndices,
+          forceMainSingleLine: isAllMovementsPrint,
           headerInfo: headerInfo,
           mainTableLabel: sonuc.mainTableLabel,
           detailTableLabel: sonuc.detailTableLabel,
+          footerTotals: footerTotals,
+          footerTotalsTitle: footerTotalsTitle,
         ),
       ),
     );
@@ -1036,26 +1492,18 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return const _RaporlarShimmer();
     }
 
-    return ColoredBox(
-      color: Colors.white,
-      child: LayoutBuilder(
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: LayoutBuilder(
         builder: (context, constraints) {
           final bool isDesktop = constraints.maxWidth >= 1200;
           final bool isTablet = constraints.maxWidth >= 800 && !isDesktop;
           final bool isMobile = !isDesktop && !isTablet;
 
-          return Padding(
-            padding: EdgeInsets.fromLTRB(
-              isMobile ? 12 : 16,
-              isMobile ? 10 : 8,
-              isMobile ? 12 : 16,
-              isMobile ? 12 : 8,
-            ),
-            child: _buildWorkspace(
-              isDesktop: isDesktop,
-              isTablet: isTablet,
-              isMobile: isMobile,
-            ),
+          return _buildWorkspace(
+            isDesktop: isDesktop,
+            isTablet: isTablet,
+            isMobile: isMobile,
           );
         },
       ),
@@ -1069,45 +1517,22 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   }) {
     final sonuc = _sonuc;
     final rapor = _seciliRapor;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final double viewportHeight = constraints.maxHeight.isFinite
-            ? constraints.maxHeight
-            : (isMobile ? 900 : 820);
-        final double reportCardHeight = isMobile
-            ? math.max(900, viewportHeight * 0.9)
-            : isTablet
-            ? math.max(820, viewportHeight * 0.84)
-            : math.max(780, viewportHeight * 0.84);
-
-        return SingleChildScrollView(
-          physics: const ClampingScrollPhysics(),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: viewportHeight),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildPageHeader(isMobile: isMobile),
-                const SizedBox(height: 8),
-                _buildSelectorSummaryBand(
-                  isTablet: isTablet,
-                  isMobile: isMobile,
-                ),
-                const SizedBox(height: 8),
-                SizedBox(
-                  height: reportCardHeight,
-                  child: _buildReportCard(
-                    sonuc: sonuc,
-                    rapor: rapor,
-                    isMobile: isMobile,
-                    isTablet: isTablet,
-                  ),
-                ),
-              ],
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildPageHeader(isMobile: isMobile),
+        const SizedBox(height: 8),
+        _buildSelectorSummaryBand(isTablet: isTablet, isMobile: isMobile),
+        const SizedBox(height: 8),
+        Expanded(
+          child: _buildReportCard(
+            sonuc: sonuc,
+            rapor: rapor,
+            isMobile: isMobile,
+            isTablet: isTablet,
           ),
-        );
-      },
+        ),
+      ],
     );
   }
 
@@ -1435,14 +1860,40 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     required bool isTablet,
     required bool isMobile,
   }) {
-    final cards = _sonuc?.summaryCards ?? const <RaporOzetKarti>[];
+    final sonuc = _sonuc;
+    final cards = sonuc?.summaryCards ?? const <RaporOzetKarti>[];
     if (cards.isEmpty) {
       return const SizedBox.shrink();
     }
+
+    final bool showIslemToplamlari =
+        sonuc != null &&
+        sonuc.report.id == 'all_movements' &&
+        sonuc.islemToplamlari.isNotEmpty;
+
+    final String? seciliIslemTuru = _bosIseNull(_filtreler.islemTuru);
+    final List<RaporIslemToplami> islemToplamlariForCards = !showIslemToplamlari
+        ? const <RaporIslemToplami>[]
+        : (seciliIslemTuru == null
+              ? sonuc.islemToplamlari
+              : sonuc.islemToplamlari
+                    .where((item) => item.rawIslem == seciliIslemTuru)
+                    .toList(growable: false));
+
+    final bool showFilteredIslemToplamlari = islemToplamlariForCards.isNotEmpty;
+
+    final List<RaporOzetKarti> mergedCards = showFilteredIslemToplamlari
+        ? <RaporOzetKarti>[
+            ...cards,
+            ...islemToplamlariForCards.map(_islemToplaminiOzetKartinaCevir),
+          ]
+        : cards;
+
     return _buildSummaryCards(
       isMobile: isMobile,
       isTablet: isTablet,
       compact: !isMobile,
+      cards: mergedCards,
     );
   }
 
@@ -1450,16 +1901,18 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     required bool isMobile,
     required bool isTablet,
     bool compact = false,
+    List<RaporOzetKarti>? cards,
   }) {
-    final cards = _sonuc?.summaryCards ?? const <RaporOzetKarti>[];
-    if (cards.isEmpty) {
+    final cardsSource =
+        cards ?? _sonuc?.summaryCards ?? const <RaporOzetKarti>[];
+    if (cardsSource.isEmpty) {
       return const SizedBox.shrink();
     }
 
     if (compact) {
       return Row(
         children: [
-          for (int index = 0; index < cards.length; index++) ...[
+          for (int index = 0; index < cardsSource.length; index++) ...[
             Expanded(
               child: Container(
                 height: 72,
@@ -1474,12 +1927,14 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                       width: 28,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: cards[index].accentColor.withValues(alpha: 0.12),
+                        color: cardsSource[index].accentColor.withValues(
+                          alpha: 0.12,
+                        ),
                         borderRadius: BorderRadius.circular(9),
                       ),
                       child: Icon(
-                        cards[index].icon,
-                        color: cards[index].accentColor,
+                        cardsSource[index].icon,
+                        color: cardsSource[index].accentColor,
                         size: 15,
                       ),
                     ),
@@ -1495,7 +1950,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                tr(cards[index].labelKey),
+                                tr(cardsSource[index].labelKey),
                                 maxLines: 1,
                                 style: const TextStyle(
                                   fontSize: 10,
@@ -1512,7 +1967,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                               alignment: Alignment.centerLeft,
                               fit: BoxFit.scaleDown,
                               child: Text(
-                                cards[index].value,
+                                cardsSource[index].value,
                                 maxLines: 1,
                                 style: const TextStyle(
                                   fontSize: 17,
@@ -1529,7 +1984,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                 ),
               ),
             ),
-            if (index != cards.length - 1) const SizedBox(width: 8),
+            if (index != cardsSource.length - 1) const SizedBox(width: 8),
           ],
         ],
       );
@@ -1541,7 +1996,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         ? 210
         : 200;
 
-    final rowChildren = cards.map((card) {
+    final rowChildren = cardsSource.map((card) {
       return Container(
         width: width,
         height: 94,
@@ -1628,6 +2083,68 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     );
   }
 
+  RaporOzetKarti _islemToplaminiOzetKartinaCevir(RaporIslemToplami toplam) {
+    final style = _islemToplamKartiStili(toplam.islem);
+    return RaporOzetKarti(
+      labelKey: toplam.islem, // tr() fallback shows label as-is
+      value: toplam.tutar,
+      icon: style.icon,
+      accentColor: style.accentColor,
+    );
+  }
+
+  ({IconData icon, Color accentColor}) _islemToplamKartiStili(String islem) {
+    final String low = islem.toLowerCase();
+
+    if (low.contains('para al')) {
+      return (
+        icon: Icons.south_west_rounded,
+        accentColor: const Color(0xFF27AE60),
+      );
+    }
+    if (low.contains('para ver')) {
+      return (icon: Icons.north_east_rounded, accentColor: AppPalette.red);
+    }
+    if (low.contains('satış') || low.contains('satis')) {
+      return (icon: Icons.point_of_sale_rounded, accentColor: AppPalette.red);
+    }
+    if (low.contains('alış') || low.contains('alis')) {
+      return (
+        icon: Icons.shopping_cart_checkout_rounded,
+        accentColor: AppPalette.amber,
+      );
+    }
+    if (low.contains('tahsil')) {
+      return (
+        icon: Icons.payments_outlined,
+        accentColor: const Color(0xFF27AE60),
+      );
+    }
+    if (low.contains('ödeme') || low.contains('odeme')) {
+      return (icon: Icons.payments_outlined, accentColor: AppPalette.red);
+    }
+    if (low.contains('alacak')) {
+      return (
+        icon: Icons.receipt_long_outlined,
+        accentColor: const Color(0xFF27AE60),
+      );
+    }
+    if (low.contains('borç') || low.contains('borc')) {
+      return (icon: Icons.receipt_long_outlined, accentColor: AppPalette.red);
+    }
+    if (low.contains('çek') || low.contains('cek') || low.contains('senet')) {
+      return (icon: Icons.receipt_long_rounded, accentColor: AppPalette.slate);
+    }
+    if (low.contains('açılış') ||
+        low.contains('acilis') ||
+        low.contains('devir') ||
+        low.contains('transfer')) {
+      return (icon: Icons.history_rounded, accentColor: AppPalette.slate);
+    }
+
+    return (icon: Icons.alt_route_rounded, accentColor: AppPalette.slate);
+  }
+
   Widget _buildReportCard({
     required RaporSonucu? sonuc,
     required RaporSecenegi? rapor,
@@ -1670,7 +2187,15 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           width: kolon.width,
           flex: isMobile || kolon.key == 'kur'
               ? null
-              : _flexFromWidth(kolon.width),
+              : () {
+                  final baseFlex = _flexFromWidth(kolon.width);
+                  if (rapor.id == 'all_movements' && kolon.key == 'aciklama') {
+                    // All movements: "Açıklama" kolonunu biraz daralt,
+                    // boşluğu diğer kolonlara dağıt (tasarımı bozmadan).
+                    return math.max(2, (baseFlex * 0.6).round());
+                  }
+                  return baseFlex;
+                }(),
           alignment: kolon.alignment,
           allowSorting: kolon.allowSorting,
         ),
@@ -1680,6 +2205,10 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final int? sortColumnIndex = _sortKey == null
         ? null
         : tableColumns.indexWhere((column) => column.key == _sortKey);
+    final String expanderColumnKey = _resolveExpanderColumnKey(tableColumns);
+    final Set<int> expandedIndices = _getEffectiveExpandedIndices(
+      _sayfaSatirlari,
+    );
 
     return Padding(
       padding: const EdgeInsets.only(top: 4),
@@ -1713,22 +2242,35 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                 headerWidget: const SizedBox.shrink(),
                 headerPadding: const EdgeInsets.symmetric(horizontal: 12),
                 rowPadding: const EdgeInsets.symmetric(vertical: 9),
-                expandedContentPadding: const EdgeInsets.all(18),
+                expandedContentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
                 headerTextStyle: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF5F6670),
                   letterSpacing: 0.18,
                 ),
+                headerMaxLines: 2,
+                headerOverflow: TextOverflow.ellipsis,
                 onSearch: _aramaDegisti,
                 onPageChanged: (page, rowsPerPage) {
                   setState(() {
                     _mevcutSayfa = page;
                     _satirSayisi = rowsPerPage;
+                    _selectedRowId = null;
+                    _expandedRowIds.clear();
                   });
                   unawaited(_raporuYukle());
                 },
                 extraWidgets: [
+                  _buildIconToolbarButton(
+                    tooltip: tr('warehouses.keep_details_open'),
+                    icon: _keepDetailsOpen
+                        ? Icons.unfold_less_rounded
+                        : Icons.unfold_more_rounded,
+                    onTap: _toggleKeepDetailsOpen,
+                    active: _keepDetailsOpen,
+                  ),
+                  const SizedBox(width: 8),
                   _buildIconToolbarButton(
                     tooltip: tr('common.column_settings'),
                     icon: Icons.view_column_outlined,
@@ -1751,7 +2293,20 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                 hasNextPage: sonuc.hasNextPage,
                 data: _sayfaSatirlari,
                 expandOnRowTap: false,
+                deselectOnRepeatedRowTap: true,
+                focusRowOnExpand: false,
+                expandedIndices: expandedIndices,
+                onExpansionChanged: _onRowExpansionChanged,
                 onRowDoubleTap: _openSource,
+                onFocusedRowChanged: (item, index) {
+                  if (!mounted) return;
+                  setState(() => _selectedRowId = item?.id);
+                },
+                onClearSelection: () {
+                  if (!mounted) return;
+                  setState(() => _selectedRowId = null);
+                },
+                getDetailItemCount: (row) => row.detailTable?.data.length ?? 0,
                 onSort: (columnIndex, ascending) {
                   final key = tableColumns[columnIndex].key;
                   if (key.startsWith('_')) return;
@@ -1760,9 +2315,15 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                 sortColumnIndex: sortColumnIndex != -1 ? sortColumnIndex : null,
                 sortAscending: _sortAscending,
                 rowBuilder: (context, row, index, isExpanded, toggleExpand) {
-                  return _buildTableRow(row: row, columns: tableColumns);
+                  return _buildTableRow(
+                    row: row,
+                    columns: tableColumns,
+                    expanderColumnKey: expanderColumnKey,
+                    isExpanded: isExpanded,
+                    toggleExpand: toggleExpand,
+                  );
                 },
-                detailBuilder: (context, row) => const SizedBox.shrink(),
+                detailBuilder: (context, row) => _buildRowDetail(row),
               ),
             ),
         ],
@@ -1876,224 +2437,143 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       });
     }
 
-    [
-      if (_supports(RaporFiltreTuru.tarihAraligi))
+    if (rapor.id == 'all_movements') {
+      if (_supports(RaporFiltreTuru.tarihAraligi)) {
         addFilter(
           _buildQuickDateFilter(compact: true),
           desktopWidth: 410,
           tabletWidth: 380,
           mobileWidth: 390,
           minWidth: 320,
-        ),
-      if (_supports(RaporFiltreTuru.cari))
+        );
+      }
+
+      final sonuc = _sonuc;
+      final List<RaporIslemToplami> islemKaynak =
+          sonuc != null && sonuc.report.id == rapor.id
+          ? sonuc.islemToplamlari
+          : const <RaporIslemToplami>[];
+
+      if (_supports(RaporFiltreTuru.islemTuru)) {
+        final Map<String, int> islemAdetleri = <String, int>{
+          for (final item in islemKaynak) item.rawIslem: item.adet,
+        };
+        final int toplamIslemAdedi = islemKaynak.fold<int>(
+          0,
+          (sum, item) => sum + item.adet,
+        );
+
+        final List<DropdownMenuItem<String>> islemItems =
+            <DropdownMenuItem<String>>[
+              DropdownMenuItem<String>(
+                value: null,
+                child: Text(tr('common.all'), overflow: TextOverflow.ellipsis),
+              ),
+              ...islemKaynak.map(
+                (item) => DropdownMenuItem<String>(
+                  value: item.rawIslem,
+                  child: Text(item.islem, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ];
+
+        final String? seciliIslem = _bosIseNull(_filtreler.islemTuru);
+        if (seciliIslem != null &&
+            !islemItems.any((item) => item.value == seciliIslem)) {
+          islemItems.add(
+            DropdownMenuItem<String>(
+              value: seciliIslem,
+              child: Text(seciliIslem, overflow: TextOverflow.ellipsis),
+            ),
+          );
+        }
+
         addFilter(
-          _buildTypeaheadField(
-            label: tr('reports.filters.current_account'),
-            icon: Icons.people_alt_outlined,
-            valueLabel: _seciliCariLabel,
-            loading: _cariLabelResolving,
-            onTap: _cariSecimDialogAc,
-            onClear: () {
-              if (_filtreler.cariId == null) return;
-              setState(() => _seciliCariLabel = null);
-              _secimGuncelle(clearCari: true);
+          _buildDropdownField<String>(
+            label: tr('common.operation'),
+            icon: Icons.swap_horiz_rounded,
+            value: _filtreler.islemTuru,
+            items: islemItems,
+            overlayLabelBuilder: (item) {
+              final String baseLabel = _extractDropdownItemText(item.child);
+              final String? value = item.value;
+              if (value == null) {
+                return '$baseLabel ($toplamIslemAdedi)';
+              }
+              final int? adet = islemAdetleri[value];
+              return adet == null ? baseLabel : '$baseLabel ($adet)';
             },
+            onChanged: (value) =>
+                _secimGuncelle(islemTuru: value, clearIslemTuru: value == null),
           ),
           desktopWidth: 190,
           tabletWidth: 180,
           minWidth: 150,
-        ),
-      if (_supports(RaporFiltreTuru.urun))
-        addFilter(
-          _buildTypeaheadField(
-            label: tr('reports.filters.product'),
-            icon: Icons.inventory_2_outlined,
-            valueLabel: _seciliUrunLabel,
-            loading: _urunLabelResolving,
-            onTap: _urunSecimDialogAc,
-            onClear: () {
-              if (_filtreler.urunKodu == null) return;
-              setState(() => _seciliUrunLabel = null);
-              _secimGuncelle(clearUrun: true);
-            },
-          ),
-          desktopWidth: 180,
-          tabletWidth: 170,
-          minWidth: 145,
-        ),
-      if (_supports(RaporFiltreTuru.urunGrubu))
+        );
+      }
+
+      if (_supports(RaporFiltreTuru.belgeNo)) {
         addFilter(
           _buildDropdownField<String>(
-            label: tr('reports.filters.product_group'),
-            icon: Icons.category_outlined,
-            value: _filtreler.urunGrubu,
-            items: _filtreKaynaklari.urunGruplari
-                .map(
-                  (item) => DropdownMenuItem<String>(
-                    value: item.value,
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
+            label: tr('reports.columns.document_exact'),
+            icon: Icons.receipt_long_outlined,
+            value: _filtreler.belgeNo,
+            items: <DropdownMenuItem<String>>[
+              DropdownMenuItem<String>(
+                value: null,
+                child: Text(tr('common.all')),
+              ),
+              ...const <String>[
+                'Fatura',
+                'İrsaliye',
+                'İrsaliyeli Fatura',
+                '-',
+              ].map(
+                (value) => DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
             onChanged: (value) =>
-                _secimGuncelle(urunGrubu: value, clearUrunGrubu: value == null),
-          ),
-          desktopWidth: 180,
-          tabletWidth: 170,
-          minWidth: 145,
-        ),
-      if (_supports(RaporFiltreTuru.depo))
-        addFilter(
-          _buildDropdownField<int>(
-            label: tr('reports.filters.warehouse'),
-            icon: Icons.warehouse_outlined,
-            value: _filtreler.depoId,
-            items: _filtreKaynaklari.depolar
-                .map(
-                  (item) => DropdownMenuItem<int>(
-                    value: int.tryParse(item.value),
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) =>
-                _secimGuncelle(depoId: value, clearDepo: value == null),
+                _secimGuncelle(belgeNo: value, clearBelgeNo: value == null),
           ),
           desktopWidth: 170,
           tabletWidth: 160,
           minWidth: 140,
-        ),
-      if (_supports(RaporFiltreTuru.islemTuru))
+        );
+      }
+
+      const String eBelgeVarSentinel = '__HAS_EBELGE__';
+      if (_supports(RaporFiltreTuru.referansNo)) {
         addFilter(
           _buildDropdownField<String>(
-            label: tr('common.transaction_type'),
-            icon: Icons.swap_horiz_rounded,
-            value: _filtreler.islemTuru,
-            items: (_filtreKaynaklari.islemTurleri[rapor.id] ?? const [])
-                .map(
-                  (item) => DropdownMenuItem<String>(
-                    value: item.value == tr('common.all') ? null : item.value,
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) =>
-                _secimGuncelle(islemTuru: value, clearIslemTuru: value == null),
-          ),
-          desktopWidth: 170,
-          tabletWidth: 160,
-          minWidth: 140,
-        ),
-      if (_supports(RaporFiltreTuru.durum))
-        addFilter(
-          _buildDropdownField<String>(
-            label: tr('common.status'),
-            icon: Icons.filter_list_rounded,
-            value: _filtreler.durum,
-            items: (_filtreKaynaklari.durumlar[rapor.id] ?? const [])
-                .map(
-                  (item) => DropdownMenuItem<String>(
-                    value: item.value == tr('common.all') ? null : item.value,
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) =>
-                _secimGuncelle(durum: value, clearDurum: value == null),
-          ),
-          desktopWidth: 160,
-          tabletWidth: 150,
-          minWidth: 136,
-        ),
-      if (_supports(RaporFiltreTuru.odemeYontemi))
-        addFilter(
-          _buildDropdownField<String>(
-            label: tr('reports.filters.payment_method'),
-            icon: Icons.payments_outlined,
-            value: _filtreler.odemeYontemi,
-            items: (_filtreKaynaklari.odemeYontemleri[rapor.id] ?? const [])
-                .map(
-                  (item) => DropdownMenuItem<String>(
-                    value: item.value == tr('common.all') ? null : item.value,
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
+            label: tr('reports.columns.e_document_exact'),
+            icon: Icons.qr_code_2_outlined,
+            value: _filtreler.referansNo,
+            items: <DropdownMenuItem<String>>[
+              DropdownMenuItem<String>(
+                value: null,
+                child: Text(tr('common.all')),
+              ),
+              DropdownMenuItem<String>(
+                value: eBelgeVarSentinel,
+                child: const Text('Var'),
+              ),
+              DropdownMenuItem<String>(value: '-', child: const Text('-')),
+            ],
             onChanged: (value) => _secimGuncelle(
-              odemeYontemi: value,
-              clearOdemeYontemi: value == null,
+              referansNo: value,
+              clearReferansNo: value == null,
             ),
           ),
-          desktopWidth: 180,
-          tabletWidth: 170,
-          minWidth: 145,
-        ),
-      if (_supports(RaporFiltreTuru.kasa))
-        addFilter(
-          _buildDropdownField<int>(
-            label: tr('reports.filters.cash'),
-            icon: Icons.point_of_sale_outlined,
-            value: _filtreler.kasaId,
-            items: _filtreKaynaklari.kasalar
-                .map(
-                  (item) => DropdownMenuItem<int>(
-                    value: int.tryParse(item.value),
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) =>
-                _secimGuncelle(kasaId: value, clearKasa: value == null),
-          ),
           desktopWidth: 170,
           tabletWidth: 160,
           minWidth: 140,
-        ),
-      if (_supports(RaporFiltreTuru.banka))
-        addFilter(
-          _buildDropdownField<int>(
-            label: tr('reports.filters.bank'),
-            icon: Icons.account_balance_outlined,
-            value: _filtreler.bankaId,
-            items: _filtreKaynaklari.bankalar
-                .map(
-                  (item) => DropdownMenuItem<int>(
-                    value: int.tryParse(item.value),
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) =>
-                _secimGuncelle(bankaId: value, clearBanka: value == null),
-          ),
-          desktopWidth: 170,
-          tabletWidth: 160,
-          minWidth: 140,
-        ),
-      if (_supports(RaporFiltreTuru.krediKarti))
-        addFilter(
-          _buildDropdownField<int>(
-            label: tr('reports.filters.credit_card'),
-            icon: Icons.credit_card_outlined,
-            value: _filtreler.krediKartiId,
-            items: _filtreKaynaklari.krediKartlari
-                .map(
-                  (item) => DropdownMenuItem<int>(
-                    value: int.tryParse(item.value),
-                    child: Text(item.label, overflow: TextOverflow.ellipsis),
-                  ),
-                )
-                .toList(),
-            onChanged: (value) => _secimGuncelle(
-              krediKartiId: value,
-              clearKrediKarti: value == null,
-            ),
-          ),
-          desktopWidth: 180,
-          tabletWidth: 170,
-          minWidth: 145,
-        ),
-      if (_supports(RaporFiltreTuru.kullanici))
+        );
+      }
+
+      if (_supports(RaporFiltreTuru.kullanici)) {
         addFilter(
           _buildDropdownField<String>(
             label: tr('common.user'),
@@ -2115,30 +2595,10 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           desktopWidth: 170,
           tabletWidth: 160,
           minWidth: 140,
-        ),
-      if (_supports(RaporFiltreTuru.belgeNo))
-        addFilter(
-          _buildTextFilter(
-            controller: _belgeNoController,
-            label: tr('reports.filters.document_no'),
-            icon: Icons.receipt_long_outlined,
-          ),
-          desktopWidth: 170,
-          tabletWidth: 160,
-          minWidth: 140,
-        ),
-      if (_supports(RaporFiltreTuru.referansNo))
-        addFilter(
-          _buildTextFilter(
-            controller: _referansNoController,
-            label: tr('reports.filters.reference_no'),
-            icon: Icons.tag_outlined,
-          ),
-          desktopWidth: 170,
-          tabletWidth: 160,
-          minWidth: 140,
-        ),
-      if (_supports(RaporFiltreTuru.minTutar))
+        );
+      }
+
+      if (_supports(RaporFiltreTuru.minTutar)) {
         addFilter(
           _buildTextFilter(
             controller: _minTutarController,
@@ -2149,8 +2609,10 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           desktopWidth: 150,
           tabletWidth: 145,
           minWidth: 125,
-        ),
-      if (_supports(RaporFiltreTuru.maxTutar))
+        );
+      }
+
+      if (_supports(RaporFiltreTuru.maxTutar)) {
         addFilter(
           _buildTextFilter(
             controller: _maxTutarController,
@@ -2161,32 +2623,325 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           desktopWidth: 150,
           tabletWidth: 145,
           minWidth: 125,
-        ),
-      if (_supports(RaporFiltreTuru.minMiktar))
-        addFilter(
-          _buildTextFilter(
-            controller: _minMiktarController,
-            label: tr('reports.filters.min_quantity'),
-            icon: Icons.remove_rounded,
-            isNumber: true,
+        );
+      }
+    } else {
+      [
+        if (_supports(RaporFiltreTuru.tarihAraligi))
+          addFilter(
+            _buildQuickDateFilter(compact: true),
+            desktopWidth: 410,
+            tabletWidth: 380,
+            mobileWidth: 390,
+            minWidth: 320,
           ),
-          desktopWidth: 150,
-          tabletWidth: 145,
-          minWidth: 125,
-        ),
-      if (_supports(RaporFiltreTuru.maxMiktar))
-        addFilter(
-          _buildTextFilter(
-            controller: _maxMiktarController,
-            label: tr('reports.filters.max_quantity'),
-            icon: Icons.add_rounded,
-            isNumber: true,
+        if (_supports(RaporFiltreTuru.cari))
+          addFilter(
+            _buildTypeaheadField(
+              label: tr('reports.filters.current_account'),
+              icon: Icons.people_alt_outlined,
+              valueLabel: _seciliCariLabel,
+              loading: _cariLabelResolving,
+              onTap: _cariSecimDialogAc,
+              onClear: () {
+                if (_filtreler.cariId == null) return;
+                setState(() => _seciliCariLabel = null);
+                _secimGuncelle(clearCari: true);
+              },
+            ),
+            desktopWidth: 190,
+            tabletWidth: 180,
+            minWidth: 150,
           ),
-          desktopWidth: 150,
-          tabletWidth: 145,
-          minWidth: 125,
-        ),
-    ];
+        if (_supports(RaporFiltreTuru.urun))
+          addFilter(
+            _buildTypeaheadField(
+              label: tr('reports.filters.product'),
+              icon: Icons.inventory_2_outlined,
+              valueLabel: _seciliUrunLabel,
+              loading: _urunLabelResolving,
+              onTap: _urunSecimDialogAc,
+              onClear: () {
+                if (_filtreler.urunKodu == null) return;
+                setState(() => _seciliUrunLabel = null);
+                _secimGuncelle(clearUrun: true);
+              },
+            ),
+            desktopWidth: 180,
+            tabletWidth: 170,
+            minWidth: 145,
+          ),
+        if (_supports(RaporFiltreTuru.urunGrubu))
+          addFilter(
+            _buildDropdownField<String>(
+              label: tr('reports.filters.product_group'),
+              icon: Icons.category_outlined,
+              value: _filtreler.urunGrubu,
+              items: _filtreKaynaklari.urunGruplari
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item.value,
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => _secimGuncelle(
+                urunGrubu: value,
+                clearUrunGrubu: value == null,
+              ),
+            ),
+            desktopWidth: 180,
+            tabletWidth: 170,
+            minWidth: 145,
+          ),
+        if (_supports(RaporFiltreTuru.depo))
+          addFilter(
+            _buildDropdownField<int>(
+              label: tr('reports.filters.warehouse'),
+              icon: Icons.warehouse_outlined,
+              value: _filtreler.depoId,
+              items: _filtreKaynaklari.depolar
+                  .map(
+                    (item) => DropdownMenuItem<int>(
+                      value: int.tryParse(item.value),
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) =>
+                  _secimGuncelle(depoId: value, clearDepo: value == null),
+            ),
+            desktopWidth: 170,
+            tabletWidth: 160,
+            minWidth: 140,
+          ),
+        if (_supports(RaporFiltreTuru.islemTuru))
+          addFilter(
+            _buildDropdownField<String>(
+              label: tr('common.transaction_type'),
+              icon: Icons.swap_horiz_rounded,
+              value: _filtreler.islemTuru,
+              items: (_filtreKaynaklari.islemTurleri[rapor.id] ?? const [])
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item.value == tr('common.all') ? null : item.value,
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => _secimGuncelle(
+                islemTuru: value,
+                clearIslemTuru: value == null,
+              ),
+            ),
+            desktopWidth: 170,
+            tabletWidth: 160,
+            minWidth: 140,
+          ),
+        if (_supports(RaporFiltreTuru.durum))
+          addFilter(
+            _buildDropdownField<String>(
+              label: tr('common.status'),
+              icon: Icons.filter_list_rounded,
+              value: _filtreler.durum,
+              items: (_filtreKaynaklari.durumlar[rapor.id] ?? const [])
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item.value == tr('common.all') ? null : item.value,
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) =>
+                  _secimGuncelle(durum: value, clearDurum: value == null),
+            ),
+            desktopWidth: 160,
+            tabletWidth: 150,
+            minWidth: 136,
+          ),
+        if (_supports(RaporFiltreTuru.odemeYontemi))
+          addFilter(
+            _buildDropdownField<String>(
+              label: tr('reports.filters.payment_method'),
+              icon: Icons.payments_outlined,
+              value: _filtreler.odemeYontemi,
+              items: (_filtreKaynaklari.odemeYontemleri[rapor.id] ?? const [])
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item.value == tr('common.all') ? null : item.value,
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => _secimGuncelle(
+                odemeYontemi: value,
+                clearOdemeYontemi: value == null,
+              ),
+            ),
+            desktopWidth: 180,
+            tabletWidth: 170,
+            minWidth: 145,
+          ),
+        if (_supports(RaporFiltreTuru.kasa))
+          addFilter(
+            _buildDropdownField<int>(
+              label: tr('reports.filters.cash'),
+              icon: Icons.point_of_sale_outlined,
+              value: _filtreler.kasaId,
+              items: _filtreKaynaklari.kasalar
+                  .map(
+                    (item) => DropdownMenuItem<int>(
+                      value: int.tryParse(item.value),
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) =>
+                  _secimGuncelle(kasaId: value, clearKasa: value == null),
+            ),
+            desktopWidth: 170,
+            tabletWidth: 160,
+            minWidth: 140,
+          ),
+        if (_supports(RaporFiltreTuru.banka))
+          addFilter(
+            _buildDropdownField<int>(
+              label: tr('reports.filters.bank'),
+              icon: Icons.account_balance_outlined,
+              value: _filtreler.bankaId,
+              items: _filtreKaynaklari.bankalar
+                  .map(
+                    (item) => DropdownMenuItem<int>(
+                      value: int.tryParse(item.value),
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) =>
+                  _secimGuncelle(bankaId: value, clearBanka: value == null),
+            ),
+            desktopWidth: 170,
+            tabletWidth: 160,
+            minWidth: 140,
+          ),
+        if (_supports(RaporFiltreTuru.krediKarti))
+          addFilter(
+            _buildDropdownField<int>(
+              label: tr('reports.filters.credit_card'),
+              icon: Icons.credit_card_outlined,
+              value: _filtreler.krediKartiId,
+              items: _filtreKaynaklari.krediKartlari
+                  .map(
+                    (item) => DropdownMenuItem<int>(
+                      value: int.tryParse(item.value),
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => _secimGuncelle(
+                krediKartiId: value,
+                clearKrediKarti: value == null,
+              ),
+            ),
+            desktopWidth: 180,
+            tabletWidth: 170,
+            minWidth: 145,
+          ),
+        if (_supports(RaporFiltreTuru.kullanici))
+          addFilter(
+            _buildDropdownField<String>(
+              label: tr('common.user'),
+              icon: Icons.person_rounded,
+              value: _filtreler.kullaniciId,
+              items: _filtreKaynaklari.kullanicilar
+                  .map(
+                    (item) => DropdownMenuItem<String>(
+                      value: item.value,
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => _secimGuncelle(
+                kullaniciId: value,
+                clearKullanici: value == null,
+              ),
+            ),
+            desktopWidth: 170,
+            tabletWidth: 160,
+            minWidth: 140,
+          ),
+        if (_supports(RaporFiltreTuru.belgeNo))
+          addFilter(
+            _buildTextFilter(
+              controller: _belgeNoController,
+              label: tr('reports.filters.document_no'),
+              icon: Icons.receipt_long_outlined,
+            ),
+            desktopWidth: 170,
+            tabletWidth: 160,
+            minWidth: 140,
+          ),
+        if (_supports(RaporFiltreTuru.referansNo))
+          addFilter(
+            _buildTextFilter(
+              controller: _referansNoController,
+              label: tr('reports.filters.reference_no'),
+              icon: Icons.tag_outlined,
+            ),
+            desktopWidth: 170,
+            tabletWidth: 160,
+            minWidth: 140,
+          ),
+        if (_supports(RaporFiltreTuru.minTutar))
+          addFilter(
+            _buildTextFilter(
+              controller: _minTutarController,
+              label: tr('reports.filters.min_amount'),
+              icon: Icons.south_west_rounded,
+              isNumber: true,
+            ),
+            desktopWidth: 150,
+            tabletWidth: 145,
+            minWidth: 125,
+          ),
+        if (_supports(RaporFiltreTuru.maxTutar))
+          addFilter(
+            _buildTextFilter(
+              controller: _maxTutarController,
+              label: tr('reports.filters.max_amount'),
+              icon: Icons.north_east_rounded,
+              isNumber: true,
+            ),
+            desktopWidth: 150,
+            tabletWidth: 145,
+            minWidth: 125,
+          ),
+        if (_supports(RaporFiltreTuru.minMiktar))
+          addFilter(
+            _buildTextFilter(
+              controller: _minMiktarController,
+              label: tr('reports.filters.min_quantity'),
+              icon: Icons.remove_rounded,
+              isNumber: true,
+            ),
+            desktopWidth: 150,
+            tabletWidth: 145,
+            minWidth: 125,
+          ),
+        if (_supports(RaporFiltreTuru.maxMiktar))
+          addFilter(
+            _buildTextFilter(
+              controller: _maxMiktarController,
+              label: tr('reports.filters.max_quantity'),
+              icon: Icons.add_rounded,
+              isNumber: true,
+            ),
+            desktopWidth: 150,
+            tabletWidth: 145,
+            minWidth: 125,
+          ),
+      ];
+    }
 
     if (filterItems.isEmpty) {
       return Text(
@@ -2257,60 +3012,76 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
               ),
             ),
             const SizedBox(width: 10),
-            ...items.map((item) {
-              final bool selected = _hizliTarihSecimi == item.key;
-              return Padding(
-                padding: const EdgeInsets.only(right: 6),
-                child: InkWell(
-                  borderRadius: BorderRadius.circular(8),
-                  mouseCursor: SystemMouseCursors.click,
-                  onTap: () {
-                    if (item.key == 'custom') {
-                      _ozelTarihAraligiSec();
-                      return;
-                    }
-                    _hizliTarihSeciminiUygula(item.key, yukle: true);
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 10,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: selected
-                          ? AppPalette.slate
-                          : const Color(0xFFF5F7FA),
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(
-                        color: selected
-                            ? AppPalette.slate
-                            : Colors.grey.withValues(alpha: 0.12),
+            Expanded(
+              child: SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    ...items.map((item) {
+                      final bool selected = _hizliTarihSecimi == item.key;
+                      return Padding(
+                        padding: const EdgeInsets.only(right: 6),
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(8),
+                          mouseCursor: SystemMouseCursors.click,
+                          onTap: () {
+                            if (item.key == 'custom') {
+                              _ozelTarihAraligiSec();
+                              return;
+                            }
+                            _hizliTarihSeciminiUygula(item.key, yukle: true);
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 10,
+                              vertical: 6,
+                            ),
+                            decoration: BoxDecoration(
+                              color: selected
+                                  ? AppPalette.slate
+                                  : const Color(0xFFF5F7FA),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                color: selected
+                                    ? AppPalette.slate
+                                    : Colors.grey.withValues(alpha: 0.12),
+                              ),
+                            ),
+                            child: Text(
+                              item.value,
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                                color: selected
+                                    ? Colors.white
+                                    : AppPalette.slate,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }),
+                    if (_hizliTarihSecimi == 'custom' &&
+                        summaryText.isNotEmpty) ...[
+                      const SizedBox(width: 8),
+                      SizedBox(
+                        width: 100,
+                        child: Text(
+                          summaryText,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            color: AppPalette.grey,
+                          ),
+                        ),
                       ),
-                    ),
-                    child: Text(
-                      item.value,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: selected ? Colors.white : AppPalette.slate,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            }),
-            if (_hizliTarihSecimi == 'custom' && summaryText.isNotEmpty) ...[
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 100,
-                child: Text(
-                  summaryText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(fontSize: 10, color: AppPalette.grey),
+                    ],
+                  ],
                 ),
               ),
-            ],
+            ),
           ],
         ),
       );
@@ -2461,79 +3232,271 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     );
   }
 
+  void _closeFilterDropdownOverlay({required bool rebuild}) {
+    _filterDropdownOverlayEntry?.remove();
+    _filterDropdownOverlayEntry = null;
+    if (rebuild && mounted) {
+      setState(() => _filterDropdownExpandedKey = null);
+    } else {
+      _filterDropdownExpandedKey = null;
+    }
+  }
+
+  String _extractDropdownItemText(Widget child) {
+    if (child is Text) {
+      final String text =
+          child.data ??
+          child.textSpan?.toPlainText(includeSemanticsLabels: true) ??
+          '';
+      return text.trim();
+    }
+    return child.toStringShort();
+  }
+
+  void _showFilterDropdownOverlay<T>({
+    required String overlayKey,
+    required LayerLink link,
+    required double targetWidth,
+    required T? currentValue,
+    required List<DropdownMenuItem<T>> items,
+    required ValueChanged<T?> onChanged,
+    String Function(DropdownMenuItem<T> item)? overlayLabelBuilder,
+  }) {
+    _closeFilterDropdownOverlay(rebuild: false);
+
+    setState(() => _filterDropdownExpandedKey = overlayKey);
+
+    final overlay = Overlay.of(context);
+    final double width = math.max(targetWidth, 220);
+
+    _filterDropdownOverlayEntry = OverlayEntry(
+      builder: (context) {
+        return Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () => _closeFilterDropdownOverlay(rebuild: true),
+                behavior: HitTestBehavior.translucent,
+                child: Container(color: Colors.transparent),
+              ),
+            ),
+            CompositedTransformFollower(
+              link: link,
+              showWhenUnlinked: false,
+              offset: const Offset(0, 42),
+              child: Material(
+                elevation: 4,
+                borderRadius: BorderRadius.circular(8),
+                color: Colors.white,
+                child: Container(
+                  width: width,
+                  constraints: const BoxConstraints(maxHeight: 400),
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade200),
+                  ),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: items.map((item) {
+                        final bool selected = item.value == currentValue;
+                        final bool enabled = item.enabled;
+
+                        final Color background = selected
+                            ? const Color(0xFFE6F4EA)
+                            : Colors.transparent;
+                        final Color textColor = selected
+                            ? const Color(0xFF1E7E34)
+                            : (enabled ? Colors.black87 : Colors.grey.shade400);
+
+                        final FontWeight weight = selected
+                            ? FontWeight.bold
+                            : FontWeight.w500;
+
+                        final String label =
+                            (overlayLabelBuilder?.call(item) ??
+                                    _extractDropdownItemText(item.child))
+                                .trim();
+
+                        return InkWell(
+                          mouseCursor: enabled
+                              ? WidgetStateMouseCursor.clickable
+                              : SystemMouseCursors.basic,
+                          onTap: enabled
+                              ? () {
+                                  _closeFilterDropdownOverlay(rebuild: true);
+                                  onChanged(item.value);
+                                }
+                              : null,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 10,
+                            ),
+                            color: background,
+                            child: Text(
+                              label,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: weight,
+                                color: textColor,
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    overlay.insert(_filterDropdownOverlayEntry!);
+  }
+
   Widget _buildDropdownField<T>({
     required String label,
     required IconData icon,
     required T? value,
     required List<DropdownMenuItem<T>> items,
     required ValueChanged<T?> onChanged,
+    String Function(DropdownMenuItem<T> item)? overlayLabelBuilder,
   }) {
     final bool hasSelectedValue = value != null;
     final T? safeValue = items.any((item) => item.value == value)
         ? value
         : null;
-    return MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: SizedBox(
-        height: 46,
-        child: Container(
-          padding: const EdgeInsets.fromLTRB(0, 6, 0, 6),
-          decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade300, width: 1),
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(icon, size: 18, color: Colors.grey.shade600),
-              const SizedBox(width: 8),
-              Expanded(
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<T>(
-                    key: ValueKey<String>(
-                      'dropdown_${label}_${value ?? "null"}',
-                    ),
-                    value: safeValue,
-                    isExpanded: true,
-                    mouseCursor: SystemMouseCursors.click,
-                    hint: Text(
-                      label,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.grey.shade700,
-                      ),
-                    ),
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: AppPalette.slate,
-                    ),
-                    icon: Icon(
-                      Icons.keyboard_arrow_down_rounded,
-                      size: 20,
-                      color: Colors.grey.shade400,
-                    ),
+
+    final String overlayKey = 'reports_filter_${icon.codePoint}_$label';
+    final LayerLink link = _filterDropdownLayerLinks.putIfAbsent(
+      overlayKey,
+      () => LayerLink(),
+    );
+    final bool isExpanded = _filterDropdownExpandedKey == overlayKey;
+
+    DropdownMenuItem<T>? selectedItem;
+    for (final item in items) {
+      if (item.value == safeValue) {
+        selectedItem = item;
+        break;
+      }
+    }
+
+    final String displayText = selectedItem != null
+        ? _extractDropdownItemText(selectedItem.child)
+        : label;
+
+    return Builder(
+      builder: (fieldContext) {
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: CompositedTransformTarget(
+            link: link,
+            child: SizedBox(
+              height: 46,
+              child: InkWell(
+                mouseCursor: WidgetStateMouseCursor.clickable,
+                onTap: () {
+                  if (isExpanded) {
+                    _closeFilterDropdownOverlay(rebuild: true);
+                    return;
+                  }
+
+                  final RenderBox? box =
+                      fieldContext.findRenderObject() as RenderBox?;
+                  final double width = box?.size.width ?? 220;
+
+                  _showFilterDropdownOverlay<T>(
+                    overlayKey: overlayKey,
+                    link: link,
+                    targetWidth: width,
+                    currentValue: safeValue,
                     items: items,
                     onChanged: onChanged,
+                    overlayLabelBuilder: overlayLabelBuilder,
+                  );
+                },
+                borderRadius: BorderRadius.circular(4),
+                child: Container(
+                  padding: EdgeInsets.fromLTRB(0, 6, 0, isExpanded ? 5 : 6),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: isExpanded
+                            ? const Color(0xFF2C3E50)
+                            : Colors.grey.shade300,
+                        width: isExpanded ? 2 : 1,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        icon,
+                        size: 18,
+                        color: isExpanded
+                            ? const Color(0xFF2C3E50)
+                            : Colors.grey.shade600,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          displayText,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: isExpanded
+                                ? const Color(0xFF2C3E50)
+                                : (safeValue == null
+                                      ? Colors.grey.shade700
+                                      : AppPalette.slate),
+                          ),
+                        ),
+                      ),
+                      if (hasSelectedValue)
+                        InkWell(
+                          borderRadius: BorderRadius.circular(10),
+                          mouseCursor: WidgetStateMouseCursor.clickable,
+                          onTap: () => onChanged(null),
+                          child: const Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 4),
+                            child: Icon(
+                              Icons.close,
+                              size: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ),
+                      const SizedBox(width: 4),
+                      AnimatedRotation(
+                        turns: isExpanded ? 0.5 : 0,
+                        duration: const Duration(milliseconds: 200),
+                        child: Icon(
+                          Icons.keyboard_arrow_down_rounded,
+                          size: 20,
+                          color: isExpanded
+                              ? const Color(0xFF2C3E50)
+                              : Colors.grey.shade400,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),
-              if (hasSelectedValue)
-                InkWell(
-                  borderRadius: BorderRadius.circular(10),
-                  mouseCursor: SystemMouseCursors.click,
-                  onTap: () => onChanged(null),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 4),
-                    child: Icon(Icons.close, size: 16, color: Colors.grey),
-                  ),
-                ),
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -2598,19 +3561,89 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   Widget _buildTableActionRow() {
     final bool disabled =
         (_sonuc?.isDisabled ?? false) || _aktarimSatirlari.isEmpty;
+    final String? selectedRowId = _selectedRowId;
+    RaporSatiri? selectedRow;
+    if (selectedRowId != null) {
+      for (final row in _sayfaSatirlari) {
+        if (row.id == selectedRowId) {
+          selectedRow = row;
+          break;
+        }
+      }
+    }
+
+    final bool hasSelection = selectedRow != null;
+    final String printLabel = hasSelection
+        ? tr('common.print_selected')
+        : tr('common.print_list');
+    final String integrationRef =
+        selectedRow?.extra['integrationRef']?.toString().trim() ?? '';
+    final bool documentEnabled =
+        !disabled &&
+        hasSelection &&
+        integrationRef.isNotEmpty &&
+        _isSaleIntegrationRef(integrationRef);
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Tooltip(
-          message: YazdirmaErisimKontrolu.tooltip(tr('common.print_list')),
+          message: YazdirmaErisimKontrolu.tooltip(printLabel),
           child: _buildActionButton(
             icon: Icons.print_outlined,
-            label: tr('common.print_list'),
+            label: printLabel,
             disabled:
                 disabled || !YazdirmaErisimKontrolu.yazdirmaKullanilabilir,
-            onTap: _openPrintPreview,
+            onTap: hasSelection ? _openSelectedPrintPreview : _openPrintPreview,
           ),
         ),
+        const SizedBox(width: 12),
+        _buildDocumentActionButton(
+          enabled: documentEnabled,
+          onTap: () => unawaited(_openSelectedDocumentPrint()),
+        ),
       ],
+    );
+  }
+
+  Widget _buildDocumentActionButton({
+    required bool enabled,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(8),
+      mouseCursor: enabled
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.basic,
+      onTap: enabled ? onTap : null,
+      child: Container(
+        height: 40,
+        padding: const EdgeInsets.symmetric(horizontal: 14),
+        decoration: BoxDecoration(
+          color: enabled ? const Color(0xFF2C3E50) : Colors.grey.shade200,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: enabled ? const Color(0xFF2C3E50) : Colors.grey.shade300,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 18,
+              color: enabled ? Colors.white : Colors.grey.shade500,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              tr('common.print_document'),
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: enabled ? Colors.white : Colors.grey.shade500,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2692,6 +3725,264 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     );
   }
 
+  void _toggleKeepDetailsOpen() {
+    setState(() {
+      _keepDetailsOpen = !_keepDetailsOpen;
+      if (!_keepDetailsOpen) {
+        _expandedRowIds.clear();
+      }
+    });
+  }
+
+  void _onRowExpansionChanged(int index, bool isExpanded) {
+    final rows = _sayfaSatirlari;
+    if (index < 0 || index >= rows.length) return;
+    final row = rows[index];
+    if (!row.expandable) return;
+    if (_keepDetailsOpen) return;
+
+    setState(() {
+      if (isExpanded) {
+        _expandedRowIds
+          ..clear()
+          ..add(row.id);
+      } else {
+        _expandedRowIds.remove(row.id);
+      }
+    });
+  }
+
+  Set<int> _getEffectiveExpandedIndices(List<RaporSatiri> rows) {
+    final indices = <int>{};
+    for (int i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      if (!row.expandable) continue;
+      if (_keepDetailsOpen || _expandedRowIds.contains(row.id)) {
+        indices.add(i);
+      }
+    }
+    return indices;
+  }
+
+  String _resolveExpanderColumnKey(List<_TableColumnDefinition> columns) {
+    if (columns.any((c) => c.key == 'islem')) return 'islem';
+    if (columns.isEmpty) return 'islem';
+    return columns
+        .firstWhere((c) => c.key != '_actions', orElse: () => columns.first)
+        .key;
+  }
+
+  Widget _buildRowDetail(RaporSatiri row) {
+    if (!row.expandable) return const SizedBox.shrink();
+
+    final table = row.detailTable;
+    if (table != null) {
+      return _buildDetailTableCard(table);
+    }
+
+    final String integrationRef =
+        row.extra['integrationRef']?.toString().trim() ?? '';
+    if (integrationRef.isEmpty) return const SizedBox.shrink();
+
+    final String aciklamaRaw = (row.cells['aciklama'] ?? '').trim();
+    final String? aciklama = (aciklamaRaw.isEmpty || aciklamaRaw == '-')
+        ? null
+        : aciklamaRaw;
+
+    final future = _integrationDetailFutures.putIfAbsent(
+      integrationRef,
+      () => _raporlarServisi.entegrasyonUrunDetayTablosuGetir(
+        integrationRef,
+        aciklama: aciklama,
+      ),
+    );
+
+    return FutureBuilder<DetailTable?>(
+      future: future,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 22),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+        if (snapshot.hasError) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Text(
+              '${tr('common.error')}: ${snapshot.error}',
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          );
+        }
+        final table = snapshot.data;
+        if (table == null || table.data.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Text(
+              tr('common.no_data'),
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+          );
+        }
+        return _buildDetailTableCard(table);
+      },
+    );
+  }
+
+  Widget _buildDetailTableCard(DetailTable table) {
+    final bool isProductDetail =
+        table.headers.length == 8 &&
+        table.headers[0] == tr('common.code_no') &&
+        table.headers[1] == tr('shipment.field.name');
+
+    final List<int> flexes = isProductDetail
+        ? const <int>[2, 5, 2, 2, 3, 3, 3, 5]
+        : List<int>.filled(table.headers.length, 3);
+
+    Alignment cellAlignment(int index) {
+      if (isProductDetail) {
+        if (index == 3) return Alignment.center;
+        if (index == 2 || index == 4 || index == 5 || index == 6) {
+          return Alignment.centerRight;
+        }
+      }
+      return Alignment.centerLeft;
+    }
+
+    final double minWidth = math.max(560, table.headers.length * 120.0);
+
+    TextAlign cellTextAlign(int index) {
+      final alignment = cellAlignment(index);
+      if (alignment == Alignment.centerRight) return TextAlign.right;
+      if (alignment == Alignment.center) return TextAlign.center;
+      return TextAlign.left;
+    }
+
+    Widget buildHeaderRow() {
+      return Container(
+        padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade300, width: 1),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            for (int i = 0; i < table.headers.length; i++) ...[
+              Expanded(
+                flex: i < flexes.length ? flexes[i] : 3,
+                child: Text(
+                  table.headers[i],
+                  textAlign: cellTextAlign(i),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+              ),
+              if (i != table.headers.length - 1) const SizedBox(width: 12),
+            ],
+          ],
+        ),
+      );
+    }
+
+    Widget buildDataRow(List<String> values) {
+      return Container(
+        constraints: const BoxConstraints(minHeight: 52),
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.grey.shade100, width: 0.5),
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            for (int i = 0; i < table.headers.length; i++) ...[
+              Expanded(
+                flex: i < flexes.length ? flexes[i] : 3,
+                child: _buildHighlightedValue(
+                  i < values.length ? values[i] : '-',
+                  maxLines: 2,
+                  textAlign: cellTextAlign(i),
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: i == 1 ? FontWeight.bold : FontWeight.w600,
+                    color: const Color(0xFF2C3E50),
+                    height: 1.25,
+                  ),
+                ),
+              ),
+              if (i != table.headers.length - 1) const SizedBox(width: 12),
+            ],
+          ],
+        ),
+      );
+    }
+
+    final String titleRaw = table.title.trim();
+    // Raporlar'da genişleyen detayda "Son Hareketler" başlığı istenmiyor.
+    final String title =
+        titleRaw == tr('common.last_movements') ? '' : titleRaw;
+
+    final EdgeInsetsGeometry outerPadding = EdgeInsets.fromLTRB(
+      0,
+      title.isEmpty ? 6 : 16,
+      0,
+      20,
+    );
+
+    return Padding(
+      padding: outerPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title.isNotEmpty)
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey.shade800,
+              ),
+            ),
+          if (title.isNotEmpty) const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final double viewportWidth = constraints.maxWidth.isFinite
+                  ? constraints.maxWidth
+                  : minWidth;
+              final bool needsScroll = viewportWidth < minWidth;
+              final double tableWidth = needsScroll ? minWidth : viewportWidth;
+
+              final content = SizedBox(
+                width: tableWidth,
+                child: Column(
+                  children: [
+                    buildHeaderRow(),
+                    for (final row in table.data) buildDataRow(row),
+                  ],
+                ),
+              );
+
+              if (!needsScroll) return content;
+              return SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: content,
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildHeaderButton({
     required String label,
     required IconData icon,
@@ -2731,6 +4022,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   Widget _buildTableRow({
     required RaporSatiri row,
     required List<_TableColumnDefinition> columns,
+    required String expanderColumnKey,
+    required bool isExpanded,
+    required VoidCallback toggleExpand,
   }) {
     return Row(
       children: columns.map((column) {
@@ -2763,10 +4057,37 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             ],
           );
         } else {
+          final bool showExpander = column.key == expanderColumnKey;
           child = Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             alignment: column.alignment,
-            child: _buildValueCell(row, column.key),
+            child: showExpander
+                ? Row(
+                    children: [
+                      row.expandable
+                          ? InkWell(
+                              mouseCursor: WidgetStateMouseCursor.clickable,
+                              onTap: toggleExpand,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(2.0),
+                                child: AnimatedRotation(
+                                  turns: isExpanded ? 0.25 : 0,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 16,
+                                    color: Colors.grey.shade600,
+                                  ),
+                                ),
+                              ),
+                            )
+                          : const SizedBox(width: 20, height: 20),
+                      const SizedBox(width: 8),
+                      Expanded(child: _buildValueCell(row, column.key)),
+                    ],
+                  )
+                : _buildValueCell(row, column.key),
           );
         }
 
@@ -2799,7 +4120,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return _buildHighlightedValue(
         value,
         style: const TextStyle(
-          fontSize: 12.5,
+          fontSize: 11,
           height: 1.35,
           fontWeight: FontWeight.w600,
           color: AppPalette.slate,
@@ -2814,7 +4135,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return _buildHighlightedValue(
         value,
         style: const TextStyle(
-          fontSize: 13,
+          fontSize: 11,
           height: 1.35,
           fontWeight: FontWeight.w600,
           color: AppPalette.slate,
@@ -2825,7 +4146,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return _buildHighlightedValue(
         value,
         style: TextStyle(
-          fontSize: 12,
+          fontSize: 11,
           height: 1.35,
           fontWeight: key == 'kullanici' ? FontWeight.w600 : FontWeight.w500,
           color: key == 'kullanici'
@@ -2838,7 +4159,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     return _buildHighlightedValue(
       value,
       style: const TextStyle(
-        fontSize: 12.5,
+        fontSize: 11,
         height: 1.35,
         fontWeight: FontWeight.w500,
         color: AppPalette.slate,
@@ -2877,7 +4198,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           child: _buildHighlightedValue(
             value,
             style: TextStyle(
-              fontSize: 12.75,
+              fontSize: 11,
               height: 1.3,
               fontWeight: FontWeight.w700,
               color: textColor,
@@ -2937,7 +4258,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     return _buildHighlightedValue(
       value,
       style: TextStyle(
-        fontSize: key == 'aciklama' ? 11.5 : 11,
+        fontSize: 11,
         height: 1.45,
         fontWeight: FontWeight.w600,
         color: Colors.grey.shade600,
@@ -2951,7 +4272,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       value,
       textAlign: TextAlign.right,
       style: TextStyle(
-        fontSize: 12.75,
+        fontSize: 11,
         height: 1.35,
         fontWeight: FontWeight.w700,
         color: color,
@@ -2975,7 +4296,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       value,
       textAlign: TextAlign.right,
       style: TextStyle(
-        fontSize: 12.75,
+        fontSize: 11,
         height: 1.35,
         fontWeight: FontWeight.w700,
         color: color,
@@ -2991,7 +4312,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         _buildHighlightedValue(
           name,
           style: const TextStyle(
-            fontSize: 13,
+            fontSize: 11,
             height: 1.3,
             fontWeight: FontWeight.w600,
             color: AppPalette.slate,

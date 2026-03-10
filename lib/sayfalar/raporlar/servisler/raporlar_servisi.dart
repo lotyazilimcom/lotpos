@@ -73,6 +73,11 @@ class RaporlarServisi {
   _summaryCardsCache = <String, ({DateTime at, List<RaporOzetKarti> cards})>{};
   final Map<String, Future<List<RaporOzetKarti>>> _summaryCardsInFlight =
       <String, Future<List<RaporOzetKarti>>>{};
+  final Map<String, ({DateTime at, List<RaporIslemToplami> totals})>
+  _islemToplamlariCache =
+      <String, ({DateTime at, List<RaporIslemToplami> totals})>{};
+  final Map<String, Future<List<RaporIslemToplami>>> _islemToplamlariInFlight =
+      <String, Future<List<RaporIslemToplami>>>{};
 
   static final List<RaporSecenegi> _raporlar = <RaporSecenegi>[
     RaporSecenegi(
@@ -82,6 +87,9 @@ class RaporlarServisi {
       icon: Icons.alt_route_rounded,
       supportedFilters: {
         RaporFiltreTuru.tarihAraligi,
+        RaporFiltreTuru.islemTuru,
+        RaporFiltreTuru.belgeNo,
+        RaporFiltreTuru.referansNo,
         RaporFiltreTuru.kullanici,
         RaporFiltreTuru.minTutar,
         RaporFiltreTuru.maxTutar,
@@ -449,6 +457,43 @@ class RaporlarServisi {
     } finally {
       if (identical(_summaryCardsInFlight[cacheKey], future)) {
         _summaryCardsInFlight.remove(cacheKey);
+      }
+    }
+  }
+
+  Future<List<RaporIslemToplami>> _getOrComputeIslemToplamlari({
+    required String cacheKey,
+    required Future<List<RaporIslemToplami>> Function() loader,
+  }) async {
+    final now = DateTime.now();
+    final cached = _islemToplamlariCache[cacheKey];
+    if (cached != null && now.difference(cached.at) < _summaryCacheTtl) {
+      return cached.totals;
+    }
+
+    final inFlight = _islemToplamlariInFlight[cacheKey];
+    if (inFlight != null) return inFlight;
+
+    final future = loader();
+    _islemToplamlariInFlight[cacheKey] = future;
+    try {
+      final totals = await future;
+      _islemToplamlariCache[cacheKey] = (at: now, totals: totals);
+      if (_islemToplamlariCache.length > _summaryCacheMaxEntries) {
+        final entries = _islemToplamlariCache.entries.toList()
+          ..sort((a, b) => a.value.at.compareTo(b.value.at));
+        final removeCount = math.max(
+          0,
+          entries.length - _summaryCacheMaxEntries,
+        );
+        for (int i = 0; i < removeCount; i++) {
+          _islemToplamlariCache.remove(entries[i].key);
+        }
+      }
+      return totals;
+    } finally {
+      if (identical(_islemToplamlariInFlight[cacheKey], future)) {
+        _islemToplamlariInFlight.remove(cacheKey);
       }
     }
   }
@@ -1107,6 +1152,45 @@ class RaporlarServisi {
       rows: const <RaporSatiri>[],
       disabledReasonKey: 'reports.disabled.unknown',
     );
+  }
+
+  /// Satış/Alış entegrasyon referansı (SALE-/PURCHASE-/RETAIL-) üzerinden
+  /// sevkiyat kalemlerini çekip raporlarda genişleyen "Ürünler" tablosu olarak döndürür.
+  ///
+  /// Not: Kalemler `shipments.items` JSON alanından gelir.
+  Future<DetailTable?> entegrasyonUrunDetayTablosuGetir(
+    String integrationRef, {
+    String? aciklama,
+  }) async {
+    final ref = integrationRef.trim();
+    if (ref.isEmpty) return null;
+
+    final pool = await _havuzAl();
+    final rows = await _queryMaps(
+      pool,
+      '''
+      SELECT COALESCE(json_agg(items), '[]'::json) AS items
+      FROM shipments
+      WHERE integration_ref = @ref
+    ''',
+      {'ref': ref},
+    );
+
+    if (rows.isEmpty) return null;
+
+    final List<Map<String, dynamic>> items = _extractDetailItems(
+      rows.first['items'],
+    );
+    if (items.isEmpty) return null;
+
+    final String safeAciklama = (aciklama ?? '').trim();
+    final List<Map<String, dynamic>> enriched = safeAciklama.isEmpty
+        ? items
+        : items
+              .map((e) => <String, dynamic>{...e, 'aciklama': safeAciklama})
+              .toList(growable: false);
+
+    return _detailTableFromItems(enriched, title: tr('common.last_movements'));
   }
 
   List<ExpandableRowData> yazdirmaSatirlariniHazirla({
@@ -5712,6 +5796,10 @@ class RaporlarServisi {
         "normalize_text('Cari Hesap'), "
         "normalize_text('Cari İşlem'), "
         "normalize_text('current_account'))";
+    // Perakende satış ödemeleri bazı eski kayıtlarda location='Cari Hesap' olarak
+    // kaydedilmiş olabiliyor. Cari entegrasyonu yoksa (integration_ref: RETAIL-*)
+    // bunları "cari mirror" filtresine takmadan rapora dahil et.
+    const retailRefSql = "COALESCE(t.integration_ref, '') ILIKE 'RETAIL-%'";
     final kasaYer2Expr = "normalize_text('$yerKasaLabel')";
     final bankaYer2Expr = "normalize_text('$yerBankaLabel')";
     final krediKartiYer2Expr = "normalize_text('$yerKrediKartiLabel')";
@@ -5727,7 +5815,7 @@ class RaporlarServisi {
     final kasaWhere = <String>[];
     applyCommonDateUser(kasaWhere, 't.date', 't.user_name');
     kasaWhere.add("COALESCE(t.integration_ref, '') NOT ILIKE 'CARI-PAV-%'");
-    kasaWhere.add(cariMirrorYerSql);
+    kasaWhere.add('($cariMirrorYerSql OR $retailRefSql)');
     _addSearchConditionAny(kasaWhere, params, [
       't.search_tags',
       kasaYer2Expr,
@@ -5736,7 +5824,7 @@ class RaporlarServisi {
     final bankaWhere = <String>[];
     applyCommonDateUser(bankaWhere, 't.date', 't.user_name');
     bankaWhere.add("COALESCE(t.integration_ref, '') NOT ILIKE 'CARI-PAV-%'");
-    bankaWhere.add(cariMirrorYerSql);
+    bankaWhere.add('($cariMirrorYerSql OR $retailRefSql)');
     _addSearchConditionAny(bankaWhere, params, [
       't.search_tags',
       bankaYer2Expr,
@@ -5745,16 +5833,109 @@ class RaporlarServisi {
     final kartWhere = <String>[];
     applyCommonDateUser(kartWhere, 't.date', 't.user_name');
     kartWhere.add("COALESCE(t.integration_ref, '') NOT ILIKE 'CARI-PAV-%'");
-    kartWhere.add(cariMirrorYerSql);
+    kartWhere.add('($cariMirrorYerSql OR $retailRefSql)');
     _addSearchConditionAny(kartWhere, params, [
       't.search_tags',
       krediKartiYer2Expr,
     ], arama);
 
+    final retailWhere = <String>[];
+    applyCommonDateUser(retailWhere, 'rs.tarih', 'rs.kullanici');
+    _addSearchConditionAny(retailWhere, params, [
+      "normalize_text(COALESCE(rs.integration_ref, ''))",
+      "normalize_text(COALESCE(rs.aciklama, ''))",
+      "normalize_text('$yerPerakendeLabel')",
+    ], arama);
+
+    // Agregasyon öncesi filtreleme: bu ay gibi tarihe göre raporda
+    // shipments tablosunu komple tarayıp gruplayarak yavaşlamasın.
+    final retailSourceWhere = <String>[
+      "COALESCE(s.integration_ref, '') ILIKE 'RETAIL-%'",
+    ];
+    if (filtreler.baslangicTarihi != null) {
+      retailSourceWhere.add('s.date >= @baslangic');
+    }
+    if (filtreler.bitisTarihi != null) {
+      retailSourceWhere.add('s.date < @bitis');
+    }
+    if (_emptyToNull(kullaniciAdi) != null) {
+      retailSourceWhere.add("COALESCE(s.created_by, '') = @kullanici");
+    }
+
     final unionQuery =
         '''
       SELECT *
       FROM (
+        SELECT
+          ((12::bigint << 48) + rs.id::bigint) AS gid,
+          rs.id,
+          rs.tarih,
+          'Satış Yapıldı' AS islem,
+          NULL AS yon,
+          rs.integration_ref,
+          NULL AS guncel_durum,
+          '$yerPerakendeLabel' AS yer,
+          '' AS yer_kodu,
+          '' AS yer_adi,
+          rs.amount AS tutar_num,
+          'TRY' AS para_birimi,
+          1 AS kur,
+          '' AS yer_2,
+          COALESCE(rs.integration_ref, '-') AS belge_no,
+          '-' AS e_belge,
+          '-' AS irsaliye_no,
+          '-' AS fatura_no,
+          rs.aciklama AS aciklama,
+          '' AS aciklama_2,
+          NULL AS vade_tarihi,
+          COALESCE(rs.kullanici, '-') AS kullanici,
+          NULL AS source_menu_index,
+          rs.integration_ref AS source_search_query,
+          FALSE AS is_incoming
+        FROM (
+          SELECT
+            MIN(s.id) AS id,
+            MAX(s.date) AS tarih,
+            MAX(s.integration_ref) AS integration_ref,
+            MAX(s.created_by) AS kullanici,
+            MAX(COALESCE(NULLIF(s.description, ''), 'Perakende Satış')) AS aciklama,
+            SUM(
+              COALESCE(
+                CASE
+                  WHEN COALESCE(item->>'total', '') ~ '^-?[0-9]+([.,][0-9]+)?\$' THEN
+                    REPLACE(item->>'total', ',', '.')::numeric
+                  ELSE NULL
+                END,
+                COALESCE(
+                  CASE
+                    WHEN COALESCE(item->>'quantity', '') ~ '^-?[0-9]+([.,][0-9]+)?\$' THEN
+                      REPLACE(item->>'quantity', ',', '.')::numeric
+                    ELSE NULL
+                  END,
+                  0
+                ) *
+                    COALESCE(
+                      CASE
+                        WHEN COALESCE(item->>'unitCost', '') ~ '^-?[0-9]+([.,][0-9]+)?\$' THEN
+                          REPLACE(item->>'unitCost', ',', '.')::numeric
+                        ELSE NULL
+                      END,
+                      CASE
+                        WHEN COALESCE(item->>'price', '') ~ '^-?[0-9]+([.,][0-9]+)?\$' THEN
+                          REPLACE(item->>'price', ',', '.')::numeric
+                        ELSE NULL
+                      END,
+                      0
+                    )
+              )
+            ) AS amount
+          FROM shipments s
+          CROSS JOIN LATERAL jsonb_array_elements(COALESCE(s.items, '[]'::jsonb)) item
+          WHERE ${retailSourceWhere.join(' AND ')}
+          GROUP BY s.integration_ref
+        ) rs
+        ${retailWhere.isEmpty ? '' : 'WHERE ${retailWhere.join(' AND ')}'}
+        UNION ALL
         SELECT
           ((${TabAciciScope.cariKartiIndex}::bigint << 48) + cat.id::bigint) AS gid,
           cat.id,
@@ -5804,7 +5985,8 @@ class RaporlarServisi {
           NULL AS vade_tarihi,
           COALESCE(cat.user_name, '-') AS kullanici,
           ${TabAciciScope.cariKartiIndex} AS source_menu_index,
-          ca.adi AS source_search_query
+          ca.adi AS source_search_query,
+          NULL AS is_incoming
         FROM current_account_transactions cat
         INNER JOIN current_accounts ca ON ca.id = cat.current_account_id
         ${cariWhere.isEmpty ? '' : 'WHERE ${cariWhere.join(' AND ')}'}
@@ -5817,9 +5999,12 @@ class RaporlarServisi {
           NULL AS yon,
           t.integration_ref,
           NULL AS guncel_durum,
-          COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel') AS yer,
-          COALESCE(t.location_code, '') AS yer_kodu,
-          COALESCE(t.location_name, '') AS yer_adi,
+          CASE
+            WHEN $retailRefSql THEN '$yerPerakendeLabel'
+            ELSE COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel')
+          END AS yer,
+          CASE WHEN $retailRefSql THEN '' ELSE COALESCE(t.location_code, '') END AS yer_kodu,
+          CASE WHEN $retailRefSql THEN '' ELSE COALESCE(t.location_name, '') END AS yer_adi,
           t.amount AS tutar_num,
           'TRY' AS para_birimi,
           1 AS kur,
@@ -5833,7 +6018,8 @@ class RaporlarServisi {
           NULL AS vade_tarihi,
           COALESCE(t.user_name, '-') AS kullanici,
           13 AS source_menu_index,
-          a.name AS source_search_query
+          a.name AS source_search_query,
+          NULL AS is_incoming
         FROM cash_register_transactions t
         LEFT JOIN cash_registers a ON a.id = t.cash_register_id
         ${kasaWhere.isEmpty ? '' : 'WHERE ${kasaWhere.join(' AND ')}'}
@@ -5846,9 +6032,12 @@ class RaporlarServisi {
           NULL AS yon,
           t.integration_ref,
           NULL AS guncel_durum,
-          COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel') AS yer,
-          COALESCE(t.location_code, '') AS yer_kodu,
-          COALESCE(t.location_name, '') AS yer_adi,
+          CASE
+            WHEN $retailRefSql THEN '$yerPerakendeLabel'
+            ELSE COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel')
+          END AS yer,
+          CASE WHEN $retailRefSql THEN '' ELSE COALESCE(t.location_code, '') END AS yer_kodu,
+          CASE WHEN $retailRefSql THEN '' ELSE COALESCE(t.location_name, '') END AS yer_adi,
           t.amount AS tutar_num,
           'TRY' AS para_birimi,
           1 AS kur,
@@ -5862,7 +6051,8 @@ class RaporlarServisi {
           NULL AS vade_tarihi,
           COALESCE(t.user_name, '-') AS kullanici,
           15 AS source_menu_index,
-          a.name AS source_search_query
+          a.name AS source_search_query,
+          NULL AS is_incoming
         FROM bank_transactions t
         LEFT JOIN banks a ON a.id = t.bank_id
         ${bankaWhere.isEmpty ? '' : 'WHERE ${bankaWhere.join(' AND ')}'}
@@ -5875,9 +6065,12 @@ class RaporlarServisi {
           NULL AS yon,
           t.integration_ref,
           NULL AS guncel_durum,
-          COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel') AS yer,
-          COALESCE(t.location_code, '') AS yer_kodu,
-          COALESCE(t.location_name, '') AS yer_adi,
+          CASE
+            WHEN $retailRefSql THEN '$yerPerakendeLabel'
+            ELSE COALESCE(NULLIF(t.location, ''), '$yerPerakendeLabel')
+          END AS yer,
+          CASE WHEN $retailRefSql THEN '' ELSE COALESCE(t.location_code, '') END AS yer_kodu,
+          CASE WHEN $retailRefSql THEN '' ELSE COALESCE(t.location_name, '') END AS yer_adi,
           t.amount AS tutar_num,
           'TRY' AS para_birimi,
           1 AS kur,
@@ -5891,57 +6084,334 @@ class RaporlarServisi {
           NULL AS vade_tarihi,
           COALESCE(t.user_name, '-') AS kullanici,
           16 AS source_menu_index,
-          a.name AS source_search_query
+          a.name AS source_search_query,
+          NULL AS is_incoming
         FROM credit_card_transactions t
         LEFT JOIN credit_cards a ON a.id = t.credit_card_id
         ${kartWhere.isEmpty ? '' : 'WHERE ${kartWhere.join(' AND ')}'}
       ) hareketler
     ''';
 
-    String sortExpr(String? key) {
-      switch (key) {
-        case 'islem':
-          return "COALESCE(base.islem, '')";
-        case 'yer':
-          return "COALESCE(base.yer, '')";
-        case 'yer_kodu':
-          return "COALESCE(base.yer_kodu, '')";
-        case 'yer_adi':
-          return "COALESCE(base.yer_adi, '')";
-        case 'yer_2':
-          return "COALESCE(base.yer_2, '')";
-        case 'tarih':
-          return 'base.tarih';
-        case 'tutar':
-          return 'base.tutar_num';
-        case 'kur':
-          return 'base.kur';
-        case 'belge':
-          return "COALESCE(base.belge_no, '')";
-        case 'e_belge':
-          return "COALESCE(base.e_belge, '')";
-        case 'irsaliye_no':
-          return "COALESCE(base.irsaliye_no, '')";
-        case 'fatura_no':
-          return "COALESCE(base.fatura_no, '')";
-        case 'aciklama':
-          return "COALESCE(base.aciklama, '')";
-        case 'aciklama_2':
-          return "COALESCE(base.aciklama_2, '')";
-        case 'vade_tarihi':
-          return 'base.vade_tarihi';
-        case 'kullanici':
-          return "COALESCE(base.kullanici, '')";
+    const String eBelgeVarSentinel = '__HAS_EBELGE__';
+    final String? islemTuruFilter = _emptyToNull(filtreler.islemTuru);
+    final String? belgeFilter = _emptyToNull(filtreler.belgeNo);
+    final String? eBelgeFilter = _emptyToNull(filtreler.referansNo);
+
+    String? belgeWhere({required String alias}) {
+      if (belgeFilter == null) return null;
+
+      final faturaClean =
+          "TRIM(REPLACE(COALESCE($alias.fatura_no, ''), '-', ''))";
+      final irsaliyeClean =
+          "TRIM(REPLACE(COALESCE($alias.irsaliye_no, ''), '-', ''))";
+
+      switch (belgeFilter) {
+        case 'Fatura':
+          return "($faturaClean <> '' AND $irsaliyeClean = '')";
+        case 'İrsaliye':
+          return "($irsaliyeClean <> '' AND $faturaClean = '')";
+        case 'İrsaliyeli Fatura':
+          return "($faturaClean <> '' AND $irsaliyeClean <> '')";
+        case '-':
+          return "($faturaClean = '' AND $irsaliyeClean = '')";
         default:
-          return 'base.tarih';
+          return null;
       }
     }
 
-    final baseQuery =
-        '''
-      SELECT base.*, ${sortExpr(sortKey)} AS sort_val
+    String? eBelgeWhere({required String alias}) {
+      if (eBelgeFilter == null) return null;
+      if (eBelgeFilter == eBelgeVarSentinel) {
+        return "COALESCE(NULLIF(TRIM(COALESCE($alias.e_belge, '')), ''), '-') <> '-'";
+      }
+      params['eBelgeFiltre'] = eBelgeFilter;
+      return "normalize_text(COALESCE(NULLIF($alias.e_belge, ''), '-')) = normalize_text(@eBelgeFiltre)";
+    }
+
+    String sortExpr(String? key, {required String alias}) {
+      switch (key) {
+        case 'islem':
+          return "COALESCE($alias.islem, '')";
+        case 'yer':
+          return "COALESCE($alias.yer, '')";
+        case 'yer_kodu':
+          return "COALESCE($alias.yer_kodu, '')";
+        case 'yer_adi':
+          return "COALESCE($alias.yer_adi, '')";
+        case 'yer_2':
+          return "COALESCE($alias.yer_2, '')";
+        case 'tarih':
+          return '$alias.tarih';
+        case 'tutar':
+          return '$alias.tutar_num';
+        case 'kur':
+          return '$alias.kur';
+        case 'belge':
+          return "COALESCE($alias.belge_no, '')";
+        case 'e_belge':
+          return "COALESCE($alias.e_belge, '')";
+        case 'irsaliye_no':
+          return "COALESCE($alias.irsaliye_no, '')";
+        case 'fatura_no':
+          return "COALESCE($alias.fatura_no, '')";
+        case 'aciklama':
+          return "COALESCE($alias.aciklama, '')";
+        case 'aciklama_2':
+          return "COALESCE($alias.aciklama_2, '')";
+        case 'vade_tarihi':
+          return '$alias.vade_tarihi';
+        case 'kullanici':
+          return "COALESCE($alias.kullanici, '')";
+        default:
+          return '$alias.tarih';
+      }
+    }
+
+    final List<String> outerWhereBase = <String>[
+      if (belgeWhere(alias: 'base') != null) belgeWhere(alias: 'base')!,
+      if (eBelgeWhere(alias: 'base') != null) eBelgeWhere(alias: 'base')!,
+    ];
+
+    final String outerWhereBaseSql = outerWhereBase.isEmpty
+        ? ''
+        : 'WHERE ${outerWhereBase.join(' AND ')}';
+
+    final String baseQuery = islemTuruFilter == null
+        ? '''
+      SELECT base.*, ${sortExpr(sortKey, alias: 'base')} AS sort_val
       FROM ($unionQuery) base
+      $outerWhereBaseSql
+    '''
+        : () {
+            params['islemTuruFiltre'] = islemTuruFilter;
+            final List<String> outerWhereLabeled = <String>[
+              "normalize_text(COALESCE(l.display_islem, '')) = normalize_text(@islemTuruFiltre)",
+              if (belgeWhere(alias: 'l') != null) belgeWhere(alias: 'l')!,
+              if (eBelgeWhere(alias: 'l') != null) eBelgeWhere(alias: 'l')!,
+            ];
+            final String outerWhereLabeledSql =
+                'WHERE ${outerWhereLabeled.join(' AND ')}';
+
+            return '''
+      WITH base AS (
+        SELECT
+          u.*,
+          LOWER(COALESCE(u.islem, '')) AS low_islem,
+          LOWER(COALESCE(u.integration_ref, '')) AS low_ref,
+          LOWER(COALESCE(u.yon, '')) AS low_yon,
+          LOWER(COALESCE(u.aciklama, '')) AS low_aciklama,
+          LOWER(COALESCE(u.yer, '')) AS low_yer
+        FROM ($unionQuery) u
+      ),
+      flags AS (
+        SELECT
+          base.*,
+          (
+            base.low_islem LIKE '%çek%' OR
+            base.low_islem LIKE '%cek%' OR
+            base.low_ref LIKE 'cheque%' OR
+            base.low_ref LIKE 'cek-%'
+          ) AS is_check,
+          (
+            base.low_islem LIKE '%senet%' OR
+            base.low_ref LIKE 'note%' OR
+            base.low_ref LIKE 'senet-%' OR
+            base.low_ref LIKE '%promissory%'
+          ) AS is_note,
+          (
+            base.low_ref LIKE 'sale-%' OR
+            base.low_ref LIKE 'retail-%'
+          ) AS is_sale_ref,
+          (base.low_ref LIKE 'purchase-%') AS is_purchase_ref,
+          (
+            base.low_ref LIKE 'cari-pav-cash-%' OR
+            base.low_ref LIKE 'cari-pav-bank-%' OR
+            base.low_ref LIKE 'cari-pav-credit_card-%'
+          ) AS is_cari_payment_ref,
+          (
+            TRIM(base.low_islem) IN ('kasa', 'banka', 'kredi kartı', 'kredi karti')
+          ) AS is_cari_finans_source_type,
+          (base.low_ref LIKE 'retail-%') AS is_retail_ref,
+          (
+            base.low_yon LIKE '%alacak%' OR
+            base.low_islem LIKE '%tahsilat%' OR
+            base.low_islem LIKE '%alış%' OR
+            base.low_islem LIKE '%alis%' OR
+            base.low_islem LIKE '%girdi%' OR
+            base.low_islem LIKE '%giriş%' OR
+            base.low_islem LIKE '%giris%' OR
+            base.low_islem LIKE '%alındı%' OR
+            base.low_islem LIKE '%alindi%' OR
+            base.low_islem LIKE '%alınan%' OR
+            base.low_islem LIKE '%alinan%'
+          ) AS cari_is_incoming,
+          (
+            base.low_islem LIKE '%tahsil%' OR
+            base.low_islem LIKE '%girdi%' OR
+            base.low_islem LIKE '%giriş%' OR
+            base.low_islem LIKE '%giris%' OR
+            base.low_islem LIKE '%havale%' OR
+            base.low_islem LIKE '%eft%'
+          ) AS finans_is_incoming,
+          (
+            base.low_islem LIKE '%ödeme%' OR
+            base.low_islem LIKE '%odeme%' OR
+            base.low_islem LIKE '%harcama%' OR
+            base.low_islem LIKE '%çıktı%' OR
+            base.low_islem LIKE '%cikti%' OR
+            base.low_islem LIKE '%çıkış%' OR
+            base.low_islem LIKE '%cikis%'
+          ) AS finans_is_outgoing
+        FROM base
+      ),
+      labeled AS (
+        SELECT
+          flags.*,
+          CASE
+            WHEN flags.source_menu_index = ${TabAciciScope.cariKartiIndex} THEN
+              CASE
+                WHEN flags.is_cari_payment_ref OR flags.is_cari_finans_source_type THEN
+                  CASE WHEN flags.cari_is_incoming THEN 'Para Alındı' ELSE 'Para Verildi' END
+                WHEN flags.is_sale_ref THEN 'Satış Yapıldı'
+                WHEN flags.is_purchase_ref THEN 'Alış Yapıldı'
+                WHEN flags.is_check OR flags.is_note THEN
+                  CASE
+                    WHEN flags.guncel_durum = 'Ciro Edildi' THEN
+                      CASE
+                        WHEN flags.is_check THEN 'Çek Alındı (Ciro Edildi)'
+                        ELSE 'Senet Alındı (Ciro Edildi)'
+                      END
+                    WHEN flags.guncel_durum IN ('Tahsil Edildi', 'Ödendi') THEN
+                      CASE
+                        WHEN flags.is_check THEN
+                          CASE
+                            WHEN flags.cari_is_incoming THEN 'Çek Alındı (' || flags.guncel_durum || ')'
+                            ELSE 'Çek Verildi (' || flags.guncel_durum || ')'
+                          END
+                        ELSE
+                          CASE
+                            WHEN flags.cari_is_incoming THEN 'Senet Alındı (' || flags.guncel_durum || ')'
+                            ELSE 'Senet Verildi (' || flags.guncel_durum || ')'
+                          END
+                      END
+                    WHEN flags.is_check THEN
+                      CASE WHEN flags.cari_is_incoming THEN 'Çek Alındı' ELSE 'Çek Verildi' END
+                    ELSE
+                      CASE WHEN flags.cari_is_incoming THEN 'Senet Alındı' ELSE 'Senet Verildi' END
+                  END
+                ELSE
+                  CASE
+                    WHEN TRIM(flags.low_islem) IN ('borç', 'borc') THEN 'Cari Borç'
+                    WHEN TRIM(flags.low_islem) = 'alacak' THEN 'Cari Alacak'
+                    WHEN (
+                      (flags.low_islem LIKE '%açılış%' OR flags.low_islem LIKE '%acilis%') AND
+                      (flags.low_islem LIKE '%devir%' OR flags.low_islem LIKE '%devri%')
+                    ) THEN
+                      CASE
+                        WHEN flags.low_islem LIKE '%alacak%' THEN 'Açılış Alacak Devri'
+                        WHEN flags.low_islem LIKE '%borç%' OR flags.low_islem LIKE '%borc%' THEN 'Açılış Borç Devri'
+                        ELSE COALESCE(flags.islem, '-')
+                      END
+                    WHEN (
+                      flags.low_islem LIKE '%tahsilat%' OR
+                      flags.low_islem LIKE '%girdi%' OR
+                      flags.low_islem LIKE '%giriş%' OR
+                      flags.low_islem LIKE '%giris%' OR
+                      flags.low_islem = 'para alındı' OR
+                      flags.low_islem = 'para alindi'
+                    ) THEN 'Para Alındı'
+                    WHEN (
+                      flags.low_islem LIKE '%ödeme%' OR
+                      flags.low_islem LIKE '%odeme%' OR
+                      flags.low_islem LIKE '%çıktı%' OR
+                      flags.low_islem LIKE '%çıkış%' OR
+                      flags.low_islem = 'para verildi'
+                    ) THEN 'Para Verildi'
+                    WHEN flags.low_islem LIKE '%borç dekontu%' OR flags.low_islem LIKE '%borc dekontu%' THEN 'Borç Dekontu'
+                    WHEN flags.low_islem LIKE '%alacak dekontu%' THEN 'Alacak Dekontu'
+                    WHEN flags.low_islem LIKE '%satış yapıldı%' OR flags.low_islem LIKE '%satis yapildi%' THEN 'Satış Yapıldı'
+                    WHEN flags.low_islem LIKE '%alış yapıldı%' OR flags.low_islem LIKE '%alis yapildi%' THEN 'Alış Yapıldı'
+                    WHEN flags.low_islem LIKE '%satış%' OR flags.low_islem LIKE '%satis%' THEN 'Satış Faturası'
+                    WHEN flags.low_islem LIKE '%alış%' OR flags.low_islem LIKE '%alis%' THEN 'Alış Faturası'
+                    WHEN COALESCE(TRIM(flags.yon), '-') <> '' THEN
+                      CASE WHEN flags.cari_is_incoming THEN 'Para Alındı' ELSE 'Para Verildi' END
+                    ELSE COALESCE(flags.islem, '-')
+                  END
+              END
+            WHEN flags.source_menu_index IN (13, 15, 16) THEN
+              CASE
+                WHEN flags.is_sale_ref AND NOT flags.is_retail_ref THEN 'Satış Yapıldı'
+                WHEN flags.is_purchase_ref THEN 'Alış Yapıldı'
+                WHEN (
+                  flags.low_ref = 'opening_stock' OR
+                  flags.low_ref LIKE '%opening_stock%' OR
+                  flags.low_aciklama LIKE '%açılış%' OR
+                  flags.low_aciklama LIKE '%acilis%'
+                ) THEN 'Açılış Stoğu'
+                WHEN (
+                  flags.low_ref LIKE '%production%' OR
+                  flags.low_aciklama LIKE '%üretim%' OR
+                  flags.low_aciklama LIKE '%uretim%'
+                ) THEN 'Üretim'
+                WHEN (
+                  flags.low_ref LIKE '%transfer%' OR
+                  flags.low_aciklama LIKE '%devir%'
+                ) THEN 'Devir'
+                WHEN flags.source_menu_index <> 13 AND flags.low_ref LIKE '%collection%' THEN 'Tahsilat'
+                WHEN flags.source_menu_index <> 13 AND flags.low_ref LIKE '%payment%' THEN 'Ödeme'
+                WHEN flags.is_check THEN
+                  CASE
+                    WHEN (
+                      CASE
+                        WHEN flags.finans_is_incoming THEN TRUE
+                        WHEN flags.finans_is_outgoing THEN FALSE
+                        ELSE FALSE
+                      END
+                    ) THEN 'Çek Alındı (Tahsil Edildi)'
+                    ELSE 'Çek Verildi (Ödendi)'
+                  END
+                WHEN flags.is_note THEN
+                  CASE
+                    WHEN (
+                      CASE
+                        WHEN flags.finans_is_incoming THEN TRUE
+                        WHEN flags.finans_is_outgoing THEN FALSE
+                        ELSE FALSE
+                      END
+                    ) THEN 'Senet Alındı (Tahsil Edildi)'
+                    ELSE 'Senet Verildi (Ödendi)'
+                  END
+                ELSE
+                  CASE
+                    WHEN (
+                      NOT (
+                        CASE
+                          WHEN flags.finans_is_incoming THEN TRUE
+                          WHEN flags.finans_is_outgoing THEN FALSE
+                          ELSE FALSE
+                        END
+                      ) AND flags.low_yer LIKE '%personel%'
+                    ) THEN 'Personel Ödemesi'
+                    WHEN (
+                      CASE
+                        WHEN flags.finans_is_incoming THEN TRUE
+                        WHEN flags.finans_is_outgoing THEN FALSE
+                        ELSE FALSE
+                      END
+                    ) THEN 'Para Alındı'
+                    ELSE 'Para Verildi'
+                  END
+              END
+            ELSE COALESCE(flags.islem, '-')
+          END AS display_islem,
+          ${sortExpr(sortKey, alias: 'flags')} AS sort_val
+        FROM flags
+      )
+      SELECT l.*
+      FROM labeled l
+      $outerWhereLabeledSql
     ''';
+          }();
 
     final pageResult = await _fetchKeysetPageById(
       pool: pool,
@@ -5962,6 +6432,22 @@ class RaporlarServisi {
           final vade = _toDateTime(tx['vade_tarihi']);
           final tutar = _toDouble(tx['tutar_num']);
           final sunum = _genelHareketSunumunuHazirla(tx);
+          final dynamic incoming = tx['is_incoming'];
+          final Map<String, dynamic> extra = <String, dynamic>{};
+          if (incoming is bool) {
+            extra['isIncoming'] = incoming;
+          }
+
+          final String integrationRef = tx['integration_ref']?.toString() ?? '';
+          if (integrationRef.trim().isNotEmpty) {
+            extra['integrationRef'] = integrationRef;
+          }
+
+          final bool isSaleOrPurchaseRow =
+              _isSaleTransaction(sunum.islem) ||
+              _isPurchaseTransaction(sunum.islem);
+          final bool expandable =
+              isSaleOrPurchaseRow && integrationRef.trim().isNotEmpty;
           final faturaNo =
               tx['fatura_no']?.toString().replaceAll('-', '').trim() ?? '';
           final irsaliyeNo =
@@ -5999,9 +6485,11 @@ class RaporlarServisi {
                   : '',
               'kullanici': tx['kullanici']?.toString() ?? '-',
             },
+            expandable: expandable,
             sourceMenuIndex: (tx['source_menu_index'] as num?)?.toInt(),
             sourceSearchQuery: tx['source_search_query']?.toString(),
             amountValue: tutar,
+            extra: extra.isEmpty ? const <String, dynamic>{} : extra,
             sortValues: {
               'islem': sunum.islem,
               'yer': tx['yer'],
@@ -6028,12 +6516,12 @@ class RaporlarServisi {
       filtreler: filtreler,
       arama: arama,
     );
-    final summaryCards = await _getOrComputeSummaryCards(
+    final summaryCardsFuture = _getOrComputeSummaryCards(
       cacheKey: summaryKey,
       loader: () async {
         final totalCount = await _queryCount(
           pool,
-          'SELECT COUNT(*) FROM ($unionQuery) sayim',
+          'SELECT COUNT(*) FROM ($baseQuery) sayim',
           params,
         );
         return <RaporOzetKarti>[
@@ -6047,10 +6535,287 @@ class RaporlarServisi {
       },
     );
 
+    // "İşlem" filter dropdown seçenekleri seçimden bağımsız olmalı (Cari Kart gibi):
+    // Seçilen işlem sadece tabloyu filtrelesin, dropdown tüm işlem türlerini ve adetlerini
+    // göstermeye devam etsin. Bu yüzden cacheKey'de işlem filtresini yok sayıyoruz.
+    final islemToplamlariKey = _summaryCacheKey(
+      reportId: rapor.id,
+      filtreler: filtreler.copyWith(clearIslemTuru: true),
+      arama: arama,
+    );
+    final islemToplamlariFuture = _getOrComputeIslemToplamlari(
+      cacheKey: islemToplamlariKey,
+      loader: () async {
+        final List<String> totalsBaseWhere = <String>[
+          if (belgeWhere(alias: 'u') != null) belgeWhere(alias: 'u')!,
+          if (eBelgeWhere(alias: 'u') != null) eBelgeWhere(alias: 'u')!,
+        ];
+        final String totalsBaseWhereSql = totalsBaseWhere.isEmpty
+            ? ''
+            : 'WHERE ${totalsBaseWhere.join(' AND ')}';
+
+        final List<String> totalsOuterWhere = <String>[
+          'display_islem IS NOT NULL',
+          'TRIM(display_islem) <> \'\'',
+          'display_islem <> \'-\'',
+        ];
+        final String totalsOuterWhereSql =
+            'WHERE ${totalsOuterWhere.join(' AND ')}';
+
+        final rows = await _queryMaps(pool, '''
+          WITH base AS (
+            SELECT
+              u.*,
+              LOWER(COALESCE(u.islem, '')) AS low_islem,
+              LOWER(COALESCE(u.integration_ref, '')) AS low_ref,
+              LOWER(COALESCE(u.yon, '')) AS low_yon,
+              LOWER(COALESCE(u.aciklama, '')) AS low_aciklama,
+              LOWER(COALESCE(u.yer, '')) AS low_yer
+            FROM ($unionQuery) u
+            $totalsBaseWhereSql
+          ),
+          flags AS (
+            SELECT
+              base.*,
+              (
+                base.low_islem LIKE '%çek%' OR
+                base.low_islem LIKE '%cek%' OR
+                base.low_ref LIKE 'cheque%' OR
+                base.low_ref LIKE 'cek-%'
+              ) AS is_check,
+              (
+                base.low_islem LIKE '%senet%' OR
+                base.low_ref LIKE 'note%' OR
+                base.low_ref LIKE 'senet-%' OR
+                base.low_ref LIKE '%promissory%'
+              ) AS is_note,
+              (
+                base.low_ref LIKE 'sale-%' OR
+                base.low_ref LIKE 'retail-%'
+              ) AS is_sale_ref,
+              (base.low_ref LIKE 'purchase-%') AS is_purchase_ref,
+              (
+                base.low_ref LIKE 'cari-pav-cash-%' OR
+                base.low_ref LIKE 'cari-pav-bank-%' OR
+                base.low_ref LIKE 'cari-pav-credit_card-%'
+              ) AS is_cari_payment_ref,
+              (
+                TRIM(base.low_islem) IN (
+                  'kasa',
+                  'banka',
+                  'kredi kartı',
+                  'kredi karti'
+                )
+              ) AS is_cari_finans_source_type,
+              (base.low_ref LIKE 'retail-%') AS is_retail_ref,
+              (
+                base.low_yon LIKE '%alacak%' OR
+                base.low_islem LIKE '%tahsilat%' OR
+                base.low_islem LIKE '%alış%' OR
+                base.low_islem LIKE '%alis%' OR
+                base.low_islem LIKE '%girdi%' OR
+                base.low_islem LIKE '%giriş%' OR
+                base.low_islem LIKE '%giris%' OR
+                base.low_islem LIKE '%alındı%' OR
+                base.low_islem LIKE '%alindi%' OR
+                base.low_islem LIKE '%alınan%' OR
+                base.low_islem LIKE '%alinan%'
+              ) AS cari_is_incoming,
+              (
+                base.low_islem LIKE '%tahsil%' OR
+                base.low_islem LIKE '%girdi%' OR
+                base.low_islem LIKE '%giriş%' OR
+                base.low_islem LIKE '%giris%' OR
+                base.low_islem LIKE '%havale%' OR
+                base.low_islem LIKE '%eft%'
+              ) AS finans_is_incoming,
+              (
+                base.low_islem LIKE '%ödeme%' OR
+                base.low_islem LIKE '%odeme%' OR
+                base.low_islem LIKE '%harcama%' OR
+                base.low_islem LIKE '%çıktı%' OR
+                base.low_islem LIKE '%cikti%' OR
+                base.low_islem LIKE '%çıkış%' OR
+                base.low_islem LIKE '%cikis%'
+              ) AS finans_is_outgoing
+            FROM base
+          )
+          SELECT
+            display_islem,
+            COUNT(*) AS adet,
+            SUM(tutar_num) AS toplam
+          FROM (
+            SELECT
+              CASE
+                WHEN flags.source_menu_index = ${TabAciciScope.cariKartiIndex} THEN
+                  CASE
+                    WHEN flags.is_cari_payment_ref OR flags.is_cari_finans_source_type THEN
+                      CASE WHEN flags.cari_is_incoming THEN 'Para Alındı' ELSE 'Para Verildi' END
+                    WHEN flags.is_sale_ref THEN 'Satış Yapıldı'
+                    WHEN flags.is_purchase_ref THEN 'Alış Yapıldı'
+                    WHEN flags.is_check OR flags.is_note THEN
+                      CASE
+                        WHEN flags.guncel_durum = 'Ciro Edildi' THEN
+                          CASE
+                            WHEN flags.is_check THEN 'Çek Alındı (Ciro Edildi)'
+                            ELSE 'Senet Alındı (Ciro Edildi)'
+                          END
+                        WHEN flags.guncel_durum IN ('Tahsil Edildi', 'Ödendi') THEN
+                          CASE
+                            WHEN flags.is_check THEN
+                              CASE
+                                WHEN flags.cari_is_incoming THEN 'Çek Alındı (' || flags.guncel_durum || ')'
+                                ELSE 'Çek Verildi (' || flags.guncel_durum || ')'
+                              END
+                            ELSE
+                              CASE
+                                WHEN flags.cari_is_incoming THEN 'Senet Alındı (' || flags.guncel_durum || ')'
+                                ELSE 'Senet Verildi (' || flags.guncel_durum || ')'
+                              END
+                          END
+                        WHEN flags.is_check THEN
+                          CASE WHEN flags.cari_is_incoming THEN 'Çek Alındı' ELSE 'Çek Verildi' END
+                        ELSE
+                          CASE WHEN flags.cari_is_incoming THEN 'Senet Alındı' ELSE 'Senet Verildi' END
+                      END
+                    ELSE
+                      CASE
+                        WHEN TRIM(flags.low_islem) IN ('borç', 'borc') THEN 'Cari Borç'
+                        WHEN TRIM(flags.low_islem) = 'alacak' THEN 'Cari Alacak'
+                        WHEN (
+                          (flags.low_islem LIKE '%açılış%' OR flags.low_islem LIKE '%acilis%') AND
+                          (flags.low_islem LIKE '%devir%' OR flags.low_islem LIKE '%devri%')
+                        ) THEN
+                          CASE
+                            WHEN flags.low_islem LIKE '%alacak%' THEN 'Açılış Alacak Devri'
+                            WHEN flags.low_islem LIKE '%borç%' OR flags.low_islem LIKE '%borc%' THEN 'Açılış Borç Devri'
+                            ELSE COALESCE(flags.islem, '-')
+                          END
+                        WHEN (
+                          flags.low_islem LIKE '%tahsilat%' OR
+                          flags.low_islem LIKE '%girdi%' OR
+                          flags.low_islem LIKE '%giriş%' OR
+                          flags.low_islem LIKE '%giris%' OR
+                          flags.low_islem = 'para alındı' OR
+                          flags.low_islem = 'para alindi'
+                        ) THEN 'Para Alındı'
+                        WHEN (
+                          flags.low_islem LIKE '%ödeme%' OR
+                          flags.low_islem LIKE '%odeme%' OR
+                          flags.low_islem LIKE '%çıktı%' OR
+                          flags.low_islem LIKE '%çıkış%' OR
+                          flags.low_islem = 'para verildi'
+                        ) THEN 'Para Verildi'
+                        WHEN flags.low_islem LIKE '%borç dekontu%' OR flags.low_islem LIKE '%borc dekontu%' THEN 'Borç Dekontu'
+                        WHEN flags.low_islem LIKE '%alacak dekontu%' THEN 'Alacak Dekontu'
+                        WHEN flags.low_islem LIKE '%satış yapıldı%' OR flags.low_islem LIKE '%satis yapildi%' THEN 'Satış Yapıldı'
+                        WHEN flags.low_islem LIKE '%alış yapıldı%' OR flags.low_islem LIKE '%alis yapildi%' THEN 'Alış Yapıldı'
+                        WHEN flags.low_islem LIKE '%satış%' OR flags.low_islem LIKE '%satis%' THEN 'Satış Faturası'
+                        WHEN flags.low_islem LIKE '%alış%' OR flags.low_islem LIKE '%alis%' THEN 'Alış Faturası'
+                        WHEN COALESCE(TRIM(flags.yon), '-') <> '' THEN
+                          CASE WHEN flags.cari_is_incoming THEN 'Para Alındı' ELSE 'Para Verildi' END
+                        ELSE COALESCE(flags.islem, '-')
+                      END
+                  END
+                WHEN flags.source_menu_index IN (13, 15, 16) THEN
+                  CASE
+                    WHEN flags.is_sale_ref AND NOT flags.is_retail_ref THEN 'Satış Yapıldı'
+                    WHEN flags.is_purchase_ref THEN 'Alış Yapıldı'
+                    WHEN (
+                      flags.low_ref = 'opening_stock' OR
+                      flags.low_ref LIKE '%opening_stock%' OR
+                      flags.low_aciklama LIKE '%açılış%' OR
+                      flags.low_aciklama LIKE '%acilis%'
+                    ) THEN 'Açılış Stoğu'
+                    WHEN (
+                      flags.low_ref LIKE '%production%' OR
+                      flags.low_aciklama LIKE '%üretim%' OR
+                      flags.low_aciklama LIKE '%uretim%'
+                    ) THEN 'Üretim'
+                    WHEN (
+                      flags.low_ref LIKE '%transfer%' OR
+                      flags.low_aciklama LIKE '%devir%'
+                    ) THEN 'Devir'
+                    WHEN flags.source_menu_index <> 13 AND flags.low_ref LIKE '%collection%' THEN 'Tahsilat'
+                    WHEN flags.source_menu_index <> 13 AND flags.low_ref LIKE '%payment%' THEN 'Ödeme'
+                    WHEN flags.is_check THEN
+                      CASE
+                        WHEN (
+                          CASE
+                            WHEN flags.finans_is_incoming THEN TRUE
+                            WHEN flags.finans_is_outgoing THEN FALSE
+                            ELSE FALSE
+                          END
+                        ) THEN 'Çek Alındı (Tahsil Edildi)'
+                        ELSE 'Çek Verildi (Ödendi)'
+                      END
+                    WHEN flags.is_note THEN
+                      CASE
+                        WHEN (
+                          CASE
+                            WHEN flags.finans_is_incoming THEN TRUE
+                            WHEN flags.finans_is_outgoing THEN FALSE
+                            ELSE FALSE
+                          END
+                        ) THEN 'Senet Alındı (Tahsil Edildi)'
+                        ELSE 'Senet Verildi (Ödendi)'
+                      END
+                    ELSE
+                      CASE
+                        WHEN (
+                          NOT (
+                            CASE
+                              WHEN flags.finans_is_incoming THEN TRUE
+                              WHEN flags.finans_is_outgoing THEN FALSE
+                              ELSE FALSE
+                            END
+                          ) AND flags.low_yer LIKE '%personel%'
+                        ) THEN 'Personel Ödemesi'
+                        WHEN (
+                          CASE
+                            WHEN flags.finans_is_incoming THEN TRUE
+                            WHEN flags.finans_is_outgoing THEN FALSE
+                            ELSE FALSE
+                          END
+                        ) THEN 'Para Alındı'
+                        ELSE 'Para Verildi'
+                      END
+                  END
+                ELSE COALESCE(flags.islem, '-')
+              END AS display_islem,
+              flags.tutar_num
+            FROM flags
+          ) grouped
+          $totalsOuterWhereSql
+          GROUP BY display_islem
+          HAVING SUM(tutar_num) <> 0
+          ORDER BY normalize_text(display_islem)
+        ''', params);
+
+        return rows
+            .map((row) {
+              final rawLabel = row['display_islem']?.toString() ?? '-';
+              final toplam = _toDouble(row['toplam']);
+              final adet = _toInt(row['adet']) ?? 0;
+              return RaporIslemToplami(
+                rawIslem: rawLabel,
+                islem: IslemCeviriYardimcisi.cevir(rawLabel),
+                tutar: _formatMoney(toplam),
+                adet: adet,
+              );
+            })
+            .where((item) => item.islem.trim().isNotEmpty && item.islem != '-')
+            .toList(growable: false);
+      },
+    );
+
+    final summaryCards = await summaryCardsFuture;
+    final islemToplamlari = await islemToplamlariFuture;
+
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('islem', 'reports.columns.process_exact', 100),
+        _column('islem', 'reports.columns.process_exact', 260),
         _column('yer', 'reports.columns.place_exact', 60),
         _column('yer_kodu', 'reports.columns.place_code_exact', 80),
         _column('yer_adi', 'reports.columns.place_name_exact', 100),
@@ -6062,18 +6827,19 @@ class RaporlarServisi {
           alignment: Alignment.centerRight,
         ),
         _column('kur', 'reports.columns.exchange_rate_exact', 50),
-        _column('yer_2', 'reports.columns.place_exact', 60),
+        _column('yer_2', 'reports.columns.place_exact', 50),
         _column('belge', 'reports.columns.document_exact', 80),
         _column('e_belge', 'reports.columns.e_document_exact', 80),
         _column('irsaliye_no', 'reports.columns.waybill_no_exact', 80),
         _column('fatura_no', 'reports.columns.invoice_no_exact', 80),
-        _column('aciklama', 'reports.columns.description_exact', 100),
-        _column('aciklama_2', 'reports.columns.description_2_exact', 100),
+        _column('aciklama', 'reports.columns.description_exact', 60),
+        _column('aciklama_2', 'reports.columns.description_2_exact', 80),
         _column('vade_tarihi', 'reports.columns.due_date_exact', 70),
-        _column('kullanici', 'reports.columns.user_exact', 70),
+        _column('kullanici', 'reports.columns.user_exact', 60),
       ],
       rows: mappedRows,
       summaryCards: summaryCards,
+      islemToplamlari: islemToplamlari,
       totalCount: 0,
       page: page,
       pageSize: pageSize,
@@ -8509,31 +9275,90 @@ class RaporlarServisi {
     List<Map<String, dynamic>> items, {
     required String title,
   }) {
+    double pickFirstNonZero(List<dynamic> values) {
+      for (final value in values) {
+        final v = _toDouble(value);
+        if (v != 0.0) return v;
+      }
+      return 0.0;
+    }
+
+    String pickFirstNonEmpty(List<dynamic> values, {String fallback = '-'}) {
+      for (final value in values) {
+        final text = value?.toString().trim() ?? '';
+        if (text.isNotEmpty && text != '-') return text;
+      }
+      return fallback;
+    }
+
     return DetailTable(
       title: title,
       headers: [
-        tr('common.code'),
-        tr('common.product'),
+        tr('common.code_no'),
+        tr('shipment.field.name'),
         tr('common.quantity'),
         tr('common.unit'),
         tr('common.unit_price'),
-        tr('common.amount'),
+        tr('common.total_amount'),
+        tr('common.raw_price'),
+        tr('common.description'),
       ],
       data: items.map((item) {
-        final double quantity = _toDouble(item['quantity']);
-        final double unitPrice = _toDouble(item['unitCost']) != 0.0
-            ? _toDouble(item['unitCost'])
-            : _toDouble(item['price']);
-        final double total = _toDouble(item['total']) != 0.0
-            ? _toDouble(item['total'])
-            : quantity * unitPrice;
+        final double quantity = pickFirstNonZero([
+          item['quantity'],
+          item['miktar'],
+          item['qty'],
+        ]);
+        final double unitPrice = pickFirstNonZero([
+          item['price'],
+          item['unitCost'],
+          item['unit_cost'],
+          item['unitPrice'],
+          item['unit_price'],
+          item['birim_fiyat'],
+          item['birimFiyat'],
+        ]);
+        final double total = pickFirstNonZero([
+          item['total'],
+          item['lineTotal'],
+          item['line_total'],
+          item['tutar'],
+        ]);
+        final double safeTotal = total != 0.0 ? total : quantity * unitPrice;
+        final double rawPrice = pickFirstNonZero([
+          item['ham_fiyat'],
+          item['hamFiyat'],
+          item['rawPrice'],
+          item['raw_price'],
+          item['raw'],
+          item['unitCost'],
+          item['price'],
+        ]);
+        final String description = pickFirstNonEmpty([
+          item['description'],
+          item['aciklama'],
+          item['not'],
+          item['note'],
+        ]);
         return [
-          item['code']?.toString() ?? '-',
-          item['name']?.toString() ?? '-',
+          pickFirstNonEmpty([
+            item['code'],
+            item['kod'],
+            item['product_code'],
+            item['urun_kodu'],
+          ]),
+          pickFirstNonEmpty([
+            item['name'],
+            item['urun_adi'],
+            item['product_name'],
+            item['urunAdi'],
+          ]),
           _formatNumber(quantity),
-          item['unit']?.toString() ?? '-',
+          pickFirstNonEmpty([item['unit'], item['birim']]),
           _formatMoney(unitPrice),
-          _formatMoney(total),
+          _formatMoney(safeTotal),
+          _formatMoney(rawPrice),
+          description,
         ];
       }).toList(),
     );
@@ -8746,6 +9571,8 @@ class RaporlarServisi {
     final String lowType = rawType.toLowerCase();
     final String lowDescription = (tx['aciklama']?.toString() ?? '')
         .toLowerCase();
+    final String lowRef = integrationRef.toLowerCase();
+    final bool isRetailRef = lowRef.startsWith('retail-');
     bool isIncoming = tx['isIncoming'] == true;
     if (_isIncomingFinanceType(lowType)) {
       isIncoming = true;
@@ -8758,7 +9585,10 @@ class RaporlarServisi {
     final bool isNote = _isNoteReference(rawType, integrationRef);
     final bool isCheckNote = isCheck || isNote;
 
-    if (_isSaleReference(integrationRef)) {
+    // Perakende satış (RETAIL-*) finans hareketleri raporlarda ödeme hareketi gibi
+    // listelenmeli: "Para Alındı/Verildi". Satış kaydı ayrı rapor satırı olarak
+    // üretildiği için burada "Satış Yapıldı" etiketiyle üzerine yazma.
+    if (_isSaleReference(integrationRef) && !isRetailRef) {
       displayType = 'Satış Yapıldı';
     } else if (_isPurchaseReference(integrationRef)) {
       displayType = 'Alış Yapıldı';
