@@ -152,7 +152,11 @@ class RaporlarServisi {
       labelKey: 'reports.items.profit_loss',
       category: RaporKategori.genel,
       icon: Icons.show_chart_rounded,
-      supportedFilters: {RaporFiltreTuru.tarihAraligi},
+      supportedFilters: {
+        RaporFiltreTuru.tarihAraligi,
+        RaporFiltreTuru.urunGrubu,
+        RaporFiltreTuru.kdvOrani,
+      },
     ),
     RaporSecenegi(
       id: 'balance_list',
@@ -418,6 +422,7 @@ class RaporlarServisi {
       'cari': filtreler.cariId,
       'urun': filtreler.urunKodu,
       'grup': filtreler.urunGrubu,
+      'kdv': filtreler.kdvOrani,
       'depo': filtreler.depoId,
       'islem': filtreler.islemTuru,
       'durum': filtreler.durum,
@@ -608,11 +613,31 @@ class RaporlarServisi {
         // ignore: optional source
       }
 
+      final List<double> kdvOranlari = <double>[];
+      try {
+        final vatRows = await _queryMaps(
+          pool,
+          '''
+          SELECT DISTINCT COALESCE(kdv_orani, 0) AS kdv_orani
+          FROM products
+          ORDER BY COALESCE(kdv_orani, 0) ASC
+          LIMIT @limit
+          ''',
+          {'limit': 500},
+        );
+        for (final row in vatRows) {
+          kdvOranlari.add(_toDouble(row['kdv_orani']));
+        }
+      } catch (_) {
+        // ignore: optional source
+      }
+
       final kaynaklar = RaporFiltreKaynaklari(
         // Büyük DB için preload yerine typeahead kullanıyoruz.
         cariler: const <RaporSecimSecenegi>[],
         urunler: const <RaporSecimSecenegi>[],
         urunGruplari: urunGruplari,
+        kdvOranlari: kdvOranlari,
         depolar: depolar
             .map(
               (e) => RaporSecimSecenegi(
@@ -4470,7 +4495,35 @@ class RaporlarServisi {
           'OR COALESCE(pur.eklenen_qty, 0) <> 0 '
           'OR COALESCE(sal.satilan_qty, 0) <> 0)',
     ];
-    _addSearchCondition(where, params, 'p.search_tags', arama);
+
+    final String? selectedGroup = filtreler.urunGrubu?.trim();
+    if (selectedGroup != null && selectedGroup.isNotEmpty) {
+      params['urunGrubu'] = selectedGroup;
+      where.add("TRIM(COALESCE(p.grubu, '')) = @urunGrubu");
+    }
+
+    final double? selectedVat = filtreler.kdvOrani;
+    if (selectedVat != null) {
+      params['kdvOrani'] = selectedVat;
+      where.add('COALESCE(p.kdv_orani, 0) = @kdvOrani');
+    }
+    _addSearchConditionAny(where, params, [
+      'p.search_tags',
+      "normalize_text(COALESCE(p.kod, ''))",
+      "normalize_text(COALESCE(p.ad, ''))",
+      "normalize_text(COALESCE(p.grubu, ''))",
+      "normalize_text(COALESCE(p.birim, ''))",
+      "normalize_text(COALESCE(p.ozellikler::text, ''))",
+      // Numeric columns (best-effort, matches raw DB representation)
+      'COALESCE(ss.devreden_qty, 0)::text',
+      'COALESCE(pur.eklenen_qty, 0)::text',
+      '(COALESCE(ss.devreden_qty, 0) + COALESCE(pur.eklenen_qty, 0))::text',
+      'COALESCE(sal.satilan_qty, 0)::text',
+      '(COALESCE(ss.devreden_qty, 0) + COALESCE(pur.eklenen_qty, 0) - COALESCE(sal.satilan_qty, 0))::text',
+      'COALESCE(sal.cogs_value, 0)::text',
+      'COALESCE(sal.satis_value, 0)::text',
+      '(COALESCE(sal.satis_value, 0) - COALESCE(sal.cogs_value, 0))::text',
+    ], arama);
 
     final String whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
 
@@ -4592,11 +4645,11 @@ class RaporlarServisi {
               'ad': item['ad']?.toString() ?? '-',
               'grup': item['grup']?.toString() ?? '-',
               'ozellik': featuresText,
-              'devreden': _formatNumber(devreden),
-              'eklenen': _formatNumber(eklenen),
-              'devreden_eklenen': _formatNumber(devredenEklenen),
-              'satilan': _formatNumber(satilan),
-              'kalan': _formatNumber(kalan),
+              'devreden': _formatQuantity(devreden),
+              'eklenen': _formatQuantity(eklenen),
+              'devreden_eklenen': _formatQuantity(devredenEklenen),
+              'satilan': _formatQuantity(satilan),
+              'kalan': _formatQuantity(kalan),
               'birim': item['birim']?.toString() ?? '-',
               'dev_ekl_stok_degeri': _formatMoney(devEklStokDegeri),
               'sat_mal_top_alis_degeri': _formatMoney(satMalTopAlisDegeri),
@@ -4702,27 +4755,27 @@ class RaporlarServisi {
           'profit_loss_totals': <Map<String, String>>[
             {
               'label': 'Devreden',
-              'value': _formatNumber(devreden),
+              'value': _formatQuantity(devreden),
               'unit': birim,
             },
             {
               'label': 'Eklenen',
-              'value': _formatNumber(eklenen),
+              'value': _formatQuantity(eklenen),
               'unit': birim,
             },
             {
               'label': 'Devreden + Eklenen',
-              'value': _formatNumber(devredenEklenen),
+              'value': _formatQuantity(devredenEklenen),
               'unit': birim,
             },
             {
               'label': 'Satılan',
-              'value': _formatNumber(satilan),
+              'value': _formatQuantity(satilan),
               'unit': birim,
             },
             {
               'label': 'Kalan',
-              'value': _formatNumber(kalan),
+              'value': _formatQuantity(kalan),
               'unit': birim,
             },
             {
@@ -4773,11 +4826,11 @@ class RaporlarServisi {
         _column('kod', 'Kod no', 110),
         _column('ad', 'Adı', 220),
         _column('grup', 'Grubu', 120),
-        _column('ozellik', 'Özellik', 170, allowSorting: false),
+        _column('ozellik', 'Özellik', 140, allowSorting: false),
         _column(
           'devreden',
           'Devreden',
-          110,
+          145,
           alignment: Alignment.centerRight,
         ),
         _column(
@@ -10369,6 +10422,16 @@ class RaporlarServisi {
   String _formatNumber(dynamic amount) {
     final int decimalDigits = _guncelAyarlar?.miktarOndalik ?? 2;
     return FormatYardimcisi.sayiFormatlaOndalikli(
+      amount,
+      binlik: _guncelAyarlar?.binlikAyiraci ?? '.',
+      ondalik: _guncelAyarlar?.ondalikAyiraci ?? ',',
+      decimalDigits: decimalDigits,
+    );
+  }
+
+  String _formatQuantity(dynamic amount) {
+    final int decimalDigits = _guncelAyarlar?.miktarOndalik ?? 2;
+    return FormatYardimcisi.sayiFormatlaOran(
       amount,
       binlik: _guncelAyarlar?.binlikAyiraci ?? '.',
       ondalik: _guncelAyarlar?.ondalikAyiraci ?? ',',

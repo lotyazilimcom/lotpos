@@ -22,6 +22,7 @@ enum RaporFiltreTuru {
   cari,
   urun,
   urunGrubu,
+  kdvOrani,
   depo,
   islemTuru,
   durum,
@@ -156,6 +157,7 @@ class RaporFiltreleri {
     this.cariId,
     this.urunKodu,
     this.urunGrubu,
+    this.kdvOrani,
     this.depoId,
     this.islemTuru,
     this.durum,
@@ -177,6 +179,7 @@ class RaporFiltreleri {
   final int? cariId;
   final String? urunKodu;
   final String? urunGrubu;
+  final double? kdvOrani;
   final int? depoId;
   final String? islemTuru;
   final String? durum;
@@ -198,6 +201,7 @@ class RaporFiltreleri {
     int? cariId,
     String? urunKodu,
     String? urunGrubu,
+    double? kdvOrani,
     int? depoId,
     String? islemTuru,
     String? durum,
@@ -216,6 +220,7 @@ class RaporFiltreleri {
     bool clearCari = false,
     bool clearUrun = false,
     bool clearUrunGrubu = false,
+    bool clearKdvOrani = false,
     bool clearDepo = false,
     bool clearIslemTuru = false,
     bool clearDurum = false,
@@ -239,6 +244,7 @@ class RaporFiltreleri {
       cariId: clearCari ? null : (cariId ?? this.cariId),
       urunKodu: clearUrun ? null : (urunKodu ?? this.urunKodu),
       urunGrubu: clearUrunGrubu ? null : (urunGrubu ?? this.urunGrubu),
+      kdvOrani: clearKdvOrani ? null : (kdvOrani ?? this.kdvOrani),
       depoId: clearDepo ? null : (depoId ?? this.depoId),
       islemTuru: clearIslemTuru ? null : (islemTuru ?? this.islemTuru),
       durum: clearDurum ? null : (durum ?? this.durum),
@@ -268,6 +274,7 @@ class RaporFiltreKaynaklari {
     this.cariler = const <RaporSecimSecenegi>[],
     this.urunler = const <RaporSecimSecenegi>[],
     this.urunGruplari = const <RaporSecimSecenegi>[],
+    this.kdvOranlari = const <double>[],
     this.depolar = const <RaporSecimSecenegi>[],
     this.kasalar = const <RaporSecimSecenegi>[],
     this.bankalar = const <RaporSecimSecenegi>[],
@@ -281,6 +288,7 @@ class RaporFiltreKaynaklari {
   final List<RaporSecimSecenegi> cariler;
   final List<RaporSecimSecenegi> urunler;
   final List<RaporSecimSecenegi> urunGruplari;
+  final List<double> kdvOranlari;
   final List<RaporSecimSecenegi> depolar;
   final List<RaporSecimSecenegi> kasalar;
   final List<RaporSecimSecenegi> bankalar;

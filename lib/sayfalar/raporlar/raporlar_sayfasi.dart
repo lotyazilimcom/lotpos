@@ -322,6 +322,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       urunGrubu: destekler(RaporFiltreTuru.urunGrubu)
           ? _filtreler.urunGrubu
           : null,
+      kdvOrani:
+          destekler(RaporFiltreTuru.kdvOrani) ? _filtreler.kdvOrani : null,
       depoId: destekler(RaporFiltreTuru.depo) ? _filtreler.depoId : null,
       islemTuru: destekler(RaporFiltreTuru.islemTuru)
           ? _filtreler.islemTuru
@@ -520,6 +522,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     int? cariId,
     String? urunKodu,
     String? urunGrubu,
+    double? kdvOrani,
     int? depoId,
     String? islemTuru,
     String? durum,
@@ -533,6 +536,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     bool clearCari = false,
     bool clearUrun = false,
     bool clearUrunGrubu = false,
+    bool clearKdvOrani = false,
     bool clearDepo = false,
     bool clearIslemTuru = false,
     bool clearDurum = false,
@@ -549,6 +553,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         cariId: cariId,
         urunKodu: urunKodu,
         urunGrubu: urunGrubu,
+        kdvOrani: kdvOrani,
         depoId: depoId,
         islemTuru: islemTuru,
         durum: durum,
@@ -562,6 +567,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         clearCari: clearCari,
         clearUrun: clearUrun,
         clearUrunGrubu: clearUrunGrubu,
+        clearKdvOrani: clearKdvOrani,
         clearDepo: clearDepo,
         clearIslemTuru: clearIslemTuru,
         clearDurum: clearDurum,
@@ -2928,14 +2934,19 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
               label: tr('reports.filters.product_group'),
               icon: Icons.category_outlined,
               value: _filtreler.urunGrubu,
-              items: _filtreKaynaklari.urunGruplari
-                  .map(
-                    (item) => DropdownMenuItem<String>(
-                      value: item.value,
-                      child: Text(item.label, overflow: TextOverflow.ellipsis),
-                    ),
-                  )
-                  .toList(),
+              items: <DropdownMenuItem<String>>[
+                if (rapor.id == 'profit_loss')
+                  DropdownMenuItem<String>(
+                    value: null,
+                    child: Text(tr('common.all')),
+                  ),
+                ..._filtreKaynaklari.urunGruplari.map(
+                  (item) => DropdownMenuItem<String>(
+                    value: item.value,
+                    child: Text(item.label, overflow: TextOverflow.ellipsis),
+                  ),
+                ),
+              ],
               onChanged: (value) => _secimGuncelle(
                 urunGrubu: value,
                 clearUrunGrubu: value == null,
@@ -2944,6 +2955,36 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             desktopWidth: 180,
             tabletWidth: 170,
             minWidth: 145,
+          ),
+        if (_supports(RaporFiltreTuru.kdvOrani))
+          addFilter(
+            _buildDropdownField<double>(
+              label: tr('products.form.vat.label'),
+              icon: Icons.percent_rounded,
+              value: _filtreler.kdvOrani,
+              items: <DropdownMenuItem<double>>[
+                DropdownMenuItem<double>(
+                  value: null,
+                  child: Text(tr('common.all')),
+                ),
+                ..._filtreKaynaklari.kdvOranlari.map(
+                  (rate) => DropdownMenuItem<double>(
+                    value: rate,
+                    child: Text(
+                      '%${FormatYardimcisi.sayiFormatlaOran(rate, decimalDigits: 2)}',
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ),
+              ],
+              onChanged: (value) => _secimGuncelle(
+                kdvOrani: value,
+                clearKdvOrani: value == null,
+              ),
+            ),
+            desktopWidth: 155,
+            tabletWidth: 145,
+            minWidth: 130,
           ),
         if (_supports(RaporFiltreTuru.depo))
           addFilter(
@@ -3636,10 +3677,14 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final bool isExpanded = _filterDropdownExpandedKey == overlayKey;
 
     DropdownMenuItem<T>? selectedItem;
-    for (final item in items) {
-      if (item.value == safeValue) {
-        selectedItem = item;
-        break;
+    // Null değer (genelde "Tümü") seçili olsa bile filter bar'da başlık
+    // gösterilsin (Kullanıcı filtresi gibi).
+    if (safeValue != null) {
+      for (final item in items) {
+        if (item.value == safeValue) {
+          selectedItem = item;
+          break;
+        }
       }
     }
 
@@ -3813,6 +3858,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   Widget _buildTableActionRow() {
     final bool disabled =
         (_sonuc?.isDisabled ?? false) || _aktarimSatirlari.isEmpty;
+    final bool hideDocumentButton = _seciliRapor?.id == 'profit_loss';
     final String? selectedRowId = _selectedRowId;
     RaporSatiri? selectedRow;
     if (selectedRowId != null) {
@@ -3848,11 +3894,13 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             onTap: hasSelection ? _openSelectedPrintPreview : _openPrintPreview,
           ),
         ),
-        const SizedBox(width: 12),
-        _buildDocumentActionButton(
-          enabled: documentEnabled,
-          onTap: () => unawaited(_openSelectedDocumentPrint()),
-        ),
+        if (!hideDocumentButton) ...[
+          const SizedBox(width: 12),
+          _buildDocumentActionButton(
+            enabled: documentEnabled,
+            onTap: () => unawaited(_openSelectedDocumentPrint()),
+          ),
+        ],
       ],
     );
   }
@@ -4470,20 +4518,25 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                 : Colors.black87)
           : Colors.black87;
       return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
           color: background,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(7),
           border: Border.all(color: borderColor),
         ),
-        child: Text(
-          feature.name,
+        child: HighlightText(
+          text: feature.name,
+          query: _arama,
           maxLines: 1,
-          overflow: TextOverflow.ellipsis,
           style: TextStyle(
-            fontSize: 10.5,
+            fontSize: 9.5,
             fontWeight: FontWeight.w700,
             color: textColor,
+          ),
+          highlightStyle: TextStyle(
+            color: textColor,
+            decoration: TextDecoration.underline,
+            decorationColor: textColor,
           ),
         ),
       );
@@ -4495,7 +4548,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       children: [
         for (int i = 0; i < features.length; i++) ...[
           badgeFor(features[i]),
-          if (i != features.length - 1) const SizedBox(height: 6),
+          if (i != features.length - 1) const SizedBox(height: 4),
         ],
       ],
     );

@@ -5,6 +5,7 @@ class HighlightText extends StatelessWidget {
   final String query;
   final TextStyle style;
   final TextAlign textAlign;
+  final TextStyle? highlightStyle;
 
   const HighlightText({
     super.key,
@@ -13,6 +14,7 @@ class HighlightText extends StatelessWidget {
     required this.style,
     this.textAlign = TextAlign.start,
     this.maxLines, // Default null for wrapping
+    this.highlightStyle,
   });
 
   final int? maxLines;
@@ -32,6 +34,9 @@ class HighlightText extends StatelessWidget {
     }
 
     final baseStyle = DefaultTextStyle.of(context).style.merge(style);
+    final TextStyle resolvedHighlightStyle = highlightStyle == null
+        ? baseStyle.copyWith(fontWeight: FontWeight.w900, color: Colors.black)
+        : baseStyle.copyWith(fontWeight: FontWeight.w900).merge(highlightStyle);
     // Custom Turkish-aware lowercase
     String turkishToLower(String input) {
       return input
@@ -63,10 +68,7 @@ class HighlightText extends StatelessWidget {
       spans.add(
         TextSpan(
           text: text.substring(index, index + lowerQuery.length),
-          style: baseStyle.copyWith(
-            fontWeight: FontWeight.w900,
-            color: Colors.black,
-          ),
+          style: resolvedHighlightStyle,
         ),
       );
       start = index + lowerQuery.length;
