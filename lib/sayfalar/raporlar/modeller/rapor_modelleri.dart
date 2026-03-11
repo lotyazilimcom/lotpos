@@ -24,6 +24,8 @@ enum RaporFiltreTuru {
   urunGrubu,
   kdvOrani,
   depo,
+  hesapTuru,
+  bakiyeDurumu,
   islemTuru,
   durum,
   odemeYontemi,
@@ -159,6 +161,8 @@ class RaporFiltreleri {
     this.urunGrubu,
     this.kdvOrani,
     this.depoId,
+    this.hesapTuru,
+    this.bakiyeDurumu,
     this.islemTuru,
     this.durum,
     this.odemeYontemi,
@@ -181,6 +185,8 @@ class RaporFiltreleri {
   final String? urunGrubu;
   final double? kdvOrani;
   final int? depoId;
+  final String? hesapTuru;
+  final String? bakiyeDurumu;
   final String? islemTuru;
   final String? durum;
   final String? odemeYontemi;
@@ -203,6 +209,8 @@ class RaporFiltreleri {
     String? urunGrubu,
     double? kdvOrani,
     int? depoId,
+    String? hesapTuru,
+    String? bakiyeDurumu,
     String? islemTuru,
     String? durum,
     String? odemeYontemi,
@@ -222,6 +230,8 @@ class RaporFiltreleri {
     bool clearUrunGrubu = false,
     bool clearKdvOrani = false,
     bool clearDepo = false,
+    bool clearHesapTuru = false,
+    bool clearBakiyeDurumu = false,
     bool clearIslemTuru = false,
     bool clearDurum = false,
     bool clearOdemeYontemi = false,
@@ -246,6 +256,10 @@ class RaporFiltreleri {
       urunGrubu: clearUrunGrubu ? null : (urunGrubu ?? this.urunGrubu),
       kdvOrani: clearKdvOrani ? null : (kdvOrani ?? this.kdvOrani),
       depoId: clearDepo ? null : (depoId ?? this.depoId),
+      hesapTuru: clearHesapTuru ? null : (hesapTuru ?? this.hesapTuru),
+      bakiyeDurumu: clearBakiyeDurumu
+          ? null
+          : (bakiyeDurumu ?? this.bakiyeDurumu),
       islemTuru: clearIslemTuru ? null : (islemTuru ?? this.islemTuru),
       durum: clearDurum ? null : (durum ?? this.durum),
       odemeYontemi: clearOdemeYontemi

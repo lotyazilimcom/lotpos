@@ -214,8 +214,7 @@ class GenisletilebilirPrintService {
     required String title,
     required Map<String, String> totals,
   }) {
-    final entries = totals.entries.toList()
-      ..sort((a, b) => a.key.compareTo(b.key));
+    final entries = totals.entries.toList(growable: false);
     return pw.Container(
       margin: const pw.EdgeInsets.only(top: 14),
       child: pw.Align(
@@ -1190,13 +1189,12 @@ class GenisletilebilirPrintService {
     List<ExpandableRowData> data,
     pw.Context context,
     bool printFeatures,
-    bool showBackground, // Parametre olarak kaldı ama kullanmayacağız (Classic style)
-    {
-      List<double>? mainColumnFlexes,
-      Set<int>? rightAlignedMainColumnIndices,
-      bool forceSingleLine = false,
-    }
-  ) {
+    bool
+    showBackground, { // Parametre olarak kaldı ama kullanmayacağız (Classic style)
+    List<double>? mainColumnFlexes,
+    Set<int>? rightAlignedMainColumnIndices,
+    bool forceSingleLine = false,
+  }) {
     // Column Width Calculation
     Map<int, pw.TableColumnWidth> columnWidths = {};
 
@@ -1293,7 +1291,8 @@ class GenisletilebilirPrintService {
     for (int index = 0; index < headers.length; index++) {
       double flexValue = 1;
 
-      if (mainColumnFlexes != null && mainColumnFlexes.length == headers.length) {
+      if (mainColumnFlexes != null &&
+          mainColumnFlexes.length == headers.length) {
         flexValue = mainColumnFlexes[index];
         if (flexValue <= 0) flexValue = 1;
         columnWidths[index] = pw.FlexColumnWidth(flexValue);

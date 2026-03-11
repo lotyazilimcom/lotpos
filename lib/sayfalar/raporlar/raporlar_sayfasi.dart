@@ -35,6 +35,11 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     'ara_toplam',
     'kdv',
     'genel_toplam',
+    // KDV Hesabı
+    'birim_fiyati',
+    'matrah',
+    'otv_tutari',
+    'oiv_tutari',
     'borc',
     'alacak',
     'net_bakiye',
@@ -56,6 +61,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     'sat_mal_top_alis_degeri',
     'toplam_satis_degeri',
     'kalan_stok_degeri',
+    // BA-BS
+    'alis_fatura_matrah',
+    'satis_fatura_matrah',
   };
 
   static const Set<String> _quantityKeys = <String>{
@@ -74,6 +82,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     'devreden_eklenen',
     'satilan',
     'kalan',
+    // BA-BS
+    'alis_fatura_adet',
+    'satis_fatura_adet',
   };
 
   static const Set<String> _badgeKeys = <String>{
@@ -308,7 +319,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     if (rapor == null) return RaporFiltreleri.empty;
 
     bool destekler(RaporFiltreTuru tur) => rapor.supportedFilters.contains(tur);
-    final bool isTumHareketler = rapor.id == 'all_movements';
+    final bool isTumHareketler =
+        rapor.id == 'all_movements' || rapor.id == 'vat_accounting';
 
     return RaporFiltreleri(
       baslangicTarihi: destekler(RaporFiltreTuru.tarihAraligi)
@@ -322,9 +334,16 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       urunGrubu: destekler(RaporFiltreTuru.urunGrubu)
           ? _filtreler.urunGrubu
           : null,
-      kdvOrani:
-          destekler(RaporFiltreTuru.kdvOrani) ? _filtreler.kdvOrani : null,
+      kdvOrani: destekler(RaporFiltreTuru.kdvOrani)
+          ? _filtreler.kdvOrani
+          : null,
       depoId: destekler(RaporFiltreTuru.depo) ? _filtreler.depoId : null,
+      hesapTuru: destekler(RaporFiltreTuru.hesapTuru)
+          ? _sanitizeHesapTuru(_filtreler.hesapTuru)
+          : null,
+      bakiyeDurumu: destekler(RaporFiltreTuru.bakiyeDurumu)
+          ? _filtreler.bakiyeDurumu
+          : null,
       islemTuru: destekler(RaporFiltreTuru.islemTuru)
           ? _filtreler.islemTuru
           : null,
@@ -524,6 +543,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     String? urunGrubu,
     double? kdvOrani,
     int? depoId,
+    String? hesapTuru,
+    String? bakiyeDurumu,
     String? islemTuru,
     String? durum,
     String? odemeYontemi,
@@ -538,6 +559,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     bool clearUrunGrubu = false,
     bool clearKdvOrani = false,
     bool clearDepo = false,
+    bool clearHesapTuru = false,
+    bool clearBakiyeDurumu = false,
     bool clearIslemTuru = false,
     bool clearDurum = false,
     bool clearOdemeYontemi = false,
@@ -555,6 +578,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         urunGrubu: urunGrubu,
         kdvOrani: kdvOrani,
         depoId: depoId,
+        hesapTuru: hesapTuru,
+        bakiyeDurumu: bakiyeDurumu,
         islemTuru: islemTuru,
         durum: durum,
         odemeYontemi: odemeYontemi,
@@ -569,6 +594,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         clearUrunGrubu: clearUrunGrubu,
         clearKdvOrani: clearKdvOrani,
         clearDepo: clearDepo,
+        clearHesapTuru: clearHesapTuru,
+        clearBakiyeDurumu: clearBakiyeDurumu,
         clearIslemTuru: clearIslemTuru,
         clearDurum: clearDurum,
         clearOdemeYontemi: clearOdemeYontemi,
@@ -1256,94 +1283,16 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final rapor = _seciliRapor;
     if (sonuc == null || rapor == null || sonuc.isDisabled) return;
 
-    final visibleColumns = _gorunurKolonlar;
     final Set<String> expandedIds = Set<String>.from(_expandedRowIds);
     final bool keepDetailsOpen = _keepDetailsOpen;
     final bool isAllMovementsPrint = rapor.id == 'all_movements';
-    final List<bool> defaultPrintVisibility = () {
-      const keys = <String>{
-        'islem',
-        'yer',
-        'yer_kodu',
-        'yer_adi',
-        'tarih',
-        'tutar',
-        'kur',
-        'yer_2',
-        'belge',
-      };
-      return visibleColumns.map((col) => keys.contains(col.key)).toList();
-    }();
-    final List<double>? mainColumnFlexes = isAllMovementsPrint
-        ? visibleColumns.map((col) {
-            switch (col.key) {
-              case 'islem':
-                return 2.1;
-              case 'yer':
-                return 1.7;
-              case 'yer_kodu':
-                return 0.6;
-              case 'yer_adi':
-                return 3.2;
-              case 'tarih':
-                return 1.8;
-              case 'tutar':
-                return 1.1;
-              case 'kur':
-                return 0.75;
-              case 'yer_2':
-                return 0.85;
-              case 'belge':
-                return 0.75;
-              case 'aciklama':
-              case 'aciklama_2':
-                return 2.2;
-              case 'e_belge':
-              case 'irsaliye_no':
-              case 'fatura_no':
-              case 'vade_tarihi':
-              case 'kullanici':
-                return 1.2;
-              default:
-                return 1.0;
-            }
-          }).toList()
-        : null;
-    final Set<int>? rightAlignedMainColumnIndices = isAllMovementsPrint
-        ? () {
-            const keys = <String>{
-              'tutar',
-              'kur',
-              'ara_toplam',
-              'kdv',
-              'genel_toplam',
-              'borc',
-              'alacak',
-              'net_bakiye',
-              'stok_degeri',
-              'maliyet',
-              'alis',
-              'satis1',
-              'satis2',
-              'satis3',
-              'ciro',
-              'gider',
-              'brut_kar',
-              'net_kar',
-              'tutar_etkisi',
-              'vergi',
-              'fark',
-            };
-            final indices = <int>{};
-            for (int i = 0; i < visibleColumns.length; i++) {
-              if (keys.contains(visibleColumns[i].key)) {
-                indices.add(i);
-              }
-            }
-            return indices;
-          }()
-        : null;
+    final bool isProfitLossPrint = rapor.id == 'profit_loss';
+    final bool isBalanceListPrint = rapor.id == 'balance_list';
+    final bool isBaBsPrint = rapor.id == 'ba_bs_list';
+    final bool isReceivablesPayablesPrint = rapor.id == 'receivables_payables';
+    final bool isVatAccountingPrint = rapor.id == 'vat_accounting';
 
+    late final RaporSonucu printSourceSonuc;
     late final List<RaporSatiri> rows;
     if (selectedOnly) {
       final String? selectedRowId = _selectedRowId;
@@ -1361,6 +1310,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         return;
       }
       rows = <RaporSatiri>[selectedRow];
+      printSourceSonuc = sonuc;
     } else {
       final int printLimit = math.min(
         math.max(sonuc.totalCount, _satirSayisi).clamp(1, 5000),
@@ -1377,6 +1327,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       );
       if (!mounted) return;
       rows = fullResult.rows;
+      printSourceSonuc = fullResult;
     }
 
     if (rows.isEmpty) {
@@ -1384,9 +1335,267 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return;
     }
 
+    final List<RaporKolonTanimi> printColumns =
+        (isProfitLossPrint ||
+            isBalanceListPrint ||
+            isBaBsPrint ||
+            isReceivablesPayablesPrint ||
+            isVatAccountingPrint)
+        ? printSourceSonuc.columns
+        : _gorunurKolonlar;
+
+    final List<bool> defaultPrintVisibility = () {
+      if (isAllMovementsPrint) {
+        const keys = <String>{
+          'islem',
+          'yer',
+          'yer_kodu',
+          'yer_adi',
+          'tarih',
+          'tutar',
+          'kur',
+          'yer_2',
+          'belge',
+        };
+        return printColumns.map((col) => keys.contains(col.key)).toList();
+      }
+
+      if (isProfitLossPrint) {
+        const keys = <String>{
+          'kod',
+          'ad',
+          'devreden_eklenen',
+          'satilan',
+          'kalan',
+          'birim',
+          'sat_mal_top_alis_degeri',
+          'toplam_satis_degeri',
+          'kalan_stok_degeri',
+          'brut_kar',
+        };
+        return printColumns.map((col) => keys.contains(col.key)).toList();
+      }
+
+      if (isBalanceListPrint) {
+        return List<bool>.filled(printColumns.length, true);
+      }
+
+      if (isBaBsPrint) {
+        return List<bool>.filled(printColumns.length, true);
+      }
+
+      if (isReceivablesPayablesPrint) {
+        return List<bool>.filled(printColumns.length, true);
+      }
+
+      if (isVatAccountingPrint) {
+        const keys = <String>{
+          'islem',
+          'tarih',
+          'kod',
+          'ad',
+          'miktar',
+          'birim',
+          'kdv_orani',
+          'birim_fiyati',
+          'kdv',
+        };
+        return printColumns.map((col) => keys.contains(col.key)).toList();
+      }
+
+      const keys = <String>{
+        'islem',
+        'yer',
+        'yer_kodu',
+        'yer_adi',
+        'tarih',
+        'tutar',
+        'kur',
+        'yer_2',
+        'belge',
+      };
+      return printColumns.map((col) => keys.contains(col.key)).toList();
+    }();
+
+    final List<double>? mainColumnFlexes = () {
+      if (isAllMovementsPrint) {
+        return printColumns.map((col) {
+          switch (col.key) {
+            case 'islem':
+              return 2.1;
+            case 'yer':
+              return 1.7;
+            case 'yer_kodu':
+              return 0.6;
+            case 'yer_adi':
+              return 3.2;
+            case 'tarih':
+              return 1.8;
+            case 'tutar':
+              return 1.1;
+            case 'kur':
+              return 0.75;
+            case 'yer_2':
+              return 0.85;
+            case 'belge':
+              return 0.75;
+            case 'aciklama':
+            case 'aciklama_2':
+              return 2.2;
+            case 'e_belge':
+            case 'irsaliye_no':
+            case 'fatura_no':
+            case 'vade_tarihi':
+            case 'kullanici':
+              return 1.2;
+            default:
+              return 1.0;
+          }
+        }).toList();
+      }
+
+      if (isBalanceListPrint) {
+        return printColumns.map((col) {
+          switch (col.key) {
+            case 'kod':
+              return 0.75;
+            case 'hesap':
+              return 2.8;
+            case 'tur':
+              return 1.1;
+            default:
+              return 1.0;
+          }
+        }).toList();
+      }
+
+      return null;
+    }();
+
+    final Set<int>? rightAlignedMainColumnIndices = () {
+      if (isAllMovementsPrint) {
+        const keys = <String>{
+          'tutar',
+          'kur',
+          'ara_toplam',
+          'kdv',
+          'genel_toplam',
+          'borc',
+          'alacak',
+          'net_bakiye',
+          'stok_degeri',
+          'maliyet',
+          'alis',
+          'satis1',
+          'satis2',
+          'satis3',
+          'ciro',
+          'gider',
+          'brut_kar',
+          'net_kar',
+          'tutar_etkisi',
+          'vergi',
+          'fark',
+        };
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices;
+      }
+
+      if (isProfitLossPrint) {
+        const keys = <String>{
+          'devreden',
+          'eklenen',
+          'devreden_eklenen',
+          'satilan',
+          'kalan',
+          'dev_ekl_stok_degeri',
+          'sat_mal_top_alis_degeri',
+          'toplam_satis_degeri',
+          'kalan_stok_degeri',
+          'brut_kar',
+        };
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
+      if (isBalanceListPrint) {
+        const keys = <String>{'borc', 'alacak', 'bakiye_borc', 'bakiye_alacak'};
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
+      if (isBaBsPrint) {
+        const keys = <String>{
+          'alis_fatura_matrah',
+          'satis_fatura_matrah',
+          'alis_fatura_adet',
+          'satis_fatura_adet',
+        };
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
+      if (isReceivablesPayablesPrint) {
+        const keys = <String>{'tutar'};
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
+      if (isVatAccountingPrint) {
+        const keys = <String>{
+          'miktar',
+          'kdv_orani',
+          'otv_orani',
+          'oiv_orani',
+          'tevkifat',
+          'isk_orani',
+          'birim_fiyati',
+          'matrah',
+          'kdv',
+          'otv_tutari',
+          'oiv_tutari',
+          'genel_toplam',
+        };
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
+      return null;
+    }();
+
     Map<String, String>? footerTotals;
     String? footerTotalsTitle;
-    if (rapor.id == 'all_movements') {
+    if (rapor.id == 'all_movements' || rapor.id == 'vat_accounting') {
       final Map<String, double> totalsByProcess = <String, double>{};
       for (final row in rows) {
         final String label = (row.cells['islem'] ?? '').trim();
@@ -1424,9 +1633,102 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       }
     }
 
+    if (!selectedOnly && isProfitLossPrint) {
+      final dynamic totalsList =
+          printSourceSonuc.headerInfo['profit_loss_totals'];
+      if (totalsList is List) {
+        final Map<String, String> formattedTotals = <String, String>{};
+        for (final entry in totalsList) {
+          if (entry is! Map) continue;
+          final String label = entry['label']?.toString().trim() ?? '';
+          final String value = entry['value']?.toString().trim() ?? '';
+          final String unit = entry['unit']?.toString().trim() ?? '';
+          if (label.isEmpty) continue;
+          if (value.isEmpty || value == '-') continue;
+          formattedTotals[label] = unit.isEmpty ? value : '$value $unit';
+        }
+        if (formattedTotals.isNotEmpty) {
+          footerTotals = formattedTotals;
+          footerTotalsTitle = 'LİSTE TOPLAMLARI';
+        }
+      }
+    }
+
+    if (!selectedOnly && isBalanceListPrint) {
+      final cards = printSourceSonuc.summaryCards;
+      if (cards.isNotEmpty) {
+        final Map<String, String> formattedTotals = <String, String>{};
+        for (final card in cards) {
+          final String label = tr(card.labelKey).trim();
+          final String value = card.value.trim();
+          if (label.isEmpty) continue;
+          if (value.isEmpty || value == '-') continue;
+          formattedTotals[label] = value;
+        }
+        if (formattedTotals.isNotEmpty) {
+          footerTotals = formattedTotals;
+          footerTotalsTitle = 'LİSTE TOPLAMLARI';
+        }
+      }
+    }
+
+    if (!selectedOnly && isBaBsPrint) {
+      final cards = printSourceSonuc.summaryCards;
+      if (cards.isNotEmpty) {
+        final Map<String, String> formattedTotals = <String, String>{};
+        for (final card in cards) {
+          final String label = tr(card.labelKey).trim();
+          final String value = card.value.trim();
+          if (label.isEmpty) continue;
+          if (value.isEmpty || value == '-') continue;
+          formattedTotals[label] = value;
+        }
+        if (formattedTotals.isNotEmpty) {
+          footerTotals = formattedTotals;
+          footerTotalsTitle = 'LİSTE TOPLAMLARI';
+        }
+      }
+    }
+
+    if (!selectedOnly && isReceivablesPayablesPrint) {
+      final cards = printSourceSonuc.summaryCards;
+      if (cards.isNotEmpty) {
+        final Map<String, String> formattedTotals = <String, String>{};
+        for (final card in cards) {
+          final String label = tr(card.labelKey).trim();
+          final String value = card.value.trim();
+          if (label.isEmpty) continue;
+          if (value.isEmpty || value == '-') continue;
+          formattedTotals[label] = value;
+        }
+        if (formattedTotals.isNotEmpty) {
+          footerTotals = formattedTotals;
+          footerTotalsTitle = 'LİSTE TOPLAMLARI';
+        }
+      }
+    }
+
+    if (!selectedOnly && isVatAccountingPrint) {
+      final cards = printSourceSonuc.summaryCards;
+      if (cards.isNotEmpty) {
+        final Map<String, String> formattedTotals = <String, String>{};
+        for (final card in cards) {
+          final String label = tr(card.labelKey).trim();
+          final String value = card.value.trim();
+          if (label.isEmpty) continue;
+          if (value.isEmpty || value == '-') continue;
+          formattedTotals[label] = value;
+        }
+        if (formattedTotals.isNotEmpty) {
+          footerTotals = formattedTotals;
+          footerTotalsTitle = 'LİSTE TOPLAMLARI';
+        }
+      }
+    }
+
     final printRows = await _buildPrintableRows(
       rows: rows,
-      visibleColumns: visibleColumns,
+      visibleColumns: printColumns,
       expandedIds: expandedIds,
       keepDetailsOpen: keepDetailsOpen,
     );
@@ -1434,9 +1736,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final filtreOzeti = _raporlarServisi.filtreOzetiniOlustur(_aktifFiltreler);
     final headerInfo = <String, dynamic>{
       tr('reports.columns.report_name'): tr(rapor.labelKey),
-      tr(
-        'common.date_range',
-      ): filtreOzeti.isEmpty ? tr('common.all') : filtreOzeti,
+      tr('common.date_range'): filtreOzeti.isEmpty
+          ? tr('common.all')
+          : filtreOzeti,
       tr('reports.summary.record'): rows.length.toString(),
     };
 
@@ -1445,17 +1747,20 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       MaterialPageRoute<void>(
         builder: (context) => GenisletilebilirPrintPreviewScreen(
           title: tr(rapor.labelKey),
-          headers: visibleColumns.map((col) => tr(col.labelKey)).toList(),
+          headers: printColumns.map((col) => tr(col.labelKey)).toList(),
           data: printRows,
           dateInterval: filtreOzeti,
           initialShowDetails: false,
+          initialMainColumnVisibility: isProfitLossPrint
+              ? defaultPrintVisibility
+              : null,
           defaultMainColumnVisibility: defaultPrintVisibility,
           mainColumnFlexes: mainColumnFlexes,
           rightAlignedMainColumnIndices: rightAlignedMainColumnIndices,
           forceMainSingleLine: isAllMovementsPrint,
           headerInfo: headerInfo,
-          mainTableLabel: sonuc.mainTableLabel,
-          detailTableLabel: sonuc.detailTableLabel,
+          mainTableLabel: printSourceSonuc.mainTableLabel,
+          detailTableLabel: printSourceSonuc.detailTableLabel,
           footerTotals: footerTotals,
           footerTotalsTitle: footerTotalsTitle,
         ),
@@ -1490,6 +1795,13 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   String? _bosIseNull(String? value) {
     if (value == null || value.trim().isEmpty) return null;
     return value.trim();
+  }
+
+  String? _sanitizeHesapTuru(String? value) {
+    final raw = _bosIseNull(value);
+    if (raw == null) return null;
+    const allowed = <String>{'Alıcı', 'Satıcı', 'Alıcı/Satıcı'};
+    return allowed.contains(raw) ? raw : null;
   }
 
   double? _parseDouble(String? value) {
@@ -1963,7 +2275,10 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         return (icon: Icons.add_circle_outline, accentColor: AppPalette.slate);
       }
       if (low.contains('satılan')) {
-        return (icon: Icons.shopping_cart_outlined, accentColor: AppPalette.slate);
+        return (
+          icon: Icons.shopping_cart_outlined,
+          accentColor: AppPalette.slate,
+        );
       }
       if (low.contains('kalan')) {
         return (icon: Icons.inventory_outlined, accentColor: AppPalette.slate);
@@ -2470,7 +2785,12 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                 headerWidget: const SizedBox.shrink(),
                 headerPadding: const EdgeInsets.symmetric(horizontal: 12),
                 rowPadding: const EdgeInsets.symmetric(vertical: 9),
-                expandedContentPadding: const EdgeInsets.fromLTRB(24, 12, 24, 24),
+                expandedContentPadding: const EdgeInsets.fromLTRB(
+                  24,
+                  12,
+                  24,
+                  24,
+                ),
                 headerTextStyle: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -2694,7 +3014,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return widths;
     }
 
-    if (rapor.id == 'all_movements') {
+    if (rapor.id == 'all_movements' || rapor.id == 'vat_accounting') {
       if (_supports(RaporFiltreTuru.tarihAraligi)) {
         addFilter(
           _buildQuickDateFilter(compact: true),
@@ -2910,6 +3230,71 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             tabletWidth: 180,
             minWidth: 150,
           ),
+        if (_supports(RaporFiltreTuru.hesapTuru))
+          addFilter(
+            _buildDropdownField<String>(
+              label: 'Hesap Türü',
+              icon: Icons.manage_accounts_outlined,
+              value: _sanitizeHesapTuru(_filtreler.hesapTuru),
+              items: <DropdownMenuItem<String>>[
+                DropdownMenuItem<String>(
+                  value: null,
+                  child: Text(tr('common.all')),
+                ),
+                const DropdownMenuItem<String>(
+                  value: 'Alıcı',
+                  child: Text('Alıcı', overflow: TextOverflow.ellipsis),
+                ),
+                const DropdownMenuItem<String>(
+                  value: 'Satıcı',
+                  child: Text('Satıcı', overflow: TextOverflow.ellipsis),
+                ),
+                const DropdownMenuItem<String>(
+                  value: 'Alıcı/Satıcı',
+                  child: Text('Alıcı/Satıcı', overflow: TextOverflow.ellipsis),
+                ),
+              ],
+              onChanged: (value) => _secimGuncelle(
+                hesapTuru: value,
+                clearHesapTuru: value == null,
+              ),
+            ),
+            desktopWidth: 180,
+            tabletWidth: 170,
+            minWidth: 145,
+          ),
+        if (_supports(RaporFiltreTuru.bakiyeDurumu))
+          addFilter(
+            _buildDropdownField<String>(
+              label: 'Bakiye',
+              icon: Icons.balance_rounded,
+              value: _filtreler.bakiyeDurumu,
+              items: <DropdownMenuItem<String>>[
+                DropdownMenuItem<String>(
+                  value: null,
+                  child: Text(tr('common.all')),
+                ),
+                const DropdownMenuItem<String>(
+                  value: 'borc',
+                  child: Text('Borcu Olanlar', overflow: TextOverflow.ellipsis),
+                ),
+                const DropdownMenuItem<String>(
+                  value: 'alacak',
+                  child: Text(
+                    'Alacağı Olanlar',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+              onChanged: (value) => _secimGuncelle(
+                bakiyeDurumu: value,
+                clearBakiyeDurumu: value == null,
+              ),
+            ),
+            desktopWidth: 160,
+            tabletWidth: 150,
+            minWidth: 136,
+          ),
         if (_supports(RaporFiltreTuru.urun))
           addFilter(
             _buildTypeaheadField(
@@ -2977,10 +3362,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                   ),
                 ),
               ],
-              onChanged: (value) => _secimGuncelle(
-                kdvOrani: value,
-                clearKdvOrani: value == null,
-              ),
+              onChanged: (value) =>
+                  _secimGuncelle(kdvOrani: value, clearKdvOrani: value == null),
             ),
             desktopWidth: 155,
             tabletWidth: 145,
@@ -3858,7 +4241,11 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   Widget _buildTableActionRow() {
     final bool disabled =
         (_sonuc?.isDisabled ?? false) || _aktarimSatirlari.isEmpty;
-    final bool hideDocumentButton = _seciliRapor?.id == 'profit_loss';
+    final String reportId = _seciliRapor?.id ?? '';
+    final bool hideDocumentButton =
+        reportId == 'profit_loss' ||
+        reportId == 'balance_list' ||
+        reportId == 'ba_bs_list';
     final String? selectedRowId = _selectedRowId;
     RaporSatiri? selectedRow;
     if (selectedRowId != null) {
@@ -4228,8 +4615,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
     final String titleRaw = table.title.trim();
     // Raporlar'da genişleyen detayda "Son Hareketler" başlığı istenmiyor.
-    final String title =
-        titleRaw == tr('common.last_movements') ? '' : titleRaw;
+    final String title = titleRaw == tr('common.last_movements')
+        ? ''
+        : titleRaw;
 
     final EdgeInsetsGeometry outerPadding = EdgeInsets.fromLTRB(
       0,
@@ -4406,6 +4794,10 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     }
     if (key == 'ozellik' && _sonuc?.report.id == 'profit_loss') {
       return _buildFeatureBadgesCell(row, value);
+    }
+    if ((key == 'bakiye_borc' || key == 'bakiye_alacak') &&
+        _sonuc?.report.id == 'balance_list') {
+      return _buildAmountCell(row, key, value);
     }
     if (_badgeKeys.contains(key) && value != '-') {
       return _buildBadgeCell(key, value);
@@ -4898,6 +5290,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     if (value == '-') return AppPalette.lightText;
     if (key == 'alacak') return const Color(0xFF2E7D32);
     if (key == 'borc') return const Color(0xFFC62828);
+    if (key == 'bakiye_alacak') return const Color(0xFF2E7D32);
+    if (key == 'bakiye_borc') return const Color(0xFFC62828);
     if (key == 'net_bakiye' ||
         key == 'net_kar' ||
         key == 'brut_kar' ||
