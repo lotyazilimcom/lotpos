@@ -5,10 +5,23 @@ import '../../servisler/kredi_kartlari_veritabani_servisi.dart';
 import 'modeller/kredi_karti_model.dart';
 
 class KrediKartiEkleDialog extends StatefulWidget {
-  const KrediKartiEkleDialog({super.key, this.krediKarti, this.initialCode});
+  const KrediKartiEkleDialog({
+    super.key,
+    this.krediKarti,
+    this.initialCode,
+    this.paraBirimleri,
+    this.varsayilanParaBirimi,
+  });
 
   final KrediKartiModel? krediKarti;
   final String? initialCode;
+
+  /// Genel Ayarlar -> "Aktif Para Birimleri" listesinden gelir.
+  /// Boş/null gelirse güvenli fallback uygulanır.
+  final List<String>? paraBirimleri;
+
+  /// Genel Ayarlar -> "Varsayılan Para Birimi".
+  final String? varsayilanParaBirimi;
 
   @override
   State<KrediKartiEkleDialog> createState() => _KrediKartiEkleDialogState();
@@ -44,17 +57,8 @@ class _KrediKartiEkleDialogState extends State<KrediKartiEkleDialog> {
 
   static const Color _primaryColor = Color(0xFF2C3E50);
 
-  // Para birimleri listesi
-  static const List<String> _paraBirimleri = [
-    'TRY',
-    'USD',
-    'EUR',
-    'GBP',
-    'SAR',
-    'AED',
-    'RUB',
-    'AZN',
-  ];
+  // Para birimleri listesi (Genel Ayarlardan gelir).
+  late final List<String> _paraBirimleri;
 
   @override
   void initState() {
@@ -74,7 +78,43 @@ class _KrediKartiEkleDialogState extends State<KrediKartiEkleDialog> {
     _bilgi2Controller = TextEditingController(text: krediKarti?.bilgi2 ?? '');
     _aktifMi = krediKarti?.aktifMi ?? true;
     _varsayilan = krediKarti?.varsayilan ?? true;
-    _selectedParaBirimi = krediKarti?.paraBirimi ?? 'TRY';
+
+    final String defaultCurrency = (widget.varsayilanParaBirimi ?? 'TRY').trim();
+    final List<String> settingsCurrencies = (widget.paraBirimleri ?? const [])
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+
+    final List<String> derivedCurrencies = <String>[];
+    for (final code in settingsCurrencies) {
+      if (!derivedCurrencies.contains(code)) derivedCurrencies.add(code);
+    }
+
+    final String? existingCurrency = krediKarti?.paraBirimi.trim();
+    if (existingCurrency != null &&
+        existingCurrency.isNotEmpty &&
+        !derivedCurrencies.contains(existingCurrency)) {
+      // Düzenlemede, aktif listede olmasa da mevcut değeri kaybetmemek için ekle.
+      derivedCurrencies.insert(0, existingCurrency);
+    }
+
+    if (defaultCurrency.isNotEmpty &&
+        !derivedCurrencies.contains(defaultCurrency)) {
+      derivedCurrencies.insert(0, defaultCurrency);
+    }
+
+    _paraBirimleri = derivedCurrencies.isNotEmpty ? derivedCurrencies : ['TRY'];
+
+    final String initialCurrency =
+        (existingCurrency != null && existingCurrency.isNotEmpty)
+            ? existingCurrency
+            : (defaultCurrency.isNotEmpty
+                ? defaultCurrency
+                : _paraBirimleri.first);
+
+    _selectedParaBirimi = _paraBirimleri.contains(initialCurrency)
+        ? initialCurrency
+        : _paraBirimleri.first;
 
     _kodFocusNode = FocusNode();
     _adFocusNode = FocusNode();

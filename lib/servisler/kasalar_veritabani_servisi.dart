@@ -102,6 +102,8 @@ class KasalarVeritabaniServisi {
         return;
       }
 
+      await _ensureVarsayilanKasalar();
+
       _isInitialized = true;
       _initializedDatabase = targetDatabase;
       _initializingDatabase = null;
@@ -130,6 +132,179 @@ class KasalarVeritabaniServisi {
   }
 
   /// Pool bağlantısını güvenli şekilde kapatır ve tüm durum değişkenlerini sıfırlar.
+  Future<void> _ensureVarsayilanKasalar() async {
+    final pool = _pool;
+    if (pool == null) return;
+
+    const defaults = <({String code, String name, String currency, bool makeDefault})>[
+      (code: 'KS-001', name: 'TRY KASA', currency: 'TRY', makeDefault: true),
+      (code: 'KS-002', name: 'EUR KASA', currency: 'EUR', makeDefault: false),
+      (code: 'KS-003', name: 'USD KASA', currency: 'USD', makeDefault: false),
+      (code: 'KS-004', name: 'GBP KASA', currency: 'GBP', makeDefault: false),
+    ];
+
+    final codes = defaults.map((e) => e.code).toList(growable: false);
+
+    int parseInt(dynamic value) {
+      if (value == null) return 0;
+      if (value is int) return value;
+      if (value is BigInt) return value.toInt();
+      return int.tryParse(value.toString()) ?? 0;
+    }
+
+    try {
+      // Cloud şemada tablo var ama migration çalışmamış olabilir.
+      try {
+        await pool.execute(
+          'ALTER TABLE cash_registers ADD COLUMN IF NOT EXISTS is_protected INTEGER DEFAULT 0',
+        );
+      } catch (_) {}
+
+      final companyId = _companyId;
+
+      final companyCountRes = await pool.execute(
+        Sql.named(
+          "SELECT COUNT(*) FROM cash_registers WHERE COALESCE(company_id, '$_defaultCompanyId') = @companyId",
+        ),
+        parameters: {'companyId': companyId},
+      );
+      final int companyCount = parseInt(
+        companyCountRes.isNotEmpty ? companyCountRes.first.first : 0,
+      );
+      final bool isFreshCompany = companyCount == 0;
+
+      if (isFreshCompany) {
+        final totalCountRes = await pool.execute(
+          'SELECT COUNT(*) FROM cash_registers',
+        );
+        final int totalCount = parseInt(
+          totalCountRes.isNotEmpty ? totalCountRes.first.first : 0,
+        );
+
+        if (totalCount == 0) {
+          // PostgreSQL sequences are not transactional; failed inserts may bump the sequence.
+          try {
+            final seqRes = await pool.execute(
+              "SELECT pg_get_serial_sequence('cash_registers', 'id')",
+            );
+            final String? seqName = seqRes.isNotEmpty
+                ? seqRes.first.first?.toString()
+                : null;
+            if (seqName != null && seqName.trim().isNotEmpty) {
+              await pool.execute(
+                Sql.named('SELECT setval(@seqName::regclass, 1, false)'),
+                parameters: {'seqName': seqName},
+              );
+            }
+          } catch (_) {}
+        }
+      }
+
+      // Mevcut varsayılan kasaları korumaya al
+      try {
+        await pool.execute(
+          Sql.named('''
+            UPDATE cash_registers
+            SET is_protected = 1
+            WHERE code = ANY(@codes)
+              AND COALESCE(company_id, '$_defaultCompanyId') = @companyId
+          '''),
+          parameters: {'codes': codes, 'companyId': companyId},
+        );
+      } catch (_) {}
+
+      final existingCodesRes = await pool.execute(
+        Sql.named('''
+          SELECT code
+          FROM cash_registers
+          WHERE code = ANY(@codes)
+            AND COALESCE(company_id, '$_defaultCompanyId') = @companyId
+        '''),
+        parameters: {'codes': codes, 'companyId': companyId},
+      );
+      final existingCodes = existingCodesRes
+          .map((r) => r[0]?.toString() ?? '')
+          .where((e) => e.trim().isNotEmpty)
+          .toSet();
+
+      bool hasDefault = false;
+      if (!isFreshCompany) {
+        final defaultRes = await pool.execute(
+          Sql.named(
+            "SELECT 1 FROM cash_registers WHERE is_default = 1 AND COALESCE(company_id, '$_defaultCompanyId') = @companyId LIMIT 1",
+          ),
+          parameters: {'companyId': companyId},
+        );
+        hasDefault = defaultRes.isNotEmpty;
+      }
+
+      for (final d in defaults) {
+        if (existingCodes.contains(d.code)) continue;
+
+        final bool shouldMakeDefault =
+            isFreshCompany && !hasDefault && d.makeDefault;
+
+        final insertRes = await pool.execute(
+          Sql.named('''
+            INSERT INTO cash_registers (
+              company_id,
+              code,
+              name,
+              balance,
+              currency,
+              info1,
+              info2,
+              is_active,
+              is_default,
+              is_protected,
+              search_tags,
+              matched_in_hidden
+            )
+            VALUES (
+              @companyId,
+              @code,
+              @name,
+              0,
+              @currency,
+              '',
+              '',
+              1,
+              @is_default,
+              1,
+              '',
+              0
+            )
+            RETURNING id
+          '''),
+          parameters: {
+            'companyId': companyId,
+            'code': d.code,
+            'name': d.name,
+            'currency': d.currency,
+            'is_default': shouldMakeDefault ? 1 : 0,
+          },
+        );
+
+        if (insertRes.isNotEmpty) {
+          final int newId = parseInt(insertRes.first.first);
+          if (newId > 0) {
+            await _updateSearchTags(newId);
+          }
+        }
+
+        if (shouldMakeDefault) hasDefault = true;
+      }
+    } on ServerException catch (e) {
+      if (e.code == '42P01') return;
+      debugPrint(
+        'KasalarVeritabaniServisi: Varsayilan kasa olusturma hatasi: ${e.code} ${e.message}',
+      );
+    } catch (e) {
+      if (e is LisansYazmaEngelliHatasi) return;
+      debugPrint('KasalarVeritabaniServisi: Varsayilan kasa olusturma hatasi: $e');
+    }
+  }
+
   Future<void> baglantiyiKapat() async {
     _initToken++;
     final pending = _initCompleter;
@@ -204,6 +379,7 @@ class KasalarVeritabaniServisi {
         info2 TEXT,
         is_active INTEGER DEFAULT 1,
         is_default INTEGER DEFAULT 0,
+        is_protected INTEGER DEFAULT 0,
         search_tags TEXT NOT NULL DEFAULT '',
         matched_in_hidden INTEGER DEFAULT 0
       )
@@ -433,6 +609,9 @@ class KasalarVeritabaniServisi {
       );
       await _pool!.execute(
         'ALTER TABLE cash_registers ADD COLUMN IF NOT EXISTS company_id TEXT',
+      );
+      await _pool!.execute(
+        'ALTER TABLE cash_registers ADD COLUMN IF NOT EXISTS is_protected INTEGER DEFAULT 0',
       );
       await _pool!.execute(
         'ALTER TABLE cash_register_transactions ADD COLUMN IF NOT EXISTS company_id TEXT',
@@ -1944,6 +2123,19 @@ class KasalarVeritabaniServisi {
     if (_pool == null) return;
 
     await _pool!.runTx((session) async {
+      final protectedRes = await session.execute(
+        Sql.named(
+          "SELECT is_protected FROM cash_registers WHERE id = @id AND COALESCE(company_id, '$_defaultCompanyId') = @companyId LIMIT 1",
+        ),
+        parameters: {'id': id, 'companyId': _companyId},
+      );
+      final int isProtected = int.tryParse(
+            (protectedRes.isNotEmpty ? protectedRes.first.first : 0).toString(),
+          ) ??
+          0;
+      if (isProtected == 1) {
+        throw StateError('Varsayılan kasalar silinemez.');
+      }
       if (varsayilan) {
         // Eğer bu kasa varsayılan yapılıyorsa, diğerlerinin varsayılan özelliğini kaldır
         await session.execute(
@@ -2164,6 +2356,7 @@ class KasalarVeritabaniServisi {
       bilgi2: map['info2'] as String? ?? '',
       aktifMi: (map['is_active'] as int?) == 1,
       varsayilan: (map['is_default'] as int?) == 1,
+      korumali: (map['is_protected'] as int?) == 1,
       searchTags: map['search_tags'] as String?,
       matchedInHidden: matchedInHidden,
     );

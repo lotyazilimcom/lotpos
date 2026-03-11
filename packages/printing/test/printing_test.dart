@@ -18,9 +18,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
 import 'package:pdf/pdf.dart';
-import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 import 'package:printing/printing.dart';
 import 'package:printing/src/interface.dart';
 
@@ -94,9 +92,7 @@ void main() {
   });
 }
 
-class MockPrinting extends Mock
-    with MockPlatformInterfaceMixin
-    implements PrintingPlatform {
+class MockPrinting extends PrintingPlatform {
   @override
   Future<PrintingInfo> info() async => PrintingInfo.unavailable;
 
@@ -114,6 +110,9 @@ class MockPrinting extends Mock
       true;
 
   @override
+  Future<List<Printer>> listPrinters() async => const <Printer>[];
+
+  @override
   Future<bool> sharePdf(
     Uint8List bytes,
     String filename,
@@ -125,6 +124,14 @@ class MockPrinting extends Mock
       true;
 
   @override
+  Future<Uint8List> convertHtml(
+    String html,
+    String? baseUrl,
+    PdfPageFormat format,
+  ) async =>
+      Uint8List(0);
+
+  @override
   Future<Printer?> pickPrinter(Rect bounds) async => null;
 
   @override
@@ -132,7 +139,14 @@ class MockPrinting extends Mock
     Uint8List document,
     List<int>? pages,
     double dpi,
-  ) async* {}
+  ) =>
+      const Stream<PdfRaster>.empty();
 }
 
-class MockContext extends Mock implements BuildContext {}
+class MockContext implements BuildContext {
+  @override
+  bool get mounted => true;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}

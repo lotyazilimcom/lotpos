@@ -273,11 +273,9 @@ class VeritabaniResetServisi {
         'product_metadata',
         'product_devices',
         'table_counts',
-        'depots',
 
         // 3. FİNANSAL TABLOLAR (KASA, BANKA, KART, GİDER)
         'cash_register_transactions',
-        'cash_registers',
         'bank_transactions',
         'banks',
         'credit_card_transactions',

@@ -168,6 +168,8 @@ class DepolarVeritabaniServisi {
           return;
         }
 
+        await _ensureVarsayilanAnaDepo();
+
         _isInitialized = true;
         debugPrint(
           'Depolar veritabanı bağlantısı başarılı (Havuz): ${OturumServisi().aktifVeritabaniAdi}',
@@ -1293,6 +1295,95 @@ class DepolarVeritabaniServisi {
     return prefs.getString('current_username') ?? 'system';
   }
 
+  Future<void> _ensureVarsayilanAnaDepo() async {
+    final pool = _pool;
+    if (pool == null) return;
+
+    try {
+      final countRes = await pool.execute('SELECT COUNT(*) FROM depots');
+      final rawCount = countRes.isNotEmpty ? countRes.first.first : 0;
+      final int count = rawCount is int
+          ? rawCount
+          : rawCount is BigInt
+              ? rawCount.toInt()
+              : int.tryParse(rawCount.toString()) ?? 0;
+      if (count > 0) return;
+
+      // Ensure the first depot starts from ID=1 even if a previous failed insert
+      // advanced the sequence (PostgreSQL sequences are not transactional).
+      try {
+        final seqRes = await pool.execute(
+          "SELECT pg_get_serial_sequence('depots', 'id')",
+        );
+        final String? seqName = seqRes.isNotEmpty
+            ? seqRes.first.first?.toString()
+            : null;
+        if (seqName != null && seqName.trim().isNotEmpty) {
+          await pool.execute(
+            Sql.named('SELECT setval(@seqName::regclass, 1, false)'),
+            parameters: {'seqName': seqName},
+          );
+        }
+      } catch (_) {}
+
+      String currentUser = 'system';
+      try {
+        currentUser = await _getCurrentUser();
+      } catch (_) {}
+      final now = DateTime.now();
+
+      const String defaultName = 'Ana Depo';
+      const String defaultCode = '1';
+
+      final searchTags = [
+        defaultCode,
+        defaultName,
+        'aktif',
+        currentUser,
+      ].where((e) => e.toString().trim().isNotEmpty).join(' ').toLowerCase();
+
+      await pool.execute(
+        Sql.named('''
+          INSERT INTO depots (kod, ad, adres, sorumlu, telefon, aktif_mi, created_by, created_at, search_tags)
+          VALUES (@kod, @ad, @adres, @sorumlu, @telefon, @aktif_mi, @created_by, @created_at, @search_tags)
+        '''),
+        parameters: {
+          'kod': defaultCode,
+          'ad': defaultName,
+          'adres': '',
+          'sorumlu': '',
+          'telefon': '',
+          'aktif_mi': 1,
+          'created_by': currentUser,
+          'created_at': now,
+          'search_tags': searchTags,
+        },
+      );
+    } on ServerException catch (e) {
+      if (e.code == '42P01') {
+        // depots table missing
+        return;
+      }
+      debugPrint(
+        'DepolarVeritabaniServisi: Varsayilan depo olusturma hatasi: ${e.code} ${e.message}',
+      );
+    } catch (e) {
+      debugPrint('DepolarVeritabaniServisi: Varsayilan depo olusturma hatasi: $e');
+    }
+  }
+
+  Future<int?> anaDepoIdGetir() async {
+    if (!_isInitialized) await baslat();
+    if (_pool == null) return null;
+
+    final res = await _pool!.execute('SELECT MIN(id) FROM depots');
+    final raw = res.isNotEmpty ? res.first.first : null;
+    if (raw == null) return null;
+    if (raw is int) return raw;
+    if (raw is BigInt) return raw.toInt();
+    return int.tryParse(raw.toString());
+  }
+
   // --- DEPO İŞLEMLERİ ---
 
   Future<bool> depoKoduVarMi(String kod, {int? haricId}) async {
@@ -2229,6 +2320,19 @@ class DepolarVeritabaniServisi {
   Future<void> depoSil(int id) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return;
+
+    final minIdRes = await _pool!.execute('SELECT MIN(id) FROM depots');
+    final rawMinId = minIdRes.isNotEmpty ? minIdRes.first.first : null;
+    final int? minId = rawMinId == null
+        ? null
+        : rawMinId is int
+            ? rawMinId
+            : rawMinId is BigInt
+                ? rawMinId.toInt()
+                : int.tryParse(rawMinId.toString());
+    if (minId != null && id == minId) {
+      throw StateError('Ana Depo silinemez.');
+    }
 
     await _pool!.execute(
       Sql.named('DELETE FROM depots WHERE id = @id'),

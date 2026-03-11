@@ -9,6 +9,7 @@ class KasaModel {
   final String bilgi2;
   final bool aktifMi;
   final bool varsayilan;
+  final bool korumali;
   final String? searchTags;
   final bool matchedInHidden;
 
@@ -22,6 +23,7 @@ class KasaModel {
     this.bilgi2 = '',
     this.aktifMi = true,
     this.varsayilan = false,
+    this.korumali = false,
     this.searchTags,
     this.matchedInHidden = false,
   });
@@ -36,6 +38,7 @@ class KasaModel {
     String? bilgi2,
     bool? aktifMi,
     bool? varsayilan,
+    bool? korumali,
     String? searchTags,
     bool? matchedInHidden,
   }) {
@@ -49,6 +52,7 @@ class KasaModel {
       bilgi2: bilgi2 ?? this.bilgi2,
       aktifMi: aktifMi ?? this.aktifMi,
       varsayilan: varsayilan ?? this.varsayilan,
+      korumali: korumali ?? this.korumali,
       searchTags: searchTags ?? this.searchTags,
       matchedInHidden: matchedInHidden ?? this.matchedInHidden,
     );
@@ -79,6 +83,7 @@ class KasaModel {
       bilgi2: map['bilgi2'] as String? ?? '',
       aktifMi: (map['aktif_mi'] as int?) == 1,
       varsayilan: (map['varsayilan'] as int?) == 1,
+      korumali: map['korumali'] == true,
       searchTags: map['search_tags'] as String?,
       matchedInHidden: map['matched_in_hidden'] as bool? ?? false,
     );

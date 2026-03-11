@@ -35,6 +35,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     'ara_toplam',
     'kdv',
     'genel_toplam',
+    'bakiye_borc',
+    'bakiye_alacak',
+    'son_islem_tutar',
     // KDV Hesabı
     'birim_fiyati',
     'matrah',
@@ -194,6 +197,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
   bool _keepDetailsOpen = false;
   final Set<String> _expandedRowIds = <String>{};
+  final Set<String> _autoExpandedRowIds = <String>{};
   final Map<String, Future<DetailTable?>> _integrationDetailFutures =
       <String, Future<DetailTable?>>{};
   String? _selectedRowId;
@@ -255,6 +259,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   Future<void> _raporuYukle({bool showLoading = true}) async {
     final rapor = _seciliRapor;
     if (rapor == null) return;
+    final String aramaTerimi = _arama;
 
     final int sorguNo = ++_aktifSorguNo;
     final bool shouldShowLoading = showLoading || _sonuc == null;
@@ -272,11 +277,22 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         filtreler: _aktifFiltreler,
         page: _mevcutSayfa,
         pageSize: _satirSayisi,
-        arama: _arama,
+        arama: aramaTerimi,
         cursor: cursor,
         sortKey: _sortKey,
         sortAscending: _sortAscending,
       );
+
+      final Set<String> autoExpandedRowIds = <String>{};
+      if ((rapor.id == 'all_movements' || rapor.id == 'vat_accounting') &&
+          aramaTerimi.trim().isNotEmpty) {
+        for (final row in sonuc.rows) {
+          if (!row.expandable) continue;
+          if (row.extra['matchedInHidden'] == true) {
+            autoExpandedRowIds.add(row.id);
+          }
+        }
+      }
 
       if (!mounted || sorguNo != _aktifSorguNo) return;
       setState(() {
@@ -284,6 +300,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         _raporYukleniyor = false;
         _mevcutSayfa = sonuc.page;
         _satirSayisi = sonuc.pageSize;
+        _autoExpandedRowIds
+          ..clear()
+          ..addAll(autoExpandedRowIds);
         final selectedId = _selectedRowId;
         if (selectedId != null &&
             !sonuc.rows.any((row) => row.id == selectedId)) {
@@ -409,6 +428,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       ..clear()
       ..[1] = null;
     _expandedRowIds.clear();
+    _autoExpandedRowIds.clear();
     _selectedRowId = null;
   }
 
@@ -1283,7 +1303,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final rapor = _seciliRapor;
     if (sonuc == null || rapor == null || sonuc.isDisabled) return;
 
-    final Set<String> expandedIds = Set<String>.from(_expandedRowIds);
+    final Set<String> expandedIds = Set<String>.from(_expandedRowIds)
+      ..addAll(_autoExpandedRowIds);
     final bool keepDetailsOpen = _keepDetailsOpen;
     final bool isAllMovementsPrint = rapor.id == 'all_movements';
     final bool isProfitLossPrint = rapor.id == 'profit_loss';
@@ -1291,6 +1312,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final bool isBaBsPrint = rapor.id == 'ba_bs_list';
     final bool isReceivablesPayablesPrint = rapor.id == 'receivables_payables';
     final bool isVatAccountingPrint = rapor.id == 'vat_accounting';
+    final bool isLastTransactionDatePrint = rapor.id == 'last_transaction_date';
 
     late final RaporSonucu printSourceSonuc;
     late final List<RaporSatiri> rows;
@@ -1340,7 +1362,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             isBalanceListPrint ||
             isBaBsPrint ||
             isReceivablesPayablesPrint ||
-            isVatAccountingPrint)
+            isVatAccountingPrint ||
+            isLastTransactionDatePrint)
         ? printSourceSonuc.columns
         : _gorunurKolonlar;
 
@@ -1399,6 +1422,21 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           'kdv_orani',
           'birim_fiyati',
           'kdv',
+        };
+        return printColumns.map((col) => keys.contains(col.key)).toList();
+      }
+
+      if (isLastTransactionDatePrint) {
+        const keys = <String>{
+          'kod',
+          'ad',
+          'tur',
+          'bakiye_borc',
+          'bakiye_alacak',
+          'son_islem',
+          'son_islem_tutar',
+          'son_islem_tarihi',
+          'gecen_gun',
         };
         return printColumns.map((col) => keys.contains(col.key)).toList();
       }
@@ -1463,6 +1501,32 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
               return 2.8;
             case 'tur':
               return 1.1;
+            default:
+              return 1.0;
+          }
+        }).toList();
+      }
+
+      if (isLastTransactionDatePrint) {
+        return printColumns.map((col) {
+          switch (col.key) {
+            case 'kod':
+              return 0.9;
+            case 'ad':
+              return 2.4;
+            case 'tur':
+              return 1.2;
+            case 'bakiye_borc':
+            case 'bakiye_alacak':
+              return 1.15;
+            case 'son_islem':
+              return 1.6;
+            case 'son_islem_tutar':
+              return 1.2;
+            case 'son_islem_tarihi':
+              return 1.2;
+            case 'gecen_gun':
+              return 0.85;
             default:
               return 1.0;
           }
@@ -1580,6 +1644,22 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           'otv_tutari',
           'oiv_tutari',
           'genel_toplam',
+        };
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
+      if (isLastTransactionDatePrint) {
+        const keys = <String>{
+          'bakiye_borc',
+          'bakiye_alacak',
+          'son_islem_tutar',
+          'gecen_gun',
         };
         final indices = <int>{};
         for (int i = 0; i < printColumns.length; i++) {
@@ -2752,6 +2832,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final Set<int> expandedIndices = _getEffectiveExpandedIndices(
       _sayfaSatirlari,
     );
+    final bool hasExpandableRows = _sayfaSatirlari.any((row) => row.expandable);
 
     return Padding(
       padding: const EdgeInsets.only(top: 4),
@@ -2806,19 +2887,22 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                     _satirSayisi = rowsPerPage;
                     _selectedRowId = null;
                     _expandedRowIds.clear();
+                    _autoExpandedRowIds.clear();
                   });
                   unawaited(_raporuYukle());
                 },
                 extraWidgets: [
-                  _buildIconToolbarButton(
-                    tooltip: tr('warehouses.keep_details_open'),
-                    icon: _keepDetailsOpen
-                        ? Icons.unfold_less_rounded
-                        : Icons.unfold_more_rounded,
-                    onTap: _toggleKeepDetailsOpen,
-                    active: _keepDetailsOpen,
-                  ),
-                  const SizedBox(width: 8),
+                  if (hasExpandableRows) ...[
+                    _buildIconToolbarButton(
+                      tooltip: tr('warehouses.keep_details_open'),
+                      icon: _keepDetailsOpen
+                          ? Icons.unfold_less_rounded
+                          : Icons.unfold_more_rounded,
+                      onTap: _toggleKeepDetailsOpen,
+                      active: _keepDetailsOpen,
+                    ),
+                    const SizedBox(width: 8),
+                  ],
                   _buildIconToolbarButton(
                     tooltip: tr('common.column_settings'),
                     icon: Icons.view_column_outlined,
@@ -4245,7 +4329,10 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final bool hideDocumentButton =
         reportId == 'profit_loss' ||
         reportId == 'balance_list' ||
-        reportId == 'ba_bs_list';
+        reportId == 'ba_bs_list' ||
+        reportId == 'receivables_payables' ||
+        reportId == 'vat_accounting' ||
+        reportId == 'last_transaction_date';
     final String? selectedRowId = _selectedRowId;
     RaporSatiri? selectedRow;
     if (selectedRowId != null) {
@@ -4435,6 +4522,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           ..add(row.id);
       } else {
         _expandedRowIds.remove(row.id);
+        _autoExpandedRowIds.remove(row.id);
       }
     });
   }
@@ -4444,7 +4532,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     for (int i = 0; i < rows.length; i++) {
       final row = rows[i];
       if (!row.expandable) continue;
-      if (_keepDetailsOpen || _expandedRowIds.contains(row.id)) {
+      if (_keepDetailsOpen ||
+          _expandedRowIds.contains(row.id) ||
+          _autoExpandedRowIds.contains(row.id)) {
         indices.add(i);
       }
     }
@@ -4749,32 +4839,32 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           child = Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             alignment: column.alignment,
-            child: showExpander
-                ? Row(
-                    children: [
-                      row.expandable
-                          ? InkWell(
-                              mouseCursor: WidgetStateMouseCursor.clickable,
-                              onTap: toggleExpand,
-                              borderRadius: BorderRadius.circular(12),
-                              child: Padding(
-                                padding: const EdgeInsets.all(2.0),
-                                child: AnimatedRotation(
-                                  turns: isExpanded ? 0.25 : 0,
-                                  duration: const Duration(milliseconds: 200),
-                                  child: Icon(
-                                    Icons.chevron_right_rounded,
-                                    size: 16,
-                                    color: Colors.grey.shade600,
-                                  ),
+           child: showExpander
+                ? (row.expandable
+                    ? Row(
+                        children: [
+                          InkWell(
+                            mouseCursor: WidgetStateMouseCursor.clickable,
+                            onTap: toggleExpand,
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.all(2.0),
+                              child: AnimatedRotation(
+                                turns: isExpanded ? 0.25 : 0,
+                                duration: const Duration(milliseconds: 200),
+                                child: Icon(
+                                  Icons.chevron_right_rounded,
+                                  size: 16,
+                                  color: Colors.grey.shade600,
                                 ),
                               ),
-                            )
-                          : const SizedBox(width: 20, height: 20),
-                      const SizedBox(width: 8),
-                      Expanded(child: _buildValueCell(row, column.key)),
-                    ],
-                  )
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(child: _buildValueCell(row, column.key)),
+                        ],
+                      )
+                    : _buildValueCell(row, column.key))
                 : _buildValueCell(row, column.key),
           );
         }

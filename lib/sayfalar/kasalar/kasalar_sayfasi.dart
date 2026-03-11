@@ -1248,7 +1248,11 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
 
     final result = await showDialog<KasaModel>(
       context: context,
-      builder: (context) => KasaEkleDialog(initialCode: initialCode),
+      builder: (context) => KasaEkleDialog(
+        initialCode: initialCode,
+        paraBirimleri: _genelAyarlar.kullanilanParaBirimleri,
+        varsayilanParaBirimi: _genelAyarlar.varsayilanParaBirimi,
+      ),
     );
 
     if (result != null) {
@@ -1274,7 +1278,11 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
   Future<void> _showEditDialog(KasaModel kasa) async {
     final result = await showDialog<KasaModel>(
       context: context,
-      builder: (context) => KasaEkleDialog(kasa: kasa),
+      builder: (context) => KasaEkleDialog(
+        kasa: kasa,
+        paraBirimleri: _genelAyarlar.kullanilanParaBirimleri,
+        varsayilanParaBirimi: _genelAyarlar.varsayilanParaBirimi,
+      ),
     );
 
     if (result != null) {
@@ -1354,13 +1362,18 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
   Future<void> _deleteSelectedKasalar() async {
     if (_selectedIds.isEmpty) return;
 
+    final deletableIds = _selectedIds
+        .where((id) => !_cachedKasalar.any((k) => k.id == id && k.korumali))
+        .toList(growable: false);
+    if (deletableIds.isEmpty) return;
+
     final bool? onay = await showDialog<bool>(
       context: context,
       builder: (context) => OnayDialog(
         baslik: tr('common.confirmation'),
         mesaj: tr(
           'common.confirm_delete_named',
-        ).replaceAll('{name}', '${_selectedIds.length} kayıt'),
+        ).replaceAll('{name}', '${deletableIds.length} kayıt'),
         onOnay: () {},
         isDestructive: true,
         onayButonMetni: tr('common.delete'),
@@ -1369,7 +1382,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
 
     if (onay == true) {
       try {
-        for (final id in _selectedIds) {
+        for (final id in deletableIds) {
           await KasalarVeritabaniServisi().kasaSil(id);
         }
 
@@ -1399,6 +1412,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
   }
 
   void _deleteKasa(KasaModel depo) async {
+    if (depo.korumali) return;
     final bool? onay = await showDialog<bool>(
       context: context,
       builder: (context) => OnayDialog(
@@ -1647,7 +1661,11 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
   void _onSelectAll(bool? value) {
     setState(() {
       if (value == true) {
-        _selectedIds.addAll(_filterKasalar(_cachedKasalar).map((e) => e.id));
+        _selectedIds.addAll(
+          _filterKasalar(_cachedKasalar)
+              .where((k) => !k.korumali)
+              .map((e) => e.id),
+        );
       } else {
         _selectedIds.clear();
       }
@@ -1669,6 +1687,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
   void _onSelectRow(bool? value, int id) {
     setState(() {
       if (value == true) {
+        final bool isProtected =
+            _cachedKasalar.any((k) => k.id == id && k.korumali);
+        if (isProtected) return;
         _selectedIds.add(id);
       } else {
         _selectedIds.remove(id);
@@ -1864,6 +1885,12 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
 
       for (var i = 0; i < dataToProcess.length; i++) {
         final depo = dataToProcess[i];
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
+        final int originIndex =
+            _cachedKasalar.indexWhere((k) => k.id == depo.id);
+        final int orderNo =
+            startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
         // Determine if row is expanded
         final isExpanded =
@@ -1899,7 +1926,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
 
         // 2. Main Row Data - matches headers: Sıra No, Kasa Kodu, Kasa Adı, Bakiye, Durum, Varsayılan
         final mainRow = [
-          depo.id.toString(),
+          orderNo.toString(),
           depo.kod,
           depo.ad,
           '${FormatYardimcisi.sayiFormatlaOndalikli(depo.bakiye, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.fiyatOndalik)} ${depo.paraBirimi}',
@@ -2838,8 +2865,11 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     List<KasaModel> depolar,
     BoxConstraints constraints,
   ) {
+    final selectableKasalar =
+        depolar.where((d) => !d.korumali).toList(growable: false);
     final bool allSelected =
-        depolar.isNotEmpty && depolar.every((d) => _selectedIds.contains(d.id));
+        selectableKasalar.isNotEmpty &&
+        selectableKasalar.every((d) => _selectedIds.contains(d.id));
 
     // Calculate column widths based on header text for single-line display
     final colOrderWidth = _calculateColumnWidth(
@@ -3232,6 +3262,10 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
       },
       onClearSelection: _clearAllTableSelections,
       rowBuilder: (context, kasa, index, isExpanded, toggleExpand) {
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int orderNo =
+            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
+        final bool isProtected = kasa.korumali;
         return Row(
           children: [
             _buildCell(
@@ -3243,7 +3277,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                 height: 20,
                 child: Checkbox(
                   value: _selectedIds.contains(kasa.id),
-                  onChanged: (val) => _onSelectRow(val, kasa.id),
+                  onChanged: isProtected ? null : (val) => _onSelectRow(val, kasa.id),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -3278,7 +3312,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                     ),
                     const SizedBox(width: 8),
                     HighlightText(
-                      text: kasa.id.toString(),
+                      text: orderNo.toString(),
                       query: _searchQuery,
                       style: const TextStyle(
                         color: Colors.black87,
@@ -4657,6 +4691,8 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
   }
 
   Widget _buildPopupMenu(KasaModel depo) {
+    final bool deleteEnabled = !depo.korumali;
+    final Color deleteColor = deleteEnabled ? const Color(0xFFEA4335) : Colors.grey;
     return Theme(
       data: Theme.of(context).copyWith(
         dividerTheme: const DividerThemeData(
@@ -4877,20 +4913,21 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
           ),
           PopupMenuItem<String>(
             value: 'delete',
+            enabled: deleteEnabled,
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.delete_outline,
                   size: 20,
-                  color: Color(0xFFEA4335),
+                  color: deleteColor,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   tr('common.delete'),
-                  style: const TextStyle(
-                    color: Color(0xFFEA4335),
+                  style: TextStyle(
+                    color: deleteColor,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
@@ -5550,6 +5587,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
 
   Widget _buildDepoCard(KasaModel depo) {
     final isExpanded = _expandedMobileIds.contains(depo.id);
+    final bool isProtected = depo.korumali;
 
     return Container(
       decoration: BoxDecoration(
@@ -5576,7 +5614,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                 height: 24,
                 child: Checkbox(
                   value: _selectedIds.contains(depo.id),
-                  onChanged: (v) => _onSelectRow(v, depo.id),
+                  onChanged: isProtected ? null : (v) => _onSelectRow(v, depo.id),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),

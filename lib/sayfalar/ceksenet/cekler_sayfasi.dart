@@ -1750,6 +1750,10 @@ class _CeklerSayfasiState extends State<CeklerSayfasi> {
 
         // Determine if row is expanded
         final originalIndex = _cachedCekler.indexOf(depo);
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
+        final int orderNo =
+            startRecordIndex + (originalIndex >= 0 ? originalIndex : i) + 1;
         final isExpanded =
             _keepDetailsOpen ||
             _autoExpandedIndices.contains(originalIndex) ||
@@ -1793,7 +1797,7 @@ class _CeklerSayfasiState extends State<CeklerSayfasi> {
             : '\n$typeStr';
 
         final mainRow = [
-          depo.id.toString(),
+          orderNo.toString(),
           '${depo.cekNo}$statusStr', // Merged like Screen
           depo.cariAdi,
           '${FormatYardimcisi.sayiFormatlaOndalikli(depo.tutar, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.fiyatOndalik)} ${depo.paraBirimi}',
@@ -2823,6 +2827,9 @@ class _CeklerSayfasiState extends State<CeklerSayfasi> {
       onClearSelection: _clearAllTableSelections,
       data: depolar,
       rowBuilder: (context, cek, index, isExpanded, toggleExpand) {
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int orderNo =
+            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         return Row(
           children: [
             _buildCell(
@@ -2867,7 +2874,7 @@ class _CeklerSayfasiState extends State<CeklerSayfasi> {
                     ),
                     const SizedBox(width: 8),
                     HighlightText(
-                      text: cek.id.toString(),
+                      text: orderNo.toString(),
                       query: _searchQuery,
                       style: const TextStyle(
                         color: Colors.black87,

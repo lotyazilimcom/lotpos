@@ -77,12 +77,21 @@ void main() async {
         ? const Size(1280, 720)
         : (savedWindowState?.size ?? const Size(1280, 720));
 
+    // Windows'ta `backgroundColor: Colors.transparent` -> window_manager
+    // SetWindowCompositionAttribute ile titlebar alanını şeffaflaştırıp (özellikle
+    // sistem "dark mode" iken) pencere başlığını ve minimize/maximize ikonlarını
+    // görünmez hale getirebiliyor. Windows'ta standart pencere çerçevesini
+    // korumak için backgroundColor uygulamıyoruz.
+    final Color? desktopWindowBackgroundColor =
+        Platform.isWindows ? null : Colors.transparent;
+
     final WindowOptions windowOptions = WindowOptions(
       size: initialSize,
       minimumSize: const Size(360, 600),
       center: true,
-      backgroundColor: Colors.transparent,
+      backgroundColor: desktopWindowBackgroundColor,
       skipTaskbar: false,
+      title: Platform.isWindows ? 'Patisyo' : null,
       titleBarStyle: TitleBarStyle.normal,
     );
 

@@ -1318,7 +1318,11 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
 
     final result = await showDialog<KrediKartiModel>(
       context: context,
-      builder: (context) => KrediKartiEkleDialog(initialCode: initialCode),
+      builder: (context) => KrediKartiEkleDialog(
+        initialCode: initialCode,
+        paraBirimleri: _genelAyarlar.kullanilanParaBirimleri,
+        varsayilanParaBirimi: _genelAyarlar.varsayilanParaBirimi,
+      ),
     );
 
     if (result != null) {
@@ -1729,6 +1733,12 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
 
       for (var i = 0; i < dataToProcess.length; i++) {
         final krediKarti = dataToProcess[i];
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
+        final int originIndex =
+            _cachedKrediKartlari.indexWhere((k) => k.id == krediKarti.id);
+        final int orderNo =
+            startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
         // Determine if row is expanded
         final isExpanded =
@@ -1765,7 +1775,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
 
         // 2. Main Row Data - matches headers: Sıra No, Kart Kodu, Kart Adı, Bakiye, Durum, Varsayılan
         final mainRow = [
-          krediKarti.id.toString(),
+          orderNo.toString(),
           krediKarti.kod,
           krediKarti.ad,
           '${FormatYardimcisi.sayiFormatlaOndalikli(krediKarti.bakiye, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.fiyatOndalik)} ${krediKarti.paraBirimi}',
@@ -3109,6 +3119,9 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
       },
       onClearSelection: _clearAllTableSelections,
       rowBuilder: (context, krediKarti, index, isExpanded, toggleExpand) {
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int orderNo =
+            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         return Row(
           children: [
             _buildCell(
@@ -3154,7 +3167,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
                     ),
                     const SizedBox(width: 8),
                     HighlightText(
-                      text: krediKarti.id.toString(),
+                      text: orderNo.toString(),
                       query: _searchQuery,
                       style: const TextStyle(
                         color: Colors.black87,
@@ -4180,7 +4193,11 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
   Future<void> _showEditDialog(KrediKartiModel krediKarti) async {
     final result = await showDialog<KrediKartiModel>(
       context: context,
-      builder: (context) => KrediKartiEkleDialog(krediKarti: krediKarti),
+      builder: (context) => KrediKartiEkleDialog(
+        krediKarti: krediKarti,
+        paraBirimleri: _genelAyarlar.kullanilanParaBirimleri,
+        varsayilanParaBirimi: _genelAyarlar.varsayilanParaBirimi,
+      ),
     );
     if (result != null) {
       await _fetchKrediKartlari();

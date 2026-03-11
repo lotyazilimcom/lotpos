@@ -1783,6 +1783,12 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
 
       for (var i = 0; i < dataToProcess.length; i++) {
         final urun = dataToProcess[i];
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
+        final int originIndex =
+            _cachedUretimler.indexWhere((u) => u.id == urun.id);
+        final int orderNo =
+            startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
         // Determine if row is expanded
         final isExpanded =
@@ -1847,7 +1853,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
 
         // 2. Main Row Data
         final mainRow = [
-          urun.id.toString(),
+          orderNo.toString(),
           urun.kod,
           urun.ad,
           FormatYardimcisi.sayiFormatla(
@@ -3930,6 +3936,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
         });
       },
       rowBuilder: (context, urun, index, isExpanded, toggleExpand) {
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int orderNo =
+            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         return Row(
           children: [
             _buildCell(
@@ -3974,7 +3983,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                     ),
                     const SizedBox(width: 8),
                     HighlightText(
-                      text: urun.id.toString(),
+                      text: orderNo.toString(),
                       query: _searchQuery,
                       style: const TextStyle(
                         color: Colors.black87,

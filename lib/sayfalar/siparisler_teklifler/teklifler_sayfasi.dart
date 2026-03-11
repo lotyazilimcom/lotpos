@@ -1943,6 +1943,12 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
 
       for (var i = 0; i < dataToProcess.length; i++) {
         final order = dataToProcess[i];
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
+        final int originIndex =
+            _teklifler.indexWhere((o) => o.id == order.id);
+        final int orderNo =
+            startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
         // Determine if row is expanded
         final isExpanded =
@@ -2004,7 +2010,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
         }
 
         final mainRow = [
-          order.id.toString(),
+          orderNo.toString(),
           order.tur,
           order.durum,
           DateFormat('dd.MM.yyyy HH:mm').format(order.tarih),
@@ -2144,6 +2150,8 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
     VoidCallback toggleExpand,
   ) {
     final bool isSelected = _selectedIds.contains(order.id);
+    final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+    final int orderNo = ((_currentPage - 1) * safeRowsPerPage) + index + 1;
 
     return Row(
       children: [
@@ -2189,7 +2197,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
                 const SizedBox(width: 4),
                 Expanded(
                   child: HighlightText(
-                    text: order.id.toString(),
+                    text: orderNo.toString(),
                     query: _searchQuery,
                     style: const TextStyle(color: Colors.black87, fontSize: 12),
                   ),

@@ -53,6 +53,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   final FocusNode _searchFocusNode = FocusNode();
   String _searchQuery = '';
   List<DepoModel> _cachedDepolar = [];
+  int? _anaDepoId;
 
   bool _isLoading = true;
   bool _isMobileToolbarExpanded = false;
@@ -397,6 +398,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       if (!mounted || sorguNo != _aktifSorguNo) return;
 
       final List<DepoModel> display = depolar;
+      final int? anaDepoId = await DepolarVeritabaniServisi().anaDepoIdGetir();
+
+      if (!mounted || sorguNo != _aktifSorguNo) return;
 
       if (mounted) {
         _pageCursors.remove(_currentPage);
@@ -439,6 +443,10 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
         setState(() {
           _cachedDepolar = display;
+          _anaDepoId = anaDepoId;
+          if (anaDepoId != null) {
+            _selectedIds.remove(anaDepoId);
+          }
           _autoExpandedIndices = indices;
           _isLoading = false;
           _hasNextPage = hasMore;
@@ -1344,13 +1352,18 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   Future<void> _deleteSelectedDepolar() async {
     if (_selectedIds.isEmpty) return;
 
+    final deletableIds = _selectedIds
+        .where((id) => _anaDepoId == null || id != _anaDepoId)
+        .toList(growable: false);
+    if (deletableIds.isEmpty) return;
+
     final bool? onay = await showDialog<bool>(
       context: context,
       builder: (context) => OnayDialog(
         baslik: tr('common.confirmation'),
         mesaj: tr(
           'common.confirm_delete_named',
-        ).replaceAll('{name}', '${_selectedIds.length} kayıt'),
+        ).replaceAll('{name}', '${deletableIds.length} kayıt'),
         onOnay: () {},
         isDestructive: true,
         onayButonMetni: tr('common.delete'),
@@ -1359,7 +1372,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
     if (onay == true) {
       try {
-        for (final id in _selectedIds) {
+        for (final id in deletableIds) {
           await DepolarVeritabaniServisi().depoSil(id);
         }
 
@@ -1390,6 +1403,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   }
 
   void _deleteDepo(DepoModel depo) async {
+    if (_anaDepoId != null && depo.id == _anaDepoId) return;
     final bool? onay = await showDialog<bool>(
       context: context,
       builder: (context) => OnayDialog(
@@ -1615,7 +1629,11 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   void _onSelectAll(bool? value) {
     setState(() {
       if (value == true) {
-        _selectedIds.addAll(_filterDepolar(_cachedDepolar).map((e) => e.id));
+        _selectedIds.addAll(
+          _filterDepolar(_cachedDepolar)
+              .where((e) => _anaDepoId == null || e.id != _anaDepoId)
+              .map((e) => e.id),
+        );
       } else {
         _selectedIds.clear();
       }
@@ -1625,6 +1643,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   void _onSelectRow(bool? value, int id) {
     setState(() {
       if (value == true) {
+        if (_anaDepoId != null && id == _anaDepoId) return;
         _selectedIds.add(id);
       } else {
         _selectedIds.remove(id);
@@ -2091,6 +2110,12 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
       for (var i = 0; i < dataToProcess.length; i++) {
         final depo = dataToProcess[i];
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
+        final int originIndex =
+            _cachedDepolar.indexWhere((d) => d.id == depo.id);
+        final int orderNo =
+            startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
         // Determine if row is expanded
         final isExpanded =
@@ -2129,7 +2154,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
         // 2. Main Row Data
         final mainRow = [
-          depo.id.toString(),
+          orderNo.toString(),
           depo.kod,
           depo.ad,
           depo.adres,
@@ -2904,8 +2929,12 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
     List<DepoModel> depolar,
     BoxConstraints constraints,
   ) {
+    final selectableDepolar = depolar
+        .where((d) => _anaDepoId == null || d.id != _anaDepoId)
+        .toList(growable: false);
     final bool allSelected =
-        depolar.isNotEmpty && depolar.every((d) => _selectedIds.contains(d.id));
+        selectableDepolar.isNotEmpty &&
+        selectableDepolar.every((d) => _selectedIds.contains(d.id));
 
     // Determine if we should use flex layout or scrollable layout
     // Threshold based on sum of minimum comfortable widths
@@ -3315,6 +3344,10 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
       data: depolar,
       rowBuilder: (context, depo, index, isExpanded, toggleExpand) {
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int orderNo =
+            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
+        final bool isProtected = _anaDepoId != null && depo.id == _anaDepoId;
         return Row(
           children: [
             _buildCell(
@@ -3326,7 +3359,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                 height: 20,
                 child: Checkbox(
                   value: _selectedIds.contains(depo.id),
-                  onChanged: (val) => _onSelectRow(val, depo.id),
+                  onChanged: isProtected ? null : (val) => _onSelectRow(val, depo.id),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -3359,7 +3392,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                     ),
                     const SizedBox(width: 8),
                     HighlightText(
-                      text: depo.id.toString(),
+                      text: orderNo.toString(),
                       query: _searchQuery,
                       style: const TextStyle(
                         color: Colors.black87,
@@ -5080,6 +5113,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   }
 
   Widget _buildPopupMenu(DepoModel depo) {
+    final bool deleteEnabled = _anaDepoId == null || depo.id != _anaDepoId;
+    final Color deleteColor =
+        deleteEnabled ? const Color(0xFFEA4335) : Colors.grey;
     return Theme(
       data: Theme.of(context).copyWith(
         dividerTheme: const DividerThemeData(
@@ -5197,20 +5233,21 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
           ),
           PopupMenuItem<String>(
             value: 'delete',
+            enabled: deleteEnabled,
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.delete_outline,
                   size: 20,
-                  color: Color(0xFFEA4335),
+                  color: deleteColor,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   tr('common.delete'),
-                  style: const TextStyle(
-                    color: Color(0xFFEA4335),
+                  style: TextStyle(
+                    color: deleteColor,
                     fontWeight: FontWeight.w600,
                     fontSize: 14,
                   ),
@@ -5870,6 +5907,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
   Widget _buildDepoCard(DepoModel depo) {
     final isExpanded = _expandedMobileIds.contains(depo.id);
     final bool isSelected = _selectedMobileCardId == depo.id;
+    final bool isProtected = _anaDepoId != null && depo.id == _anaDepoId;
 
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -5917,7 +5955,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                     height: 24,
                     child: Checkbox(
                       value: _selectedIds.contains(depo.id),
-                      onChanged: (v) => _onSelectRow(v, depo.id),
+                      onChanged: isProtected ? null : (v) => _onSelectRow(v, depo.id),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),
                       ),

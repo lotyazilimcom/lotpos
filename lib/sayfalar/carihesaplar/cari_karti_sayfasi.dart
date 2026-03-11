@@ -12141,6 +12141,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     Color? borderColor;
     Color textColor = Colors.black87;
     Color iconColor = Colors.grey;
+    final int orderNo = index + 1;
 
     if (cari.renk == 'blue') {
       rowBgColor = Colors.blue.shade700;
@@ -12219,7 +12220,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                 ),
                 const SizedBox(width: 8),
                 HighlightText(
-                  text: cari.id.toString(),
+                  text: orderNo.toString(),
                   query: _searchQuery,
                   style: TextStyle(color: textColor, fontSize: 14),
                 ),

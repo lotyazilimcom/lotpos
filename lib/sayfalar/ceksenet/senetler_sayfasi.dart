@@ -1753,6 +1753,10 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
 
         // Determine if row is expanded
         final originalIndex = _cachedCekler.indexOf(depo);
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
+        final int orderNo =
+            startRecordIndex + (originalIndex >= 0 ? originalIndex : i) + 1;
         final isExpanded =
             _keepDetailsOpen ||
             _autoExpandedIndices.contains(originalIndex) ||
@@ -1791,7 +1795,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
             : '\n$typeStr';
 
         final mainRow = [
-          depo.id.toString(),
+          orderNo.toString(),
           '${depo.senetNo}$statusStr', // Merged like Screen
           depo.cariAdi,
           '${FormatYardimcisi.sayiFormatlaOndalikli(depo.tutar, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.fiyatOndalik)} ${depo.paraBirimi}',
@@ -2824,6 +2828,9 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
       onClearSelection: _clearAllTableSelections,
       data: depolar,
       rowBuilder: (context, senet, index, isExpanded, toggleExpand) {
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int orderNo =
+            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         return Row(
           children: [
             _buildCell(
@@ -2868,7 +2875,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                     ),
                     const SizedBox(width: 8),
                     HighlightText(
-                      text: senet.id.toString(),
+                      text: orderNo.toString(),
                       query: _searchQuery,
                       style: const TextStyle(
                         color: Colors.black87,

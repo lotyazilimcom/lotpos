@@ -5477,6 +5477,8 @@ class _CariHesaplarSayfasiState extends State<CariHesaplarSayfasi> {
     Color? borderColor;
     Color textColor = Colors.black87;
     Color iconColor = Colors.grey;
+    final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+    final int orderNo = ((_currentPage - 1) * safeRowsPerPage) + index + 1;
 
     if (cari.renk == 'blue') {
       rowBgColor = Colors.blue.shade700;
@@ -5561,7 +5563,7 @@ class _CariHesaplarSayfasiState extends State<CariHesaplarSayfasi> {
                   ),
                   const SizedBox(width: 8),
                   HighlightText(
-                    text: cari.id.toString(),
+                    text: orderNo.toString(),
                     query: _searchQuery,
                     style: TextStyle(color: textColor, fontSize: 14),
                   ),

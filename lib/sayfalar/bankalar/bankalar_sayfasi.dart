@@ -1253,7 +1253,11 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
 
     final result = await showDialog<BankaModel>(
       context: context,
-      builder: (context) => BankaEkleDialog(initialCode: initialCode),
+      builder: (context) => BankaEkleDialog(
+        initialCode: initialCode,
+        paraBirimleri: _genelAyarlar.kullanilanParaBirimleri,
+        varsayilanParaBirimi: _genelAyarlar.varsayilanParaBirimi,
+      ),
     );
 
     if (result != null) {
@@ -1279,7 +1283,11 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
   Future<void> _showEditDialog(BankaModel banka) async {
     final result = await showDialog<BankaModel>(
       context: context,
-      builder: (context) => BankaEkleDialog(banka: banka),
+      builder: (context) => BankaEkleDialog(
+        banka: banka,
+        paraBirimleri: _genelAyarlar.kullanilanParaBirimleri,
+        varsayilanParaBirimi: _genelAyarlar.varsayilanParaBirimi,
+      ),
     );
 
     if (result != null) {
@@ -1848,6 +1856,12 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
 
       for (var i = 0; i < dataToProcess.length; i++) {
         final banka = dataToProcess[i];
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
+        final int originIndex =
+            _cachedBankalar.indexWhere((b) => b.id == banka.id);
+        final int orderNo =
+            startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
         // Determine if row is expanded
         final isExpanded =
@@ -1884,7 +1898,7 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
 
         // 2. Main Row Data - matches headers: Sıra No, Banka Kodu, Banka Adı, Bakiye, Durum, Varsayılan
         final mainRow = [
-          banka.id.toString(),
+          orderNo.toString(),
           banka.kod,
           banka.ad,
           '${FormatYardimcisi.sayiFormatlaOndalikli(banka.bakiye, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.fiyatOndalik)} ${banka.paraBirimi}',
@@ -3209,6 +3223,9 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
       },
       onClearSelection: _clearAllTableSelections,
       rowBuilder: (context, banka, index, isExpanded, toggleExpand) {
+        final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
+        final int orderNo =
+            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         return Row(
           children: [
             _buildCell(
@@ -3255,7 +3272,7 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
                     ),
                     const SizedBox(width: 8),
                     HighlightText(
-                      text: banka.id.toString(),
+                      text: orderNo.toString(),
                       query: _searchQuery,
                       style: const TextStyle(
                         color: Colors.black87,

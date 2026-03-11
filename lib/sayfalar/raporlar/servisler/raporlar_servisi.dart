@@ -4828,6 +4828,7 @@ class RaporlarServisi {
   }) async {
     final pool = await _havuzAl();
     final effectiveArama = _normalizeNumericSearchForReports(arama);
+    final List<String> searchTokens = _searchTokens(effectiveArama);
 
     String sortExpr(String? key) {
       switch (key) {
@@ -4945,6 +4946,11 @@ class RaporlarServisi {
       "normalize_text(COALESCE(base.kod, ''))",
       "normalize_text(COALESCE(base.ad, ''))",
       "normalize_text(COALESCE(base.birim, ''))",
+      "normalize_text(COALESCE(base.yer_kodu, ''))",
+      "normalize_text(COALESCE(base.yer_adi, ''))",
+      "normalize_text(COALESCE(base.vkn_tckn, ''))",
+      "normalize_text(COALESCE(base.belge, ''))",
+      "normalize_text(COALESCE(base.integration_ref, ''))",
       "normalize_text(COALESCE(base.fatura_no, ''))",
       "normalize_text(COALESCE(base.irsaliye_no, ''))",
       "normalize_text(COALESCE(base.e_belge, ''))",
@@ -4965,8 +4971,6 @@ class RaporlarServisi {
     ], effectiveArama);
 
     final String whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
-
-    final bool needsDocs = belgeFilter != null || eBelgeFilter != null;
 
     final String baseSelect =
         '''
@@ -5027,7 +5031,14 @@ class RaporlarServisi {
           NULLIF(it.item->>'kdvTevkifatOrani', '')::numeric,
           0
         ) AS kdv_tevkifat_orani,
-        ${needsDocs ? "COALESCE(doc.fatura_no, '') AS fatura_no,\n        COALESCE(doc.irsaliye_no, '') AS irsaliye_no,\n        COALESCE(doc.e_belge, '') AS e_belge," : "'' AS fatura_no,\n        '' AS irsaliye_no,\n        '' AS e_belge,"}
+        COALESCE(doc.yer, '') AS yer,
+        COALESCE(doc.yer_kodu, '') AS yer_kodu,
+        COALESCE(doc.yer_adi, '') AS yer_adi,
+        COALESCE(doc.vkn_tckn, '') AS vkn_tckn,
+        COALESCE(doc.fatura_no, '') AS fatura_no,
+        COALESCE(doc.irsaliye_no, '') AS irsaliye_no,
+        COALESCE(doc.belge, '') AS belge,
+        COALESCE(doc.e_belge, '') AS e_belge,
         COALESCE(sm.search_tags, '') AS search_tags_sm,
         COALESCE(p.search_tags, '') AS search_tags_p,
         (
@@ -5129,7 +5140,20 @@ class RaporlarServisi {
         WHERE COALESCE(elem->>'code', '') = COALESCE(p.kod, '')
         LIMIT 1
       ) it ON TRUE
-      ${needsDocs ? "LEFT JOIN LATERAL (\n        SELECT\n          MAX(NULLIF(TRIM(cat.fatura_no), '')) AS fatura_no,\n          MAX(NULLIF(TRIM(cat.irsaliye_no), '')) AS irsaliye_no,\n          MAX(NULLIF(TRIM(cat.e_belge), '')) AS e_belge\n        FROM current_account_transactions cat\n        WHERE cat.integration_ref = sm.integration_ref\n      ) doc ON TRUE" : ""}
+       LEFT JOIN LATERAL (
+         SELECT
+           MAX(NULLIF(TRIM(cat.fatura_no), '')) AS fatura_no,
+           MAX(NULLIF(TRIM(cat.irsaliye_no), '')) AS irsaliye_no,
+           MAX(NULLIF(TRIM(cat.belge), '')) AS belge,
+           MAX(NULLIF(TRIM(cat.e_belge), '')) AS e_belge,
+           '' AS yer,
+           MAX(NULLIF(TRIM(ca.kod_no), '')) AS yer_kodu,
+           MAX(NULLIF(TRIM(ca.adi), '')) AS yer_adi,
+           MAX(NULLIF(TRIM(ca.v_numarasi), '')) AS vkn_tckn
+         FROM current_account_transactions cat
+         LEFT JOIN current_accounts ca ON ca.id = cat.current_account_id
+         WHERE cat.integration_ref = sm.integration_ref
+       ) doc ON TRUE
     ''';
 
     final String baseQuery =
@@ -5168,8 +5192,44 @@ class RaporlarServisi {
       return '$numerator/10';
     }
 
-    final mappedRows = pageResult.rows
-        .map((item) {
+    String dashIfEmpty(String value) {
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? '-' : trimmed;
+    }
+
+    String resolveBelgeDurumu({
+      required String faturaNo,
+      required String irsaliyeNo,
+      required String belge,
+    }) {
+      final rawBelge = belge.trim();
+      if (rawBelge.isNotEmpty && rawBelge != '-') return rawBelge;
+
+      final faturaClean = faturaNo.replaceAll('-', '').trim();
+      final irsaliyeClean = irsaliyeNo.replaceAll('-', '').trim();
+      if (faturaClean.isNotEmpty && irsaliyeClean.isNotEmpty) {
+        return 'İrsaliyeli Fatura';
+      }
+      if (faturaClean.isNotEmpty) return 'Fatura';
+      if (irsaliyeClean.isNotEmpty) return 'İrsaliye';
+      return 'Yok';
+    }
+
+    String resolveYer(String yer, String integrationRef) {
+      final trimmed = yer.trim();
+      if (trimmed.isNotEmpty) return trimmed;
+
+      final upperRef = integrationRef.trim().toUpperCase();
+      if (upperRef.startsWith('RETAIL-')) {
+        return tr('reports.payment_types.retail');
+      }
+      if (upperRef.startsWith('SALE-') || upperRef.startsWith('PURCHASE-')) {
+        return tr('cashregisters.transaction.type.current_account');
+      }
+      return '-';
+    }
+
+    final mappedRows = pageResult.rows.map((item) {
           final DateTime? tarih = _toDateTime(item['tarih']);
           final bool incoming = item['is_giris'] == true;
           final String islemRaw = item['islem']?.toString() ?? '-';
@@ -5178,6 +5238,44 @@ class RaporlarServisi {
           final String birim = item['birim']?.toString() ?? '-';
           final String integrationRef =
               item['integration_ref']?.toString() ?? '';
+          final String yer = item['yer']?.toString() ?? '';
+          final String yerKodu = item['yer_kodu']?.toString() ?? '';
+          final String yerAdi = item['yer_adi']?.toString() ?? '';
+          final String vknTckn = item['vkn_tckn']?.toString() ?? '';
+          final String faturaNo = item['fatura_no']?.toString() ?? '';
+          final String irsaliyeNo = item['irsaliye_no']?.toString() ?? '';
+          final String belge = item['belge']?.toString() ?? '';
+          final String eBelge = item['e_belge']?.toString() ?? '';
+          final String resolvedYer = resolveYer(yer, integrationRef);
+          final String belgeDurumu = resolveBelgeDurumu(
+            faturaNo: faturaNo,
+            irsaliyeNo: irsaliyeNo,
+            belge: belge,
+          );
+
+          final DetailTable detailTable = DetailTable(
+            title: '',
+            headers: [
+              tr('reports.columns.place_exact'),
+              tr('reports.columns.place_code_exact'),
+              tr('reports.columns.place_name_exact'),
+              'VKN/TCKN',
+              tr('reports.columns.invoice_no_exact'),
+              tr('reports.columns.document_exact'),
+              tr('reports.columns.e_document_exact'),
+            ],
+            data: [
+              [
+                dashIfEmpty(resolvedYer),
+                dashIfEmpty(yerKodu),
+                dashIfEmpty(yerAdi),
+                dashIfEmpty(vknTckn),
+                dashIfEmpty(faturaNo),
+                belgeDurumu,
+                dashIfEmpty(eBelge),
+              ],
+            ],
+          );
           final double miktar = _toDouble(item['miktar']);
           final double birimFiyati = _toDouble(item['birim_fiyati']);
           final double matrah = _toDouble(item['matrah']);
@@ -5187,31 +5285,80 @@ class RaporlarServisi {
           final double genelToplam = _toDouble(item['genel_toplam']);
           final double iskOrani = _toDouble(item['isk_orani']);
 
+          final Map<String, String> cells = {
+            'islem': IslemCeviriYardimcisi.cevir(islemRaw),
+            'tarih': _formatDate(tarih),
+            'kod': kod,
+            'ad': ad,
+            'miktar': miktar == 0 ? '-' : _formatQuantity(miktar),
+            'birim': birim,
+            'kdv_orani': fmtRate(item['kdv_orani']),
+            'otv_orani': fmtRate(item['otv_orani']),
+            'oiv_orani': fmtRate(item['oiv_orani']),
+            'tevkifat': fmtTevkifat(item['kdv_tevkifat_orani']),
+            'isk_orani': iskOrani == 0 ? '-' : fmtRate(iskOrani),
+            'birim_fiyati':
+                birimFiyati == 0 ? '-' : _formatMoney(birimFiyati),
+            'matrah': matrah == 0 ? '-' : _formatMoney(matrah),
+            'kdv': kdvTutari == 0 ? '-' : _formatMoney(kdvTutari),
+            'otv_tutari': otvTutari == 0 ? '-' : _formatMoney(otvTutari),
+            'oiv_tutari': oivTutari == 0 ? '-' : _formatMoney(oivTutari),
+            'genel_toplam':
+                genelToplam == 0 ? '-' : _formatMoney(genelToplam),
+          };
+
+          final Map<String, dynamic> extra = <String, dynamic>{
+            'integrationRef': integrationRef,
+            'isIncoming': incoming,
+          };
+
+          if (searchTokens.isNotEmpty) {
+            final mainHaystack = _normalizeArama(
+              [
+                ...cells.values,
+                miktar.toString(),
+                birimFiyati.toString(),
+                matrah.toString(),
+                kdvTutari.toString(),
+                otvTutari.toString(),
+                oivTutari.toString(),
+                genelToplam.toString(),
+                iskOrani.toString(),
+                _toDouble(item['kdv_orani']).toString(),
+                _toDouble(item['otv_orani']).toString(),
+                _toDouble(item['oiv_orani']).toString(),
+                _toDouble(item['kdv_tevkifat_orani']).toString(),
+              ].join(' '),
+            );
+            final hiddenHaystack = _normalizeArama(
+              [
+                resolvedYer,
+                yerKodu,
+                yerAdi,
+                vknTckn,
+                faturaNo,
+                irsaliyeNo,
+                belge,
+                belgeDurumu,
+                eBelge,
+                integrationRef,
+              ].join(' '),
+            );
+
+            final bool matchesInMain =
+                searchTokens.every((token) => mainHaystack.contains(token));
+            final bool matchesInHidden =
+                searchTokens.every((token) => hiddenHaystack.contains(token));
+            if (!matchesInMain && matchesInHidden) {
+              extra['matchedInHidden'] = true;
+            }
+          }
+
           return RaporSatiri(
             id: 'kdv_${item['gid']}',
-            cells: {
-              'islem': IslemCeviriYardimcisi.cevir(islemRaw),
-              'tarih': _formatDate(tarih),
-              'kod': kod,
-              'ad': ad,
-              'miktar': miktar == 0 ? '-' : _formatQuantity(miktar),
-              'birim': birim,
-              'kdv_orani': fmtRate(item['kdv_orani']),
-              'otv_orani': fmtRate(item['otv_orani']),
-              'oiv_orani': fmtRate(item['oiv_orani']),
-              'tevkifat': fmtTevkifat(item['kdv_tevkifat_orani']),
-              'isk_orani': iskOrani == 0 ? '-' : fmtRate(iskOrani),
-              'birim_fiyati': birimFiyati == 0
-                  ? '-'
-                  : _formatMoney(birimFiyati),
-              'matrah': matrah == 0 ? '-' : _formatMoney(matrah),
-              'kdv': kdvTutari == 0 ? '-' : _formatMoney(kdvTutari),
-              'otv_tutari': otvTutari == 0 ? '-' : _formatMoney(otvTutari),
-              'oiv_tutari': oivTutari == 0 ? '-' : _formatMoney(oivTutari),
-              'genel_toplam': genelToplam == 0
-                  ? '-'
-                  : _formatMoney(genelToplam),
-            },
+            cells: cells,
+            detailTable: detailTable,
+            expandable: true,
             sourceMenuIndex: TabAciciScope.urunKartiIndex,
             sourceSearchQuery: ad,
             amountValue: incoming ? genelToplam : -genelToplam,
@@ -5234,10 +5381,9 @@ class RaporlarServisi {
               'oiv_tutari': oivTutari,
               'genel_toplam': genelToplam,
             },
-            extra: {'integrationRef': integrationRef, 'isIncoming': incoming},
+            extra: extra,
           );
-        })
-        .toList(growable: false);
+        }).toList(growable: false);
 
     final summaryKey = _summaryCacheKey(
       reportId: rapor.id,
@@ -5500,6 +5646,8 @@ class RaporlarServisi {
     required int pageSize,
   }) async {
     final pool = await _havuzAl();
+    final effectiveArama = _normalizeNumericSearchForReports(arama);
+    final bool hasSearchTokens = _searchTokens(effectiveArama).isNotEmpty;
 
     String sortExpr(String? key) {
       switch (key) {
@@ -5509,12 +5657,18 @@ class RaporlarServisi {
           return "COALESCE(base.adi, '')";
         case 'tur':
           return "COALESCE(base.hesap_turu, '')";
+        case 'bakiye_borc':
+          return 'base.bakiye_borc';
+        case 'bakiye_alacak':
+          return 'base.bakiye_alacak';
+        case 'son_islem':
+          return "COALESCE(base.son_islem, '')";
+        case 'son_islem_tutar':
+          return 'base.son_islem_tutar';
         case 'son_islem_tarihi':
           return 'base.son_islem_tarihi';
-        case 'son_islem_turu':
-          return "COALESCE(base.son_islem_turu, '')";
-        case 'tutar':
-          return 'base.tutar';
+        case 'gecen_gun':
+          return 'base.gecen_gun';
         default:
           return 'base.son_islem_tarihi';
       }
@@ -5523,7 +5677,17 @@ class RaporlarServisi {
     final where = <String>[];
     final params = <String, dynamic>{};
 
-    _addSearchCondition(where, params, 'ca.search_tags', arama);
+    _addSearchConditionAny(where, params, [
+      'COALESCE(ca.search_tags, \'\')',
+      "normalize_text(COALESCE(ca.kod_no, ''))",
+      "normalize_text(COALESCE(ca.adi, ''))",
+      "normalize_text(COALESCE(ca.hesap_turu, ''))",
+      "normalize_text(COALESCE(tx.son_islem_turu, ''))",
+      // Numeric columns (best-effort, matches raw DB representation)
+      'COALESCE(ca.bakiye_borc, 0)::text',
+      'COALESCE(ca.bakiye_alacak, 0)::text',
+      'COALESCE(tx.son_islem_tutar, 0)::text',
+    ], effectiveArama);
 
     final String whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
 
@@ -5554,15 +5718,23 @@ class RaporlarServisi {
         ca.adi,
         ca.hesap_turu,
         ca.para_birimi,
+        COALESCE(ca.bakiye_borc, 0) AS bakiye_borc,
+        COALESCE(ca.bakiye_alacak, 0) AS bakiye_alacak,
         tx.son_islem_tarihi,
-        tx.son_islem_turu,
-        tx.tutar
+        tx.son_islem_turu AS son_islem,
+        tx.son_islem_para_birimi,
+        tx.son_islem_tutar,
+        CASE
+          WHEN tx.son_islem_tarihi IS NULL THEN NULL
+          ELSE (CURRENT_DATE - tx.son_islem_tarihi::date)
+        END AS gecen_gun
       FROM current_accounts ca
       LEFT JOIN LATERAL (
         SELECT
           cat.date AS son_islem_tarihi,
           cat.source_type AS son_islem_turu,
-          cat.amount AS tutar
+          cat.para_birimi AS son_islem_para_birimi,
+          cat.amount AS son_islem_tutar
         FROM current_account_transactions cat
         WHERE $txDateWhere
         ORDER BY cat.date DESC, cat.id DESC
@@ -5592,8 +5764,15 @@ class RaporlarServisi {
         .map((cari) {
           final DateTime? tarih = _toDateTime(cari['son_islem_tarihi']);
           final bool hasTx = tarih != null;
-          final double tutar = _toDouble(cari['tutar']);
+          final double sonIslemTutar = _toDouble(cari['son_islem_tutar']);
+          final double bakiyeBorc = _toDouble(cari['bakiye_borc']);
+          final double bakiyeAlacak = _toDouble(cari['bakiye_alacak']);
           final String paraBirimi = cari['para_birimi']?.toString() ?? 'TRY';
+          final String islemParaBirimi =
+              cari['son_islem_para_birimi']?.toString() ?? '';
+          final String effectiveIslemParaBirimi =
+              islemParaBirimi.trim().isEmpty ? paraBirimi : islemParaBirimi;
+          final int? gecenGun = _toInt(cari['gecen_gun']);
           return RaporSatiri(
             id: 'son_islem_${cari['id']}',
             cells: {
@@ -5602,23 +5781,32 @@ class RaporlarServisi {
               'tur': IslemCeviriYardimcisi.cevir(
                 cari['hesap_turu']?.toString() ?? '-',
               ),
-              'son_islem_tarihi': _formatDate(tarih, includeTime: true),
-              'son_islem_turu': hasTx
+              'bakiye_borc': _formatMoney(bakiyeBorc, currency: paraBirimi),
+              'bakiye_alacak': _formatMoney(bakiyeAlacak, currency: paraBirimi),
+              'son_islem': hasTx
                   ? IslemCeviriYardimcisi.cevir(
-                      cari['son_islem_turu']?.toString() ?? '-',
+                      cari['son_islem']?.toString() ?? '-',
                     )
                   : '-',
-              'tutar': hasTx ? _formatMoney(tutar, currency: paraBirimi) : '-',
+              'son_islem_tutar': hasTx
+                  ? _formatMoney(sonIslemTutar, currency: effectiveIslemParaBirimi)
+                  : '-',
+              'son_islem_tarihi': hasTx ? _formatDate(tarih) : '-',
+              'gecen_gun': hasTx ? (gecenGun ?? 0).toString() : '-',
             },
             sourceMenuIndex: TabAciciScope.cariKartiIndex,
             sourceSearchQuery: cari['adi']?.toString(),
-            amountValue: tutar,
+            amountValue: sonIslemTutar,
             sortValues: {
               'kod': cari['kod_no'],
               'ad': cari['adi'],
               'tur': cari['hesap_turu'],
+              'bakiye_borc': bakiyeBorc,
+              'bakiye_alacak': bakiyeAlacak,
+              'son_islem': cari['son_islem'],
+              'son_islem_tutar': sonIslemTutar,
               'son_islem_tarihi': tarih,
-              'tutar': tutar,
+              'gecen_gun': gecenGun,
             },
           );
         })
@@ -5632,9 +5820,12 @@ class RaporlarServisi {
     final summary = await _getOrComputeSummaryCards(
       cacheKey: summaryKey,
       loader: () async {
+        final String query = hasSearchTokens
+            ? 'SELECT COUNT(*) AS kayit FROM ($baseSelect) base'
+            : 'SELECT COUNT(*) AS kayit FROM current_accounts ca';
         final rows = await _queryMaps(
           pool,
-          'SELECT COUNT(*) AS kayit FROM current_accounts ca $whereSql',
+          query,
           params,
         );
         final int kayit = rows.isEmpty
@@ -5654,19 +5845,41 @@ class RaporlarServisi {
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('kod', 'common.code', 120),
+        _column('kod', 'common.code_no', 120),
         _column('ad', 'common.name', 220),
-        _column('tur', 'common.type', 140),
+        _column(
+          'tur',
+          'accounts.table.account_type',
+          140,
+        ),
+        _column(
+          'bakiye_borc',
+          'accounts.balance.debit_label',
+          130,
+          alignment: Alignment.centerRight,
+        ),
+        _column(
+          'bakiye_alacak',
+          'accounts.balance.credit_label',
+          130,
+          alignment: Alignment.centerRight,
+        ),
+        _column('son_islem', 'reports.columns.last_transaction', 140),
+        _column(
+          'son_islem_tutar',
+          'reports.columns.last_transaction_amount',
+          140,
+          alignment: Alignment.centerRight,
+        ),
         _column(
           'son_islem_tarihi',
           'reports.columns.last_transaction_date',
-          170,
+          140,
         ),
-        _column('son_islem_turu', 'reports.columns.last_transaction_type', 180),
         _column(
-          'tutar',
-          'common.amount',
-          130,
+          'gecen_gun',
+          'reports.columns.days_passed',
+          110,
           alignment: Alignment.centerRight,
         ),
       ],
@@ -7533,6 +7746,7 @@ class RaporlarServisi {
   }) async {
     final pool = await _havuzAl();
     final effectiveArama = _normalizeNumericSearchForReports(arama);
+    final List<String> searchTokens = _searchTokens(effectiveArama);
     final kullaniciAdi = await _resolveKullaniciAdi(filtreler.kullaniciId);
     final params = <String, dynamic>{};
     void applyCommonDateUser(
@@ -8253,30 +8467,49 @@ class RaporlarServisi {
             belgeDurumu = 'İrsaliye';
           }
 
+          final Map<String, String> cells = {
+            'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
+            'yer': tx['yer']?.toString() ?? '-',
+            'yer_kodu': tx['yer_kodu']?.toString() ?? '-',
+            'yer_adi': tx['yer_adi']?.toString() ?? '-',
+            'tarih': tarih != null
+                ? DateFormat('dd.MM.yyyy HH:mm').format(tarih)
+                : '-',
+            'tutar': _formatMoney(tutar),
+            'kur': _formatExchangeRate(tx['kur']),
+            'yer_2': tx['yer_2']?.toString() ?? '',
+            'belge': belgeDurumu,
+            'e_belge': tx['e_belge']?.toString() ?? '-',
+            'irsaliye_no': tx['irsaliye_no']?.toString() ?? '',
+            'fatura_no': tx['fatura_no']?.toString() ?? '',
+            'aciklama': sunum.aciklama,
+            'aciklama_2': sunum.aciklama2,
+            'vade_tarihi': vade != null
+                ? DateFormat('dd.MM.yyyy').format(vade)
+                : '',
+            'kullanici': tx['kullanici']?.toString() ?? '-',
+          };
+
+          if (expandable && searchTokens.isNotEmpty) {
+            final haystack = _normalizeArama(
+              [
+                ...cells.values,
+                tx['tutar_num']?.toString() ?? '',
+                tx['kur']?.toString() ?? '',
+                tx['belge_no']?.toString() ?? '',
+                integrationRef,
+              ].join(' '),
+            );
+            final bool matchesInMain =
+                searchTokens.every((token) => haystack.contains(token));
+            if (!matchesInMain) {
+              extra['matchedInHidden'] = true;
+            }
+          }
+
           return RaporSatiri(
             id: 'hareket_${tx['source_menu_index']}_${tx['id']}',
-            cells: {
-              'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
-              'yer': tx['yer']?.toString() ?? '-',
-              'yer_kodu': tx['yer_kodu']?.toString() ?? '-',
-              'yer_adi': tx['yer_adi']?.toString() ?? '-',
-              'tarih': tarih != null
-                  ? DateFormat('dd.MM.yyyy HH:mm').format(tarih)
-                  : '-',
-              'tutar': _formatMoney(tutar),
-              'kur': _formatExchangeRate(tx['kur']),
-              'yer_2': tx['yer_2']?.toString() ?? '',
-              'belge': belgeDurumu,
-              'e_belge': tx['e_belge']?.toString() ?? '-',
-              'irsaliye_no': tx['irsaliye_no']?.toString() ?? '',
-              'fatura_no': tx['fatura_no']?.toString() ?? '',
-              'aciklama': sunum.aciklama,
-              'aciklama_2': sunum.aciklama2,
-              'vade_tarihi': vade != null
-                  ? DateFormat('dd.MM.yyyy').format(vade)
-                  : '',
-              'kullanici': tx['kullanici']?.toString() ?? '-',
-            },
+            cells: cells,
             expandable: expandable,
             sourceMenuIndex: (tx['source_menu_index'] as num?)?.toInt(),
             sourceSearchQuery: tx['source_search_query']?.toString(),
