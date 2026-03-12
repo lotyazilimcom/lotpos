@@ -2413,14 +2413,14 @@ class AyarlarVeritabaniServisi {
     // Yazdırma şablonları - ilk kurulumda varsayılan şablonları yükle
     try {
       final rows = await _pool!.execute(
-        'SELECT id, name FROM print_templates ORDER BY id ASC',
+        'SELECT id, name, layout_json FROM print_templates ORDER BY id ASC',
       );
 
       if (rows.isEmpty) {
         debugPrint(
           'AyarlarVeritabaniServisi: Print templates boş, varsayılan şablonlar ekleniyor...',
         );
-        await VarsayilanSablonlar.tumSablonlariEkle();
+        await _varsayilanYazdirmaSablonlariniEkle();
         return;
       }
 
@@ -2429,10 +2429,42 @@ class AyarlarVeritabaniServisi {
           .where((n) => n.isNotEmpty)
           .toSet();
 
+      bool layoutJsonLegacyMi(String? layoutJson) {
+        final raw = (layoutJson ?? '').trim();
+        if (raw.isEmpty) return false;
+        try {
+          final decoded = jsonDecode(raw);
+          if (decoded is! List) return false;
+          for (final e in decoded) {
+            if (e is Map) {
+              final id = e['id'];
+              if (id is String) {
+                if (id.startsWith('ef_') ||
+                    id.startsWith('if_') ||
+                    id.startsWith('si_') ||
+                    id.startsWith('fis_')) {
+                  return true;
+                }
+              }
+            }
+          }
+        } catch (_) {
+          return false;
+        }
+        return false;
+      }
+
+      final tumSatirlarLegacyLayout = rows.isNotEmpty &&
+          rows.every((row) => layoutJsonLegacyMi(row[2] as String?));
+
       // Legacy varsayılan şablon seti (eski sürümlerde/yanlış seed ile oluşan)
+      // Not: İsimler yeni seed ile çakışabildiği için, legacy seti layout'taki element `id`
+      // önekleriyle (ef_/if_/si_/fis_) birlikte kontrol ediyoruz.
       final legacyDefaultNames = <String>{
+        'Fatura',
         'Profesyonel E-Fatura',
         'İrsaliyeli Fatura',
+        'İrsaliye',
         'Sevk İrsaliyesi',
         'Satış Fişi (Market)',
       };
@@ -2442,17 +2474,84 @@ class AyarlarVeritabaniServisi {
 
       // Eski varsayılanları, ekrandaki 3 şablona dönüştür:
       // Fatura, İrsaliyeli Fatura, İrsaliye
-      if (onlyLegacyDefaults) {
+      if (onlyLegacyDefaults && tumSatirlarLegacyLayout) {
         debugPrint(
           'AyarlarVeritabaniServisi: Legacy print templates tespit edildi, temizlenip yeniden yükleniyor...',
         );
 
         await _pool!.execute('DELETE FROM print_templates');
-        await VarsayilanSablonlar.tumSablonlariEkle();
+        await _varsayilanYazdirmaSablonlariniEkle();
         return;
       }
     } catch (e) {
       debugPrint('Varsayılan yazdırma şablonları ekleme hatası: $e');
+    }
+  }
+
+  Future<void> _varsayilanYazdirmaSablonlariniEkle() async {
+    if (_pool == null) return;
+
+    const insertSql = '''
+      INSERT INTO print_templates (
+        name,
+        doc_type,
+        paper_size,
+        custom_width,
+        custom_height,
+        item_row_spacing,
+        background_image,
+        background_opacity,
+        background_x,
+        background_y,
+        background_width,
+        background_height,
+        layout_json,
+        is_default,
+        is_landscape,
+        view_matrix
+      )
+      VALUES (
+        @name,
+        @doc_type,
+        @paper_size,
+        @custom_width,
+        @custom_height,
+        @item_row_spacing,
+        @background_image,
+        @background_opacity,
+        @background_x,
+        @background_y,
+        @background_width,
+        @background_height,
+        @layout_json,
+        @is_default,
+        @is_landscape,
+        @view_matrix
+      )
+    ''';
+
+    for (final tpl in VarsayilanSablonlar.sablonlar) {
+      final layout = (tpl['layout'] as List<dynamic>?) ?? const <dynamic>[];
+      final params = <String, dynamic>{
+        'name': tpl['name'],
+        'doc_type': tpl['doc_type'],
+        'paper_size': tpl['paper_size'],
+        'custom_width': tpl['custom_width'],
+        'custom_height': tpl['custom_height'],
+        'item_row_spacing': tpl['item_row_spacing'],
+        'background_image': tpl['background_image'],
+        'background_opacity': tpl['background_opacity'],
+        'background_x': tpl['background_x'],
+        'background_y': tpl['background_y'],
+        'background_width': tpl['background_width'],
+        'background_height': tpl['background_height'],
+        'layout_json': jsonEncode(layout),
+        'is_default': tpl['is_default'] ?? 0,
+        'is_landscape': tpl['is_landscape'] ?? 0,
+        'view_matrix': tpl['view_matrix'],
+      };
+
+      await _pool!.execute(Sql.named(insertSql), parameters: params);
     }
   }
 
