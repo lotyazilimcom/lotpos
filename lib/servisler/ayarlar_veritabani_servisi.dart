@@ -10,6 +10,7 @@ import '../sayfalar/ayarlar/kullanicilar/modeller/kullanici_model.dart';
 import '../sayfalar/ayarlar/kullanicilar/modeller/kullanici_hareket_model.dart';
 import '../sayfalar/ayarlar/roller_ve_izinler/modeller/rol_model.dart';
 import '../sayfalar/ayarlar/sirketayarlari/modeller/sirket_ayarlari_model.dart';
+import '../sayfalar/ayarlar/yazdirma_ayarlari/sablonlar/varsayilan_sablonlar.dart';
 import '../ayarlar/menu_ayarlari.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'veritabani_yapilandirma.dart';
@@ -2407,6 +2408,20 @@ class AyarlarVeritabaniServisi {
       }
     } catch (e) {
       debugPrint('Varsayılan veri ekleme (Şirket) hatası: $e');
+    }
+
+    // Yazdırma şablonları - ilk kurulumda varsayılan şablonları yükle
+    try {
+      final raw = await _pool!.execute('SELECT COUNT(*) FROM print_templates');
+      final count = (raw.first[0] as int?) ?? 0;
+      if (count == 0) {
+        debugPrint(
+          'AyarlarVeritabaniServisi: Print templates boş, varsayılan şablonlar ekleniyor...',
+        );
+        await VarsayilanSablonlar.tumSablonlariEkle();
+      }
+    } catch (e) {
+      debugPrint('Varsayılan yazdırma şablonları ekleme hatası: $e');
     }
   }
 
