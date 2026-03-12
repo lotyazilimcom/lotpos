@@ -3041,7 +3041,7 @@ class RaporlarServisi {
           return RaporSatiri(
             id: 'uretim_${item['id']}',
             cells: {
-              'tarih': _formatDate(tarih),
+              'tarih': _formatDate(tarih, includeTime: true),
               'belge_no': item['kod']?.toString() ?? '-',
               'urun': item['ad']?.toString() ?? '-',
               'miktar': _formatNumber(stok),
@@ -3115,7 +3115,7 @@ class RaporlarServisi {
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('tarih', 'common.date', 120),
+        _column('tarih', 'common.date', 150),
         _column('belge_no', 'reports.columns.production_no', 130),
         _column('urun', 'common.product', 220),
         _column(
@@ -3309,7 +3309,7 @@ class RaporlarServisi {
             cells: {
               'kaynak': item['kaynak']?.toString() ?? '-',
               'hedef': item['hedef']?.toString() ?? '-',
-              'tarih': _formatDate(tarih, includeTime: false),
+              'tarih': _formatDate(tarih, includeTime: true),
               'tur': item['tur']?.toString() ?? 'Ürün',
               'kod': item['kod']?.toString() ?? '-',
               'ad': item['ad']?.toString() ?? '-',
@@ -3368,7 +3368,7 @@ class RaporlarServisi {
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('tarih', 'Tarih', 120),
+        _column('tarih', 'Tarih', 150),
         _column('kaynak', 'Çıkış Yapılan Depo', 170),
         _column('hedef', 'Giriş Yapılan Depo', 170),
         _column('tur', 'Tür', 110),
@@ -3792,7 +3792,7 @@ class RaporlarServisi {
           final Map<String, String> cells = {
             'kaynak': item['kaynak']?.toString() ?? '-',
             'hedef': item['hedef']?.toString() ?? '-',
-            'tarih': _formatDate(tarih, includeTime: false),
+            'tarih': _formatDate(tarih, includeTime: true),
             'aciklama': aciklama,
             'kullanici': item['kullanici']?.toString() ?? '-',
           };
@@ -3883,7 +3883,7 @@ class RaporlarServisi {
       columns: [
         _column('kaynak', 'ÇIKIŞ YAPILAN DEPO', 170),
         _column('hedef', 'GİRİŞ YAPILAN DEPO', 170),
-        _column('tarih', 'TARİH', 120),
+        _column('tarih', 'TARİH', 150),
         _column('aciklama', 'AÇIKLAMA', 220),
         _column('kullanici', 'KULLANICI', 120),
       ],
@@ -4809,7 +4809,7 @@ class RaporlarServisi {
               'kod': kod,
               'ad': ad,
               'tur': IslemCeviriYardimcisi.cevir(hesapTuruRaw),
-              'tarih': _formatDate(tarih),
+              'tarih': _formatDate(tarih, includeTime: true),
               'tutar': _formatMoney(tutar, currency: paraBirimi),
               'tip': tip,
               'aciklama': aciklama,
@@ -4898,7 +4898,7 @@ class RaporlarServisi {
         _column('kod', 'Kod no', 110),
         _column('ad', 'Adı', 220),
         _column('tur', 'Hesap Türü', 140),
-        _column('tarih', 'Tarih', 120),
+        _column('tarih', 'Tarih', 150),
         _column('tutar', 'Tutar', 130, alignment: Alignment.centerRight),
         _column('tip', 'Tür', 110),
         _column('aciklama', 'Açıklama', 220),
@@ -5386,7 +5386,7 @@ class RaporlarServisi {
 
           final Map<String, String> cells = {
             'islem': IslemCeviriYardimcisi.cevir(islemRaw),
-            'tarih': _formatDate(tarih),
+            'tarih': _formatDate(tarih, includeTime: true),
             'kod': kod,
             'ad': ad,
             'miktar': miktar == 0 ? '-' : _formatQuantity(miktar),
@@ -5680,7 +5680,7 @@ class RaporlarServisi {
       report: rapor,
       columns: [
         _column('islem', 'İşlem', 150),
-        _column('tarih', 'Tarih', 120),
+        _column('tarih', 'Tarih', 150),
         _column('kod', 'Kod no', 110),
         _column('ad', 'Adı', 220),
         _column('miktar', 'Miktar', 110, alignment: Alignment.centerRight),
@@ -6139,7 +6139,7 @@ class RaporlarServisi {
           return RaporSatiri(
             id: 'purchase_sales_${item['gid']}',
             cells: {
-              'tarih': _formatDate(tarih),
+              'tarih': _formatDate(tarih, includeTime: true),
               'islem': IslemCeviriYardimcisi.cevir(islemRaw),
               'yer': dashIfEmpty(item['yer']?.toString() ?? ''),
               'yer_kodu': dashIfEmpty(item['yer_kodu']?.toString() ?? ''),
@@ -6414,7 +6414,7 @@ class RaporlarServisi {
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('tarih', 'Tarih', 120),
+        _column('tarih', 'Tarih', 150),
         _column('islem', 'İşlem', 150),
         _column('yer', 'Yer', 130),
         if (hasYerKodu) _column('yer_kodu', 'Yer Kodu', 110),
@@ -6615,7 +6615,8 @@ class RaporlarServisi {
                       currency: effectiveIslemParaBirimi,
                     )
                   : '-',
-              'son_islem_tarihi': hasTx ? _formatDate(tarih) : '-',
+              'son_islem_tarihi':
+                  hasTx ? _formatDate(tarih, includeTime: true) : '-',
               'gecen_gun': hasTx ? (gecenGun ?? 0).toString() : '-',
             },
             sourceMenuIndex: TabAciciScope.cariKartiIndex,
@@ -8762,7 +8763,7 @@ class RaporlarServisi {
             id: 'urun_hareket_${tx['id']}',
             cells: {
               'islem': tx['islem']?.toString() ?? '-',
-              'tarih': _formatDate(tarih, includeTime: false),
+              'tarih': _formatDate(tarih, includeTime: true),
               'tur': tx['tur']?.toString() ?? 'Ürün',
               'kod': tx['kod']?.toString() ?? '-',
               'ad': tx['ad']?.toString() ?? '-',
@@ -8815,7 +8816,7 @@ class RaporlarServisi {
       report: rapor,
       columns: [
         _column('islem', 'reports.columns.process_exact', 150),
-        _column('tarih', 'reports.columns.date_exact', 120),
+        _column('tarih', 'reports.columns.date_exact', 150),
         _column('tur', 'common.type', 100),
         _column('kod', 'common.code_no', 90),
         _column('ad', 'common.name', 180),
@@ -9969,7 +9970,7 @@ class RaporlarServisi {
         _column('yer', 'reports.columns.place_exact', 60),
         _column('yer_kodu', 'reports.columns.place_code_exact', 80),
         _column('yer_adi', 'reports.columns.place_name_exact', 100),
-        _column('tarih', 'reports.columns.date_exact', 100),
+        _column('tarih', 'reports.columns.date_exact', 150),
         _column(
           'tutar',
           'reports.columns.amount_exact',
@@ -10658,7 +10659,7 @@ class RaporlarServisi {
       return RaporSatiri(
         id: 'uretim_${item.id}',
         cells: {
-          'tarih': _formatDate(item.createdAt),
+          'tarih': _formatDate(item.createdAt, includeTime: true),
           'belge_no': item.kod,
           'urun': item.ad,
           'miktar': _formatNumber(item.stok),
@@ -10691,7 +10692,7 @@ class RaporlarServisi {
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('tarih', 'common.date', 120),
+        _column('tarih', 'common.date', 150),
         _column('belge_no', 'reports.columns.production_no', 130),
         _column('urun', 'common.product', 220),
         _column(
@@ -13054,7 +13055,7 @@ class RaporlarServisi {
 
   String _formatNumber(dynamic amount) {
     final int decimalDigits = _guncelAyarlar?.miktarOndalik ?? 2;
-    return FormatYardimcisi.sayiFormatlaOndalikli(
+    return FormatYardimcisi.sayiFormatlaOran(
       amount,
       binlik: _guncelAyarlar?.binlikAyiraci ?? '.',
       ondalik: _guncelAyarlar?.ondalikAyiraci ?? ',',

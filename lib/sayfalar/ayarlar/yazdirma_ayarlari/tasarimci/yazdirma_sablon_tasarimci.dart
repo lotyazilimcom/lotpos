@@ -24,6 +24,7 @@ class YazdirmaSablonTasarimci extends StatefulWidget {
 
 class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   final YazdirmaVeritabaniServisi _dbServisi = YazdirmaVeritabaniServisi();
+  YazdirmaSablonuModel? _editingTemplate;
 
   static const double _canvasFitPaddingPx = 40.0;
   static const double _backgroundOverlayPaddingPx = 24.0;
@@ -145,22 +146,24 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   @override
   void initState() {
     super.initState();
-    if (widget.sablon != null) {
-      _name = widget.sablon!.name;
-      _docType = widget.sablon!.docType;
-      _paperSize = widget.sablon!.paperSize ?? 'A4';
-      _customWidth = widget.sablon!.customWidth ?? 210;
-      _customHeight = widget.sablon!.customHeight ?? 297;
-      _itemRowSpacing = widget.sablon!.itemRowSpacing;
-      _backgroundImage = widget.sablon!.backgroundImage;
-      _backgroundOpacity = widget.sablon!.backgroundOpacity;
-      _backgroundX = widget.sablon!.backgroundX;
-      _backgroundY = widget.sablon!.backgroundY;
-      _backgroundWidth = widget.sablon!.backgroundWidth;
-      _backgroundHeight = widget.sablon!.backgroundHeight;
-      _layout = List.from(widget.sablon!.layout);
-      _isDefault = widget.sablon!.isDefault;
-      _isLandscape = widget.sablon!.isLandscape;
+    _editingTemplate = widget.sablon;
+    final sablon = _editingTemplate;
+    if (sablon != null) {
+      _name = sablon.name;
+      _docType = sablon.docType;
+      _paperSize = sablon.paperSize ?? 'A4';
+      _customWidth = sablon.customWidth ?? 210;
+      _customHeight = sablon.customHeight ?? 297;
+      _itemRowSpacing = sablon.itemRowSpacing;
+      _backgroundImage = sablon.backgroundImage;
+      _backgroundOpacity = sablon.backgroundOpacity;
+      _backgroundX = sablon.backgroundX;
+      _backgroundY = sablon.backgroundY;
+      _backgroundWidth = sablon.backgroundWidth;
+      _backgroundHeight = sablon.backgroundHeight;
+      _layout = List.from(sablon.layout);
+      _isDefault = sablon.isDefault;
+      _isLandscape = sablon.isLandscape;
       if (_backgroundImage != null) {
         _bgImageBytes = base64Decode(_backgroundImage!);
       }
@@ -197,6 +200,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   // [2026 FEATURE] Undo History
   final List<List<LayoutElement>> _history = [];
   bool _isLocked = false;
+  bool _undoShortcutConsumed = false;
 
   void _saveToHistory() {
     // Deep copy current layout
@@ -375,8 +379,10 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
         final index = _layout.indexWhere((e) => e.id == id);
         if (index != -1) {
           final el = _layout[index];
-          final x = (el.x + dx).clamp(0.0, paperSize.width - el.width);
-          final y = (el.y + dy).clamp(0.0, paperSize.height - el.height);
+          final double maxX = math.max(0.0, paperSize.width - el.width);
+          final double maxY = math.max(0.0, paperSize.height - el.height);
+          final x = (el.x + dx).clamp(0.0, maxX);
+          final y = (el.y + dy).clamp(0.0, maxY);
 
           final updated = LayoutElement(
             id: el.id,
@@ -564,11 +570,12 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
 
   Widget _buildSpacePanOverlay() {
     return MouseRegion(
+      opaque: true,
       cursor: _isSpacePanning
           ? SystemMouseCursors.grabbing
           : SystemMouseCursors.grab,
       child: Listener(
-        behavior: HitTestBehavior.translucent,
+        behavior: HitTestBehavior.opaque,
         onPointerDown: (event) {
           if ((event.buttons & 1) == 0) return;
           _canvasFocusNode.requestFocus();
@@ -593,6 +600,75 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
           if (!_isSpacePanning) return;
           setState(() => _isSpacePanning = false);
         },
+        child: const SizedBox.expand(),
+      ),
+    );
+  }
+
+  String _designerShortcutsHelpText() {
+    return [
+      'Kısayollar',
+      '• Space + sürükle: Sayfayı taşı',
+      '• Mouse tekeri: Kaydır',
+      '• Alt + teker: Yakınlaştır / Uzaklaştır',
+      '• Ctrl/Cmd + Z: Geri al',
+      '• Ctrl/Cmd + C: Seçileni çoğalt',
+      '• Delete / Backspace: Seçileni sil',
+      '• Ok tuşları: 1 mm taşı',
+      '• Shift + Ok: 5 mm taşı',
+      '• Alt + Ok / Ctrl + Ok: 0,1 mm taşı',
+      '• Alt + sürükle: Kopyalayarak sürükle',
+      '• Ctrl/Cmd + tık: Çoklu seçim',
+    ].join('\n');
+  }
+
+  Widget _buildShortcutsInfoIcon() {
+    return Tooltip(
+      preferBelow: false,
+      message: _designerShortcutsHelpText(),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      margin: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFFCBD5E1)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.12),
+            blurRadius: 18,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      textStyle: const TextStyle(
+        color: Color(0xFF2C3E50),
+        fontSize: 12,
+        height: 1.4,
+        fontWeight: FontWeight.w500,
+      ),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.help,
+        child: Container(
+          width: 32,
+          height: 32,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.92),
+            shape: BoxShape.circle,
+            border: Border.all(color: const Color(0xFFCBD5E1)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.08),
+                blurRadius: 10,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: const Icon(
+            Icons.info_outline_rounded,
+            size: 18,
+            color: Color(0xFF2C3E50),
+          ),
+        ),
       ),
     );
   }
@@ -624,7 +700,18 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       return KeyEventResult.handled;
     }
 
-    if (isKeyUp) return KeyEventResult.ignored;
+    if (isKeyUp) {
+      if (key == LogicalKeyboardKey.keyZ ||
+          key == LogicalKeyboardKey.controlLeft ||
+          key == LogicalKeyboardKey.controlRight ||
+          key == LogicalKeyboardKey.control ||
+          key == LogicalKeyboardKey.metaLeft ||
+          key == LogicalKeyboardKey.metaRight ||
+          key == LogicalKeyboardKey.meta) {
+        _undoShortcutConsumed = false;
+      }
+      return KeyEventResult.ignored;
+    }
     if (_isSpacePressed) return KeyEventResult.ignored;
 
     final pressed = HardwareKeyboard.instance.logicalKeysPressed;
@@ -671,6 +758,8 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     if (key == LogicalKeyboardKey.keyZ && isKeyDown) {
       if (onlyModifiers(shift: false, alt: false, control: true, meta: false) ||
           onlyModifiers(shift: false, alt: false, control: false, meta: true)) {
+        if (_undoShortcutConsumed) return KeyEventResult.handled;
+        _undoShortcutConsumed = true;
         _undo();
         return KeyEventResult.handled;
       }
@@ -753,7 +842,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
-          if (widget.sablon == null)
+          if (_editingTemplate == null)
             ElevatedButton.icon(
               onPressed: () => _kaydet(isNewCopy: false),
               icon: const Icon(Icons.save_rounded, size: 18),
@@ -1338,10 +1427,10 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       if (!mounted || _initialCanvasViewApplied) return;
 
       // Eğer kaydedilmiş bir görünüm varsa onu yükle
-      if (widget.sablon?.viewMatrix != null &&
-          widget.sablon!.viewMatrix!.isNotEmpty) {
+      final viewMatrix = _editingTemplate?.viewMatrix;
+      if (viewMatrix != null && viewMatrix.isNotEmpty) {
         try {
-          final List<double> matrixList = widget.sablon!.viewMatrix!
+          final List<double> matrixList = viewMatrix
               .split(',')
               .map((e) => double.parse(e))
               .toList();
@@ -1430,22 +1519,22 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                     constrained: false,
                     panEnabled: false,
                     scaleEnabled: false,
-                    child: DragTarget<String>(
-                      onAcceptWithDetails: (details) {
-                        // Converts global screen coordinates to the paper's local pixel coordinates
-                        final Offset localPosPx = _transformationController
-                            .toScene(details.offset);
+                      child: DragTarget<String>(
+                        onAcceptWithDetails: (details) {
+                          // Converts global coordinates to paper-local coordinates.
+                          // `details.offset` is global; we must convert it to the paper's local space.
+                          final box = _canvasKey.currentContext?.findRenderObject()
+                              as RenderBox?;
+                          if (box == null) return;
 
-                        // Convert pixel coordinates to mm for the LayoutElement
-                        final double xMm = localPosPx.dx / _scale;
-                        final double yMm = localPosPx.dy / _scale;
+                          final localPosPx = box.globalToLocal(details.offset);
 
-                        _addElement(
-                          details.data,
-                          xMm.clamp(0, (canvasSize.width / _scale) - 10),
-                          yMm.clamp(0, (canvasSize.height / _scale) - 5),
-                        );
-                      },
+                          // Convert pixel coordinates to mm for the LayoutElement.
+                          final double xMm = localPosPx.dx / _scale;
+                          final double yMm = localPosPx.dy / _scale;
+
+                          _addElement(details.data, xMm, yMm);
+                        },
                       builder: (context, candidateData, rejectedData) {
                         final bgW = _backgroundWidth != null
                             ? _backgroundWidth! * _scale
@@ -1547,6 +1636,25 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                                     ),
                                   ),
                                 )),
+                              ),
+                              // Shortcuts help (top-left of the paper, fixed size while zooming)
+                              AnimatedBuilder(
+                                animation: _transformationController,
+                                child: _buildShortcutsInfoIcon(),
+                                builder: (context, child) {
+                                  final viewScale = _getViewScale();
+                                  final safeScale = viewScale == 0.0 ? 1.0 : viewScale;
+                                  final offset = 12.0 / safeScale;
+                                  return Positioned(
+                                    left: offset,
+                                    top: offset,
+                                    child: Transform.scale(
+                                      scale: 1.0 / safeScale,
+                                      alignment: Alignment.topLeft,
+                                      child: child,
+                                    ),
+                                  );
+                                },
                               ),
                               // 1. Background Image Layer
                               if (_backgroundImage != null)
@@ -1932,14 +2040,10 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
           final dy = (currentScenePos.dy - _dragStartScenePos.dy) / _scale;
 
           // New position based on initial position (mm) + total delta (mm)
-          final x = (_elementStartPosX + dx).clamp(
-            0.0,
-            paperSize.width - el.width,
-          );
-          final y = (_elementStartPosY + dy).clamp(
-            0.0,
-            paperSize.height - el.height,
-          );
+          final double maxX = math.max(0.0, paperSize.width - el.width);
+          final double maxY = math.max(0.0, paperSize.height - el.height);
+          final x = (_elementStartPosX + dx).clamp(0.0, maxX);
+          final y = (_elementStartPosY + dy).clamp(0.0, maxY);
 
           final isAltPressed =
               HardwareKeyboard.instance.logicalKeysPressed.contains(
@@ -2981,15 +3085,22 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   }
 
   void _addStaticHeading() {
+    final paperSize = _getPaperSize();
+    final double width = math.min(50, paperSize.width);
+    final double height = math.min(10, paperSize.height);
+    final double maxX = math.max(0.0, paperSize.width - width);
+    final double maxY = math.max(0.0, paperSize.height - height);
+    final double x = 10.0.clamp(0.0, maxX);
+    final double y = 10.0.clamp(0.0, maxY);
     final newEl = LayoutElement(
       id: 'static_${DateTime.now().millisecondsSinceEpoch}',
       key: 'static_text',
       label: tr('print.designer.new_title'),
       isStatic: true,
-      x: 10,
-      y: 10,
-      width: 50,
-      height: 10,
+      x: x,
+      y: y,
+      width: width,
+      height: height,
       fontSize: '14',
       fontWeight: 'bold',
       alignment: 'center',
@@ -3005,16 +3116,23 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   }
 
   void _addStaticLine() {
+    final paperSize = _getPaperSize();
+    final double width = math.min(100, paperSize.width);
+    final double height = math.min(2, paperSize.height);
+    final double maxX = math.max(0.0, paperSize.width - width);
+    final double maxY = math.max(0.0, paperSize.height - height);
+    final double x = 10.0.clamp(0.0, maxX);
+    final double y = 10.0.clamp(0.0, maxY);
     final newEl = LayoutElement(
       id: 'line_${DateTime.now().millisecondsSinceEpoch}',
       key: 'static_line',
       label: tr('print.designer.line'),
       elementType: 'line',
       isStatic: true,
-      x: 10,
-      y: 10,
-      width: 100,
-      height: 2,
+      x: x,
+      y: y,
+      width: width,
+      height: height,
     );
     setState(() {
       _layout.add(newEl);
@@ -3038,14 +3156,31 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       orElse: () => YazdirmaAlanTanim(key: key, labelKey: key),
     );
 
+    final paperSize = _getPaperSize();
+    final double widthMm = math.min(def.defaultWidthMm, paperSize.width)
+        .toDouble();
+    final double heightMm = math
+        .min(
+          def.defaultHeightMm * (def.type == YazdirmaAlanTipi.line ? 1 : 1.5),
+          paperSize.height,
+        )
+        .toDouble();
+
+    final double maxX = math.max(0.0, paperSize.width - widthMm);
+    final double maxY = math.max(0.0, paperSize.height - heightMm);
+
     double targetX = x ?? 10.0;
     double targetY = y ?? 10.0;
 
     // Smart placement: and if x/y are null, place it near selected
     if (x == null && y == null && _selectedElement != null) {
-      targetX = (_selectedElement!.x + 5.0).clamp(0.0, 200.0);
-      targetY = (_selectedElement!.y + 5.0).clamp(0.0, 280.0);
+      targetX = _selectedElement!.x + 5.0;
+      targetY = _selectedElement!.y + 5.0;
     }
+
+    // Keep the element inside the paper.
+    targetX = targetX.clamp(0.0, maxX).toDouble();
+    targetY = targetY.clamp(0.0, maxY).toDouble();
 
     // [2026 FIX] Unique ID with random suffix to prevent collisions
     final uniqueId = '${now}_${math.Random().nextInt(1000)}';
@@ -3063,9 +3198,8 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       repeat: def.repeat,
       x: targetX,
       y: targetY,
-      width: def.defaultWidthMm,
-      height:
-          def.defaultHeightMm * (def.type == YazdirmaAlanTipi.line ? 1 : 1.5),
+      width: widthMm,
+      height: heightMm,
       fontSize: '12',
     );
     setState(() {
@@ -3783,7 +3917,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     String? finalName = _name;
 
     // Eğer yeni kayıt veya "Farklı Kaydet" ise isim sor
-    if (widget.sablon == null || isNewCopy) {
+    if (_editingTemplate == null || isNewCopy) {
       finalName = await _showNamePrompt(
         initialName: isNewCopy ? '$_name (${tr('common.copy')})' : _name,
       );
@@ -3791,7 +3925,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     }
 
     final model = YazdirmaSablonuModel(
-      id: isNewCopy ? null : widget.sablon?.id,
+      id: isNewCopy ? null : _editingTemplate?.id,
       name: finalName,
       docType: _docType,
       paperSize: _paperSize,
@@ -3811,14 +3945,42 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     );
 
     bool res;
+    int? insertedId;
     if (model.id == null) {
-      final id = await _dbServisi.sablonEkle(model);
-      res = id != null;
+      insertedId = await _dbServisi.sablonEkle(model);
+      res = insertedId != null;
     } else {
       res = await _dbServisi.sablonGuncelle(model);
     }
 
     if (res && mounted) {
+      if (!isNewCopy) {
+        final int? persistedId = model.id ?? insertedId;
+        if (persistedId != null) {
+          setState(() {
+            _editingTemplate = YazdirmaSablonuModel(
+              id: persistedId,
+              name: model.name,
+              docType: model.docType,
+              paperSize: model.paperSize,
+              customWidth: model.customWidth,
+              customHeight: model.customHeight,
+              itemRowSpacing: model.itemRowSpacing,
+              backgroundImage: model.backgroundImage,
+              backgroundOpacity: model.backgroundOpacity,
+              backgroundX: model.backgroundX,
+              backgroundY: model.backgroundY,
+              backgroundWidth: model.backgroundWidth,
+              backgroundHeight: model.backgroundHeight,
+              layout: model.layout,
+              isDefault: model.isDefault,
+              isLandscape: model.isLandscape,
+              viewMatrix: model.viewMatrix,
+            );
+            _name = model.name;
+          });
+        }
+      }
       MesajYardimcisi.basariGoster(
         context,
         isNewCopy
