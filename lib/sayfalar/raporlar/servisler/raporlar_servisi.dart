@@ -175,8 +175,8 @@ class RaporlarServisi {
       icon: Icons.local_shipping_outlined,
       supportedFilters: {
         RaporFiltreTuru.tarihAraligi,
-        RaporFiltreTuru.depo,
-        RaporFiltreTuru.kullanici,
+        // "Tür" filtresi için `durum` alanını kullanıyoruz.
+        RaporFiltreTuru.durum,
       },
     ),
     RaporSecenegi(
@@ -247,9 +247,8 @@ class RaporlarServisi {
       category: RaporKategori.stokDepo,
       icon: Icons.warehouse_outlined,
       supportedFilters: {
+        RaporFiltreTuru.tarihAraligi,
         RaporFiltreTuru.depo,
-        RaporFiltreTuru.urun,
-        RaporFiltreTuru.urunGrubu,
       },
     ),
     RaporSecenegi(
@@ -259,26 +258,8 @@ class RaporlarServisi {
       icon: Icons.move_down_outlined,
       supportedFilters: {
         RaporFiltreTuru.tarihAraligi,
-        RaporFiltreTuru.depo,
-        RaporFiltreTuru.kullanici,
-      },
-    ),
-    RaporSecenegi(
-      id: 'stock_early_warning',
-      labelKey: 'reports.items.stock_early_warning',
-      category: RaporKategori.stokDepo,
-      icon: Icons.warning_amber_rounded,
-      supportedFilters: {RaporFiltreTuru.urunGrubu, RaporFiltreTuru.depo},
-    ),
-    RaporSecenegi(
-      id: 'stock_definition_values',
-      labelKey: 'reports.items.stock_definition_values',
-      category: RaporKategori.stokDepo,
-      icon: Icons.dataset_outlined,
-      supportedFilters: {
-        RaporFiltreTuru.urun,
-        RaporFiltreTuru.urunGrubu,
-        RaporFiltreTuru.durum,
+        RaporFiltreTuru.cikisDepo,
+        RaporFiltreTuru.girisDepo,
       },
     ),
     RaporSecenegi(
@@ -847,6 +828,8 @@ class RaporlarServisi {
           ]),
           // Ürün Hareketleri raporunda "Tür" filtresi için kullanılır.
           'product_movements': _options([tr('common.all'), 'Ürün']),
+          // Ürün Sevkiyat Hareketleri raporunda "Tür" filtresi için kullanılır.
+          'product_shipment_movements': _options([tr('common.all'), 'Ürün']),
         },
         islemTurleri: <String, List<RaporSecimSecenegi>>{
           'account_statement': _options([
@@ -3174,24 +3157,28 @@ class RaporlarServisi {
     required int pageSize,
   }) async {
     final pool = await _havuzAl();
-    final kullaniciAdi = await _resolveKullaniciAdi(filtreler.kullaniciId);
+    final effectiveArama = _normalizeNumericSearchForReports(arama);
 
     String sortExpr(String? key) {
       switch (key) {
         case 'tarih':
           return 'base.tarih';
-        case 'no':
-          return "COALESCE(base.integration_ref, '')";
         case 'kaynak':
           return "COALESCE(base.kaynak, '')";
         case 'hedef':
           return "COALESCE(base.hedef, '')";
-        case 'urun':
-          return "COALESCE((SELECT item->>'name' FROM jsonb_array_elements(COALESCE(base.items, '[]'::jsonb)) item LIMIT 1), '')";
+        case 'tur':
+          return "COALESCE(base.tur, '')";
+        case 'kod':
+          return "COALESCE(base.kod, '')";
+        case 'ad':
+          return "COALESCE(base.ad, '')";
         case 'miktar':
-          return "(SELECT COALESCE(SUM((COALESCE(item->>'quantity','0'))::numeric), 0) FROM jsonb_array_elements(COALESCE(base.items, '[]'::jsonb)) item)";
-        case 'kullanici':
-          return "COALESCE(base.kullanici, '')";
+          return 'base.miktar';
+        case 'olcu':
+          return "COALESCE(base.olcu, '')";
+        case 'aciklama':
+          return "COALESCE(base.aciklama, '')";
         default:
           return 'base.tarih';
       }
@@ -3216,35 +3203,78 @@ class RaporlarServisi {
       ).add(const Duration(days: 1)).toIso8601String();
       where.add('s.date < @bitis');
     }
-    if (filtreler.depoId != null) {
-      params['depoId'] = filtreler.depoId;
+    if (_emptyToNull(filtreler.durum) != null) {
+      params['tur'] = _emptyToNull(filtreler.durum);
       where.add(
-        '(s.source_warehouse_id = @depoId OR s.dest_warehouse_id = @depoId)',
+        "COALESCE(NULLIF(TRIM(it.item->>'type'), ''), NULLIF(TRIM(it.item->>'tur'), ''), 'Ürün') = @tur",
       );
     }
-    if (_emptyToNull(kullaniciAdi) != null) {
-      params['kullanici'] = _emptyToNull(kullaniciAdi);
-      where.add("COALESCE(s.created_by, '') = @kullanici");
-    }
 
-    _addSearchCondition(where, params, 's.search_tags', arama);
+    _addSearchConditionAny(where, params, [
+      "normalize_text(COALESCE(s.integration_ref, ''))",
+      "normalize_text(COALESCE(s.description, ''))",
+      "normalize_text(COALESCE(d1.ad, ''))",
+      "normalize_text(COALESCE(d2.ad, ''))",
+      "normalize_text(COALESCE(it.item->>'code', ''))",
+      "normalize_text(COALESCE(it.item->>'kod', ''))",
+      "normalize_text(COALESCE(it.item->>'product_code', ''))",
+      "normalize_text(COALESCE(it.item->>'urun_kodu', ''))",
+      "normalize_text(COALESCE(it.item->>'name', ''))",
+      "normalize_text(COALESCE(it.item->>'urun_adi', ''))",
+      "normalize_text(COALESCE(it.item->>'product_name', ''))",
+      "normalize_text(COALESCE(it.item->>'urunAdi', ''))",
+    ], effectiveArama);
 
     final String whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
 
     final baseSelect =
         '''
       SELECT
-        s.id,
+        ((s.id::bigint << 32) + it.idx::bigint) AS gid,
+        s.id AS shipment_id,
         s.date AS tarih,
-        s.description,
-        s.items,
-        s.integration_ref,
         d1.ad AS kaynak,
         d2.ad AS hedef,
-        s.created_by AS kullanici
+        COALESCE(NULLIF(TRIM(it.item->>'type'), ''), NULLIF(TRIM(it.item->>'tur'), ''), 'Ürün') AS tur,
+        COALESCE(
+          NULLIF(TRIM(it.item->>'code'), ''),
+          NULLIF(TRIM(it.item->>'kod'), ''),
+          NULLIF(TRIM(it.item->>'product_code'), ''),
+          NULLIF(TRIM(it.item->>'urun_kodu'), ''),
+          '-'
+        ) AS kod,
+        COALESCE(
+          NULLIF(TRIM(it.item->>'name'), ''),
+          NULLIF(TRIM(it.item->>'urun_adi'), ''),
+          NULLIF(TRIM(it.item->>'product_name'), ''),
+          NULLIF(TRIM(it.item->>'urunAdi'), ''),
+          '-'
+        ) AS ad,
+        COALESCE(
+          NULLIF(it.item->>'quantity', '')::numeric,
+          NULLIF(it.item->>'miktar', '')::numeric,
+          NULLIF(it.item->>'qty', '')::numeric,
+          0
+        ) AS miktar,
+        COALESCE(
+          NULLIF(TRIM(it.item->>'unit'), ''),
+          NULLIF(TRIM(it.item->>'birim'), ''),
+          '-'
+        ) AS olcu,
+        COALESCE(
+          NULLIF(TRIM(it.item->>'description'), ''),
+          NULLIF(TRIM(it.item->>'aciklama'), ''),
+          NULLIF(TRIM(it.item->>'not'), ''),
+          NULLIF(TRIM(it.item->>'note'), ''),
+          NULLIF(TRIM(s.description), ''),
+          ''
+        ) AS aciklama,
+        s.integration_ref
       FROM shipments s
       LEFT JOIN depots d1 ON s.source_warehouse_id = d1.id
       LEFT JOIN depots d2 ON s.dest_warehouse_id = d2.id
+      CROSS JOIN LATERAL jsonb_array_elements(COALESCE(s.items, '[]'::jsonb))
+        WITH ORDINALITY AS it(item, idx)
       $whereSql
     ''';
 
@@ -3262,54 +3292,43 @@ class RaporlarServisi {
       sortAscending: sortAscending,
       pageSize: pageSize,
       cursor: cursor,
-      idColumn: 'id',
+      idColumn: 'gid',
     );
 
     final mappedRows = pageResult.rows
         .map((item) {
           final DateTime? tarih = _toDateTime(item['tarih']);
-          final List<Map<String, dynamic>> detailItems = _extractDetailItems(
-            item['items'],
-          );
-          final double toplamMiktar = detailItems.fold<double>(
-            0.0,
-            (sum, e) => sum + _toDouble(e['quantity']),
-          );
+          final double miktar = _toDouble(item['miktar']);
+          final String aciklamaRaw = item['aciklama']?.toString() ?? '';
+          final String aciklama = aciklamaRaw.trim().isEmpty ? '-' : aciklamaRaw;
+          final String olcuRaw = item['olcu']?.toString() ?? '';
+          final String olcu = olcuRaw.trim().isEmpty ? '-' : olcuRaw;
 
           return RaporSatiri(
-            id: 'sevkiyat_${item['id']}',
+            id: 'sevkiyat_item_${item['gid']}',
             cells: {
-              'tarih': _formatDate(tarih, includeTime: true),
-              'no': item['integration_ref']?.toString() ?? '#${item['id']}',
               'kaynak': item['kaynak']?.toString() ?? '-',
               'hedef': item['hedef']?.toString() ?? '-',
-              'urun': detailItems.isEmpty
-                  ? '-'
-                  : detailItems.first['name']?.toString() ?? '-',
-              'miktar': _formatNumber(toplamMiktar),
-              'durum': tr('common.active'),
-              'kullanici': item['kullanici']?.toString() ?? '-',
+              'tarih': _formatDate(tarih, includeTime: false),
+              'tur': item['tur']?.toString() ?? 'Ürün',
+              'kod': item['kod']?.toString() ?? '-',
+              'ad': item['ad']?.toString() ?? '-',
+              'miktar': _formatNumber(miktar),
+              'olcu': olcu,
+              'aciklama': aciklama,
             },
-            details: {
-              tr('common.description'): item['description']?.toString() ?? '-',
-              tr('reports.columns.item_count'): detailItems.length.toString(),
-            },
-            detailTable: detailItems.isEmpty
-                ? null
-                : _detailTableFromItems(
-                    detailItems,
-                    title: tr('common.products'),
-                  ),
-            expandable: detailItems.isNotEmpty,
             sourceMenuIndex: 6,
             sourceSearchQuery: item['integration_ref']?.toString(),
             sortValues: {
               'tarih': tarih,
-              'no': item['integration_ref']?.toString(),
               'kaynak': item['kaynak']?.toString(),
               'hedef': item['hedef']?.toString(),
-              'miktar': toplamMiktar,
-              'kullanici': item['kullanici']?.toString(),
+              'tur': item['tur']?.toString(),
+              'kod': item['kod']?.toString(),
+              'ad': item['ad']?.toString(),
+              'miktar': miktar,
+              'olcu': olcu,
+              'aciklama': aciklama,
             },
           );
         })
@@ -3324,8 +3343,12 @@ class RaporlarServisi {
       cacheKey: summaryKey,
       loader: () async {
         final rows = await _queryMaps(pool, '''
-          SELECT COUNT(*) AS kayit
+          SELECT COUNT(DISTINCT s.id) AS kayit
           FROM shipments s
+          LEFT JOIN depots d1 ON s.source_warehouse_id = d1.id
+          LEFT JOIN depots d2 ON s.dest_warehouse_id = d2.id
+          CROSS JOIN LATERAL jsonb_array_elements(COALESCE(s.items, '[]'::jsonb))
+            WITH ORDINALITY AS it(item, idx)
           $whereSql
           ''', params);
         final int kayit = rows.isEmpty
@@ -3345,19 +3368,20 @@ class RaporlarServisi {
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('tarih', 'common.date', 150),
-        _column('no', 'reports.columns.document_no', 140),
-        _column('kaynak', 'reports.columns.source_warehouse', 160),
-        _column('hedef', 'reports.columns.target_warehouse', 160),
-        _column('urun', 'common.product', 220),
+        _column('tarih', 'Tarih', 120),
+        _column('kaynak', 'Çıkış Yapılan Depo', 170),
+        _column('hedef', 'Giriş Yapılan Depo', 170),
+        _column('tur', 'Tür', 110),
+        _column('kod', 'Kod No', 110),
+        _column('ad', 'Adı', 200),
         _column(
           'miktar',
-          'common.quantity',
-          100,
+          'Miktar',
+          110,
           alignment: Alignment.centerRight,
         ),
-        _column('durum', 'common.status', 100),
-        _column('kullanici', 'common.user', 100),
+        _column('olcu', 'Ölçü', 120),
+        _column('aciklama', 'Açıklama', 220),
       ],
       rows: mappedRows,
       summaryCards: summary,
@@ -3368,7 +3392,6 @@ class RaporlarServisi {
       cursorPagination: true,
       nextCursor: pageResult.nextCursor,
       mainTableLabel: tr(rapor.labelKey),
-      detailTableLabel: tr('common.products'),
     );
   }
 
@@ -3383,21 +3406,33 @@ class RaporlarServisi {
     required int pageSize,
   }) async {
     final pool = await _havuzAl();
+    final effectiveArama = _normalizeNumericSearchForReports(arama);
 
     String sortExpr(String? key) {
       switch (key) {
-        case 'depo':
-          return "COALESCE(base.depo_ad, '')";
-        case 'urun_kodu':
-          return "COALESCE(base.urun_kodu, '')";
-        case 'urun_adi':
-          return "COALESCE(base.urun_adi, '')";
-        case 'birim':
-          return "COALESCE(base.birim, '')";
-        case 'stok':
-          return 'base.stok';
+        case 'tur':
+          return "COALESCE(base.tur, '')";
+        case 'kod':
+          return "COALESCE(base.kod, '')";
+        case 'ad':
+          return "COALESCE(base.ad, '')";
+        case 'miktar':
+          return 'base.miktar';
+        case 'olcu':
+          return "COALESCE(base.olcu, '')";
+        case 'barkod':
+          return "COALESCE(base.barkod, '')";
+        case 'grup':
+          return "COALESCE(base.grup, '')";
+        case 'ozellik':
+        case 'ozellik1':
+        case 'ozellik2':
+        case 'ozellik3':
+        case 'ozellik4':
+        case 'ozellik5':
+          return "COALESCE(base.ozellikler, '')";
         default:
-          return "COALESCE(base.urun_adi, '')";
+          return "COALESCE(base.ad, '')";
       }
     }
 
@@ -3408,19 +3443,18 @@ class RaporlarServisi {
       params['depoId'] = filtreler.depoId;
       where.add('ws.warehouse_id = @depoId');
     }
-    if (_emptyToNull(filtreler.urunKodu) != null) {
-      params['urunKodu'] = filtreler.urunKodu;
-      where.add('ws.product_code = @urunKodu');
-    }
-    if (_emptyToNull(filtreler.urunGrubu) != null) {
-      params['grup'] = filtreler.urunGrubu;
-      where.add("COALESCE(p.grubu, '') = @grup");
-    }
 
     _addSearchConditionAny(where, params, [
       'p.search_tags',
       'd.search_tags',
-    ], arama);
+      "normalize_text(COALESCE(ws.product_code, ''))",
+      "normalize_text(COALESCE(p.kod, ''))",
+      "normalize_text(COALESCE(p.ad, ''))",
+      "normalize_text(COALESCE(p.barkod, ''))",
+      "normalize_text(COALESCE(p.grubu, ''))",
+      "normalize_text(COALESCE(p.ozellikler::text, ''))",
+      'COALESCE(ws.quantity, 0)::text',
+    ], effectiveArama);
 
     final String whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
 
@@ -3429,15 +3463,15 @@ class RaporlarServisi {
       SELECT
         ((ws.warehouse_id::bigint << 32) + COALESCE(p.id::bigint, ABS(hashtext(ws.product_code))::bigint)) AS gid,
         ws.warehouse_id,
-        d.kod AS depo_kod,
         d.ad AS depo_ad,
-        ws.product_code AS urun_kodu,
-        COALESCE(p.ad, ws.product_code) AS urun_adi,
-        COALESCE(p.birim, 'Adet') AS birim,
-        ws.quantity AS stok,
-        p.barkod,
-        p.grubu,
-        p.ozellikler
+        'Ürün' AS tur,
+        ws.product_code AS kod,
+        COALESCE(p.ad, ws.product_code) AS ad,
+        COALESCE(p.birim, 'Adet') AS olcu,
+        ws.quantity AS miktar,
+        COALESCE(p.barkod, '') AS barkod,
+        COALESCE(p.grubu, '') AS grup,
+        COALESCE(p.ozellikler, '') AS ozellikler
       FROM warehouse_stocks ws
       INNER JOIN depots d ON d.id = ws.warehouse_id
       LEFT JOIN products p ON p.kod = ws.product_code
@@ -3463,37 +3497,92 @@ class RaporlarServisi {
 
     final mappedRows = pageResult.rows
         .map((item) {
-          final double miktar = _toDouble(item['stok']);
-          final String depoLabel =
-              '${item['depo_kod'] ?? '-'} - ${item['depo_ad'] ?? '-'}';
-          final String ozellikler = item['ozellikler']?.toString() ?? '';
+          List<String> splitFirstFiveFeatures(dynamic raw) {
+            final String text = (raw?.toString() ?? '').trim();
+            if (text.isEmpty) return const <String>[];
+            if (text == '[]') return const <String>[];
+ 
+            try {
+              final decoded = jsonDecode(text);
+              if (decoded is List) {
+                return decoded
+                    .map((e) {
+                      if (e is Map) return e['name']?.toString() ?? '';
+                      return e?.toString() ?? '';
+                    })
+                    .map((s) => s.trim())
+                    .where((s) => s.isNotEmpty && s != 'null')
+                    .take(5)
+                    .toList(growable: false);
+              }
+            } catch (_) {
+              // ignore
+            }
+ 
+            // JSON benzeri bir format varsa parçalayıp ham JSON göstermeyelim.
+            if (text.startsWith('[') || text.startsWith('{')) {
+              return const <String>[];
+            }
+ 
+            final String normalized =
+                text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+            List<String> parts;
+            if (normalized.contains('|')) {
+              parts = normalized.split('|');
+            } else if (normalized.contains('\n')) {
+              parts = normalized.split('\n');
+            } else if (normalized.contains(';')) {
+              parts = normalized.split(';');
+            } else if (normalized.contains(',')) {
+              parts = normalized.split(',');
+            } else {
+              parts = <String>[normalized];
+            }
+            return parts
+                .map((e) => e.trim())
+                .where((e) => e.isNotEmpty)
+                .take(5)
+                .toList(growable: false);
+          }
+ 
+          final double miktar = _toDouble(item['miktar']);
+          final String olcuRaw = item['olcu']?.toString() ?? '';
+          final String olcu = olcuRaw.trim().isEmpty ? '-' : olcuRaw;
+          final String barkodRaw = item['barkod']?.toString() ?? '';
+          final String barkod = barkodRaw.trim().isEmpty ? '-' : barkodRaw;
+          final String grupRaw = item['grup']?.toString() ?? '';
+          final String grup = grupRaw.trim().isEmpty ? '-' : grupRaw;
+ 
+          final features = splitFirstFiveFeatures(item['ozellikler']);
+          String featureAt(int index) =>
+              index < features.length ? features[index] : '-';
           return RaporSatiri(
-            id: 'depo_stok_${item['warehouse_id']}_${item['urun_kodu']}',
+            id: 'depo_stok_${item['warehouse_id']}_${item['kod']}',
             cells: {
-              'depo': depoLabel,
-              'urun_kodu': item['urun_kodu']?.toString() ?? '-',
-              'urun_adi': item['urun_adi']?.toString() ?? '-',
-              'birim': item['birim']?.toString() ?? '-',
-              'stok': _formatNumber(miktar),
-              'kritik_stok': '-',
-              'durum': tr('common.active'),
-              'maliyet': '-',
-              'stok_degeri': '-',
-            },
-            details: {
-              tr('reports.columns.group'): item['grubu']?.toString() ?? '-',
-              tr('reports.columns.features'): ozellikler.trim().isEmpty
-                  ? '-'
-                  : ozellikler,
-              tr('common.barcode'): item['barkod']?.toString() ?? '-',
+              'tur': item['tur']?.toString() ?? 'Ürün',
+              'kod': item['kod']?.toString() ?? '-',
+              'ad': item['ad']?.toString() ?? '-',
+              'miktar': _formatNumber(miktar),
+              'olcu': olcu,
+              'barkod': barkod,
+              'grup': grup,
+              'ozellik1': featureAt(0),
+              'ozellik2': featureAt(1),
+              'ozellik3': featureAt(2),
+              'ozellik4': featureAt(3),
+              'ozellik5': featureAt(4),
             },
             sourceMenuIndex: 6,
             sourceSearchQuery: item['depo_ad']?.toString(),
             sortValues: {
-              'depo': item['depo_ad'],
-              'urun_kodu': item['urun_kodu'],
-              'urun_adi': item['urun_adi'],
-              'stok': miktar,
+              'tur': item['tur'],
+              'kod': item['kod'],
+              'ad': item['ad'],
+              'miktar': miktar,
+              'olcu': item['olcu'],
+              'barkod': item['barkod'],
+              'grup': item['grup'],
+              'ozellik': item['ozellikler'],
             },
           );
         })
@@ -3508,20 +3597,33 @@ class RaporlarServisi {
       cacheKey: summaryKey,
       loader: () async {
         final rows = await _queryMaps(pool, '''
-          SELECT COUNT(*) AS kayit
+          SELECT
+            COALESCE(SUM(ws.quantity), 0) AS toplam,
+            COUNT(DISTINCT COALESCE(p.birim, 'Adet')) AS birim_sayisi,
+            MIN(COALESCE(p.birim, 'Adet')) AS birim_tek
           FROM warehouse_stocks ws
           INNER JOIN depots d ON d.id = ws.warehouse_id
           LEFT JOIN products p ON p.kod = ws.product_code
           $whereSql
           ''', params);
-        final int kayit = rows.isEmpty
-            ? 0
-            : (rows.first['kayit'] as num?)?.toInt() ?? 0;
+        final first = rows.isEmpty ? const <String, dynamic>{} : rows.first;
+        final double toplam = _toDouble(first['toplam']);
+        final int birimSayisi = _toInt(first['birim_sayisi']) ?? 0;
+        final String birimTek = first['birim_tek']?.toString() ?? '';
+        final String olcu = birimSayisi == 1
+            ? (birimTek.trim().isEmpty ? '-' : birimTek)
+            : 'Çoklu';
         return [
           RaporOzetKarti(
-            labelKey: 'reports.summary.total_stock_rows',
-            value: kayit.toString(),
-            icon: Icons.warehouse_outlined,
+            labelKey: 'Toplam',
+            value: _formatNumber(toplam),
+            icon: Icons.summarize_outlined,
+            accentColor: AppPalette.slate,
+          ),
+          RaporOzetKarti(
+            labelKey: 'Ölçü',
+            value: olcu,
+            icon: Icons.straighten_outlined,
             accentColor: AppPalette.slate,
           ),
         ];
@@ -3531,35 +3633,23 @@ class RaporlarServisi {
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('depo', 'common.warehouse', 180),
-        _column('urun_kodu', 'common.code', 120),
-        _column('urun_adi', 'common.product', 220),
-        _column('birim', 'common.unit', 90),
+        _column('tur', 'TÜR', 90, allowSorting: false),
+        _column('kod', 'KOD NO', 110),
+        _column('ad', 'ADI', 200),
         _column(
-          'stok',
-          'reports.columns.stock',
-          100,
+          'miktar',
+          'MİKTAR',
+          110,
           alignment: Alignment.centerRight,
         ),
-        _column(
-          'kritik_stok',
-          'reports.columns.critical_stock',
-          120,
-          alignment: Alignment.centerRight,
-        ),
-        _column('durum', 'common.status', 100),
-        _column(
-          'maliyet',
-          'reports.columns.cost',
-          120,
-          alignment: Alignment.centerRight,
-        ),
-        _column(
-          'stok_degeri',
-          'reports.columns.stock_value',
-          130,
-          alignment: Alignment.centerRight,
-        ),
+        _column('olcu', 'ÖLÇÜ', 120),
+        _column('barkod', 'BARKOD NO', 140, allowSorting: false),
+        _column('grup', 'GRUBU', 140),
+        _column('ozellik1', 'ÖZELLİK1', 120, allowSorting: false),
+        _column('ozellik2', 'ÖZELLİK2', 120, allowSorting: false),
+        _column('ozellik3', 'ÖZELLİK3', 120, allowSorting: false),
+        _column('ozellik4', 'ÖZELLİK4', 120, allowSorting: false),
+        _column('ozellik5', 'ÖZELLİK5', 120, allowSorting: false),
       ],
       rows: mappedRows,
       summaryCards: summary,
@@ -3584,22 +3674,19 @@ class RaporlarServisi {
     required int pageSize,
   }) async {
     final pool = await _havuzAl();
-    final kullaniciAdi = await _resolveKullaniciAdi(filtreler.kullaniciId);
+    final effectiveArama = _normalizeNumericSearchForReports(arama);
+    final searchTokens = _searchTokens(effectiveArama);
 
     String sortExpr(String? key) {
       switch (key) {
         case 'tarih':
           return 'base.tarih';
-        case 'no':
-          return "COALESCE(base.integration_ref, '')";
-        case 'depo':
-          return "COALESCE(base.depo, '')";
+        case 'kaynak':
+          return "COALESCE(base.kaynak, '')";
         case 'hedef':
           return "COALESCE(base.hedef, '')";
-        case 'kalem_sayisi':
-          return "jsonb_array_length(COALESCE(base.items, '[]'::jsonb))";
-        case 'toplam_miktar':
-          return "(SELECT COALESCE(SUM((COALESCE(item->>'quantity','0'))::numeric), 0) FROM jsonb_array_elements(COALESCE(base.items, '[]'::jsonb)) item)";
+        case 'aciklama':
+          return "COALESCE(base.aciklama, '')";
         case 'kullanici':
           return "COALESCE(base.kullanici, '')";
         default:
@@ -3626,18 +3713,25 @@ class RaporlarServisi {
       ).add(const Duration(days: 1)).toIso8601String();
       where.add('s.date < @bitis');
     }
-    if (filtreler.depoId != null) {
-      params['depoId'] = filtreler.depoId;
-      where.add(
-        '(s.source_warehouse_id = @depoId OR s.dest_warehouse_id = @depoId)',
-      );
-    }
-    if (_emptyToNull(kullaniciAdi) != null) {
-      params['kullanici'] = _emptyToNull(kullaniciAdi);
-      where.add("COALESCE(s.created_by, '') = @kullanici");
+
+    if (filtreler.cikisDepoId != null) {
+      params['cikisDepoId'] = filtreler.cikisDepoId;
+      where.add('s.source_warehouse_id = @cikisDepoId');
     }
 
-    _addSearchCondition(where, params, 's.search_tags', arama);
+    if (filtreler.girisDepoId != null) {
+      params['girisDepoId'] = filtreler.girisDepoId;
+      where.add('s.dest_warehouse_id = @girisDepoId');
+    }
+
+    _addSearchConditionAny(where, params, [
+      's.search_tags',
+      "normalize_text(COALESCE(s.integration_ref, ''))",
+      "normalize_text(COALESCE(s.description, ''))",
+      "normalize_text(COALESCE(d1.ad, ''))",
+      "normalize_text(COALESCE(d2.ad, ''))",
+      "normalize_text(COALESCE(s.created_by, ''))",
+    ], effectiveArama);
 
     final String whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
 
@@ -3646,10 +3740,10 @@ class RaporlarServisi {
       SELECT
         s.id,
         s.date AS tarih,
-        s.description,
+        s.description AS aciklama,
         s.items,
         s.integration_ref,
-        d1.ad AS depo,
+        d1.ad AS kaynak,
         d2.ad AS hedef,
         s.created_by AS kullanici,
         (
@@ -3693,24 +3787,42 @@ class RaporlarServisi {
           final List<Map<String, dynamic>> detailItems = _extractDetailItems(
             item['items'],
           );
-          final double toplamMiktar = detailItems.fold<double>(
-            0.0,
-            (sum, e) => sum + _toDouble(e['quantity']),
-          );
+          final String aciklamaRaw = item['aciklama']?.toString() ?? '';
+          final String aciklama = aciklamaRaw.trim().isEmpty ? '-' : aciklamaRaw;
+          final Map<String, String> cells = {
+            'kaynak': item['kaynak']?.toString() ?? '-',
+            'hedef': item['hedef']?.toString() ?? '-',
+            'tarih': _formatDate(tarih, includeTime: false),
+            'aciklama': aciklama,
+            'kullanici': item['kullanici']?.toString() ?? '-',
+          };
+
+          final Map<String, dynamic> extra = <String, dynamic>{};
+
+          if (detailItems.isNotEmpty && searchTokens.isNotEmpty) {
+            final mainHaystack = _normalizeArama(cells.values.join(' '));
+            final hiddenHaystack = _normalizeArama(
+              [
+                item['related_party_name']?.toString() ?? '',
+                for (final detail in detailItems)
+                  ...detail.values.map((v) => v?.toString() ?? ''),
+              ].join(' '),
+            );
+
+            final bool matchesInMain = searchTokens.every(
+              (token) => mainHaystack.contains(token),
+            );
+            final bool matchesInHidden = searchTokens.every(
+              (token) => hiddenHaystack.contains(token),
+            );
+            if (!matchesInMain && matchesInHidden) {
+              extra['matchedInHidden'] = true;
+            }
+          }
           return RaporSatiri(
             id: 'depo_sevkiyat_${item['id']}',
-            cells: {
-              'tarih': _formatDate(tarih, includeTime: true),
-              'no': item['integration_ref']?.toString() ?? '#${item['id']}',
-              'depo': item['depo']?.toString() ?? '-',
-              'hedef': item['hedef']?.toString() ?? '-',
-              'kalem_sayisi': detailItems.length.toString(),
-              'toplam_miktar': _formatNumber(toplamMiktar),
-              'durum': tr('common.active'),
-              'kullanici': item['kullanici']?.toString() ?? '-',
-            },
+            cells: cells,
             details: {
-              tr('common.description'): item['description']?.toString() ?? '-',
               tr('reports.columns.related_party'): _firstNonEmpty([
                 item['related_party_name']?.toString(),
                 '-',
@@ -3727,13 +3839,12 @@ class RaporlarServisi {
             sourceSearchQuery: item['integration_ref']?.toString(),
             sortValues: {
               'tarih': tarih,
-              'no': item['integration_ref']?.toString(),
-              'depo': item['depo']?.toString(),
+              'kaynak': item['kaynak']?.toString(),
               'hedef': item['hedef']?.toString(),
-              'kalem_sayisi': detailItems.length,
-              'toplam_miktar': toplamMiktar,
+              'aciklama': aciklamaRaw,
               'kullanici': item['kullanici']?.toString(),
             },
+            extra: extra.isEmpty ? const <String, dynamic>{} : extra,
           );
         })
         .toList(growable: false);
@@ -3749,6 +3860,8 @@ class RaporlarServisi {
         final rows = await _queryMaps(pool, '''
           SELECT COUNT(*) AS kayit
           FROM shipments s
+          LEFT JOIN depots d1 ON s.source_warehouse_id = d1.id
+          LEFT JOIN depots d2 ON s.dest_warehouse_id = d2.id
           $whereSql
           ''', params);
         final int kayit = rows.isEmpty
@@ -3768,24 +3881,11 @@ class RaporlarServisi {
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('tarih', 'common.date', 150),
-        _column('no', 'reports.columns.document_no', 140),
-        _column('depo', 'common.warehouse', 160),
-        _column('hedef', 'reports.columns.target_warehouse', 160),
-        _column(
-          'kalem_sayisi',
-          'reports.columns.item_count',
-          100,
-          alignment: Alignment.centerRight,
-        ),
-        _column(
-          'toplam_miktar',
-          'reports.columns.total_quantity',
-          120,
-          alignment: Alignment.centerRight,
-        ),
-        _column('durum', 'common.status', 100),
-        _column('kullanici', 'common.user', 100),
+        _column('kaynak', 'ÇIKIŞ YAPILAN DEPO', 170),
+        _column('hedef', 'GİRİŞ YAPILAN DEPO', 170),
+        _column('tarih', 'TARİH', 120),
+        _column('aciklama', 'AÇIKLAMA', 220),
+        _column('kullanici', 'KULLANICI', 120),
       ],
       rows: mappedRows,
       summaryCards: summary,
@@ -8230,6 +8330,7 @@ class RaporlarServisi {
           return "COALESCE(base.ad, '')";
         case 'grubu':
           return "COALESCE(base.grubu, '')";
+        case 'ozellik':
         case 'ozellik1':
         case 'ozellik2':
         case 'ozellik3':
@@ -8253,31 +8354,6 @@ class RaporlarServisi {
         default:
           return 'base.tarih';
       }
-    }
-
-    List<String> extractFeatureNames(String raw) {
-      final cleaned = raw.trim();
-      if (cleaned.isEmpty) return const <String>[];
-      try {
-        final decoded = jsonDecode(cleaned);
-        if (decoded is List) {
-          return decoded
-              .map((e) {
-                if (e is Map) return e['name']?.toString() ?? '';
-                return e?.toString() ?? '';
-              })
-              .map((s) => s.trim())
-              .where((s) => s.isNotEmpty && s != 'null')
-              .toList(growable: false);
-        }
-      } catch (_) {
-        // ignore: fallback to comma split below
-      }
-      return cleaned
-          .split(',')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList(growable: false);
     }
 
     String formatQuantityTotalsByUnit(Map<String, double> totalsByUnit) {
@@ -8672,11 +8748,10 @@ class RaporlarServisi {
     final mappedRows = pageResult.rows
         .map((tx) {
           final tarih = _toDateTime(tx['tarih']);
-          final String ozelliklerRaw = tx['ozellikler']?.toString() ?? '';
-          final features = extractFeatureNames(ozelliklerRaw);
-          final String oz1 = features.isNotEmpty ? features[0] : '-';
-          final String oz2 = features.length > 1 ? features[1] : '-';
-          final String oz3 = features.length > 2 ? features[2] : '-';
+          final features = _parseFirstThreeFeatureBadges(tx['ozellikler']);
+          final String featuresText = features.isEmpty
+              ? '-'
+              : features.map((item) => item.name).join('\n');
 
           final double miktar = _toDouble(tx['miktar']);
           final double birimFiyat = _toDouble(tx['birim_fiyat']);
@@ -8692,9 +8767,7 @@ class RaporlarServisi {
               'kod': tx['kod']?.toString() ?? '-',
               'ad': tx['ad']?.toString() ?? '-',
               'grubu': tx['grubu']?.toString() ?? '-',
-              'ozellik1': oz1,
-              'ozellik2': oz2,
-              'ozellik3': oz3,
+              'ozellik': featuresText,
               'depo': tx['depo']?.toString() ?? '-',
               'miktar': _formatNumber(miktar),
               'olcu': tx['olcu']?.toString() ?? '-',
@@ -8703,6 +8776,16 @@ class RaporlarServisi {
               'yer_kodu': tx['yer_kodu']?.toString() ?? '-',
               'yer_adi': tx['yer_adi']?.toString() ?? '-',
               'aciklama': tx['aciklama']?.toString() ?? '-',
+            },
+            extra: {
+              'features': features
+                  .map(
+                    (item) => <String, dynamic>{
+                      'name': item.name,
+                      'color': item.color,
+                    },
+                  )
+                  .toList(growable: false),
             },
             sourceMenuIndex: 7,
             sourceSearchQuery: tx['ad']?.toString(),
@@ -8714,9 +8797,7 @@ class RaporlarServisi {
               'kod': tx['kod'],
               'ad': tx['ad'],
               'grubu': tx['grubu'],
-              'ozellik1': oz1,
-              'ozellik2': oz2,
-              'ozellik3': oz3,
+              'ozellik': featuresText,
               'depo': tx['depo'],
               'miktar': miktar,
               'olcu': tx['olcu'],
@@ -8739,9 +8820,7 @@ class RaporlarServisi {
         _column('kod', 'common.code_no', 90),
         _column('ad', 'common.name', 180),
         _column('grubu', 'products.table.group', 120),
-        _column('ozellik1', 'products.form.feature_1.label', 120),
-        _column('ozellik2', 'products.form.feature_2.label', 120),
-        _column('ozellik3', 'products.form.feature_3.label', 120),
+        _column('ozellik', 'Özellik', 140, allowSorting: false),
         _column('depo', 'common.warehouse', 140),
         _column(
           'miktar',
@@ -8749,7 +8828,7 @@ class RaporlarServisi {
           110,
           alignment: Alignment.centerRight,
         ),
-        _column('olcu', 'retail.table.unit', 100),
+        _column('olcu', 'productions.make.table.unit', 100),
         _column(
           'birim_fiyat',
           'products.table.unit_price',

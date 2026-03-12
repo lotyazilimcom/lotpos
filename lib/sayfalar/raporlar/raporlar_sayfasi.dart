@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../bilesenler/genisletilebilir_tablo.dart';
 import '../../bilesenler/highlight_text.dart';
@@ -30,6 +32,12 @@ class RaporlarSayfasi extends StatefulWidget {
 }
 
 class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
+  static const String _prefsColumnVisibilityPrefix =
+      'reports_column_visibility_';
+  static const String _prefsHideEmptyColumnsPrefix =
+      'reports_hide_empty_columns_';
+  static const bool _defaultHideEmptyColumns = true;
+
   static const Set<String> _amountKeys = <String>{
     'tutar',
     'ara_toplam',
@@ -189,6 +197,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
   final Map<String, Map<String, bool>> _kolonGorunurluklari =
       <String, Map<String, bool>>{};
+  final Map<String, bool> _bosSutunlariGizleByReport = <String, bool>{};
 
   OverlayEntry? _filterDropdownOverlayEntry;
   String? _filterDropdownExpandedKey;
@@ -283,8 +292,17 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         sortAscending: _sortAscending,
       );
 
+      if (!mounted || sorguNo != _aktifSorguNo) return;
+
+      final columnSettings = await _loadColumnSettingsFromPrefs(
+        reportId: rapor.id,
+        columns: sonuc.columns,
+      );
+
       final Set<String> autoExpandedRowIds = <String>{};
-      if ((rapor.id == 'all_movements' || rapor.id == 'vat_accounting') &&
+      if ((rapor.id == 'all_movements' ||
+              rapor.id == 'vat_accounting' ||
+              rapor.id == 'warehouse_shipment_list') &&
           aramaTerimi.trim().isNotEmpty) {
         for (final row in sonuc.rows) {
           if (!row.expandable) continue;
@@ -296,6 +314,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
       if (!mounted || sorguNo != _aktifSorguNo) return;
       setState(() {
+        _kolonGorunurluklari[rapor.id] = columnSettings.visibility;
+        _bosSutunlariGizleByReport[rapor.id] = columnSettings.hideEmptyColumns;
         _sonuc = sonuc;
         _raporYukleniyor = false;
         _mevcutSayfa = sonuc.page;
@@ -359,6 +379,12 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           ? _filtreler.kdvOrani
           : null,
       depoId: destekler(RaporFiltreTuru.depo) ? _filtreler.depoId : null,
+      cikisDepoId: destekler(RaporFiltreTuru.cikisDepo)
+          ? _filtreler.cikisDepoId
+          : null,
+      girisDepoId: destekler(RaporFiltreTuru.girisDepo)
+          ? _filtreler.girisDepoId
+          : null,
       hesapTuru: destekler(RaporFiltreTuru.hesapTuru)
           ? _sanitizeHesapTuru(_filtreler.hesapTuru)
           : null,
@@ -408,20 +434,113 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
   void _kolonDurumunuHazirla() {
     final rapor = _seciliRapor;
     if (rapor == null) return;
-    if (_kolonGorunurluklari.containsKey(rapor.id)) return;
     final mevcutSonuc = _sonuc;
     final kaynakKolonlar = mevcutSonuc?.report.id == rapor.id
         ? mevcutSonuc!.columns
         : const <RaporKolonTanimi>[];
-    final Map<String, bool> visibility = <String, bool>{};
-    for (final kolon in kaynakKolonlar) {
-      visibility[kolon.key] = kolon.visibleByDefault;
+
+    if (kaynakKolonlar.isNotEmpty &&
+        !_kolonGorunurluklari.containsKey(rapor.id)) {
+      final Map<String, bool> visibility = <String, bool>{};
+      for (final kolon in kaynakKolonlar) {
+        visibility[kolon.key] = kolon.visibleByDefault;
+      }
+      _kolonGorunurluklari[rapor.id] = visibility;
     }
-    _kolonGorunurluklari[rapor.id] = visibility;
+
+    _bosSutunlariGizleByReport.putIfAbsent(
+      rapor.id,
+      () => _defaultHideEmptyColumns,
+    );
   }
 
   List<RaporSecenegi> get _kategoriRaporlari =>
       _tumRaporlar.where((rapor) => rapor.category == _seciliKategori).toList();
+
+  Future<({Map<String, bool> visibility, bool hideEmptyColumns})>
+  _loadColumnSettingsFromPrefs({
+    required String reportId,
+    required List<RaporKolonTanimi> columns,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final Map<String, bool> defaults = <String, bool>{
+      for (final column in columns) column.key: column.visibleByDefault,
+    };
+
+    final Map<String, bool> visibility = Map<String, bool>.from(defaults);
+    final rawVisibility = prefs.getString('$_prefsColumnVisibilityPrefix$reportId');
+    if (rawVisibility != null && rawVisibility.trim().isNotEmpty) {
+      try {
+        final decoded = jsonDecode(rawVisibility);
+        if (decoded is Map) {
+          for (final entry in decoded.entries) {
+            final key = entry.key?.toString();
+            if (key == null || !visibility.containsKey(key)) continue;
+            final value = entry.value;
+            if (value is bool) {
+              visibility[key] = value;
+            } else if (value is num) {
+              visibility[key] = value != 0;
+            }
+          }
+        }
+      } catch (_) {}
+    }
+
+    final bool hideEmptyColumns = prefs.getBool(
+          '$_prefsHideEmptyColumnsPrefix$reportId',
+        ) ??
+        _defaultHideEmptyColumns;
+
+    return (visibility: visibility, hideEmptyColumns: hideEmptyColumns);
+  }
+
+  Future<void> _saveColumnSettingsToPrefs({
+    required String reportId,
+    required Map<String, bool> visibility,
+    required bool hideEmptyColumns,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(
+      '$_prefsColumnVisibilityPrefix$reportId',
+      jsonEncode(visibility),
+    );
+    await prefs.setBool(
+      '$_prefsHideEmptyColumnsPrefix$reportId',
+      hideEmptyColumns,
+    );
+  }
+
+  String _toTurkishLower(String text) {
+    return text
+        .replaceAll('I', 'ı')
+        .replaceAll('İ', 'i')
+        .toLowerCase()
+        .replaceAll('i̇', 'i');
+  }
+
+  String _toTurkishUpper(String text) {
+    return text.replaceAll('i', 'İ').replaceAll('ı', 'I').toUpperCase();
+  }
+
+  String _toTitleCaseTr(String text) {
+    final normalized = text.trim().replaceAll(RegExp(r'\s+'), ' ');
+    if (normalized.isEmpty) return text;
+    return normalized
+        .split(' ')
+        .map((word) {
+          if (word.isEmpty) return word;
+          final lower = _toTurkishLower(word);
+          final match = RegExp(r'[a-zA-ZçğıöşüÇĞİIÖŞÜ]').firstMatch(lower);
+          if (match == null) return lower;
+          final index = match.start;
+          return lower.substring(0, index) +
+              _toTurkishUpper(lower.substring(index, index + 1)) +
+              lower.substring(index + 1);
+        })
+        .join(' ');
+  }
 
   void _sayfalamayiSifirla() {
     _mevcutSayfa = 1;
@@ -438,12 +557,34 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final sonuc = _sonuc;
     if (sonuc == null) return const <RaporKolonTanimi>[];
     final raporId = sonuc.report.id;
-    final visibility =
-        _kolonGorunurluklari[raporId] ??
-        {for (final kolon in sonuc.columns) kolon.key: kolon.visibleByDefault};
-    return sonuc.columns
-        .where((kolon) => visibility[kolon.key] ?? true)
-        .toList();
+    final visibility = _kolonGorunurluklari[raporId];
+    final columns = sonuc.columns.where((kolon) {
+      return (visibility?[kolon.key]) ?? kolon.visibleByDefault;
+    }).toList();
+
+    final bool hideEmptyColumns =
+        _bosSutunlariGizleByReport[raporId] ?? _defaultHideEmptyColumns;
+
+    if (!hideEmptyColumns || sonuc.rows.isEmpty) {
+      return columns;
+    }
+
+    bool isEmptyCellValue(String? raw) {
+      final value = (raw ?? '').trim();
+      return value.isEmpty || value == '-' || value.toLowerCase() == 'null';
+    }
+
+    bool columnHasAnyValue(String key) {
+      for (final row in sonuc.rows) {
+        if (!isEmptyCellValue(row.cells[key])) return true;
+      }
+      return false;
+    }
+
+    return columns.where((kolon) {
+      if (kolon.key.startsWith('_')) return true;
+      return columnHasAnyValue(kolon.key);
+    }).toList();
   }
 
   List<RaporSatiri> get _sayfaSatirlari {
@@ -565,6 +706,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     String? urunGrubu,
     double? kdvOrani,
     int? depoId,
+    int? cikisDepoId,
+    int? girisDepoId,
     String? hesapTuru,
     String? bakiyeDurumu,
     String? islemTuru,
@@ -581,6 +724,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     bool clearUrunGrubu = false,
     bool clearKdvOrani = false,
     bool clearDepo = false,
+    bool clearCikisDepo = false,
+    bool clearGirisDepo = false,
     bool clearHesapTuru = false,
     bool clearBakiyeDurumu = false,
     bool clearIslemTuru = false,
@@ -600,6 +745,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         urunGrubu: urunGrubu,
         kdvOrani: kdvOrani,
         depoId: depoId,
+        cikisDepoId: cikisDepoId,
+        girisDepoId: girisDepoId,
         hesapTuru: hesapTuru,
         bakiyeDurumu: bakiyeDurumu,
         islemTuru: islemTuru,
@@ -616,6 +763,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         clearUrunGrubu: clearUrunGrubu,
         clearKdvOrani: clearKdvOrani,
         clearDepo: clearDepo,
+        clearCikisDepo: clearCikisDepo,
+        clearGirisDepo: clearGirisDepo,
         clearHesapTuru: clearHesapTuru,
         clearBakiyeDurumu: clearBakiyeDurumu,
         clearIslemTuru: clearIslemTuru,
@@ -870,6 +1019,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
               kolon.key: kolon.visibleByDefault,
           },
     );
+    bool localBosSutunlariGizle =
+        _bosSutunlariGizleByReport[rapor.id] ?? _defaultHideEmptyColumns;
 
     showDialog<void>(
       context: context,
@@ -877,7 +1028,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         return StatefulBuilder(
           builder: (context, setDialogState) {
             final bool allSelected = sonuc.columns.every(
-              (kolon) => localVisibility[kolon.key] ?? true,
+              (kolon) => localVisibility[kolon.key] ?? kolon.visibleByDefault,
             );
             return AlertDialog(
               backgroundColor: Colors.white,
@@ -957,7 +1108,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                               onTap: () {
                                 setDialogState(() {
                                   localVisibility[kolon.key] =
-                                      !(localVisibility[kolon.key] ?? true);
+                                      !(localVisibility[kolon.key] ??
+                                          kolon.visibleByDefault);
                                 });
                               },
                               child: Container(
@@ -975,18 +1127,19 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                                 child: Row(
                                   children: [
                                     Checkbox(
-                                      value: localVisibility[kolon.key] ?? true,
+                                      value: localVisibility[kolon.key] ??
+                                          kolon.visibleByDefault,
                                       activeColor: AppPalette.slate,
                                       onChanged: (value) {
                                         setDialogState(() {
                                           localVisibility[kolon.key] =
-                                              value ?? true;
+                                              value ?? kolon.visibleByDefault;
                                         });
                                       },
                                     ),
                                     Expanded(
                                       child: Text(
-                                        tr(kolon.labelKey),
+                                        _toTitleCaseTr(tr(kolon.labelKey)),
                                         maxLines: 2,
                                         overflow: TextOverflow.ellipsis,
                                         style: const TextStyle(
@@ -1002,6 +1155,53 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                           );
                         }).toList(),
                       ),
+                      const SizedBox(height: 16),
+                      InkWell(
+                        borderRadius: BorderRadius.circular(8),
+                        mouseCursor: SystemMouseCursors.click,
+                        onTap: () {
+                          setDialogState(() {
+                            localBosSutunlariGizle = !localBosSutunlariGizle;
+                          });
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8F9FA),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: Colors.grey.shade200,
+                            ),
+                          ),
+                          child: Row(
+                            children: [
+                              Checkbox(
+                                value: localBosSutunlariGizle,
+                                activeColor: AppPalette.slate,
+                                onChanged: (value) {
+                                  setDialogState(() {
+                                    localBosSutunlariGizle = value ?? false;
+                                  });
+                                },
+                              ),
+                              const Expanded(
+                                child: Text(
+                                  'Boş olan sütunlar görünmesin',
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppPalette.lightText,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -1015,11 +1215,20 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                   ),
                 ),
                 ElevatedButton(
-                  onPressed: () {
+                  onPressed: () async {
+                    final navigator = Navigator.of(context);
                     setState(() {
                       _kolonGorunurluklari[rapor.id] = localVisibility;
+                      _bosSutunlariGizleByReport[rapor.id] =
+                          localBosSutunlariGizle;
                     });
-                    Navigator.pop(context);
+                    await _saveColumnSettingsToPrefs(
+                      reportId: rapor.id,
+                      visibility: localVisibility,
+                      hideEmptyColumns: localBosSutunlariGizle,
+                    );
+                    if (!mounted) return;
+                    navigator.pop();
                   },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppPalette.red,
@@ -1318,6 +1527,11 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final bool isPurchaseSalesMovementsPrint =
         rapor.id == 'purchase_sales_movements';
     final bool isProductMovementsPrint = rapor.id == 'product_movements';
+    final bool isProductShipmentMovementsPrint =
+        rapor.id == 'product_shipment_movements';
+    final bool isWarehouseStockListPrint = rapor.id == 'warehouse_stock_list';
+    final bool isWarehouseShipmentListPrint =
+        rapor.id == 'warehouse_shipment_list';
 
     late final RaporSonucu printSourceSonuc;
     late final List<RaporSatiri> rows;
@@ -1362,17 +1576,55 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return;
     }
 
-    final List<RaporKolonTanimi> printColumns =
-        (isProfitLossPrint ||
-            isBalanceListPrint ||
-            isBaBsPrint ||
-            isReceivablesPayablesPrint ||
-            isVatAccountingPrint ||
-            isLastTransactionDatePrint ||
-            isPurchaseSalesMovementsPrint ||
-            isProductMovementsPrint)
-        ? printSourceSonuc.columns
-        : _gorunurKolonlar;
+    final List<RaporKolonTanimi> printColumns = isProductShipmentMovementsPrint
+        ? const <RaporKolonTanimi>[
+            RaporKolonTanimi(key: 'tarih', labelKey: 'Tarih', width: 120),
+            RaporKolonTanimi(
+              key: 'kaynak',
+              labelKey: 'Çıkış Yapılan Depo',
+              width: 170,
+            ),
+            RaporKolonTanimi(
+              key: 'hedef',
+              labelKey: 'Giriş Yapılan Depo',
+              width: 170,
+            ),
+            RaporKolonTanimi(key: 'kod', labelKey: 'Kod No', width: 110),
+            RaporKolonTanimi(key: 'ad', labelKey: 'Adı', width: 200),
+            RaporKolonTanimi(
+              key: 'miktar_olcu',
+              labelKey: 'Miktar Ölçü',
+              width: 150,
+            ),
+            RaporKolonTanimi(key: 'aciklama', labelKey: 'Açıklama', width: 220),
+          ]
+        : isWarehouseStockListPrint
+            ? const <RaporKolonTanimi>[
+                RaporKolonTanimi(key: 'kod', labelKey: 'KOD NO', width: 110),
+                RaporKolonTanimi(key: 'ad', labelKey: 'ADI', width: 200),
+                RaporKolonTanimi(
+                  key: 'barkod',
+                  labelKey: 'BARKOD NO',
+                  width: 140,
+                ),
+                RaporKolonTanimi(key: 'grup', labelKey: 'GRUBU', width: 140),
+                RaporKolonTanimi(
+                  key: 'miktar_olcu',
+                  labelKey: 'MİKTAR ÖLÇÜ',
+                  width: 150,
+                ),
+              ]
+            : (isProfitLossPrint ||
+                    isBalanceListPrint ||
+                    isBaBsPrint ||
+                    isReceivablesPayablesPrint ||
+                    isVatAccountingPrint ||
+                    isLastTransactionDatePrint ||
+                    isPurchaseSalesMovementsPrint ||
+                    isProductMovementsPrint ||
+                    isWarehouseShipmentListPrint)
+                ? printSourceSonuc.columns
+                : _gorunurKolonlar;
 
     final List<bool> defaultPrintVisibility = () {
       if (isAllMovementsPrint) {
@@ -1477,6 +1729,18 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           'yer_adi',
         };
         return printColumns.map((col) => keys.contains(col.key)).toList();
+      }
+
+      if (isProductShipmentMovementsPrint) {
+        return List<bool>.filled(printColumns.length, true);
+      }
+
+      if (isWarehouseStockListPrint) {
+        return List<bool>.filled(printColumns.length, true);
+      }
+
+      if (isWarehouseShipmentListPrint) {
+        return List<bool>.filled(printColumns.length, true);
       }
 
       const keys = <String>{
@@ -1736,6 +2000,28 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         return indices.isEmpty ? null : indices;
       }
 
+      if (isProductShipmentMovementsPrint) {
+        const keys = <String>{'miktar_olcu'};
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
+      if (isWarehouseStockListPrint) {
+        const keys = <String>{'miktar_olcu'};
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
       return null;
     }();
 
@@ -1908,8 +2194,74 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       }
     }
 
+    if (!selectedOnly && isWarehouseStockListPrint) {
+      final cards = printSourceSonuc.summaryCards;
+      if (cards.isNotEmpty) {
+        String? toplam;
+        String? olcu;
+        for (final card in cards) {
+          switch (card.labelKey) {
+            case 'Toplam':
+              toplam = card.value.trim();
+              break;
+            case 'Ölçü':
+              olcu = card.value.trim();
+              break;
+          }
+        }
+
+        final String toplamVal = (toplam ?? '').trim();
+        final String olcuVal = (olcu ?? '').trim();
+        final String combined = () {
+          final bool hasTotal = toplamVal.isNotEmpty && toplamVal != '-';
+          final bool hasUnit = olcuVal.isNotEmpty &&
+              olcuVal != '-' &&
+              olcuVal.toLowerCase() != 'çoklu';
+          if (hasTotal && hasUnit) return '$toplamVal $olcuVal';
+          if (hasTotal) return toplamVal;
+          if (hasUnit) return olcuVal;
+          return '';
+        }();
+
+        if (combined.isNotEmpty) {
+          footerTotals = <String, String>{'': combined};
+          footerTotalsTitle = 'MİKTAR TOPLAMLARI';
+        }
+      }
+    }
+
+    final List<RaporSatiri> printableRowsSource =
+        (isProductShipmentMovementsPrint || isWarehouseStockListPrint)
+        ? rows
+            .map((row) {
+              final String miktar = (row.cells['miktar'] ?? '-').trim();
+              final String olcu = (row.cells['olcu'] ?? '-').trim();
+              final String combined = () {
+                final bool hasQty = miktar.isNotEmpty && miktar != '-';
+                final bool hasUnit = olcu.isNotEmpty && olcu != '-';
+                if (hasQty && hasUnit) return '$miktar $olcu';
+                if (hasQty) return miktar;
+                if (hasUnit) return olcu;
+                return '-';
+              }();
+              return RaporSatiri(
+                id: row.id,
+                cells: <String, String>{...row.cells, 'miktar_olcu': combined},
+                details: row.details,
+                detailTable: row.detailTable,
+                expandable: row.expandable,
+                sourceMenuIndex: row.sourceMenuIndex,
+                sourceSearchQuery: row.sourceSearchQuery,
+                amountValue: row.amountValue,
+                sortValues: row.sortValues,
+                extra: row.extra,
+              );
+            })
+            .toList(growable: false)
+        : rows;
+
     final printRows = await _buildPrintableRows(
-      rows: rows,
+      rows: printableRowsSource,
       visibleColumns: printColumns,
       expandedIds: expandedIds,
       keepDetailsOpen: keepDetailsOpen,
@@ -3209,7 +3561,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     if (rapor.id == 'all_movements' ||
         rapor.id == 'vat_accounting' ||
         rapor.id == 'purchase_sales_movements' ||
-        rapor.id == 'product_movements') {
+        rapor.id == 'product_movements' ||
+        rapor.id == 'product_shipment_movements') {
       if (_supports(RaporFiltreTuru.tarihAraligi)) {
         addFilter(
           _buildQuickDateFilter(compact: true),
@@ -3648,6 +4001,52 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             desktopWidth: 170,
             tabletWidth: 160,
             minWidth: 140,
+          ),
+        if (_supports(RaporFiltreTuru.cikisDepo))
+          addFilter(
+            _buildDropdownField<int>(
+              label: 'Çıkış Yapılan Depo',
+              icon: Icons.warehouse_outlined,
+              value: _filtreler.cikisDepoId,
+              items: _filtreKaynaklari.depolar
+                  .map(
+                    (item) => DropdownMenuItem<int>(
+                      value: int.tryParse(item.value),
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => _secimGuncelle(
+                cikisDepoId: value,
+                clearCikisDepo: value == null,
+              ),
+            ),
+            desktopWidth: 190,
+            tabletWidth: 180,
+            minWidth: 155,
+          ),
+        if (_supports(RaporFiltreTuru.girisDepo))
+          addFilter(
+            _buildDropdownField<int>(
+              label: 'Giriş Yapılan Depo',
+              icon: Icons.warehouse_outlined,
+              value: _filtreler.girisDepoId,
+              items: _filtreKaynaklari.depolar
+                  .map(
+                    (item) => DropdownMenuItem<int>(
+                      value: int.tryParse(item.value),
+                      child: Text(item.label, overflow: TextOverflow.ellipsis),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (value) => _secimGuncelle(
+                girisDepoId: value,
+                clearGirisDepo: value == null,
+              ),
+            ),
+            desktopWidth: 190,
+            tabletWidth: 180,
+            minWidth: 155,
           ),
         if (_supports(RaporFiltreTuru.islemTuru))
           addFilter(
@@ -4501,13 +4900,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final bool disabled =
         (_sonuc?.isDisabled ?? false) || _aktarimSatirlari.isEmpty;
     final String reportId = _seciliRapor?.id ?? '';
-    final bool hideDocumentButton =
-        reportId == 'profit_loss' ||
-        reportId == 'balance_list' ||
-        reportId == 'ba_bs_list' ||
-        reportId == 'receivables_payables' ||
-        reportId == 'vat_accounting' ||
-        reportId == 'last_transaction_date';
+    final bool showDocumentButton = reportId == 'all_movements';
     final String? selectedRowId = _selectedRowId;
     RaporSatiri? selectedRow;
     if (selectedRowId != null) {
@@ -4543,7 +4936,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             onTap: hasSelection ? _openSelectedPrintPreview : _openPrintPreview,
           ),
         ),
-        if (!hideDocumentButton) ...[
+        if (showDocumentButton) ...[
           const SizedBox(width: 12),
           _buildDocumentActionButton(
             enabled: documentEnabled,
@@ -5057,7 +5450,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     if (key == 'islem') {
       return _buildProcessCell(row, value);
     }
-    if (key == 'ozellik' && _sonuc?.report.id == 'profit_loss') {
+    if (key == 'ozellik' &&
+        (_sonuc?.report.id == 'profit_loss' ||
+            _sonuc?.report.id == 'product_movements')) {
       return _buildFeatureBadgesCell(row, value);
     }
     if ((key == 'bakiye_borc' || key == 'bakiye_alacak') &&
