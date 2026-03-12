@@ -2412,13 +2412,44 @@ class AyarlarVeritabaniServisi {
 
     // Yazdırma şablonları - ilk kurulumda varsayılan şablonları yükle
     try {
-      final raw = await _pool!.execute('SELECT COUNT(*) FROM print_templates');
-      final count = (raw.first[0] as int?) ?? 0;
-      if (count == 0) {
+      final rows = await _pool!.execute(
+        'SELECT id, name FROM print_templates ORDER BY id ASC',
+      );
+
+      if (rows.isEmpty) {
         debugPrint(
           'AyarlarVeritabaniServisi: Print templates boş, varsayılan şablonlar ekleniyor...',
         );
         await VarsayilanSablonlar.tumSablonlariEkle();
+        return;
+      }
+
+      final existingNames = rows
+          .map((row) => (row[1] as String?)?.trim() ?? '')
+          .where((n) => n.isNotEmpty)
+          .toSet();
+
+      // Legacy varsayılan şablon seti (eski sürümlerde/yanlış seed ile oluşan)
+      final legacyDefaultNames = <String>{
+        'Profesyonel E-Fatura',
+        'İrsaliyeli Fatura',
+        'Sevk İrsaliyesi',
+        'Satış Fişi (Market)',
+      };
+
+      final onlyLegacyDefaults = existingNames.isNotEmpty &&
+          existingNames.every(legacyDefaultNames.contains);
+
+      // Eski varsayılanları, ekrandaki 3 şablona dönüştür:
+      // Fatura, İrsaliyeli Fatura, İrsaliye
+      if (onlyLegacyDefaults) {
+        debugPrint(
+          'AyarlarVeritabaniServisi: Legacy print templates tespit edildi, temizlenip yeniden yükleniyor...',
+        );
+
+        await _pool!.execute('DELETE FROM print_templates');
+        await VarsayilanSablonlar.tumSablonlariEkle();
+        return;
       }
     } catch (e) {
       debugPrint('Varsayılan yazdırma şablonları ekleme hatası: $e');

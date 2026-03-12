@@ -21,9 +21,8 @@ class VarsayilanSablonlar {
   /// Tüm varsayılan şablonları veritabanına ekler.
   static Future<void> tumSablonlariEkle() async {
     await eFaturaSablonuEkle();
-    await irsaliyeliFaturaSablonuEkle();
     await sevkIrsaliyesiSablonuEkle();
-    await satisFisiSablonuEkle();
+    await irsaliyeliFaturaSablonuEkle();
   }
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -390,7 +389,7 @@ class VarsayilanSablonlar {
     ];
 
     final sablon = YazdirmaSablonuModel(
-      name: 'Profesyonel E-Fatura',
+      name: 'Fatura',
       docType: 'invoice',
       paperSize: 'A4',
       layout: layout,
@@ -854,7 +853,7 @@ class VarsayilanSablonlar {
       LayoutElement(
         id: 'si_title',
         key: 'custom_text',
-        label: 'SEVK İRSALİYESİ',
+        label: 'İRSALİYE',
         x: 120,
         y: 10,
         width: 80,
@@ -1064,11 +1063,11 @@ class VarsayilanSablonlar {
     ];
 
     final sablon = YazdirmaSablonuModel(
-      name: 'Sevk İrsaliyesi',
-      docType: 'receipt',
+      name: 'İrsaliye',
+      docType: 'waybill',
       paperSize: 'A4',
       layout: layout,
-      isDefault: false,
+      isDefault: true,
       isLandscape: false,
     );
 
