@@ -146,14 +146,13 @@ class RaporlarServisi {
     RaporSecenegi(
       id: 'purchase_sales_movements',
       labelKey: 'reports.items.purchase_sales_movements',
-      category: RaporKategori.satisAlis,
+      category: RaporKategori.genel,
       icon: Icons.compare_arrows_rounded,
       supportedFilters: {
         RaporFiltreTuru.tarihAraligi,
-        RaporFiltreTuru.cari,
-        RaporFiltreTuru.kullanici,
-        RaporFiltreTuru.minTutar,
-        RaporFiltreTuru.maxTutar,
+        RaporFiltreTuru.islemTuru,
+        RaporFiltreTuru.belgeNo,
+        RaporFiltreTuru.referansNo,
       },
     ),
     RaporSecenegi(
@@ -163,11 +162,10 @@ class RaporlarServisi {
       icon: Icons.inventory_2_outlined,
       supportedFilters: {
         RaporFiltreTuru.tarihAraligi,
-        RaporFiltreTuru.urun,
-        RaporFiltreTuru.depo,
-        RaporFiltreTuru.kullanici,
-        RaporFiltreTuru.minMiktar,
-        RaporFiltreTuru.maxMiktar,
+        RaporFiltreTuru.islemTuru,
+        RaporFiltreTuru.urunGrubu,
+        // "Tür" filtresi için `durum` alanını kullanıyoruz.
+        RaporFiltreTuru.durum,
       },
     ),
     RaporSecenegi(
@@ -847,6 +845,8 @@ class RaporlarServisi {
             tr('common.active'),
             tr('common.passive'),
           ]),
+          // Ürün Hareketleri raporunda "Tür" filtresi için kullanılır.
+          'product_movements': _options([tr('common.all'), 'Ürün']),
         },
         islemTurleri: <String, List<RaporSecimSecenegi>>{
           'account_statement': _options([
@@ -1073,10 +1073,9 @@ class RaporlarServisi {
           pageSize: pageSize,
         );
       case 'purchase_sales_movements':
-        return _buildOptimizedCariRapor(
+        return _buildOptimizedAlisSatisHareketleri(
           rapor,
           filtreler,
-          mod: _CariRaporModu.karma,
           arama: arama,
           cursor: cursor,
           sortKey: sortKey,
@@ -4972,8 +4971,7 @@ class RaporlarServisi {
 
     final String whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
 
-    final String baseSelect =
-        '''
+    final String baseSelect = '''
       SELECT
         sm.id::bigint AS gid,
         sm.movement_date AS tarih,
@@ -5229,7 +5227,8 @@ class RaporlarServisi {
       return '-';
     }
 
-    final mappedRows = pageResult.rows.map((item) {
+    final mappedRows = pageResult.rows
+        .map((item) {
           final DateTime? tarih = _toDateTime(item['tarih']);
           final bool incoming = item['is_giris'] == true;
           final String islemRaw = item['islem']?.toString() ?? '-';
@@ -5297,14 +5296,12 @@ class RaporlarServisi {
             'oiv_orani': fmtRate(item['oiv_orani']),
             'tevkifat': fmtTevkifat(item['kdv_tevkifat_orani']),
             'isk_orani': iskOrani == 0 ? '-' : fmtRate(iskOrani),
-            'birim_fiyati':
-                birimFiyati == 0 ? '-' : _formatMoney(birimFiyati),
+            'birim_fiyati': birimFiyati == 0 ? '-' : _formatMoney(birimFiyati),
             'matrah': matrah == 0 ? '-' : _formatMoney(matrah),
             'kdv': kdvTutari == 0 ? '-' : _formatMoney(kdvTutari),
             'otv_tutari': otvTutari == 0 ? '-' : _formatMoney(otvTutari),
             'oiv_tutari': oivTutari == 0 ? '-' : _formatMoney(oivTutari),
-            'genel_toplam':
-                genelToplam == 0 ? '-' : _formatMoney(genelToplam),
+            'genel_toplam': genelToplam == 0 ? '-' : _formatMoney(genelToplam),
           };
 
           final Map<String, dynamic> extra = <String, dynamic>{
@@ -5345,10 +5342,12 @@ class RaporlarServisi {
               ].join(' '),
             );
 
-            final bool matchesInMain =
-                searchTokens.every((token) => mainHaystack.contains(token));
-            final bool matchesInHidden =
-                searchTokens.every((token) => hiddenHaystack.contains(token));
+            final bool matchesInMain = searchTokens.every(
+              (token) => mainHaystack.contains(token),
+            );
+            final bool matchesInHidden = searchTokens.every(
+              (token) => hiddenHaystack.contains(token),
+            );
             if (!matchesInMain && matchesInHidden) {
               extra['matchedInHidden'] = true;
             }
@@ -5383,7 +5382,8 @@ class RaporlarServisi {
             },
             extra: extra,
           );
-        }).toList(growable: false);
+        })
+        .toList(growable: false);
 
     final summaryKey = _summaryCacheKey(
       reportId: rapor.id,
@@ -5635,6 +5635,726 @@ class RaporlarServisi {
     );
   }
 
+  Future<RaporSonucu> _buildOptimizedAlisSatisHareketleri(
+    RaporSecenegi rapor,
+    RaporFiltreleri filtreler, {
+    required String arama,
+    String? cursor,
+    String? sortKey,
+    required bool sortAscending,
+    required int page,
+    required int pageSize,
+  }) async {
+    final pool = await _havuzAl();
+    final effectiveArama = _normalizeNumericSearchForReports(arama);
+
+    String sortExpr(String? key) {
+      switch (key) {
+        case 'tarih':
+          return 'base.tarih';
+        case 'islem':
+          return "COALESCE(base.islem, '')";
+        case 'yer':
+          return "COALESCE(base.yer, '')";
+        case 'yer_kodu':
+          return "COALESCE(base.yer_kodu, '')";
+        case 'yer_adi':
+          return "COALESCE(base.yer_adi, '')";
+        case 'vkn_tckn':
+          return "COALESCE(base.vkn_tckn, '')";
+        case 'matrah':
+          return 'base.matrah';
+        case 'kdv':
+          return 'base.kdv';
+        case 'toplam_vergi':
+          return 'base.toplam_vergi';
+        case 'genel_toplam':
+          return 'base.genel_toplam';
+        case 'kur':
+          return 'base.kur';
+        case 'belge':
+          return "COALESCE(base.belge, '')";
+        case 'e_belge':
+          return "COALESCE(base.e_belge, '')";
+        case 'irsaliye_no':
+          return "COALESCE(base.irsaliye_no, '')";
+        case 'fatura_no':
+          return "COALESCE(base.fatura_no, '')";
+        case 'aciklama':
+          return "COALESCE(base.aciklama, '')";
+        case 'kullanici':
+          return "COALESCE(base.kullanici, '')";
+        default:
+          return 'base.tarih';
+      }
+    }
+
+    final params = <String, dynamic>{};
+    final where = <String>[];
+
+    if (filtreler.baslangicTarihi != null) {
+      params['baslangic'] = DateTime(
+        filtreler.baslangicTarihi!.year,
+        filtreler.baslangicTarihi!.month,
+        filtreler.baslangicTarihi!.day,
+      ).toIso8601String();
+      where.add('base.tarih >= @baslangic');
+    }
+    if (filtreler.bitisTarihi != null) {
+      params['bitis'] = DateTime(
+        filtreler.bitisTarihi!.year,
+        filtreler.bitisTarihi!.month,
+        filtreler.bitisTarihi!.day,
+      ).add(const Duration(days: 1)).toIso8601String();
+      where.add('base.tarih < @bitis');
+    }
+
+    final String? islemTuruFilter = _emptyToNull(filtreler.islemTuru);
+    if (islemTuruFilter != null) {
+      params['islemTuru'] = islemTuruFilter;
+      where.add(
+        "normalize_text(COALESCE(base.islem, '')) = normalize_text(@islemTuru)",
+      );
+    }
+
+    final String? belgeFilter = _emptyToNull(filtreler.belgeNo);
+    if (belgeFilter != null) {
+      final faturaClean =
+          "TRIM(REPLACE(COALESCE(base.fatura_no, ''), '-', ''))";
+      final irsaliyeClean =
+          "TRIM(REPLACE(COALESCE(base.irsaliye_no, ''), '-', ''))";
+
+      switch (belgeFilter) {
+        case 'Fatura':
+          where.add("($faturaClean <> '' AND $irsaliyeClean = '')");
+          break;
+        case 'İrsaliye':
+          where.add("($irsaliyeClean <> '' AND $faturaClean = '')");
+          break;
+        case 'İrsaliyeli Fatura':
+          where.add("($faturaClean <> '' AND $irsaliyeClean <> '')");
+          break;
+        case '-':
+          where.add("($faturaClean = '' AND $irsaliyeClean = '')");
+          break;
+        default:
+          break;
+      }
+    }
+
+    const String eBelgeVarSentinel = '__HAS_EBELGE__';
+    final String? eBelgeFilter = _emptyToNull(filtreler.referansNo);
+    if (eBelgeFilter != null) {
+      if (eBelgeFilter == eBelgeVarSentinel) {
+        where.add(
+          "COALESCE(NULLIF(TRIM(COALESCE(base.e_belge, '')), ''), '-') <> '-'",
+        );
+      } else {
+        params['eBelgeFiltre'] = eBelgeFilter;
+        where.add(
+          "normalize_text(COALESCE(NULLIF(base.e_belge, ''), '-')) = normalize_text(@eBelgeFiltre)",
+        );
+      }
+    }
+
+    _addSearchConditionAny(where, params, [
+      'COALESCE(base.search_tags_sm, \'\')',
+      'COALESCE(base.search_tags_cat, \'\')',
+      'COALESCE(base.search_tags_ca, \'\')',
+      "normalize_text(COALESCE(base.islem, ''))",
+      "normalize_text(COALESCE(base.yer, ''))",
+      "normalize_text(COALESCE(base.yer_kodu, ''))",
+      "normalize_text(COALESCE(base.yer_adi, ''))",
+      "normalize_text(COALESCE(base.vkn_tckn, ''))",
+      "normalize_text(COALESCE(base.belge, ''))",
+      "normalize_text(COALESCE(base.fatura_no, ''))",
+      "normalize_text(COALESCE(base.irsaliye_no, ''))",
+      "normalize_text(COALESCE(base.e_belge, ''))",
+      "normalize_text(COALESCE(base.aciklama, ''))",
+      "normalize_text(COALESCE(base.kullanici, ''))",
+      // Numeric columns (best-effort, matches raw DB representation)
+      'COALESCE(base.matrah, 0)::text',
+      'COALESCE(base.kdv, 0)::text',
+      'COALESCE(base.toplam_vergi, 0)::text',
+      'COALESCE(base.genel_toplam, 0)::text',
+      'COALESCE(base.kur, 0)::text',
+    ], effectiveArama);
+
+    final String whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
+
+    final yerCariHesapLabel = tr(
+      'cashregisters.transaction.type.current_account',
+    ).replaceAll("'", "''");
+    final yerPerakendeLabel = tr(
+      'reports.payment_types.retail',
+    ).replaceAll("'", "''");
+
+    final String baseSelect =
+        '''
+      WITH lines AS (
+        SELECT
+          sm.id,
+          sm.movement_date AS tarih,
+          COALESCE(sm.integration_ref, '') AS integration_ref,
+          COALESCE(sm.description, '') AS aciklama_sm,
+          COALESCE(sm.created_by, '') AS kullanici_sm,
+          CASE
+            WHEN COALESCE(sm.integration_ref, '') ILIKE 'PURCHASE-%'
+            THEN 'Alış Yapıldı'
+            WHEN COALESCE(sm.integration_ref, '') ILIKE 'SALE-%'
+              OR COALESCE(sm.integration_ref, '') ILIKE 'RETAIL-%'
+            THEN 'Satış Yapıldı'
+            ELSE COALESCE(NULLIF(TRIM(sm.movement_type), ''), 'Satış Yapıldı')
+          END AS islem,
+          COALESCE(sm.search_tags, '') AS search_tags_sm,
+          (
+            ABS(COALESCE(sm.quantity, 0)) * COALESCE(sm.unit_price, 0)
+          ) * (1 -
+            (COALESCE(NULLIF(it.item->>'discountRate', '')::numeric, 0) / 100.0)
+          ) AS matrah,
+          (
+            (
+              ABS(COALESCE(sm.quantity, 0)) * COALESCE(sm.unit_price, 0)
+            ) * (1 -
+              (COALESCE(NULLIF(it.item->>'discountRate', '')::numeric, 0) / 100.0)
+            )
+          ) * (
+            COALESCE(
+              NULLIF(it.item->>'vatRate', '')::numeric,
+              COALESCE(p.kdv_orani, 0),
+              0
+            ) / 100.0
+          ) AS kdv_tutari,
+          (
+            (
+              ABS(COALESCE(sm.quantity, 0)) * COALESCE(sm.unit_price, 0)
+            ) * (1 -
+              (COALESCE(NULLIF(it.item->>'discountRate', '')::numeric, 0) / 100.0)
+            )
+          ) * (COALESCE(NULLIF(it.item->>'otvRate', '')::numeric, 0) / 100.0) AS otv_tutari,
+          (
+            (
+              ABS(COALESCE(sm.quantity, 0)) * COALESCE(sm.unit_price, 0)
+            ) * (1 -
+              (COALESCE(NULLIF(it.item->>'discountRate', '')::numeric, 0) / 100.0)
+            )
+          ) * (COALESCE(NULLIF(it.item->>'oivRate', '')::numeric, 0) / 100.0) AS oiv_tutari,
+          (
+            (
+              (
+                ABS(COALESCE(sm.quantity, 0)) * COALESCE(sm.unit_price, 0)
+              ) * (1 -
+                (COALESCE(NULLIF(it.item->>'discountRate', '')::numeric, 0) / 100.0)
+              )
+            ) * (
+              COALESCE(
+                NULLIF(it.item->>'vatRate', '')::numeric,
+                COALESCE(p.kdv_orani, 0),
+                0
+              ) / 100.0
+            )
+          ) * COALESCE(
+            NULLIF(it.item->>'kdvTevkifatOrani', '')::numeric,
+            0
+          ) AS tevkifat_tutari,
+          (
+            (
+              ABS(COALESCE(sm.quantity, 0)) * COALESCE(sm.unit_price, 0)
+            ) * (1 -
+              (COALESCE(NULLIF(it.item->>'discountRate', '')::numeric, 0) / 100.0)
+            )
+          )
+          + (
+            (
+              (
+                ABS(COALESCE(sm.quantity, 0)) * COALESCE(sm.unit_price, 0)
+              ) * (1 -
+                (COALESCE(NULLIF(it.item->>'discountRate', '')::numeric, 0) / 100.0)
+              )
+            ) * (
+              COALESCE(
+                NULLIF(it.item->>'vatRate', '')::numeric,
+                COALESCE(p.kdv_orani, 0),
+                0
+              ) / 100.0
+            )
+          )
+          + (
+            (
+              (
+                ABS(COALESCE(sm.quantity, 0)) * COALESCE(sm.unit_price, 0)
+              ) * (1 -
+                (COALESCE(NULLIF(it.item->>'discountRate', '')::numeric, 0) / 100.0)
+              )
+            ) * (COALESCE(NULLIF(it.item->>'otvRate', '')::numeric, 0) / 100.0)
+          )
+          + (
+            (
+              (
+                ABS(COALESCE(sm.quantity, 0)) * COALESCE(sm.unit_price, 0)
+              ) * (1 -
+                (COALESCE(NULLIF(it.item->>'discountRate', '')::numeric, 0) / 100.0)
+              )
+            ) * (COALESCE(NULLIF(it.item->>'oivRate', '')::numeric, 0) / 100.0)
+          ) AS genel_toplam
+        FROM stock_movements sm
+        INNER JOIN products p ON p.id = sm.product_id
+        LEFT JOIN shipments s ON s.id = sm.shipment_id
+        LEFT JOIN LATERAL (
+          SELECT elem AS item
+          FROM jsonb_array_elements(COALESCE(s.items, '[]'::jsonb)) elem
+          WHERE COALESCE(elem->>'code', '') = COALESCE(p.kod, '')
+          LIMIT 1
+        ) it ON TRUE
+        WHERE (
+          COALESCE(sm.integration_ref, '') ILIKE 'PURCHASE-%'
+          OR COALESCE(sm.integration_ref, '') ILIKE 'SALE-%'
+          OR COALESCE(sm.integration_ref, '') ILIKE 'RETAIL-%'
+        )
+      ),
+      grouped AS (
+        SELECT
+          MIN(id)::bigint AS gid,
+          MAX(tarih) AS tarih,
+          MAX(islem) AS islem,
+          integration_ref,
+          MAX(NULLIF(TRIM(aciklama_sm), '')) AS aciklama_sm,
+          MAX(NULLIF(TRIM(kullanici_sm), '')) AS kullanici_sm,
+          MAX(search_tags_sm) AS search_tags_sm,
+          COALESCE(SUM(matrah), 0) AS matrah,
+          COALESCE(SUM(kdv_tutari), 0) AS kdv,
+          COALESCE(SUM(otv_tutari), 0) AS otv_tutari,
+          COALESCE(SUM(oiv_tutari), 0) AS oiv_tutari,
+          COALESCE(SUM(tevkifat_tutari), 0) AS tevkifat_tutari,
+          COALESCE(SUM(genel_toplam), 0) AS genel_toplam
+        FROM lines
+        GROUP BY integration_ref
+      )
+      SELECT
+        g.gid,
+        g.tarih,
+        g.islem,
+        g.integration_ref,
+        CASE
+          WHEN COALESCE(g.integration_ref, '') ILIKE 'RETAIL-%' THEN '$yerPerakendeLabel'
+          WHEN COALESCE(g.integration_ref, '') ILIKE 'SALE-%'
+            OR COALESCE(g.integration_ref, '') ILIKE 'PURCHASE-%'
+          THEN '$yerCariHesapLabel'
+          ELSE ''
+        END AS yer,
+        COALESCE(doc.yer_kodu, '') AS yer_kodu,
+        COALESCE(doc.yer_adi, '') AS yer_adi,
+        COALESCE(doc.vkn_tckn, '') AS vkn_tckn,
+        COALESCE(doc.fatura_no, '') AS fatura_no,
+        COALESCE(doc.irsaliye_no, '') AS irsaliye_no,
+        COALESCE(doc.e_belge, '') AS e_belge,
+        COALESCE(doc.para_birimi, '') AS para_birimi,
+        COALESCE(doc.kur, 1) AS kur,
+        CASE
+          WHEN TRIM(COALESCE(doc.fatura_no, '')) <> '' AND TRIM(COALESCE(doc.irsaliye_no, '')) <> '' THEN 'İrsaliyeli Fatura'
+          WHEN TRIM(COALESCE(doc.fatura_no, '')) <> '' AND TRIM(COALESCE(doc.irsaliye_no, '')) = '' THEN 'Fatura'
+          WHEN TRIM(COALESCE(doc.irsaliye_no, '')) <> '' AND TRIM(COALESCE(doc.fatura_no, '')) = '' THEN 'İrsaliye'
+          ELSE 'Yok'
+        END AS belge,
+        COALESCE(
+          NULLIF(TRIM(COALESCE(doc.aciklama, '')), ''),
+          COALESCE(g.aciklama_sm, ''),
+          ''
+        ) AS aciklama,
+        COALESCE(
+          NULLIF(TRIM(COALESCE(doc.kullanici, '')), ''),
+          COALESCE(g.kullanici_sm, ''),
+          ''
+        ) AS kullanici,
+        COALESCE(doc.search_tags_cat, '') AS search_tags_cat,
+        COALESCE(doc.search_tags_ca, '') AS search_tags_ca,
+        COALESCE(g.search_tags_sm, '') AS search_tags_sm,
+        g.matrah,
+        g.kdv,
+        g.otv_tutari,
+        g.oiv_tutari,
+        g.tevkifat_tutari,
+        (g.kdv + g.otv_tutari + g.oiv_tutari) AS toplam_vergi,
+        g.genel_toplam
+      FROM grouped g
+      LEFT JOIN LATERAL (
+        SELECT
+          MAX(NULLIF(TRIM(cat.fatura_no), '')) AS fatura_no,
+          MAX(NULLIF(TRIM(cat.irsaliye_no), '')) AS irsaliye_no,
+          MAX(NULLIF(TRIM(cat.e_belge), '')) AS e_belge,
+          MAX(NULLIF(TRIM(cat.para_birimi), '')) AS para_birimi,
+          MAX(COALESCE(cat.kur, 1)) AS kur,
+          MAX(NULLIF(TRIM(cat.user_name), '')) AS kullanici,
+          MAX(NULLIF(TRIM(cat.description), '')) AS aciklama,
+          MAX(COALESCE(cat.search_tags, '')) AS search_tags_cat,
+          MAX(NULLIF(TRIM(ca.kod_no), '')) AS yer_kodu,
+          MAX(NULLIF(TRIM(ca.adi), '')) AS yer_adi,
+          MAX(NULLIF(TRIM(ca.v_numarasi), '')) AS vkn_tckn,
+          MAX(COALESCE(ca.search_tags, '')) AS search_tags_ca
+        FROM current_account_transactions cat
+        LEFT JOIN current_accounts ca ON ca.id = cat.current_account_id
+        WHERE cat.integration_ref = g.integration_ref
+      ) doc ON TRUE
+    ''';
+
+    final String baseQuery =
+        '''
+      SELECT base.*, ${sortExpr(sortKey)} AS sort_val
+      FROM ($baseSelect) base
+      $whereSql
+    ''';
+
+    final pageResult = await _fetchKeysetPageById(
+      pool: pool,
+      baseQuery: baseQuery,
+      paramsBase: params,
+      sortAlias: 'sort_val',
+      sortAscending: sortAscending,
+      pageSize: pageSize,
+      cursor: cursor,
+      idColumn: 'gid',
+    );
+
+    String dashIfEmpty(String value) {
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? '-' : trimmed;
+    }
+
+    final mappedRows = pageResult.rows
+        .map((item) {
+          final DateTime? tarih = _toDateTime(item['tarih']);
+          final String islemRaw = item['islem']?.toString() ?? '-';
+          final String integrationRef =
+              item['integration_ref']?.toString() ?? '';
+          final double matrah = _toDouble(item['matrah']);
+          final double kdv = _toDouble(item['kdv']);
+          final double toplamVergi = _toDouble(item['toplam_vergi']);
+          final double genelToplam = _toDouble(item['genel_toplam']);
+
+          final Map<String, dynamic> extra = <String, dynamic>{};
+          if (integrationRef.trim().isNotEmpty) {
+            extra['integrationRef'] = integrationRef.trim();
+          }
+
+          return RaporSatiri(
+            id: 'purchase_sales_${item['gid']}',
+            cells: {
+              'tarih': _formatDate(tarih),
+              'islem': IslemCeviriYardimcisi.cevir(islemRaw),
+              'yer': dashIfEmpty(item['yer']?.toString() ?? ''),
+              'yer_kodu': dashIfEmpty(item['yer_kodu']?.toString() ?? ''),
+              'yer_adi': dashIfEmpty(item['yer_adi']?.toString() ?? ''),
+              'vkn_tckn': dashIfEmpty(item['vkn_tckn']?.toString() ?? ''),
+              'matrah': matrah == 0 ? '-' : _formatMoney(matrah),
+              'kdv': kdv == 0 ? '-' : _formatMoney(kdv),
+              'toplam_vergi': toplamVergi == 0
+                  ? '-'
+                  : _formatMoney(toplamVergi),
+              'genel_toplam': genelToplam == 0
+                  ? '-'
+                  : _formatMoney(genelToplam),
+              'kur': _formatExchangeRate(item['kur']),
+              'belge': dashIfEmpty(item['belge']?.toString() ?? ''),
+              'e_belge': dashIfEmpty(item['e_belge']?.toString() ?? ''),
+              'irsaliye_no': dashIfEmpty(item['irsaliye_no']?.toString() ?? ''),
+              'fatura_no': dashIfEmpty(item['fatura_no']?.toString() ?? ''),
+              'aciklama': dashIfEmpty(item['aciklama']?.toString() ?? ''),
+              'kullanici': dashIfEmpty(item['kullanici']?.toString() ?? ''),
+            },
+            amountValue: genelToplam,
+            sortValues: {
+              'tarih': tarih,
+              'islem': islemRaw,
+              'yer': item['yer'],
+              'yer_kodu': item['yer_kodu'],
+              'yer_adi': item['yer_adi'],
+              'vkn_tckn': item['vkn_tckn'],
+              'matrah': matrah,
+              'kdv': kdv,
+              'toplam_vergi': toplamVergi,
+              'genel_toplam': genelToplam,
+              'kur': _toDouble(item['kur']),
+              'belge': item['belge'],
+              'e_belge': item['e_belge'],
+              'irsaliye_no': item['irsaliye_no'],
+              'fatura_no': item['fatura_no'],
+              'aciklama': item['aciklama'],
+              'kullanici': item['kullanici'],
+            },
+            extra: extra.isEmpty ? const <String, dynamic>{} : extra,
+          );
+        })
+        .toList(growable: false);
+
+    bool hasAnyValue(String key) {
+      for (final row in mappedRows) {
+        final String raw = row.cells[key] ?? '';
+        final String trimmed = raw.trim();
+        if (trimmed.isEmpty || trimmed == '-') continue;
+        return true;
+      }
+      return false;
+    }
+
+    final bool hasYerKodu = hasAnyValue('yer_kodu');
+    final bool hasYerAdi = hasAnyValue('yer_adi');
+    final bool hasVknTckn = hasAnyValue('vkn_tckn');
+    final bool hasKur = hasAnyValue('kur');
+    final bool hasBelge = hasAnyValue('belge');
+    final bool hasEBelge = hasAnyValue('e_belge');
+    final bool hasIrsaliyeNo = hasAnyValue('irsaliye_no');
+    final bool hasFaturaNo = hasAnyValue('fatura_no');
+    final bool hasAciklama = hasAnyValue('aciklama');
+    final bool hasKullanici = hasAnyValue('kullanici');
+
+    final summaryKey = _summaryCacheKey(
+      reportId: rapor.id,
+      filtreler: filtreler,
+      arama: arama,
+    );
+    final summaryCardsFuture = _getOrComputeSummaryCards(
+      cacheKey: summaryKey,
+      loader: () async {
+        final rows = await _queryMaps(pool, '''
+          SELECT
+            COALESCE(SUM(COALESCE(base.matrah, 0)), 0) AS matrah,
+            COALESCE(SUM(COALESCE(base.kdv, 0)), 0) AS kdv,
+            COALESCE(SUM(COALESCE(base.toplam_vergi, 0)), 0) AS toplam_vergi,
+            COALESCE(SUM(COALESCE(base.genel_toplam, 0)), 0) AS genel_toplam,
+            COALESCE(SUM(COALESCE(base.otv_tutari, 0)), 0) AS otv_tutari,
+            COALESCE(SUM(COALESCE(base.oiv_tutari, 0)), 0) AS oiv_tutari,
+            COALESCE(SUM(COALESCE(base.tevkifat_tutari, 0)), 0) AS tevkifat_tutari
+          FROM ($baseSelect) base
+          $whereSql
+          ''', params);
+        final data = rows.isEmpty ? const <String, dynamic>{} : rows.first;
+
+        final double matrah = _toDouble(data['matrah']);
+        final double kdv = _toDouble(data['kdv']);
+        final double toplamVergi = _toDouble(data['toplam_vergi']);
+        final double genelToplam = _toDouble(data['genel_toplam']);
+        final double otvTutari = _toDouble(data['otv_tutari']);
+        final double oivTutari = _toDouble(data['oiv_tutari']);
+        final double tevkifatTutari = _toDouble(data['tevkifat_tutari']);
+
+        final cards = <RaporOzetKarti>[
+          RaporOzetKarti(
+            labelKey: 'Matrah',
+            value: _formatMoney(matrah),
+            icon: Icons.calculate_outlined,
+            accentColor: AppPalette.slate,
+          ),
+          RaporOzetKarti(
+            labelKey: 'KDV %18',
+            value: _formatMoney(kdv),
+            icon: Icons.percent_rounded,
+            accentColor: AppPalette.amber,
+          ),
+          RaporOzetKarti(
+            labelKey: 'Toplam Vergi',
+            value: _formatMoney(toplamVergi),
+            icon: Icons.receipt_long_outlined,
+            accentColor: AppPalette.slate,
+          ),
+          RaporOzetKarti(
+            labelKey: 'Genel Toplam',
+            value: _formatMoney(genelToplam),
+            icon: Icons.summarize_outlined,
+            accentColor: AppPalette.slate,
+          ),
+        ];
+
+        if (otvTutari != 0) {
+          cards.add(
+            RaporOzetKarti(
+              labelKey: 'ÖTV Tutarı',
+              value: _formatMoney(otvTutari),
+              icon: Icons.percent_rounded,
+              accentColor: AppPalette.amber,
+            ),
+          );
+        }
+        if (oivTutari != 0) {
+          cards.add(
+            RaporOzetKarti(
+              labelKey: 'ÖİV Tutarı',
+              value: _formatMoney(oivTutari),
+              icon: Icons.percent_rounded,
+              accentColor: AppPalette.amber,
+            ),
+          );
+        }
+        if (tevkifatTutari != 0) {
+          cards.add(
+            RaporOzetKarti(
+              labelKey: 'Tevkifat Tutarı',
+              value: _formatMoney(tevkifatTutari),
+              icon: Icons.percent_rounded,
+              accentColor: AppPalette.slate,
+            ),
+          );
+        }
+
+        return cards;
+      },
+    );
+
+    // İşlem toplamları (filtre dropdown'ı için) - işlem filtresi hariç.
+    final islemTotalsKey = _summaryCacheKey(
+      reportId: rapor.id,
+      filtreler: filtreler.copyWith(clearIslemTuru: true),
+      arama: arama,
+      extra: 'islem_totals',
+    );
+    final islemToplamlariFuture = _getOrComputeIslemToplamlari(
+      cacheKey: islemTotalsKey,
+      loader: () async {
+        final paramsTotals = <String, dynamic>{...params};
+        final whereTotals = <String>[];
+
+        if (filtreler.baslangicTarihi != null) {
+          whereTotals.add('base.tarih >= @baslangic');
+        }
+        if (filtreler.bitisTarihi != null) {
+          whereTotals.add('base.tarih < @bitis');
+        }
+
+        if (belgeFilter != null) {
+          final faturaClean =
+              "TRIM(REPLACE(COALESCE(base.fatura_no, ''), '-', ''))";
+          final irsaliyeClean =
+              "TRIM(REPLACE(COALESCE(base.irsaliye_no, ''), '-', ''))";
+
+          switch (belgeFilter) {
+            case 'Fatura':
+              whereTotals.add("($faturaClean <> '' AND $irsaliyeClean = '')");
+              break;
+            case 'İrsaliye':
+              whereTotals.add("($irsaliyeClean <> '' AND $faturaClean = '')");
+              break;
+            case 'İrsaliyeli Fatura':
+              whereTotals.add("($faturaClean <> '' AND $irsaliyeClean <> '')");
+              break;
+            case '-':
+              whereTotals.add("($faturaClean = '' AND $irsaliyeClean = '')");
+              break;
+            default:
+              break;
+          }
+        }
+
+        if (eBelgeFilter != null) {
+          if (eBelgeFilter == eBelgeVarSentinel) {
+            whereTotals.add(
+              "COALESCE(NULLIF(TRIM(COALESCE(base.e_belge, '')), ''), '-') <> '-'",
+            );
+          } else {
+            paramsTotals['eBelgeFiltre'] = eBelgeFilter;
+            whereTotals.add(
+              "normalize_text(COALESCE(NULLIF(base.e_belge, ''), '-')) = normalize_text(@eBelgeFiltre)",
+            );
+          }
+        }
+
+        _addSearchConditionAny(whereTotals, paramsTotals, [
+          'COALESCE(base.search_tags_sm, \'\')',
+          'COALESCE(base.search_tags_cat, \'\')',
+          'COALESCE(base.search_tags_ca, \'\')',
+          "normalize_text(COALESCE(base.islem, ''))",
+          "normalize_text(COALESCE(base.yer, ''))",
+          "normalize_text(COALESCE(base.yer_kodu, ''))",
+          "normalize_text(COALESCE(base.yer_adi, ''))",
+          "normalize_text(COALESCE(base.vkn_tckn, ''))",
+          "normalize_text(COALESCE(base.belge, ''))",
+          "normalize_text(COALESCE(base.fatura_no, ''))",
+          "normalize_text(COALESCE(base.irsaliye_no, ''))",
+          "normalize_text(COALESCE(base.e_belge, ''))",
+          "normalize_text(COALESCE(base.aciklama, ''))",
+          // Numeric columns (best-effort, matches raw DB representation)
+          'COALESCE(base.matrah, 0)::text',
+          'COALESCE(base.kdv, 0)::text',
+          'COALESCE(base.genel_toplam, 0)::text',
+        ], effectiveArama);
+
+        final String whereSqlTotals = whereTotals.isEmpty
+            ? ''
+            : 'WHERE ${whereTotals.join(' AND ')}';
+
+        final totals = await _queryMaps(pool, '''
+          SELECT
+            base.islem,
+            COUNT(*) AS adet,
+            COALESCE(SUM(COALESCE(base.genel_toplam, 0)), 0) AS toplam
+          FROM ($baseSelect) base
+          $whereSqlTotals
+          GROUP BY base.islem
+          ORDER BY normalize_text(COALESCE(base.islem, ''))
+        ''', paramsTotals);
+
+        return totals
+            .map((row) {
+              final String rawIslem = row['islem']?.toString() ?? '-';
+              final int adet = _toInt(row['adet']) ?? 0;
+              final double toplam = _toDouble(row['toplam']);
+              return RaporIslemToplami(
+                rawIslem: rawIslem,
+                islem: IslemCeviriYardimcisi.cevir(rawIslem),
+                tutar: _formatMoney(toplam),
+                adet: adet,
+              );
+            })
+            .where((item) => item.islem.trim().isNotEmpty && item.islem != '-')
+            .toList(growable: false);
+      },
+    );
+
+    final summaryCards = await summaryCardsFuture;
+    final islemToplamlari = await islemToplamlariFuture;
+
+    return RaporSonucu(
+      report: rapor,
+      columns: [
+        _column('tarih', 'Tarih', 120),
+        _column('islem', 'İşlem', 150),
+        _column('yer', 'Yer', 130),
+        if (hasYerKodu) _column('yer_kodu', 'Yer Kodu', 110),
+        if (hasYerAdi) _column('yer_adi', 'Yer Adı', 220),
+        if (hasVknTckn) _column('vkn_tckn', 'VKN/TCKN', 150),
+        _column('matrah', 'Matrah', 130, alignment: Alignment.centerRight),
+        _column('kdv', 'KDV %18', 120, alignment: Alignment.centerRight),
+        _column(
+          'toplam_vergi',
+          'Toplam Vergi',
+          130,
+          alignment: Alignment.centerRight,
+        ),
+        _column(
+          'genel_toplam',
+          'Genel Toplam',
+          140,
+          alignment: Alignment.centerRight,
+        ),
+        if (hasKur) _column('kur', 'Kur', 90, alignment: Alignment.centerRight),
+        if (hasBelge) _column('belge', 'Belge', 150),
+        if (hasEBelge) _column('e_belge', 'E-belge', 130),
+        if (hasIrsaliyeNo) _column('irsaliye_no', 'İrsaliye No', 150),
+        if (hasFaturaNo) _column('fatura_no', 'Fatura No', 150),
+        if (hasAciklama) _column('aciklama', 'Açıklama', 240),
+        if (hasKullanici) _column('kullanici', 'Kullanıcı', 110),
+      ],
+      rows: mappedRows,
+      summaryCards: summaryCards,
+      islemToplamlari: islemToplamlari,
+      totalCount: 0,
+      page: page,
+      pageSize: pageSize,
+      hasNextPage: pageResult.hasNextPage,
+      cursorPagination: true,
+      nextCursor: pageResult.nextCursor,
+      mainTableLabel: tr(rapor.labelKey),
+    );
+  }
+
   Future<RaporSonucu> _buildOptimizedSonIslemTarihi(
     RaporSecenegi rapor,
     RaporFiltreleri filtreler, {
@@ -5770,8 +6490,9 @@ class RaporlarServisi {
           final String paraBirimi = cari['para_birimi']?.toString() ?? 'TRY';
           final String islemParaBirimi =
               cari['son_islem_para_birimi']?.toString() ?? '';
-          final String effectiveIslemParaBirimi =
-              islemParaBirimi.trim().isEmpty ? paraBirimi : islemParaBirimi;
+          final String effectiveIslemParaBirimi = islemParaBirimi.trim().isEmpty
+              ? paraBirimi
+              : islemParaBirimi;
           final int? gecenGun = _toInt(cari['gecen_gun']);
           return RaporSatiri(
             id: 'son_islem_${cari['id']}',
@@ -5789,7 +6510,10 @@ class RaporlarServisi {
                     )
                   : '-',
               'son_islem_tutar': hasTx
-                  ? _formatMoney(sonIslemTutar, currency: effectiveIslemParaBirimi)
+                  ? _formatMoney(
+                      sonIslemTutar,
+                      currency: effectiveIslemParaBirimi,
+                    )
                   : '-',
               'son_islem_tarihi': hasTx ? _formatDate(tarih) : '-',
               'gecen_gun': hasTx ? (gecenGun ?? 0).toString() : '-',
@@ -5823,11 +6547,7 @@ class RaporlarServisi {
         final String query = hasSearchTokens
             ? 'SELECT COUNT(*) AS kayit FROM ($baseSelect) base'
             : 'SELECT COUNT(*) AS kayit FROM current_accounts ca';
-        final rows = await _queryMaps(
-          pool,
-          query,
-          params,
-        );
+        final rows = await _queryMaps(pool, query, params);
         final int kayit = rows.isEmpty
             ? 0
             : (rows.first['kayit'] as num?)?.toInt() ?? 0;
@@ -5847,11 +6567,7 @@ class RaporlarServisi {
       columns: [
         _column('kod', 'common.code_no', 120),
         _column('ad', 'common.name', 220),
-        _column(
-          'tur',
-          'accounts.table.account_type',
-          140,
-        ),
+        _column('tur', 'accounts.table.account_type', 140),
         _column(
           'bakiye_borc',
           'accounts.balance.debit_label',
@@ -7498,107 +8214,434 @@ class RaporlarServisi {
     required int pageSize,
   }) async {
     final pool = await _havuzAl();
-    final kullaniciAdi = await _resolveKullaniciAdi(filtreler.kullaniciId);
-    final params = <String, dynamic>{};
-    final where = <String>[];
+    final effectiveArama = _normalizeNumericSearchForReports(arama);
 
-    if (filtreler.baslangicTarihi != null) {
-      params['baslangic'] = DateTime(
-        filtreler.baslangicTarihi!.year,
-        filtreler.baslangicTarihi!.month,
-        filtreler.baslangicTarihi!.day,
-      ).toIso8601String();
-      where.add('sm.movement_date >= @baslangic');
-    }
-    if (filtreler.bitisTarihi != null) {
-      params['bitis'] = DateTime(
-        filtreler.bitisTarihi!.year,
-        filtreler.bitisTarihi!.month,
-        filtreler.bitisTarihi!.day,
-      ).add(const Duration(days: 1)).toIso8601String();
-      where.add('sm.movement_date < @bitis');
-    }
-    if (_emptyToNull(filtreler.urunKodu) != null) {
-      params['urunKodu'] = filtreler.urunKodu;
-      where.add('p.kod = @urunKodu');
-    }
-    if (_emptyToNull(filtreler.urunGrubu) != null) {
-      params['urunGrubu'] = filtreler.urunGrubu;
-      where.add("COALESCE(p.grubu, '') = @urunGrubu");
-    }
-    if (filtreler.depoId != null) {
-      params['depoId'] = filtreler.depoId;
-      where.add('sm.warehouse_id = @depoId');
-    }
-    if (_emptyToNull(kullaniciAdi) != null) {
-      params['kullanici'] = _emptyToNull(kullaniciAdi);
-      where.add("COALESCE(sm.created_by, '') = @kullanici");
-    }
-    if (filtreler.minMiktar != null) {
-      params['minMiktar'] = filtreler.minMiktar;
-      where.add('sm.quantity >= @minMiktar');
-    }
-    if (filtreler.maxMiktar != null) {
-      params['maxMiktar'] = filtreler.maxMiktar;
-      where.add('sm.quantity <= @maxMiktar');
-    }
-    _addSearchConditionAny(where, params, const <String>[
-      'sm.search_tags',
-      'p.search_tags',
-    ], arama);
-
-    final whereSql = where.isEmpty ? '' : 'WHERE ${where.join(' AND ')}';
     String sortExpr(String? key) {
       switch (key) {
+        case 'islem':
+          return "COALESCE(base.islem, '')";
         case 'tarih':
           return 'base.tarih';
-        case 'urun_kodu':
-          return "COALESCE(base.urun_kodu, '')";
-        case 'urun_adi':
-          return "COALESCE(base.urun_adi, '')";
-        case 'islem':
-          return "COALESCE(base.islem_turu, '')";
+        case 'tur':
+          return "COALESCE(base.tur, '')";
+        case 'kod':
+          return "COALESCE(base.kod, '')";
+        case 'ad':
+          return "COALESCE(base.ad, '')";
+        case 'grubu':
+          return "COALESCE(base.grubu, '')";
+        case 'ozellik1':
+        case 'ozellik2':
+        case 'ozellik3':
+          return "COALESCE(base.ozellikler, '')";
         case 'depo':
-          return "COALESCE(base.depo_adi, '')";
-        case 'giris':
-        case 'cikis':
+          return "COALESCE(base.depo, '')";
+        case 'miktar':
           return 'base.miktar';
-        case 'maliyet':
+        case 'olcu':
+          return "COALESCE(base.olcu, '')";
+        case 'birim_fiyat':
           return 'base.birim_fiyat';
-        case 'kullanici':
-          return "COALESCE(base.kullanici, '')";
+        case 'birim_fiyat_vd':
+          return 'base.birim_fiyat_vd';
+        case 'yer_kodu':
+          return "COALESCE(base.yer_kodu, '')";
+        case 'yer_adi':
+          return "COALESCE(base.yer_adi, '')";
+        case 'aciklama':
+          return "COALESCE(base.aciklama, '')";
         default:
           return 'base.tarih';
       }
     }
 
-    final baseSelect =
+    List<String> extractFeatureNames(String raw) {
+      final cleaned = raw.trim();
+      if (cleaned.isEmpty) return const <String>[];
+      try {
+        final decoded = jsonDecode(cleaned);
+        if (decoded is List) {
+          return decoded
+              .map((e) {
+                if (e is Map) return e['name']?.toString() ?? '';
+                return e?.toString() ?? '';
+              })
+              .map((s) => s.trim())
+              .where((s) => s.isNotEmpty && s != 'null')
+              .toList(growable: false);
+        }
+      } catch (_) {
+        // ignore: fallback to comma split below
+      }
+      return cleaned
+          .split(',')
+          .map((e) => e.trim())
+          .where((e) => e.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    String formatQuantityTotalsByUnit(Map<String, double> totalsByUnit) {
+      if (totalsByUnit.isEmpty) return '-';
+      final entries = totalsByUnit.entries.toList()
+        ..sort((a, b) => a.key.compareTo(b.key));
+      return entries
+          .map((e) => '${_formatNumber(e.value)} ${e.key}'.trim())
+          .join(', ');
+    }
+
+    final String vatMultiplier =
+        '(1 + COALESCE(p.kdv_orani, 0) / 100.0)::numeric';
+
+    final String netUnitPriceExpr =
+        '''
+      CASE
+        WHEN COALESCE(sm.vat_status, 'excluded') ILIKE 'included' THEN
+          CASE
+            WHEN COALESCE(p.kdv_orani, 0) = 0 THEN COALESCE(sm.unit_price, 0)
+            ELSE COALESCE(sm.unit_price, 0) / $vatMultiplier
+          END
+        ELSE COALESCE(sm.unit_price, 0)
+      END
+    ''';
+
+    final String grossUnitPriceExpr =
+        '''
+      CASE
+        WHEN COALESCE(sm.vat_status, 'excluded') ILIKE 'included'
+        THEN COALESCE(sm.unit_price, 0)
+        ELSE COALESCE(sm.unit_price, 0) * $vatMultiplier
+      END
+    ''';
+
+    final String islemExpr = '''
+      CASE
+        WHEN COALESCE(sm.integration_ref, '') = 'opening_stock'
+          OR COALESCE(sm.description, '') ILIKE '%Açılış%'
+          OR COALESCE(sm.description, '') ILIKE '%Acilis%'
+        THEN 'Açılış Stoğu'
+        WHEN COALESCE(sm.integration_ref, '') ILIKE 'PURCHASE-%'
+        THEN 'Alış Yapıldı'
+        WHEN COALESCE(sm.integration_ref, '') ILIKE 'SALE-%'
+          OR COALESCE(sm.integration_ref, '') ILIKE 'RETAIL-%'
+        THEN 'Satış Yapıldı'
+        WHEN LOWER(COALESCE(sm.integration_ref, '')) = 'production_output'
+          OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%'
+          OR COALESCE(sm.description, '') ILIKE '%Uretim (Cikti)%'
+        THEN 'Üretim Çıkışı'
+        WHEN LOWER(TRIM(COALESCE(sm.movement_type, ''))) LIKE '%devir%'
+        THEN CASE WHEN sm.is_giris THEN 'Devir Giriş' ELSE 'Devir Çıkış' END
+        WHEN LOWER(TRIM(COALESCE(sm.movement_type, ''))) LIKE '%sevkiyat%'
+          OR LOWER(TRIM(COALESCE(sm.movement_type, ''))) LIKE '%transfer%'
+        THEN 'Sevkiyat'
+        WHEN LOWER(TRIM(COALESCE(sm.movement_type, ''))) LIKE '%uretim%'
+          OR LOWER(TRIM(COALESCE(sm.movement_type, ''))) LIKE '%üretim%'
+        THEN CASE
+          WHEN sm.is_giris THEN 'Üretim Girişi'
+          ELSE 'Üretim Çıkışı'
+        END
+        WHEN LOWER(TRIM(COALESCE(sm.movement_type, ''))) IN ('giriş', 'giris', 'girdi')
+        THEN 'Stok Giriş'
+        WHEN LOWER(TRIM(COALESCE(sm.movement_type, ''))) IN ('çıkış', 'cikis', 'çıktı', 'cikti')
+        THEN 'Stok Çıkış'
+        ELSE COALESCE(
+          NULLIF(TRIM(sm.movement_type), ''),
+          CASE WHEN sm.is_giris THEN 'Stok Giriş' ELSE 'Stok Çıkış' END
+        )
+      END
+    ''';
+
+    final String baseSelect =
         '''
       SELECT
         sm.id,
         sm.movement_date AS tarih,
-        sm.quantity AS miktar,
-        sm.is_giris,
-        sm.unit_price AS birim_fiyat,
-        sm.description AS aciklama,
-        sm.movement_type AS islem_turu,
-        sm.created_by AS kullanici,
-        sm.integration_ref,
-        p.kod AS urun_kodu,
-        p.ad AS urun_adi,
-        p.birim,
-        COALESCE(d.ad, '-') AS depo_adi
+        $islemExpr AS islem,
+        'Ürün' AS tur,
+        COALESCE(p.kod, '-') AS kod,
+        COALESCE(p.ad, '-') AS ad,
+        COALESCE(p.grubu, '') AS grubu,
+        COALESCE(p.ozellikler, '') AS ozellikler,
+        COALESCE(d.ad, '-') AS depo,
+        COALESCE(p.birim, 'Adet') AS olcu,
+        ABS(COALESCE(sm.quantity, 0)) AS miktar,
+        (
+          ($netUnitPriceExpr) * COALESCE(sm.currency_rate, 1)
+        ) AS birim_fiyat,
+        (
+          ($grossUnitPriceExpr) * COALESCE(sm.currency_rate, 1)
+        ) AS birim_fiyat_vd,
+        (
+          ABS(COALESCE(sm.quantity, 0))
+          * ($grossUnitPriceExpr)
+          * COALESCE(sm.currency_rate, 1)
+        ) AS toplam_vd,
+        COALESCE(NULLIF(TRIM(COALESCE(ca.kod_no::text, '')), ''), '-') AS yer_kodu,
+        COALESCE(NULLIF(TRIM(COALESCE(ca.adi::text, '')), ''), '-') AS yer_adi,
+        COALESCE(NULLIF(TRIM(COALESCE(sm.description, '')), ''), '-') AS aciklama,
+        COALESCE(sm.search_tags, '') AS search_tags_sm,
+        COALESCE(p.search_tags, '') AS search_tags_p,
+        COALESCE(ca.search_tags, '') AS search_tags_ca
       FROM stock_movements sm
       INNER JOIN products p ON p.id = sm.product_id
       LEFT JOIN depots d ON d.id = sm.warehouse_id
-      $whereSql
+      LEFT JOIN LATERAL (
+        SELECT cat.current_account_id
+        FROM current_account_transactions cat
+        WHERE COALESCE(cat.integration_ref, '') <> ''
+          AND cat.integration_ref = sm.integration_ref
+        ORDER BY cat.date DESC, cat.id DESC
+        LIMIT 1
+      ) cat_pick ON TRUE
+      LEFT JOIN current_accounts ca ON ca.id = cat_pick.current_account_id
     ''';
+
+    ({Map<String, dynamic> params, List<String> where}) buildWhere(
+      RaporFiltreleri f,
+    ) {
+      final params = <String, dynamic>{};
+      final where = <String>[];
+
+      if (f.baslangicTarihi != null) {
+        params['baslangic'] = DateTime(
+          f.baslangicTarihi!.year,
+          f.baslangicTarihi!.month,
+          f.baslangicTarihi!.day,
+        ).toIso8601String();
+        where.add('base.tarih >= @baslangic');
+      }
+      if (f.bitisTarihi != null) {
+        params['bitis'] = DateTime(
+          f.bitisTarihi!.year,
+          f.bitisTarihi!.month,
+          f.bitisTarihi!.day,
+        ).add(const Duration(days: 1)).toIso8601String();
+        where.add('base.tarih < @bitis');
+      }
+
+      final String? islemFilter = _emptyToNull(f.islemTuru);
+      if (islemFilter != null) {
+        params['islemTuru'] = islemFilter;
+        where.add(
+          "normalize_text(COALESCE(base.islem, '')) = normalize_text(@islemTuru)",
+        );
+      }
+
+      final String? groupFilter = _emptyToNull(f.urunGrubu);
+      if (groupFilter != null) {
+        params['urunGrubu'] = groupFilter;
+        where.add(
+          "normalize_text(COALESCE(base.grubu, '')) = normalize_text(@urunGrubu)",
+        );
+      }
+
+      final String? turFilter = _emptyToNull(f.durum);
+      if (turFilter != null) {
+        params['tur'] = turFilter;
+        where.add(
+          "normalize_text(COALESCE(base.tur, '')) = normalize_text(@tur)",
+        );
+      }
+
+      _addSearchConditionAny(where, params, [
+        'COALESCE(base.search_tags_sm, \'\')',
+        'COALESCE(base.search_tags_p, \'\')',
+        'COALESCE(base.search_tags_ca, \'\')',
+        "normalize_text(COALESCE(base.islem, ''))",
+        "normalize_text(COALESCE(base.tur, ''))",
+        "normalize_text(COALESCE(base.kod, ''))",
+        "normalize_text(COALESCE(base.ad, ''))",
+        "normalize_text(COALESCE(base.grubu, ''))",
+        "normalize_text(COALESCE(base.ozellikler, ''))",
+        "normalize_text(COALESCE(base.depo, ''))",
+        "normalize_text(COALESCE(base.olcu, ''))",
+        "normalize_text(COALESCE(base.yer_kodu, ''))",
+        "normalize_text(COALESCE(base.yer_adi, ''))",
+        "normalize_text(COALESCE(base.aciklama, ''))",
+        // Numeric columns (best-effort, matches raw DB representation)
+        'COALESCE(base.miktar, 0)::text',
+        'COALESCE(base.birim_fiyat, 0)::text',
+        'COALESCE(base.birim_fiyat_vd, 0)::text',
+        'COALESCE(base.toplam_vd, 0)::text',
+      ], effectiveArama);
+
+      return (params: params, where: where);
+    }
+
+    final mainWhere = buildWhere(filtreler);
+    final params = mainWhere.params;
+    final whereSql = mainWhere.where.isEmpty
+        ? ''
+        : 'WHERE ${mainWhere.where.join(' AND ')}';
 
     final baseQuery =
         '''
       SELECT base.*, ${sortExpr(sortKey)} AS sort_val
       FROM ($baseSelect) base
+      $whereSql
     ''';
+
+    // "İşlem" filter dropdown seçenekleri seçimden bağımsız olmalı:
+    // Seçilen işlem sadece tabloyu filtrelesin, dropdown tüm işlem türlerini
+    // ve adetlerini göstermeye devam etsin.
+    final islemToplamlariKey = _summaryCacheKey(
+      reportId: rapor.id,
+      filtreler: filtreler.copyWith(clearIslemTuru: true),
+      arama: arama,
+    );
+    final islemToplamlariFuture = _getOrComputeIslemToplamlari(
+      cacheKey: islemToplamlariKey,
+      loader: () async {
+        final totalsWhere = buildWhere(
+          filtreler.copyWith(clearIslemTuru: true),
+        );
+        final String whereSqlTotals = totalsWhere.where.isEmpty
+            ? ''
+            : 'WHERE ${totalsWhere.where.join(' AND ')}';
+
+        final rows = await _queryMaps(pool, '''
+          SELECT
+            base.islem,
+            COUNT(*) AS adet,
+            COALESCE(SUM(COALESCE(base.toplam_vd, 0)), 0) AS toplam
+          FROM ($baseSelect) base
+          $whereSqlTotals
+          GROUP BY base.islem
+          ORDER BY normalize_text(COALESCE(base.islem, ''))
+        ''', totalsWhere.params);
+
+        return rows
+            .map((row) {
+              final String rawIslem = row['islem']?.toString() ?? '-';
+              final int adet = _toInt(row['adet']) ?? 0;
+              final double toplam = _toDouble(row['toplam']);
+              return RaporIslemToplami(
+                rawIslem: rawIslem,
+                islem: IslemCeviriYardimcisi.cevir(rawIslem),
+                tutar: _formatMoney(toplam),
+                adet: adet,
+              );
+            })
+            .where((item) => item.islem.trim().isNotEmpty && item.islem != '-')
+            .toList(growable: false);
+      },
+    );
+
+    final summaryKey = _summaryCacheKey(
+      reportId: rapor.id,
+      filtreler: filtreler,
+      arama: arama,
+    );
+    final summaryCardsFuture = _getOrComputeSummaryCards(
+      cacheKey: summaryKey,
+      loader: () async {
+        final totals = await _queryMaps(pool, '''
+          SELECT
+            base.islem,
+            base.olcu,
+            COALESCE(SUM(COALESCE(base.miktar, 0)), 0) AS toplam_miktar,
+            COALESCE(SUM(COALESCE(base.toplam_vd, 0)), 0) AS toplam_vd
+          FROM ($baseSelect) base
+          $whereSql
+          GROUP BY base.islem, base.olcu
+          ORDER BY
+            normalize_text(COALESCE(base.islem, '')),
+            normalize_text(COALESCE(base.olcu, ''))
+        ''', params);
+
+        final Map<String, Map<String, double>> qtyByIslemUnit =
+            <String, Map<String, double>>{};
+        final Map<String, double> vdByIslem = <String, double>{};
+
+        for (final row in totals) {
+          final String islem = row['islem']?.toString() ?? '-';
+          if (islem.trim().isEmpty || islem == '-') continue;
+          final String unit = row['olcu']?.toString() ?? '';
+          final double qty = _toDouble(row['toplam_miktar']);
+          final double vd = _toDouble(row['toplam_vd']);
+
+          qtyByIslemUnit.putIfAbsent(islem, () => <String, double>{});
+          if (unit.trim().isNotEmpty) {
+            qtyByIslemUnit[islem]![unit] =
+                (qtyByIslemUnit[islem]![unit] ?? 0) + qty;
+          }
+          vdByIslem[islem] = (vdByIslem[islem] ?? 0) + vd;
+        }
+
+        const preferredOrder = <String>[
+          'Satış Yapıldı',
+          'Stok Çıkış',
+          'Üretim Çıkışı',
+          'Devir Çıkış',
+          'Sevkiyat',
+          'Alış Yapıldı',
+          'Stok Giriş',
+          'Üretim Girişi',
+          'Devir Giriş',
+          'Açılış Stoğu',
+        ];
+
+        ({IconData icon, Color color}) styleFor(String islem) {
+          final String low = islem.toLowerCase();
+          if (low.contains('çık') || low.contains('cik')) {
+            return (icon: Icons.north_east_rounded, color: AppPalette.red);
+          }
+          if (low.contains('gir')) {
+            return (
+              icon: Icons.south_west_rounded,
+              color: const Color(0xFF27AE60),
+            );
+          }
+          if (low.contains('devir')) {
+            return (icon: Icons.swap_horiz_rounded, color: AppPalette.amber);
+          }
+          if (low.contains('üretim') || low.contains('uretim')) {
+            return (
+              icon: Icons.precision_manufacturing_rounded,
+              color: AppPalette.slate,
+            );
+          }
+          return (icon: Icons.bar_chart_rounded, color: AppPalette.slate);
+        }
+
+        final Set<String> remaining = Set<String>.from(qtyByIslemUnit.keys);
+        final List<String> ordered = <String>[
+          ...preferredOrder.where(remaining.remove),
+          ...remaining.toList()..sort(),
+        ];
+
+        final List<RaporOzetKarti> cards = <RaporOzetKarti>[];
+        for (final islem in ordered) {
+          final qtyUnits = qtyByIslemUnit[islem] ?? const <String, double>{};
+          final double totalVd = vdByIslem[islem] ?? 0;
+          final qtyValue = formatQuantityTotalsByUnit(qtyUnits);
+          final style = styleFor(islem);
+
+          if (qtyValue.trim().isNotEmpty && qtyValue.trim() != '-') {
+            cards.add(
+              RaporOzetKarti(
+                labelKey: islem,
+                value: qtyValue,
+                icon: style.icon,
+                accentColor: style.color,
+              ),
+            );
+          }
+
+          if (totalVd != 0) {
+            cards.add(
+              RaporOzetKarti(
+                labelKey: '$islem VD',
+                value: _formatMoney(totalVd),
+                icon: Icons.payments_outlined,
+                accentColor: style.color,
+              ),
+            );
+          }
+        }
+
+        return cards;
+      },
+    );
 
     final pageResult = await _fetchKeysetPageById(
       pool: pool,
@@ -7611,120 +8654,122 @@ class RaporlarServisi {
       idColumn: 'id',
     );
 
-    final rows = pageResult.rows;
+    final islemToplamlari = await islemToplamlariFuture;
+    final summaryCards = await summaryCardsFuture;
 
-    final mappedRows = rows
+    int resolveTotalCount() {
+      final String? selectedIslem = _emptyToNull(filtreler.islemTuru);
+      if (selectedIslem == null) {
+        return islemToplamlari.fold<int>(0, (sum, item) => sum + item.adet);
+      }
+      final String selectedNorm = _normalizeArama(selectedIslem);
+      for (final item in islemToplamlari) {
+        if (_normalizeArama(item.rawIslem) == selectedNorm) return item.adet;
+      }
+      return 0;
+    }
+
+    final mappedRows = pageResult.rows
         .map((tx) {
           final tarih = _toDateTime(tx['tarih']);
-          final miktar = _toDouble(tx['miktar']);
-          final fiyat = _toDouble(tx['birim_fiyat']);
-          final toplam = miktar * fiyat;
-          final bool giris = tx['is_giris'] == true;
-          final sunum = _stokIslemSunumunuHazirla(tx);
+          final String ozelliklerRaw = tx['ozellikler']?.toString() ?? '';
+          final features = extractFeatureNames(ozelliklerRaw);
+          final String oz1 = features.isNotEmpty ? features[0] : '-';
+          final String oz2 = features.length > 1 ? features[1] : '-';
+          final String oz3 = features.length > 2 ? features[2] : '-';
+
+          final double miktar = _toDouble(tx['miktar']);
+          final double birimFiyat = _toDouble(tx['birim_fiyat']);
+          final double birimFiyatVd = _toDouble(tx['birim_fiyat_vd']);
+          final double toplamVd = _toDouble(tx['toplam_vd']);
+
           return RaporSatiri(
             id: 'urun_hareket_${tx['id']}',
             cells: {
-              'tarih': _formatDate(tarih, includeTime: true),
-              'urun_kodu': tx['urun_kodu']?.toString() ?? '-',
-              'urun_adi': tx['urun_adi']?.toString() ?? '-',
-              'islem': IslemCeviriYardimcisi.cevir(sunum.islem),
-              'depo': tx['depo_adi']?.toString() ?? '-',
-              'giris': giris ? _formatNumber(miktar) : '-',
-              'cikis': giris ? '-' : _formatNumber(miktar),
-              'birim': tx['birim']?.toString() ?? '-',
-              'maliyet': _formatMoney(fiyat),
-              'ref': tx['integration_ref']?.toString() ?? '-',
-              'kullanici': tx['kullanici']?.toString() ?? '-',
+              'islem': tx['islem']?.toString() ?? '-',
+              'tarih': _formatDate(tarih, includeTime: false),
+              'tur': tx['tur']?.toString() ?? 'Ürün',
+              'kod': tx['kod']?.toString() ?? '-',
+              'ad': tx['ad']?.toString() ?? '-',
+              'grubu': tx['grubu']?.toString() ?? '-',
+              'ozellik1': oz1,
+              'ozellik2': oz2,
+              'ozellik3': oz3,
+              'depo': tx['depo']?.toString() ?? '-',
+              'miktar': _formatNumber(miktar),
+              'olcu': tx['olcu']?.toString() ?? '-',
+              'birim_fiyat': _formatMoney(birimFiyat),
+              'birim_fiyat_vd': _formatMoney(birimFiyatVd),
+              'yer_kodu': tx['yer_kodu']?.toString() ?? '-',
+              'yer_adi': tx['yer_adi']?.toString() ?? '-',
+              'aciklama': tx['aciklama']?.toString() ?? '-',
             },
             sourceMenuIndex: 7,
-            sourceSearchQuery: tx['urun_adi']?.toString(),
-            amountValue: toplam,
+            sourceSearchQuery: tx['ad']?.toString(),
+            amountValue: toplamVd.abs(),
             sortValues: {
+              'islem': tx['islem'],
               'tarih': tarih,
-              'urun_kodu': tx['urun_kodu'],
-              'urun_adi': tx['urun_adi'],
-              'islem': sunum.islem,
-              'depo': tx['depo_adi'],
-              'giris': giris ? miktar : 0.0,
-              'cikis': giris ? 0.0 : miktar,
-              'maliyet': fiyat,
-              'kullanici': tx['kullanici'],
+              'tur': tx['tur'],
+              'kod': tx['kod'],
+              'ad': tx['ad'],
+              'grubu': tx['grubu'],
+              'ozellik1': oz1,
+              'ozellik2': oz2,
+              'ozellik3': oz3,
+              'depo': tx['depo'],
+              'miktar': miktar,
+              'olcu': tx['olcu'],
+              'birim_fiyat': birimFiyat,
+              'birim_fiyat_vd': birimFiyatVd,
+              'yer_kodu': tx['yer_kodu'],
+              'yer_adi': tx['yer_adi'],
+              'aciklama': tx['aciklama'],
             },
           );
         })
         .toList(growable: false);
 
-    final summaryKey = _summaryCacheKey(
-      reportId: rapor.id,
-      filtreler: filtreler,
-      arama: arama,
-    );
-    final summaryCards = await _getOrComputeSummaryCards(
-      cacheKey: summaryKey,
-      loader: () async {
-        final summaryRows = await _queryMaps(pool, '''
-          SELECT
-            COUNT(*) AS kayit,
-            COALESCE(SUM(CASE WHEN sm.is_giris THEN sm.quantity ELSE 0 END), 0) AS toplam_giris,
-            COALESCE(SUM(CASE WHEN sm.is_giris THEN 0 ELSE sm.quantity END), 0) AS toplam_cikis
-          FROM stock_movements sm
-          INNER JOIN products p ON p.id = sm.product_id
-          LEFT JOIN depots d ON d.id = sm.warehouse_id
-          $whereSql
-        ''', params);
-        final summaryData = summaryRows.isEmpty
-            ? const <String, dynamic>{}
-            : summaryRows.first;
-        return <RaporOzetKarti>[
-          RaporOzetKarti(
-            labelKey: 'reports.summary.total_incoming',
-            value: _formatNumber(summaryData['toplam_giris']),
-            icon: Icons.south_west_rounded,
-            accentColor: const Color(0xFF27AE60),
-          ),
-          RaporOzetKarti(
-            labelKey: 'reports.summary.total_outgoing',
-            value: _formatNumber(summaryData['toplam_cikis']),
-            icon: Icons.north_east_rounded,
-            accentColor: AppPalette.red,
-          ),
-        ];
-      },
-    );
-
     return RaporSonucu(
       report: rapor,
       columns: [
-        _column('tarih', 'common.date', 150),
-        _column('urun_kodu', 'common.product_code', 120),
-        _column('urun_adi', 'common.product_name', 220),
-        _column('islem', 'common.transaction_type', 170),
-        _column('depo', 'common.warehouse', 150),
+        _column('islem', 'reports.columns.process_exact', 150),
+        _column('tarih', 'reports.columns.date_exact', 120),
+        _column('tur', 'common.type', 100),
+        _column('kod', 'common.code_no', 90),
+        _column('ad', 'common.name', 180),
+        _column('grubu', 'products.table.group', 120),
+        _column('ozellik1', 'products.form.feature_1.label', 120),
+        _column('ozellik2', 'products.form.feature_2.label', 120),
+        _column('ozellik3', 'products.form.feature_3.label', 120),
+        _column('depo', 'common.warehouse', 140),
         _column(
-          'giris',
-          'common.incoming',
-          100,
+          'miktar',
+          'common.quantity',
+          110,
           alignment: Alignment.centerRight,
         ),
+        _column('olcu', 'retail.table.unit', 100),
         _column(
-          'cikis',
-          'common.outgoing',
-          100,
-          alignment: Alignment.centerRight,
-        ),
-        _column('birim', 'common.unit', 90),
-        _column(
-          'maliyet',
-          'reports.columns.cost',
+          'birim_fiyat',
+          'products.table.unit_price',
           120,
           alignment: Alignment.centerRight,
         ),
-        _column('ref', 'reports.columns.reference', 130),
-        _column('kullanici', 'common.user', 100),
+        _column(
+          'birim_fiyat_vd',
+          'products.table.unit_price_vat',
+          140,
+          alignment: Alignment.centerRight,
+        ),
+        _column('yer_kodu', 'reports.columns.place_code_exact', 90),
+        _column('yer_adi', 'reports.columns.place_name_exact', 160),
+        _column('aciklama', 'reports.columns.description_exact', 220),
       ],
       rows: mappedRows,
       summaryCards: summaryCards,
-      totalCount: 0,
+      islemToplamlari: islemToplamlari,
+      totalCount: resolveTotalCount(),
       page: page,
       pageSize: pageSize,
       hasNextPage: pageResult.hasNextPage,
@@ -8500,8 +9545,9 @@ class RaporlarServisi {
                 integrationRef,
               ].join(' '),
             );
-            final bool matchesInMain =
-                searchTokens.every((token) => haystack.contains(token));
+            final bool matchesInMain = searchTokens.every(
+              (token) => haystack.contains(token),
+            );
             if (!matchesInMain) {
               extra['matchedInHidden'] = true;
             }

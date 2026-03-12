@@ -339,7 +339,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
 
     bool destekler(RaporFiltreTuru tur) => rapor.supportedFilters.contains(tur);
     final bool isTumHareketler =
-        rapor.id == 'all_movements' || rapor.id == 'vat_accounting';
+        rapor.id == 'all_movements' ||
+        rapor.id == 'vat_accounting' ||
+        rapor.id == 'purchase_sales_movements';
 
     return RaporFiltreleri(
       baslangicTarihi: destekler(RaporFiltreTuru.tarihAraligi)
@@ -1313,6 +1315,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final bool isReceivablesPayablesPrint = rapor.id == 'receivables_payables';
     final bool isVatAccountingPrint = rapor.id == 'vat_accounting';
     final bool isLastTransactionDatePrint = rapor.id == 'last_transaction_date';
+    final bool isPurchaseSalesMovementsPrint =
+        rapor.id == 'purchase_sales_movements';
+    final bool isProductMovementsPrint = rapor.id == 'product_movements';
 
     late final RaporSonucu printSourceSonuc;
     late final List<RaporSatiri> rows;
@@ -1363,7 +1368,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             isBaBsPrint ||
             isReceivablesPayablesPrint ||
             isVatAccountingPrint ||
-            isLastTransactionDatePrint)
+            isLastTransactionDatePrint ||
+            isPurchaseSalesMovementsPrint ||
+            isProductMovementsPrint)
         ? printSourceSonuc.columns
         : _gorunurKolonlar;
 
@@ -1379,6 +1386,21 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           'kur',
           'yer_2',
           'belge',
+        };
+        return printColumns.map((col) => keys.contains(col.key)).toList();
+      }
+
+      if (isPurchaseSalesMovementsPrint) {
+        const keys = <String>{
+          'tarih',
+          'islem',
+          'yer_kodu',
+          'yer_adi',
+          'vkn_tckn',
+          'matrah',
+          'toplam_vergi',
+          'genel_toplam',
+          'aciklama',
         };
         return printColumns.map((col) => keys.contains(col.key)).toList();
       }
@@ -1437,6 +1459,22 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           'son_islem_tutar',
           'son_islem_tarihi',
           'gecen_gun',
+        };
+        return printColumns.map((col) => keys.contains(col.key)).toList();
+      }
+
+      if (isProductMovementsPrint) {
+        const keys = <String>{
+          'islem',
+          'tarih',
+          'kod',
+          'ad',
+          'depo',
+          'miktar',
+          'olcu',
+          'birim_fiyat_vd',
+          'yer_kodu',
+          'yer_adi',
         };
         return printColumns.map((col) => keys.contains(col.key)).toList();
       }
@@ -1654,6 +1692,23 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         return indices.isEmpty ? null : indices;
       }
 
+      if (isPurchaseSalesMovementsPrint) {
+        const keys = <String>{
+          'matrah',
+          'kdv',
+          'toplam_vergi',
+          'genel_toplam',
+          'kur',
+        };
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
       if (isLastTransactionDatePrint) {
         const keys = <String>{
           'bakiye_borc',
@@ -1661,6 +1716,17 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           'son_islem_tutar',
           'gecen_gun',
         };
+        final indices = <int>{};
+        for (int i = 0; i < printColumns.length; i++) {
+          if (keys.contains(printColumns[i].key)) {
+            indices.add(i);
+          }
+        }
+        return indices.isEmpty ? null : indices;
+      }
+
+      if (isProductMovementsPrint) {
+        const keys = <String>{'miktar', 'birim_fiyat', 'birim_fiyat_vd'};
         final indices = <int>{};
         for (int i = 0; i < printColumns.length; i++) {
           if (keys.contains(printColumns[i].key)) {
@@ -1802,6 +1868,42 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         if (formattedTotals.isNotEmpty) {
           footerTotals = formattedTotals;
           footerTotalsTitle = 'LİSTE TOPLAMLARI';
+        }
+      }
+    }
+
+    if (!selectedOnly && isPurchaseSalesMovementsPrint) {
+      final cards = printSourceSonuc.summaryCards;
+      if (cards.isNotEmpty) {
+        final Map<String, String> formattedTotals = <String, String>{};
+        for (final card in cards) {
+          final String label = tr(card.labelKey).trim();
+          final String value = card.value.trim();
+          if (label.isEmpty) continue;
+          if (value.isEmpty || value == '-') continue;
+          formattedTotals[label] = value;
+        }
+        if (formattedTotals.isNotEmpty) {
+          footerTotals = formattedTotals;
+          footerTotalsTitle = 'LİSTE TOPLAMLARI';
+        }
+      }
+    }
+
+    if (!selectedOnly && isProductMovementsPrint) {
+      final cards = printSourceSonuc.summaryCards;
+      if (cards.isNotEmpty) {
+        final Map<String, String> formattedTotals = <String, String>{};
+        for (final card in cards) {
+          final String label = tr(card.labelKey).trim();
+          final String value = card.value.trim();
+          if (label.isEmpty) continue;
+          if (value.isEmpty || value == '-') continue;
+          formattedTotals[label] = value;
+        }
+        if (formattedTotals.isNotEmpty) {
+          footerTotals = formattedTotals;
+          footerTotalsTitle = 'İŞLEM TOPLAMLARI';
         }
       }
     }
@@ -2020,51 +2122,57 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       initialValue: kategori,
       onSelected: _kategoriSec,
       itemBuilder: (currentValue) {
-        return RaporKategori.values.map((item) {
-          final bool secili = item == currentValue;
-          return PopupMenuItem<RaporKategori>(
-            value: item,
-            mouseCursor: SystemMouseCursors.click,
-            child: Row(
-              children: [
-                Container(
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: _accentColorForCategory(
-                      item,
-                    ).withValues(alpha: secili ? 0.16 : 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    _kategoriIcon(item),
-                    size: 15,
-                    color: _accentColorForCategory(item),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    tr(item.labelKey),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                      color: AppPalette.slate,
+        return RaporKategori.values
+            .where(
+              (item) =>
+                  item == RaporKategori.genel || item == RaporKategori.stokDepo,
+            )
+            .map((item) {
+              final bool secili = item == currentValue;
+              return PopupMenuItem<RaporKategori>(
+                value: item,
+                mouseCursor: SystemMouseCursors.click,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 26,
+                      height: 26,
+                      decoration: BoxDecoration(
+                        color: _accentColorForCategory(
+                          item,
+                        ).withValues(alpha: secili ? 0.16 : 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        _kategoriIcon(item),
+                        size: 15,
+                        color: _accentColorForCategory(item),
+                      ),
                     ),
-                  ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        tr(item.labelKey),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: AppPalette.slate,
+                        ),
+                      ),
+                    ),
+                    if (secili)
+                      const Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: AppPalette.slate,
+                      ),
+                  ],
                 ),
-                if (secili)
-                  const Icon(
-                    Icons.check_rounded,
-                    size: 16,
-                    color: AppPalette.slate,
-                  ),
-              ],
-            ),
-          );
-        }).toList();
+              );
+            })
+            .toList();
       },
     );
   }
@@ -3098,7 +3206,10 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       return widths;
     }
 
-    if (rapor.id == 'all_movements' || rapor.id == 'vat_accounting') {
+    if (rapor.id == 'all_movements' ||
+        rapor.id == 'vat_accounting' ||
+        rapor.id == 'purchase_sales_movements' ||
+        rapor.id == 'product_movements') {
       if (_supports(RaporFiltreTuru.tarihAraligi)) {
         addFilter(
           _buildQuickDateFilter(compact: true),
@@ -3170,6 +3281,70 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           desktopWidth: 190,
           tabletWidth: 180,
           minWidth: 150,
+        );
+      }
+
+      if (_supports(RaporFiltreTuru.urunGrubu)) {
+        addFilter(
+          _buildDropdownField<String>(
+            label: tr('reports.filters.product_group'),
+            icon: Icons.category_outlined,
+            value: _filtreler.urunGrubu,
+            items: <DropdownMenuItem<String>>[
+              DropdownMenuItem<String>(
+                value: null,
+                child: Text(tr('common.all'), overflow: TextOverflow.ellipsis),
+              ),
+              ..._filtreKaynaklari.urunGruplari.map(
+                (item) => DropdownMenuItem<String>(
+                  value: item.value,
+                  child: Text(item.label, overflow: TextOverflow.ellipsis),
+                ),
+              ),
+            ],
+            onChanged: (value) =>
+                _secimGuncelle(urunGrubu: value, clearUrunGrubu: value == null),
+          ),
+          desktopWidth: 190,
+          tabletWidth: 180,
+          minWidth: 150,
+        );
+      }
+
+      if (_supports(RaporFiltreTuru.durum)) {
+        final kaynak = _filtreKaynaklari.durumlar[rapor.id] ?? const [];
+        addFilter(
+          _buildDropdownField<String>(
+            label: tr('common.type'),
+            icon: Icons.category_outlined,
+            value: _filtreler.durum,
+            items:
+                (kaynak.isEmpty
+                        ? <RaporSecimSecenegi>[
+                            RaporSecimSecenegi(
+                              value: tr('common.all'),
+                              label: tr('common.all'),
+                            ),
+                          ]
+                        : kaynak)
+                    .map(
+                      (item) => DropdownMenuItem<String>(
+                        value: item.value == tr('common.all')
+                            ? null
+                            : item.value,
+                        child: Text(
+                          item.label,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    )
+                    .toList(),
+            onChanged: (value) =>
+                _secimGuncelle(durum: value, clearDurum: value == null),
+          ),
+          desktopWidth: 160,
+          tabletWidth: 150,
+          minWidth: 136,
         );
       }
 
@@ -4839,32 +5014,32 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
           child = Container(
             padding: const EdgeInsets.symmetric(horizontal: 12),
             alignment: column.alignment,
-           child: showExpander
+            child: showExpander
                 ? (row.expandable
-                    ? Row(
-                        children: [
-                          InkWell(
-                            mouseCursor: WidgetStateMouseCursor.clickable,
-                            onTap: toggleExpand,
-                            borderRadius: BorderRadius.circular(12),
-                            child: Padding(
-                              padding: const EdgeInsets.all(2.0),
-                              child: AnimatedRotation(
-                                turns: isExpanded ? 0.25 : 0,
-                                duration: const Duration(milliseconds: 200),
-                                child: Icon(
-                                  Icons.chevron_right_rounded,
-                                  size: 16,
-                                  color: Colors.grey.shade600,
+                      ? Row(
+                          children: [
+                            InkWell(
+                              mouseCursor: WidgetStateMouseCursor.clickable,
+                              onTap: toggleExpand,
+                              borderRadius: BorderRadius.circular(12),
+                              child: Padding(
+                                padding: const EdgeInsets.all(2.0),
+                                child: AnimatedRotation(
+                                  turns: isExpanded ? 0.25 : 0,
+                                  duration: const Duration(milliseconds: 200),
+                                  child: Icon(
+                                    Icons.chevron_right_rounded,
+                                    size: 16,
+                                    color: Colors.grey.shade600,
+                                  ),
                                 ),
                               ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(child: _buildValueCell(row, column.key)),
-                        ],
-                      )
-                    : _buildValueCell(row, column.key))
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildValueCell(row, column.key)),
+                          ],
+                        )
+                      : _buildValueCell(row, column.key))
                 : _buildValueCell(row, column.key),
           );
         }
