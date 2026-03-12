@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:patisyov10/servisler/yazdirma_veritabani_servisi.dart';
 import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/alanlar/yazdirma_alanlari.dart';
@@ -61,12 +64,19 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   bool _isDuplicating = false; // Track if we are in Alt-duplicate mode
   bool _isSpacePressed = false; // Photoshop-style pan tool (Space)
   bool _isSpacePanning = false;
+  double _spacePanStartScale = 1.0;
   Offset _spacePanStartViewportPos = Offset.zero;
   Offset _spacePanStartTranslation = Offset.zero;
+  final LayerLink _shortcutsHelpLink = LayerLink();
+  OverlayEntry? _shortcutsHelpOverlay;
+  Timer? _shortcutsHelpHideTimer;
+  bool _shortcutsHelpHovering = false;
   bool _isMarqueeSelecting = false;
   Offset _marqueeStartScenePos = Offset.zero;
   Offset _marqueeCurrentScenePos = Offset.zero;
   List<String> _marqueeBaseSelection = const [];
+  Size? _lastCanvasViewportSizePx;
+  Size? _lastCanvasSizePx;
   Offset _dragStartScenePos =
       Offset.zero; // Pointer position in scene at drag start
   double _elementStartPosX = 0; // Element X at drag start
@@ -286,14 +296,62 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   }
 
   void _resetView() {
-    _initialCanvasViewApplied = false;
-    // Force re-schedule view
-    // Triggering a rebuild will catch _scheduleInitialCanvasView logic in build
-    setState(() {});
+    _fitToScreen();
+  }
+
+  Matrix4 _fitToScreenMatrix({
+    required Size viewportSizePx,
+    required Size canvasSizePx,
+  }) {
+    final paperCenterPx = Offset(
+      canvasSizePx.width / 2,
+      canvasSizePx.height / 2,
+    );
+
+    final availableW = (viewportSizePx.width - (_canvasFitPaddingPx * 2))
+        .clamp(0.0, double.infinity);
+    final availableH = (viewportSizePx.height - (_canvasFitPaddingPx * 2))
+        .clamp(0.0, double.infinity);
+
+    final scaleX = availableW / canvasSizePx.width;
+    final scaleY = availableH / canvasSizePx.height;
+    final scale =
+        math.min(scaleX, scaleY).clamp(_minViewScale, _maxViewScale).toDouble();
+
+    final viewportCenterPx = Offset(
+      viewportSizePx.width / 2,
+      viewportSizePx.height / 2,
+    );
+
+    final translationPx = viewportCenterPx - (paperCenterPx * scale);
+
+    return Matrix4.identity()
+      ..translateByDouble(translationPx.dx, translationPx.dy, 0.0, 1.0)
+      ..scaleByDouble(scale, scale, 1.0, 1.0);
+  }
+
+  void _fitToScreen({Size? viewportSizePx, Size? canvasSizePx}) {
+    final viewport = viewportSizePx ?? _lastCanvasViewportSizePx;
+    final canvas = canvasSizePx ?? _lastCanvasSizePx;
+    if (viewport == null || canvas == null) {
+      _initialCanvasViewApplied = false;
+      _initialCanvasViewScheduled = false;
+      setState(() {});
+      return;
+    }
+
+    _transformationController.value = _fitToScreenMatrix(
+      viewportSizePx: viewport,
+      canvasSizePx: canvas,
+    );
+    _initialCanvasViewApplied = true;
+    _initialCanvasViewScheduled = false;
   }
 
   @override
   void dispose() {
+    _shortcutsHelpHideTimer?.cancel();
+    _removeShortcutsHelpOverlay();
     _fieldSearchController.dispose();
     _inlineEditController.dispose();
     _inlineEditFocusNode.dispose();
@@ -569,88 +627,375 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   }
 
   Widget _buildSpacePanOverlay() {
+    final MouseCursor cursor =
+        _isSpacePanning ? SystemMouseCursors.grabbing : SystemMouseCursors.grab;
     return MouseRegion(
       opaque: true,
-      cursor: _isSpacePanning
-          ? SystemMouseCursors.grabbing
-          : SystemMouseCursors.grab,
+      hitTestBehavior: HitTestBehavior.opaque,
+      cursor: cursor,
       child: Listener(
         behavior: HitTestBehavior.opaque,
         onPointerDown: (event) {
           if ((event.buttons & 1) == 0) return;
           _canvasFocusNode.requestFocus();
           setState(() {
+            if (!_initialCanvasViewApplied) {
+              // Prevent a pending post-frame "initial view" from changing scale
+              // while the user is actively panning with Space.
+              _initialCanvasViewApplied = true;
+              _initialCanvasViewScheduled = false;
+            }
             _isSpacePanning = true;
+            _spacePanStartScale = _getViewScale();
             _spacePanStartViewportPos = event.localPosition;
             _spacePanStartTranslation = _getViewTranslation();
           });
+          _refreshMouseCursor();
         },
         onPointerMove: (event) {
           if (!_isSpacePanning) return;
           final delta = event.localPosition - _spacePanStartViewportPos;
-          final scale = _getViewScale();
+          final scale = _spacePanStartScale;
           final translation = _spacePanStartTranslation + delta;
           _setViewTransform(scale: scale, translation: translation);
         },
         onPointerUp: (_) {
           if (!_isSpacePanning) return;
           setState(() => _isSpacePanning = false);
+          _refreshMouseCursor();
         },
         onPointerCancel: (_) {
           if (!_isSpacePanning) return;
           setState(() => _isSpacePanning = false);
+          _refreshMouseCursor();
         },
         child: const SizedBox.expand(),
       ),
     );
   }
 
-  String _designerShortcutsHelpText() {
-    return [
-      'Kısayollar',
-      '• Space + sürükle: Sayfayı taşı',
-      '• Mouse tekeri: Kaydır',
-      '• Alt + teker: Yakınlaştır / Uzaklaştır',
-      '• Ctrl/Cmd + Z: Geri al',
-      '• Ctrl/Cmd + C: Seçileni çoğalt',
-      '• Delete / Backspace: Seçileni sil',
-      '• Ok tuşları: 1 mm taşı',
-      '• Shift + Ok: 5 mm taşı',
-      '• Alt + Ok / Ctrl + Ok: 0,1 mm taşı',
-      '• Alt + sürükle: Kopyalayarak sürükle',
-      '• Ctrl/Cmd + tık: Çoklu seçim',
-    ].join('\n');
+  void _refreshMouseCursor() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      RendererBinding.instance.mouseTracker.updateAllDevices();
+    });
   }
 
-  Widget _buildShortcutsInfoIcon() {
-    return Tooltip(
-      preferBelow: false,
-      message: _designerShortcutsHelpText(),
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      margin: const EdgeInsets.all(12),
+  Widget _shortcutKeyChip(String text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
+        color: const Color(0xFFF1F5F9),
+        borderRadius: BorderRadius.circular(7),
         border: Border.all(color: const Color(0xFFCBD5E1)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.12),
-            blurRadius: 18,
-            offset: const Offset(0, 10),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF334155),
+          height: 1.1,
+        ),
+      ),
+    );
+  }
+
+  Widget _shortcutCombo(List<String> keys) {
+    final children = <Widget>[];
+    for (int i = 0; i < keys.length; i++) {
+      if (i > 0) {
+        children.add(
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 4),
+            child: Text(
+              '+',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                color: Color(0xFF64748B),
+                height: 1.1,
+              ),
+            ),
           ),
-        ],
+        );
+      }
+      children.add(_shortcutKeyChip(keys[i]));
+    }
+    return Wrap(
+      spacing: 0,
+      runSpacing: 6,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: children,
+    );
+  }
+
+  Widget _shortcutRow({
+    required List<String> keys,
+    required String description,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(width: 150, child: _shortcutCombo(keys)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            description,
+            style: const TextStyle(
+              fontSize: 12,
+              height: 1.35,
+              color: Color(0xFF334155),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _shortcutSection({
+    required IconData icon,
+    required String title,
+    required List<Widget> children,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(icon, size: 16, color: const Color(0xFF64748B)),
+            const SizedBox(width: 8),
+            Text(
+              title,
+              style: const TextStyle(
+                fontSize: 12.5,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF0F172A),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        ...children,
+      ],
+    );
+  }
+
+  Widget _buildShortcutsHelpPopover() {
+    return Material(
+      color: Colors.transparent,
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 420),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFCBD5E1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.16),
+              blurRadius: 26,
+              offset: const Offset(0, 14),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(14),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  border: Border(
+                    bottom: BorderSide(color: const Color(0xFFCBD5E1)),
+                  ),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(
+                      Icons.keyboard_rounded,
+                      size: 18,
+                      color: Color(0xFF2C3E50),
+                    ),
+                    SizedBox(width: 10),
+                    Text(
+                      'Kısayollar',
+                      style: TextStyle(
+                        color: Color(0xFF2C3E50),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _shortcutSection(
+                        icon: Icons.pan_tool_alt_outlined,
+                        title: 'Gezinme',
+                        children: [
+                          _shortcutRow(
+                            keys: const ['Space', 'Sürükle'],
+                            description: 'Sayfayı taşı',
+                          ),
+                          const SizedBox(height: 10),
+                          _shortcutRow(
+                            keys: const ['Teker'],
+                            description: 'Kaydır',
+                          ),
+                          const SizedBox(height: 10),
+                          _shortcutRow(
+                            keys: const ['Alt', 'Teker'],
+                            description: 'Yakınlaştır / Uzaklaştır',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _shortcutSection(
+                        icon: Icons.edit_outlined,
+                        title: 'Düzenleme',
+                        children: [
+                          _shortcutRow(
+                            keys: const ['Ctrl/Cmd', 'Z'],
+                            description: 'Geri al',
+                          ),
+                          const SizedBox(height: 10),
+                          _shortcutRow(
+                            keys: const ['Ctrl/Cmd', 'C'],
+                            description: 'Seçileni çoğalt',
+                          ),
+                          const SizedBox(height: 10),
+                          _shortcutRow(
+                            keys: const ['Delete / Backspace'],
+                            description: 'Seçileni sil',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _shortcutSection(
+                        icon: Icons.open_with_rounded,
+                        title: 'Hassas taşıma',
+                        children: [
+                          _shortcutRow(
+                            keys: const ['Ok'],
+                            description: '1 mm taşı',
+                          ),
+                          const SizedBox(height: 10),
+                          _shortcutRow(
+                            keys: const ['Shift', 'Ok'],
+                            description: '5 mm taşı',
+                          ),
+                          const SizedBox(height: 10),
+                          _shortcutRow(
+                            keys: const ['Alt', 'Ok'],
+                            description: '0,1 mm taşı',
+                          ),
+                          const SizedBox(height: 10),
+                          _shortcutRow(
+                            keys: const ['Ctrl', 'Ok'],
+                            description: '0,1 mm taşı',
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      _shortcutSection(
+                        icon: Icons.select_all_rounded,
+                        title: 'Seçim',
+                        children: [
+                          _shortcutRow(
+                            keys: const ['Ctrl/Cmd', 'Tık'],
+                            description: 'Çoklu seçim',
+                          ),
+                          const SizedBox(height: 10),
+                          _shortcutRow(
+                            keys: const ['Alt', 'Sürükle'],
+                            description: 'Kopyalayarak sürükle',
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
-      textStyle: const TextStyle(
-        color: Color(0xFF2C3E50),
-        fontSize: 12,
-        height: 1.4,
-        fontWeight: FontWeight.w500,
-      ),
+    );
+  }
+
+  void _removeShortcutsHelpOverlay() {
+    _shortcutsHelpOverlay?.remove();
+    _shortcutsHelpOverlay = null;
+  }
+
+  void _showShortcutsHelpOverlay() {
+    if (!mounted) return;
+    if (_shortcutsHelpOverlay != null) return;
+
+    final overlay = Overlay.of(context, rootOverlay: true);
+
+    _shortcutsHelpOverlay = OverlayEntry(
+      builder: (context) {
+        return Positioned.fill(
+          child: Stack(
+            children: [
+              CompositedTransformFollower(
+                link: _shortcutsHelpLink,
+                showWhenUnlinked: false,
+                targetAnchor: Alignment.bottomLeft,
+                followerAnchor: Alignment.topLeft,
+                offset: const Offset(0, 10),
+                child: MouseRegion(
+                  onEnter: (_) {
+                    _shortcutsHelpHovering = true;
+                    _shortcutsHelpHideTimer?.cancel();
+                  },
+                  onExit: (_) {
+                    _shortcutsHelpHovering = false;
+                    _scheduleHideShortcutsHelpOverlay();
+                  },
+                  child: _buildShortcutsHelpPopover(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+
+    overlay.insert(_shortcutsHelpOverlay!);
+  }
+
+  void _scheduleHideShortcutsHelpOverlay() {
+    _shortcutsHelpHideTimer?.cancel();
+    _shortcutsHelpHideTimer = Timer(const Duration(milliseconds: 160), () {
+      if (!mounted) return;
+      if (_shortcutsHelpHovering) return;
+      _removeShortcutsHelpOverlay();
+    });
+  }
+
+  Widget _buildShortcutsHelpButton() {
+    return CompositedTransformTarget(
+      link: _shortcutsHelpLink,
       child: MouseRegion(
         cursor: SystemMouseCursors.help,
+        onEnter: (_) {
+          _shortcutsHelpHideTimer?.cancel();
+          _showShortcutsHelpOverlay();
+        },
+        onExit: (_) => _scheduleHideShortcutsHelpOverlay(),
         child: Container(
-          width: 32,
-          height: 32,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
             color: Colors.white.withValues(alpha: 0.92),
             shape: BoxShape.circle,
@@ -658,14 +1003,14 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.08),
-                blurRadius: 10,
-                offset: const Offset(0, 6),
+                blurRadius: 12,
+                offset: const Offset(0, 8),
               ),
             ],
           ),
           child: const Icon(
             Icons.info_outline_rounded,
-            size: 18,
+            size: 20,
             color: Color(0xFF2C3E50),
           ),
         ),
@@ -688,6 +1033,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     if (key == LogicalKeyboardKey.space) {
       if (isKeyDown && !_isSpacePressed) {
         setState(() => _isSpacePressed = true);
+        _refreshMouseCursor();
         return KeyEventResult.handled;
       }
       if (isKeyUp && _isSpacePressed) {
@@ -695,6 +1041,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
           _isSpacePressed = false;
           _isSpacePanning = false;
         });
+        _refreshMouseCursor();
         return KeyEventResult.handled;
       }
       return KeyEventResult.handled;
@@ -842,6 +1189,18 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
         backgroundColor: Colors.white,
         elevation: 0,
         actions: [
+          Tooltip(
+            message: tr('print.designer.fit_to_screen'),
+            child: IconButton(
+              onPressed: _resetView,
+              icon: const Icon(
+                Icons.aspect_ratio_rounded,
+                color: Color(0xFF2C3E50),
+                size: 20,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
           if (_editingTemplate == null)
             ElevatedButton.icon(
               onPressed: () => _kaydet(isNewCopy: false),
@@ -861,19 +1220,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
               ),
             )
           else ...[
-            // [2026 FEATURE] Lock & Fit Controls
-            Tooltip(
-              message: tr('print.designer.fit_to_screen'),
-              child: IconButton(
-                onPressed: _resetView,
-                icon: const Icon(
-                  Icons.aspect_ratio_rounded,
-                  color: Color(0xFF2C3E50),
-                  size: 20,
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
+            // [2026 FEATURE] Lock Control
             Row(
               children: [
                 Checkbox(
@@ -1482,6 +1829,9 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   Widget _buildCanvas(Size canvasSize) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        _lastCanvasViewportSizePx = constraints.biggest;
+        _lastCanvasSizePx = canvasSize;
+
         _scheduleInitialCanvasView(
           viewportSizePx: constraints.biggest,
           canvasSizePx: canvasSize,
@@ -1636,25 +1986,6 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                                     ),
                                   ),
                                 )),
-                              ),
-                              // Shortcuts help (top-left of the paper, fixed size while zooming)
-                              AnimatedBuilder(
-                                animation: _transformationController,
-                                child: _buildShortcutsInfoIcon(),
-                                builder: (context, child) {
-                                  final viewScale = _getViewScale();
-                                  final safeScale = viewScale == 0.0 ? 1.0 : viewScale;
-                                  final offset = 12.0 / safeScale;
-                                  return Positioned(
-                                    left: offset,
-                                    top: offset,
-                                    child: Transform.scale(
-                                      scale: 1.0 / safeScale,
-                                      alignment: Alignment.topLeft,
-                                      child: child,
-                                    ),
-                                  );
-                                },
                               ),
                               // 1. Background Image Layer
                               if (_backgroundImage != null)
@@ -1814,6 +2145,11 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                         );
                       },
                     ),
+                  ),
+                  Positioned(
+                    left: 18,
+                    top: 14,
+                    child: _buildShortcutsHelpButton(),
                   ),
                   if (_isSpacePressed)
                     Positioned.fill(child: _buildSpacePanOverlay()),
