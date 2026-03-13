@@ -28,7 +28,7 @@ String _normalizeFontWeightString(dynamic raw) {
 class YazdirmaSablonuModel {
   final int? id;
   final String name;
-  final String docType; // 'invoice', 'receipt', 'barcode', etc.
+  final String docType; // 'invoice', 'waybill', 'voucher', 'receipt', 'barcode'
   final String? paperSize; // 'A4', 'A5', 'Custom'
   final double? customWidth; // mm
   final double? customHeight; // mm
@@ -63,6 +63,17 @@ class YazdirmaSablonuModel {
     this.isLandscape = false,
     this.viewMatrix,
   });
+
+  bool get _looksLikeLegacyVoucherTemplate {
+    if (docType != 'receipt') return false;
+    final normalizedName = name.trim().toLowerCase();
+    return normalizedName.contains('makbuz');
+  }
+
+  String get effectiveDocType {
+    if (_looksLikeLegacyVoucherTemplate) return 'voucher';
+    return docType;
+  }
 
   Map<String, dynamic> toMap() {
     return {

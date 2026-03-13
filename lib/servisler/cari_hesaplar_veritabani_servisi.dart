@@ -5012,6 +5012,9 @@ class CariHesaplarVeritabaniServisi {
           'hesapKodu': hesapKodu,
           'hesapAdi': hesapAdi,
           'odemeAciklama': odemeAciklama,
+          'belgeNo': '',
+          'kesideTarihi': null,
+          'banka': '',
         };
       }
 
@@ -5050,6 +5053,9 @@ class CariHesaplarVeritabaniServisi {
           'hesapKodu': hesapKodu,
           'hesapAdi': hesapAdi,
           'odemeAciklama': odemeAciklama,
+          'belgeNo': '',
+          'kesideTarihi': null,
+          'banka': hesapAdi,
         };
       }
 
@@ -5090,13 +5096,16 @@ class CariHesaplarVeritabaniServisi {
           'hesapKodu': hesapKodu,
           'hesapAdi': hesapAdi,
           'odemeAciklama': odemeAciklama,
+          'belgeNo': '',
+          'kesideTarihi': null,
+          'banka': hesapAdi,
         };
       }
 
       // 4) Çek
       final cheque = await _pool!.execute(
         Sql.named('''
-          SELECT check_no, bank, amount, description
+          SELECT check_no, bank, due_date, amount, description
           FROM cheques
           WHERE integration_ref = @ref
           ORDER BY id DESC
@@ -5107,17 +5116,20 @@ class CariHesaplarVeritabaniServisi {
       if (cheque.isNotEmpty) {
         return {
           'odemeYeri': 'Çek',
-          'tutar': _toDouble(cheque.first[2]).abs(),
+          'tutar': _toDouble(cheque.first[3]).abs(),
           'hesapKodu': cheque.first[0]?.toString() ?? '',
           'hesapAdi': cheque.first[1]?.toString() ?? '',
-          'odemeAciklama': cheque.first[3]?.toString() ?? '',
+          'odemeAciklama': cheque.first[4]?.toString() ?? '',
+          'belgeNo': cheque.first[0]?.toString() ?? '',
+          'kesideTarihi': cheque.first[2],
+          'banka': cheque.first[1]?.toString() ?? '',
         };
       }
 
       // 5) Senet
       final note = await _pool!.execute(
         Sql.named('''
-          SELECT note_no, bank, amount, description
+          SELECT note_no, bank, due_date, amount, description
           FROM promissory_notes
           WHERE integration_ref = @ref
           ORDER BY id DESC
@@ -5128,10 +5140,13 @@ class CariHesaplarVeritabaniServisi {
       if (note.isNotEmpty) {
         return {
           'odemeYeri': 'Senet',
-          'tutar': _toDouble(note.first[2]).abs(),
+          'tutar': _toDouble(note.first[3]).abs(),
           'hesapKodu': note.first[0]?.toString() ?? '',
           'hesapAdi': note.first[1]?.toString() ?? '',
-          'odemeAciklama': note.first[3]?.toString() ?? '',
+          'odemeAciklama': note.first[4]?.toString() ?? '',
+          'belgeNo': note.first[0]?.toString() ?? '',
+          'kesideTarihi': note.first[2],
+          'banka': note.first[1]?.toString() ?? '',
         };
       }
 

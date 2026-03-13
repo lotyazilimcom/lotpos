@@ -693,6 +693,111 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
     return 1;
   }
 
+  String _documentPrintLabelForTransaction(Map<String, dynamic> tx) {
+    final rawIslemTuru = tx['islem_turu']?.toString() ?? '';
+    return IslemTuruRenkleri.getProfessionalLabel(
+      rawIslemTuru,
+      context: 'cari',
+      yon: tx['yon']?.toString(),
+    );
+  }
+
+  bool _isSaleDocumentTransaction(Map<String, dynamic> tx) {
+    return _documentPrintLabelForTransaction(tx) == 'Satış Yapıldı';
+  }
+
+  bool _isVoucherDocumentTransaction(Map<String, dynamic> tx) {
+    final label = _documentPrintLabelForTransaction(tx);
+    return label == 'Para Alındı' || label == 'Para Verildi';
+  }
+
+  bool _canPrintDocumentForTransaction(Map<String, dynamic> tx) {
+    return _isSaleDocumentTransaction(tx) || _isVoucherDocumentTransaction(tx);
+  }
+
+  List<String>? _allowedDocumentTemplateTypes(Map<String, dynamic> tx) {
+    if (_isVoucherDocumentTransaction(tx)) {
+      return const ['voucher'];
+    }
+    return null;
+  }
+
+  String? _voucherTransactionTypeForDocument(Map<String, dynamic> tx) {
+    final label = _documentPrintLabelForTransaction(tx);
+    if (label == 'Para Alındı') return 'collection';
+    if (label == 'Para Verildi') return 'payment';
+    return null;
+  }
+
+  Future<void> _openDocumentPrintForTransaction(
+    BuildContext context,
+    Map<String, dynamic> selectedTx, {
+    required Future<void> Function() onSuccess,
+  }) async {
+    final List<dynamic> rawElements = selectedTx['hareket_detaylari'] is List
+        ? selectedTx['hareket_detaylari'] as List
+        : (selectedTx['hareket_detaylari'] != null
+              ? jsonDecode(selectedTx['hareket_detaylari'].toString()) as List
+              : []);
+
+    final List<dynamic> rawItems = [];
+    for (final elem in rawElements) {
+      if (elem is List) {
+        rawItems.addAll(elem);
+      } else {
+        rawItems.add(elem);
+      }
+    }
+
+    final List<Map<String, dynamic>> items = rawItems.map((e) {
+      final map = Map<String, dynamic>.from(e is Map ? e : {});
+      return {
+        'name': map['name'] ?? map['code'] ?? '',
+        'code': map['code'] ?? '',
+        'quantity': double.tryParse(map['quantity']?.toString() ?? '') ?? 0.0,
+        'unit': map['unit'] ?? '',
+        'price':
+            double.tryParse(
+              map['unitCost']?.toString() ?? map['price']?.toString() ?? '',
+            ) ??
+            0.0,
+        'total': double.tryParse(map['total']?.toString() ?? '') ?? 0.0,
+      };
+    }).toList();
+
+    DateTime initialDate = DateTime.now();
+    final rawTarih = selectedTx['tarih'];
+    if (rawTarih is DateTime) {
+      initialDate = rawTarih;
+    } else if (rawTarih != null) {
+      initialDate = DateTime.tryParse(rawTarih.toString()) ?? DateTime.now();
+    }
+
+    final result = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (context) => SatisSonrasiYazdirSayfasi(
+          entegrasyonRef: selectedTx['integration_ref']?.toString() ?? '',
+          cariAdi: _currentCari.adi,
+          cariKodu: _currentCari.kodNo,
+          genelToplam:
+              double.tryParse(selectedTx['tutar']?.toString() ?? '') ?? 0.0,
+          paraBirimi: selectedTx['para_birimi']?.toString() ?? 'TRY',
+          initialFaturaNo: selectedTx['fatura_no']?.toString() ?? '',
+          initialIrsaliyeNo: selectedTx['irsaliye_no']?.toString() ?? '',
+          initialTarih: initialDate,
+          items: items,
+          allowedDocTypes: _allowedDocumentTemplateTypes(selectedTx),
+          voucherTransactionType: _voucherTransactionTypeForDocument(selectedTx),
+        ),
+      ),
+    );
+
+    if (result == true) {
+      await onSuccess();
+    }
+  }
+
   bool _isTransactionExpandable(Map<String, dynamic> tx) =>
       _getTransactionDetailItemCount(tx) > 0;
 
@@ -7173,130 +7278,37 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                 (tx) => tx['id'] == _selectedRowId,
                 orElse: () => {},
               );
-              final String rawIslemTuru =
-                  selectedTx['islem_turu']?.toString() ?? '';
-              final String label = IslemTuruRenkleri.getProfessionalLabel(
-                rawIslemTuru,
-                context: 'cari',
-                yon: selectedTx['yon']?.toString(),
+              final bool canPrintDocument = _canPrintDocumentForTransaction(
+                selectedTx,
               );
-              final bool isSatis = label == 'Satış Yapıldı';
 
               return MouseRegion(
-                cursor: isSatis
+                cursor: canPrintDocument
                     ? SystemMouseCursors.click
                     : SystemMouseCursors.basic,
                 child: MouseRegion(
                   cursor: SystemMouseCursors.click,
                   hitTestBehavior: HitTestBehavior.deferToChild,
                   child: GestureDetector(
-                    onTap: isSatis
+                    onTap: canPrintDocument
                         ? () async {
-                            final List<dynamic> rawElements =
-                                selectedTx['hareket_detaylari'] is List
-                                ? selectedTx['hareket_detaylari'] as List
-                                : (selectedTx['hareket_detaylari'] != null
-                                      ? jsonDecode(
-                                              selectedTx['hareket_detaylari']
-                                                  .toString(),
-                                            )
-                                            as List
-                                      : []);
-
-                            // Flatten nested lists if any (due to json_agg of JSONB arrays)
-                            final List<dynamic> rawItems = [];
-                            for (var elem in rawElements) {
-                              if (elem is List) {
-                                rawItems.addAll(elem);
-                              } else {
-                                rawItems.add(elem);
-                              }
-                            }
-
-                            final List<Map<String, dynamic>> items = rawItems
-                                .map((e) {
-                                  final map = Map<String, dynamic>.from(
-                                    e is Map ? e : {},
-                                  );
-                                  return {
-                                    'name': map['name'] ?? map['code'] ?? '',
-                                    'code': map['code'] ?? '',
-                                    'quantity':
-                                        double.tryParse(
-                                          map['quantity']?.toString() ?? '',
-                                        ) ??
-                                        0.0,
-                                    'unit': map['unit'] ?? '',
-                                    'price':
-                                        double.tryParse(
-                                          map['unitCost']?.toString() ??
-                                              map['price']?.toString() ??
-                                              '',
-                                        ) ??
-                                        0.0,
-                                    'total':
-                                        double.tryParse(
-                                          map['total']?.toString() ?? '',
-                                        ) ??
-                                        0.0,
-                                  };
-                                })
-                                .toList();
-
-                            DateTime initialDate = DateTime.now();
-                            final rawTarih = selectedTx['tarih'];
-                            if (rawTarih is DateTime) {
-                              initialDate = rawTarih;
-                            } else if (rawTarih != null) {
-                              initialDate =
-                                  DateTime.tryParse(rawTarih.toString()) ??
-                                  DateTime.now();
-                            }
-
-                            Navigator.push(
+                            await _openDocumentPrintForTransaction(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => SatisSonrasiYazdirSayfasi(
-                                  entegrasyonRef:
-                                      selectedTx['integration_ref']
-                                          ?.toString() ??
-                                      '',
-                                  cariAdi: _currentCari.adi,
-                                  cariKodu: _currentCari.kodNo,
-                                  genelToplam:
-                                      double.tryParse(
-                                        selectedTx['tutar']?.toString() ?? '',
-                                      ) ??
-                                      0.0,
-                                  paraBirimi:
-                                      selectedTx['para_birimi']?.toString() ??
-                                      'TRY',
-                                  initialFaturaNo:
-                                      selectedTx['fatura_no']?.toString() ?? '',
-                                  initialIrsaliyeNo:
-                                      selectedTx['irsaliye_no']?.toString() ??
-                                      '',
-                                  initialTarih: initialDate,
-                                  items: items,
-                                ),
-                              ),
-                            ).then((result) {
-                              if (result == true) {
-                                _loadTransactions();
-                              }
-                            });
+                              selectedTx,
+                              onSuccess: _loadTransactions,
+                            );
                           }
                         : null,
                     child: Container(
                       height: 40,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        color: isSatis
+                        color: canPrintDocument
                             ? const Color(0xFF2C3E50)
                             : Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                          color: isSatis
+                          color: canPrintDocument
                               ? const Color(0xFF2C3E50)
                               : Colors.grey.shade300,
                         ),
@@ -7307,7 +7319,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                           Icon(
                             Icons.receipt_long_outlined,
                             size: 18,
-                            color: isSatis
+                            color: canPrintDocument
                                 ? Colors.white
                                 : Colors.grey.shade500,
                           ),
@@ -7315,7 +7327,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                           Text(
                             tr('common.print_document'),
                             style: TextStyle(
-                              color: isSatis
+                              color: canPrintDocument
                                   ? Colors.white
                                   : Colors.grey.shade500,
                               fontWeight: FontWeight.w600,
@@ -7921,129 +7933,37 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                 (tx) => tx['id'] == _selectedRowId,
                 orElse: () => {},
               );
-              final String rawIslemTuru =
-                  selectedTx['islem_turu']?.toString() ?? '';
-              final String label = IslemTuruRenkleri.getProfessionalLabel(
-                rawIslemTuru,
-                context: 'cari',
-                yon: selectedTx['yon']?.toString(),
+              final bool canPrintDocument = _canPrintDocumentForTransaction(
+                selectedTx,
               );
-              final bool isSatis = label == 'Satış Yapıldı';
 
               return MouseRegion(
-                cursor: isSatis
+                cursor: canPrintDocument
                     ? SystemMouseCursors.click
                     : SystemMouseCursors.basic,
                 child: MouseRegion(
                   cursor: SystemMouseCursors.click,
                   hitTestBehavior: HitTestBehavior.deferToChild,
                   child: GestureDetector(
-                    onTap: isSatis
+                    onTap: canPrintDocument
                         ? () async {
-                            final List<dynamic> rawElements =
-                                selectedTx['hareket_detaylari'] is List
-                                ? selectedTx['hareket_detaylari'] as List
-                                : (selectedTx['hareket_detaylari'] != null
-                                      ? jsonDecode(
-                                              selectedTx['hareket_detaylari']
-                                                  .toString(),
-                                            )
-                                            as List
-                                      : []);
-
-                            final List<dynamic> rawItems = [];
-                            for (var elem in rawElements) {
-                              if (elem is List) {
-                                rawItems.addAll(elem);
-                              } else {
-                                rawItems.add(elem);
-                              }
-                            }
-
-                            final List<Map<String, dynamic>> items = rawItems
-                                .map((e) {
-                                  final map = Map<String, dynamic>.from(
-                                    e is Map ? e : {},
-                                  );
-                                  return {
-                                    'name': map['name'] ?? map['code'] ?? '',
-                                    'code': map['code'] ?? '',
-                                    'quantity':
-                                        double.tryParse(
-                                          map['quantity']?.toString() ?? '',
-                                        ) ??
-                                        0.0,
-                                    'unit': map['unit'] ?? '',
-                                    'price':
-                                        double.tryParse(
-                                          map['unitCost']?.toString() ??
-                                              map['price']?.toString() ??
-                                              '',
-                                        ) ??
-                                        0.0,
-                                    'total':
-                                        double.tryParse(
-                                          map['total']?.toString() ?? '',
-                                        ) ??
-                                        0.0,
-                                  };
-                                })
-                                .toList();
-
-                            DateTime initialDate = DateTime.now();
-                            final rawTarih = selectedTx['tarih'];
-                            if (rawTarih is DateTime) {
-                              initialDate = rawTarih;
-                            } else if (rawTarih != null) {
-                              initialDate =
-                                  DateTime.tryParse(rawTarih.toString()) ??
-                                  DateTime.now();
-                            }
-
-                            Navigator.push(
+                            await _openDocumentPrintForTransaction(
                               context,
-                              MaterialPageRoute(
-                                builder: (context) => SatisSonrasiYazdirSayfasi(
-                                  entegrasyonRef:
-                                      selectedTx['integration_ref']
-                                          ?.toString() ??
-                                      '',
-                                  cariAdi: _currentCari.adi,
-                                  cariKodu: _currentCari.kodNo,
-                                  genelToplam:
-                                      double.tryParse(
-                                        selectedTx['tutar']?.toString() ?? '',
-                                      ) ??
-                                      0.0,
-                                  paraBirimi:
-                                      selectedTx['para_birimi']?.toString() ??
-                                      'TRY',
-                                  initialFaturaNo:
-                                      selectedTx['fatura_no']?.toString() ?? '',
-                                  initialIrsaliyeNo:
-                                      selectedTx['irsaliye_no']?.toString() ??
-                                      '',
-                                  initialTarih: initialDate,
-                                  items: items,
-                                ),
-                              ),
-                            ).then((result) {
-                              if (result == true) {
-                                _reloadActiveList();
-                              }
-                            });
+                              selectedTx,
+                              onSuccess: _reloadActiveList,
+                            );
                           }
                         : null,
                     child: Container(
                       height: 40,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       decoration: BoxDecoration(
-                        color: isSatis
+                        color: canPrintDocument
                             ? const Color(0xFF2C3E50)
                             : Colors.grey.shade200,
                         borderRadius: BorderRadius.circular(4),
                         border: Border.all(
-                          color: isSatis
+                          color: canPrintDocument
                               ? const Color(0xFF2C3E50)
                               : Colors.grey.shade300,
                         ),
@@ -8054,7 +7974,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                           Icon(
                             Icons.receipt_long_outlined,
                             size: 18,
-                            color: isSatis
+                            color: canPrintDocument
                                 ? Colors.white
                                 : Colors.grey.shade500,
                           ),
@@ -8062,7 +7982,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                           Text(
                             tr('common.print_document'),
                             style: TextStyle(
-                              color: isSatis
+                              color: canPrintDocument
                                   ? Colors.white
                                   : Colors.grey.shade500,
                               fontWeight: FontWeight.w600,

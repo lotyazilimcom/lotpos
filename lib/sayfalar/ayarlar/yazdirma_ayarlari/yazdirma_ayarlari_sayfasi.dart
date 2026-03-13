@@ -133,8 +133,12 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
 
   Widget _buildGrid() {
     final filtrelenmis = _sablonlar.where((s) {
+      final effectiveDocType = s.effectiveDocType;
       return s.name.toLowerCase().contains(_searchQuery) ||
-          s.docType.toLowerCase().contains(_searchQuery);
+          effectiveDocType.toLowerCase().contains(_searchQuery) ||
+          tr('settings.print.types.$effectiveDocType')
+              .toLowerCase()
+              .contains(_searchQuery);
     }).toList();
 
     if (filtrelenmis.isEmpty) {
@@ -231,7 +235,7 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${tr('settings.print.types.${sablon.docType}')} • ${sablon.paperSize}',
+                    '${tr('settings.print.types.${sablon.effectiveDocType}')} • ${sablon.paperSize}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                   const SizedBox(height: 12),
@@ -314,7 +318,7 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
   Future<void> _sablonKopyala(YazdirmaSablonuModel sablon) async {
     final yeniSablon = YazdirmaSablonuModel(
       name: '${sablon.name} (Copy)',
-      docType: sablon.docType,
+      docType: sablon.effectiveDocType,
       paperSize: sablon.paperSize,
       customWidth: sablon.customWidth,
       customHeight: sablon.customHeight,
@@ -368,7 +372,7 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
       final guncelModel = YazdirmaSablonuModel(
         id: sablon.id,
         name: yeniIsim,
-        docType: sablon.docType,
+        docType: sablon.effectiveDocType,
         paperSize: sablon.paperSize,
         customWidth: sablon.customWidth,
         customHeight: sablon.customHeight,

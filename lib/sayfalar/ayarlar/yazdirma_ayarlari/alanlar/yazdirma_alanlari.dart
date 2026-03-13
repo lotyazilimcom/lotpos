@@ -730,4 +730,141 @@ class YazdirmaAlanlari {
       defaultHeightMm: 25,
     ),
   ];
+
+  static const List<YazdirmaAlanTanim> ozelAlanlar = [
+    YazdirmaAlanTanim(
+      key: 'transaction_type',
+      labelKey: 'print.field.transaction_type',
+      defaultWidthMm: 45,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'location',
+      labelKey: 'print.field.location',
+      defaultWidthMm: 55,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'amount',
+      labelKey: 'print.field.amount',
+      defaultWidthMm: 35,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'check_no',
+      labelKey: 'print.field.check_no',
+      defaultWidthMm: 45,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'check_issue_date',
+      labelKey: 'print.field.check_issue_date',
+      defaultWidthMm: 40,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'check_bank',
+      labelKey: 'print.field.check_bank',
+      defaultWidthMm: 50,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'delivered_by',
+      labelKey: 'print.field.delivered_by',
+      defaultWidthMm: 45,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'received_by',
+      labelKey: 'print.field.received_by',
+      defaultWidthMm: 45,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'delivery_signature',
+      labelKey: 'print.field.delivery_signature',
+      defaultWidthMm: 35,
+      defaultHeightMm: 12,
+    ),
+    YazdirmaAlanTanim(
+      key: 'vehicle_plate',
+      labelKey: 'print.field.vehicle_plate',
+      defaultWidthMm: 35,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'driver_name',
+      labelKey: 'print.field.driver_name',
+      defaultWidthMm: 45,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'driver_tckn',
+      labelKey: 'print.field.driver_tckn',
+      defaultWidthMm: 40,
+      defaultHeightMm: 6,
+    ),
+  ];
+
+  static final Map<String, YazdirmaAlanTanim> _tumAlanHaritasi = {
+    for (final alan in [...tumAlanlar, ...ozelAlanlar]) alan.key: alan,
+  };
+
+  static const List<String> _makbuzAlanAnahtarlari = [
+    'header_line_1',
+    'header_line_2',
+    'header_line_3',
+    'page_no',
+    'customer_code',
+    'customer_account_name',
+    'customer_invoice_title',
+    'tax_office',
+    'tax_no',
+    'customer_phone',
+    'customer_phone2',
+    'customer_email',
+    'customer_web',
+    'customer_info1',
+    'customer_info2',
+    'customer_info3',
+    'customer_info4',
+    'customer_info5',
+    'transaction_type',
+    'location',
+    'amount',
+    'currency',
+    'total_as_text',
+    'check_no',
+    'check_issue_date',
+    'check_bank',
+    'date',
+    'time',
+    'delivered_by',
+    'received_by',
+    'previous_balance',
+    'current_balance',
+    'balance_currency',
+    'description1',
+    'description2',
+    'description3',
+    'description4',
+    'description5',
+  ];
+
+  static List<YazdirmaAlanTanim> alanlariGetir({String? docType}) {
+    if ((docType ?? '').trim().toLowerCase() == 'voucher') {
+      return _anahtarlardanAlanlariGetir(_makbuzAlanAnahtarlari);
+    }
+    return List<YazdirmaAlanTanim>.unmodifiable(tumAlanlar);
+  }
+
+  static YazdirmaAlanTanim? alanBul(String key) => _tumAlanHaritasi[key];
+
+  static List<YazdirmaAlanTanim> _anahtarlardanAlanlariGetir(
+    List<String> keys,
+  ) {
+    return List<YazdirmaAlanTanim>.unmodifiable(
+      keys.map((key) => _tumAlanHaritasi[key]).whereType<YazdirmaAlanTanim>(),
+    );
+  }
 }

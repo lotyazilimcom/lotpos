@@ -5,32 +5,41 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:pdf/pdf.dart';
+import 'package:printing/printing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../yardimcilar/app_route_observer.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../yardimcilar/format_yardimcisi.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../yardimcilar/responsive_yardimcisi.dart';
+import '../../yardimcilar/yazdirma/dinamik_yazdirma_servisi.dart';
+import '../../yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../../bilesenler/onay_dialog.dart';
 import '../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
+import '../ayarlar/yazdirma_ayarlari/modeller/yazdirma_sablonu_model.dart';
 import '../../servisler/ayarlar_veritabani_servisi.dart';
 import '../../servisler/bankalar_veritabani_servisi.dart';
 import '../../servisler/depolar_veritabani_servisi.dart';
 import '../../servisler/kasalar_veritabani_servisi.dart';
 import '../../servisler/kredi_kartlari_veritabani_servisi.dart';
+import '../../servisler/oturum_servisi.dart';
 import '../../servisler/perakende_satis_veritabani_servisleri.dart';
 import '../../servisler/urunler_veritabani_servisi.dart';
 import '../../servisler/uretimler_veritabani_servisi.dart';
+import '../../servisler/yazdirma_veritabani_servisi.dart';
+import '../../servisler/yerel_ag_yazdirma_servisi.dart';
 import '../bankalar/modeller/banka_model.dart';
 import '../kasalar/kasalar_sayfasi.dart';
 import '../kasalar/modeller/kasa_model.dart';
 import '../kredikartlari/modeller/kredi_karti_model.dart';
 import 'modeller/transaction_item.dart';
-import '../ortak/print_preview_screen.dart';
+import '../ortak/dinamik_sablon_preview_screen.dart';
 import '../urunler_ve_depolar/depolar/modeller/depo_model.dart';
 import '../../bilesenler/tek_tarih_secici_dialog.dart';
 import '../../servisler/sayfa_senkronizasyon_servisi.dart';
 import '../urunler_ve_depolar/urunler/modeller/urun_model.dart';
+import 'perakende_yazdirma_ayarlari_dialog.dart';
 
 enum _RetailNumericKeypadTarget { barkod, miktar, aciklama, odeme }
 
@@ -1787,6 +1796,13 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
   static const String _prefNumericKeypadDy = 'retail_numeric_keypad_dy';
   static const String _prefVirtualKeyboardLettersMode =
       'retail_virtual_keyboard_letters_mode';
+  static const String _prefRetailPrintTemplateId =
+      'retail_print_settings_template_id';
+  static const String _prefRetailPrintPrinterJson =
+      'retail_print_settings_printer_json';
+  static const String _prefRetailPrintCopyCount =
+      'retail_print_settings_copy_count';
+  static const String _receiptDocType = 'receipt';
 
   bool _showNumericKeypad = false;
   Offset? _numericKeypadOffset;
@@ -1796,6 +1812,10 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
   CurrencyInputFormatter? _numericKeypadExternalFormatter;
   _RetailNumericKeypadTarget _numericKeypadTarget =
       _RetailNumericKeypadTarget.barkod;
+  List<YazdirmaSablonuModel> _receiptTemplates = [];
+  int? _selectedReceiptTemplateId;
+  String? _selectedReceiptPrinterJson;
+  int _receiptCopyCount = 1;
   // State
   DateTime _selectedDate = DateTime.now();
   int _selectedFiyatGrubu = 1;
@@ -1835,6 +1855,12 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     return defaultTargetPlatform == TargetPlatform.android ||
         defaultTargetPlatform == TargetPlatform.iOS;
   }
+
+  bool get _printingDisabled =>
+      YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif;
+
+  bool get _useDesktopRelayPrinter =>
+      YazdirmaErisimKontrolu.mobilYerelAgMasaustuYazdirmaAktif;
 
   void _lockPortraitOnly() {
     if (!_isMobilePlatform) return;
@@ -1878,7 +1904,8 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
   void didPushNext() => _lockPortraitOnly();
 
   Future<void> _loadInitialData() async {
-    await Future.wait([_loadSettings(), _loadDepolar()]);
+    await _loadSettings();
+    await Future.wait([_loadDepolar(), _loadRetailPrintSettings()]);
   }
 
   Future<void> _loadHizliUrunler() async {
@@ -2037,6 +2064,179 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     } catch (e) {
       debugPrint('Depolar yüklenirken hata: $e');
     }
+  }
+
+  Future<void> _loadRetailPrintSettings() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final allTemplates = await YazdirmaVeritabaniServisi().sablonlariGetir();
+      final templates = allTemplates
+          .where((template) => template.effectiveDocType == _receiptDocType)
+          .toList(growable: false);
+      if (!mounted) return;
+
+      final savedTemplateId = prefs.getInt(_prefRetailPrintTemplateId);
+      final selectedTemplate =
+          _findReceiptTemplateById(savedTemplateId, source: templates) ??
+          _defaultReceiptTemplate(source: templates);
+
+      final savedPrinterJson = prefs.getString(_prefRetailPrintPrinterJson);
+      final fallbackPrinterJson = _genelAyarlar.yaziciSecimi.trim();
+      final resolvedPrinterJson =
+          (savedPrinterJson?.trim().isNotEmpty ?? false)
+          ? savedPrinterJson!.trim()
+          : (fallbackPrinterJson.isNotEmpty ? fallbackPrinterJson : null);
+
+      final savedCopyCount = prefs.getInt(_prefRetailPrintCopyCount);
+      final fallbackCopyCount =
+          int.tryParse(_genelAyarlar.kopyaSayisi.trim()) ?? 1;
+
+      setState(() {
+        _receiptTemplates = templates;
+        _selectedReceiptTemplateId = selectedTemplate?.id;
+        _selectedReceiptPrinterJson = resolvedPrinterJson;
+        _receiptCopyCount = math.max(1, savedCopyCount ?? fallbackCopyCount);
+      });
+    } catch (e) {
+      debugPrint('Perakende yazdırma ayarları yüklenirken hata: $e');
+    }
+  }
+
+  YazdirmaSablonuModel? _findReceiptTemplateById(
+    int? id, {
+    List<YazdirmaSablonuModel>? source,
+  }) {
+    if (id == null) return null;
+    final templates = source ?? _receiptTemplates;
+    for (final template in templates) {
+      if (template.id == id) return template;
+    }
+    return null;
+  }
+
+  YazdirmaSablonuModel? _defaultReceiptTemplate({
+    List<YazdirmaSablonuModel>? source,
+  }) {
+    final templates = source ?? _receiptTemplates;
+    if (templates.isEmpty) return null;
+
+    for (final template in templates) {
+      if (template.isDefault) return template;
+    }
+    return templates.first;
+  }
+
+  Printer? _decodePrinterSelection(String? raw) {
+    final value = (raw ?? '').trim();
+    if (value.isEmpty) return null;
+
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map) {
+        return Printer.fromMap(decoded.cast<String, dynamic>());
+      }
+    } catch (_) {}
+
+    return Printer(url: value, name: value);
+  }
+
+  String _printerIdentity(Printer printer) {
+    final url = printer.url.trim();
+    if (url.isNotEmpty) return url;
+    return printer.name.trim();
+  }
+
+  Printer? _findMatchingPrinter(List<Printer> printers, Printer candidate) {
+    final candidateIdentity = _printerIdentity(candidate);
+    for (final printer in printers) {
+      if (_printerIdentity(printer) == candidateIdentity) {
+        return printer;
+      }
+      if (printer.name.trim() == candidate.name.trim()) {
+        return printer;
+      }
+    }
+    return null;
+  }
+
+  String? _printerNameFromRaw(String? raw) {
+    final printer = _decodePrinterSelection(raw);
+    if (printer == null) return null;
+    final name = printer.name.trim();
+    if (name.isNotEmpty) return name;
+    final identity = _printerIdentity(printer);
+    return identity.isEmpty ? null : identity;
+  }
+
+  Future<List<Printer>> _loadAvailablePrinters() async {
+    if (_useDesktopRelayPrinter) {
+      return YerelAgYazdirmaServisi().mobilTabletYazicilariniGetir();
+    }
+    if (_isMobilePlatform) {
+      return const <Printer>[];
+    }
+
+    final printers = await Printing.listPrinters();
+    final normalized = printers.toList()
+      ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
+    return normalized;
+  }
+
+  Future<void> _saveRetailPrintSettings({
+    required int? templateId,
+    required String? printerJson,
+    required int copyCount,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
+    if (templateId == null) {
+      await prefs.remove(_prefRetailPrintTemplateId);
+    } else {
+      await prefs.setInt(_prefRetailPrintTemplateId, templateId);
+    }
+
+    final normalizedPrinterJson = printerJson?.trim();
+    if (normalizedPrinterJson == null || normalizedPrinterJson.isEmpty) {
+      await prefs.remove(_prefRetailPrintPrinterJson);
+    } else {
+      await prefs.setString(_prefRetailPrintPrinterJson, normalizedPrinterJson);
+    }
+
+    await prefs.setInt(_prefRetailPrintCopyCount, math.max(1, copyCount));
+
+    if (!mounted) return;
+    setState(() {
+      _selectedReceiptTemplateId = templateId;
+      _selectedReceiptPrinterJson = normalizedPrinterJson;
+      _receiptCopyCount = math.max(1, copyCount);
+    });
+  }
+
+  Future<void> _openRetailPrintSettingsDialog() async {
+    await _loadRetailPrintSettings();
+    if (!mounted) return;
+
+    final result = await showDialog<PerakendeYazdirmaAyarlariDialogResult>(
+      context: context,
+      builder: (context) => PerakendeYazdirmaAyarlariDialog(
+        sablonlar: _receiptTemplates,
+        seciliSablonId: _selectedReceiptTemplateId,
+        seciliYaziciJson: _selectedReceiptPrinterJson,
+        kopyaSayisi: _receiptCopyCount,
+        yazicilariYukle: _loadAvailablePrinters,
+      ),
+    );
+
+    if (result == null) return;
+
+    await _saveRetailPrintSettings(
+      templateId: result.sablonId,
+      printerJson: result.yaziciJson,
+      copyCount: result.kopyaSayisi,
+    );
+
+    if (!mounted) return;
+    MesajYardimcisi.basariGoster(context, tr('common.saved_successfully'));
   }
 
   @override
@@ -2871,7 +3071,17 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       if (!mounted) return;
 
       if (_fisYazdir) {
-        await _fisYazdirOnizleme(faturaNo: faturaNo);
+        await _fisYazdirOnizleme(
+          faturaNo: faturaNo,
+          paymentType: odemeYeri == 'Kasa' ? 'Nakit' : odemeYeri,
+          cashierName: currentUser,
+          cashCollected: odemeYeri == 'Kasa' ? tahsilatTutar : 0,
+          cardCollected: odemeYeri == 'Kredi Kartı' ? tahsilatTutar : 0,
+          transferCollected: odemeYeri == 'Havale' ? tahsilatTutar : 0,
+          cashTendered: odemeYeri == 'Kasa'
+              ? (tendered > 0 ? tendered : tahsilatTutar)
+              : null,
+        );
         if (!mounted) return;
       }
 
@@ -2893,42 +3103,529 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     }
   }
 
-  Future<void> _fisYazdirOnizleme({required String faturaNo}) async {
-    final headers = [
-      tr('retail.table.code'),
-      tr('retail.table.barcode'),
-      tr('retail.table.name'),
-      tr('retail.table.unit_price'),
-      tr('retail.table.discount'),
-      tr('retail.table.quantity'),
-      tr('retail.table.unit'),
-      tr('retail.table.total_price'),
-    ];
+  String _fmtReceiptMoney(num value, {int? decimalDigits}) {
+    return FormatYardimcisi.sayiFormatlaOndalikli(
+      value,
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: decimalDigits ?? _genelAyarlar.fiyatOndalik,
+    );
+  }
 
-    final data = _sepetItems
-        .map(
-          (e) => [
-            e.kodNo,
-            e.barkodNo,
-            e.adi,
-            _formatTutar(e.birimFiyati),
-            _formatTutar(e.iskontoOrani, decimalDigits: 2),
-            _formatTutar(e.miktar, decimalDigits: _genelAyarlar.miktarOndalik),
-            e.olcu,
-            '${_formatTutar(e.toplamFiyat)} ${e.paraBirimi}',
-          ],
-        )
+  String _fmtReceiptQuantity(num value) {
+    return FormatYardimcisi.sayiFormatla(
+      value,
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: _genelAyarlar.miktarOndalik,
+    );
+  }
+
+  String _fmtReceiptRate(num value) {
+    return FormatYardimcisi.sayiFormatlaOran(
+      value,
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: _genelAyarlar.kurOndalik,
+    );
+  }
+
+  String _receiptCurrencyDisplay(String code) {
+    final normalized = code.trim().toUpperCase();
+    if (normalized.isEmpty) return '';
+    if (!_genelAyarlar.sembolGoster) return normalized;
+    return FormatYardimcisi.paraBirimiSembol(normalized);
+  }
+
+  String _buildRetailItemsTable(
+    List<TransactionItem> txItems, {
+    required bool extended,
+  }) {
+    if (txItems.isEmpty) return '-';
+
+    final lines = <String>[];
+    for (int i = 0; i < txItems.length; i++) {
+      final item = txItems[i];
+      final qty = _fmtReceiptQuantity(item.quantity);
+      final unit = item.unit.trim();
+      final total = _fmtReceiptMoney(item.total);
+      final currency = _receiptCurrencyDisplay(item.currency);
+
+      if (!extended) {
+        lines.add(
+          '${i + 1}) ${item.name} | $qty${unit.isEmpty ? '' : ' $unit'} | $total $currency',
+        );
+        continue;
+      }
+
+      final unitPrice = _fmtReceiptMoney(item.netUnitPrice);
+      final discount = _fmtReceiptRate(item.discountRate);
+      final vat = _fmtReceiptRate(item.vatRate);
+      lines.add(
+        '${i + 1}) ${item.code} ${item.name} | $qty${unit.isEmpty ? '' : ' $unit'} | BF:$unitPrice | Isk:$discount | KDV:$vat | $total $currency',
+      );
+    }
+
+    return lines.join('\\n');
+  }
+
+  String _buildRetailRateSummary({
+    required Map<double, ({double base, double amount})> groups,
+    required String amountLabel,
+  }) {
+    if (groups.isEmpty) {
+      return '${_fmtReceiptRate(0)} Matrah: ${_fmtReceiptMoney(0)} $amountLabel: ${_fmtReceiptMoney(0)}';
+    }
+
+    final sortedKeys = groups.keys.toList()..sort();
+    final lines = <String>[];
+    for (final rate in sortedKeys) {
+      final group = groups[rate]!;
+      lines.add(
+        '${_fmtReceiptRate(rate)} Matrah: ${_fmtReceiptMoney(group.base)} $amountLabel: ${_fmtReceiptMoney(group.amount)}',
+      );
+    }
+    return lines.join('\\n');
+  }
+
+  Future<String> _buildRetailBankInfo({required String paymentType}) async {
+    try {
+      final banks = await BankalarVeritabaniServisi().bankalariGetir(
+        sayfaBasinaKayit: 1,
+        varsayilan: true,
+        aktifMi: true,
+      );
+
+      if (banks.isNotEmpty) {
+        final bank = banks.first;
+        final lines = <String>[];
+        if (bank.ad.trim().isNotEmpty) lines.add(bank.ad.trim());
+
+        final branch = [
+          bank.subeAdi.trim(),
+          bank.subeKodu.trim(),
+        ].where((part) => part.isNotEmpty).join(' ');
+        if (branch.isNotEmpty) lines.add(branch);
+        if (bank.hesapNo.trim().isNotEmpty) {
+          lines.add('Hesap: ${bank.hesapNo.trim()}');
+        }
+        if (bank.iban.trim().isNotEmpty) {
+          lines.add('IBAN: ${FormatYardimcisi.ibanFormatla(bank.iban.trim())}');
+        }
+        if (bank.bilgi1.trim().isNotEmpty) lines.add(bank.bilgi1.trim());
+        if (bank.bilgi2.trim().isNotEmpty) lines.add(bank.bilgi2.trim());
+
+        if (lines.isNotEmpty) {
+          return lines.join('\\n');
+        }
+      }
+    } catch (e) {
+      debugPrint('Perakende banka bilgisi alınamadı: $e');
+    }
+
+    return paymentType.trim().isEmpty ? '-' : paymentType;
+  }
+
+  Future<Map<String, dynamic>> _buildRetailReceiptPrintData({
+    required String faturaNo,
+    required String paymentType,
+    required String cashierName,
+    required double cashCollected,
+    required double cardCollected,
+    required double transferCollected,
+    double? cashTendered,
+  }) async {
+    final sirket = OturumServisi().aktifSirket;
+    final headerLines = (sirket?.ustBilgiSatirlari.isNotEmpty ?? false)
+        ? sirket!.ustBilgiSatirlari
+        : (sirket?.basliklar ?? const <String>[]);
+
+    final txItems = _sepetItems
+        .map(_transactionItemFromSepet)
         .toList(growable: false);
 
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (context) => PrintPreviewScreen(
-          title: '${tr('nav.trading_operations.retail_sale')} - $faturaNo',
-          headers: headers,
-          data: data,
-        ),
+    double subtotal = 0;
+    double discountTotal = 0;
+    double taxableAmount = 0;
+    double vatTotal = 0;
+    double otvAmount = 0;
+    double oivAmount = 0;
+    double tevkifatAmount = 0;
+    double grandTotal = 0;
+
+    final vatGroups = <double, ({double base, double amount})>{};
+    final otvGroups = <double, ({double base, double amount})>{};
+    final oivGroups = <double, ({double base, double amount})>{};
+    final tevkifatGroups = <double, ({double base, double amount})>{};
+
+    final itemLineNo = <String>[];
+    final itemName = <String>[];
+    final itemCode = <String>[];
+    final itemBarcode = <String>[];
+    final itemDescription = <String>[];
+    final itemQuantity = <String>[];
+    final itemUnit = <String>[];
+    final itemDiscountRate = <String>[];
+    final itemDiscountAmount = <String>[];
+    final itemVatRate = <String>[];
+    final itemOtvRate = <String>[];
+    final itemOivRate = <String>[];
+    final itemTevkifatRate = <String>[];
+    final itemUnitPriceExcl = <String>[];
+    final itemUnitPriceIncl = <String>[];
+    final itemTotalExcl = <String>[];
+    final itemTotalIncl = <String>[];
+    final itemCurrency = <String>[];
+
+    for (int i = 0; i < txItems.length; i++) {
+      final item = txItems[i];
+      subtotal += item.quantity * item.netUnitPrice;
+      discountTotal += item.discountAmount;
+      taxableAmount += item.vatBase;
+      vatTotal += item.vatAmount;
+      otvAmount += item.otvAmount;
+      oivAmount += item.oivAmount;
+      tevkifatAmount += item.kdvTevkifatAmount;
+      grandTotal += item.total;
+
+      final vatCurrent = vatGroups[item.vatRate];
+      vatGroups[item.vatRate] = (
+        base: (vatCurrent?.base ?? 0) + item.vatBase,
+        amount: (vatCurrent?.amount ?? 0) + item.vatAmount,
+      );
+
+      final base = item.quantity * item.netUnitPrice;
+      if (item.otvRate != 0 || item.otvAmount != 0) {
+        final otvCurrent = otvGroups[item.otvRate];
+        otvGroups[item.otvRate] = (
+          base: (otvCurrent?.base ?? 0) + base,
+          amount: (otvCurrent?.amount ?? 0) + item.otvAmount,
+        );
+      }
+
+      if (item.oivRate != 0 || item.oivAmount != 0) {
+        final oivCurrent = oivGroups[item.oivRate];
+        oivGroups[item.oivRate] = (
+          base: (oivCurrent?.base ?? 0) + base,
+          amount: (oivCurrent?.amount ?? 0) + item.oivAmount,
+        );
+      }
+
+      if (item.kdvTevkifatOrani != 0 || item.kdvTevkifatAmount != 0) {
+        final tevkifatRate = item.kdvTevkifatOrani * 100;
+        final tevkifatCurrent = tevkifatGroups[tevkifatRate];
+        tevkifatGroups[tevkifatRate] = (
+          base: (tevkifatCurrent?.base ?? 0) + item.vatAmount,
+          amount: (tevkifatCurrent?.amount ?? 0) + item.kdvTevkifatAmount,
+        );
+      }
+
+      itemLineNo.add('${i + 1}');
+      itemName.add(item.name);
+      itemCode.add(item.code);
+      itemBarcode.add(item.barcode);
+      itemDescription.add(item.name);
+      itemQuantity.add(_fmtReceiptQuantity(item.quantity));
+      itemUnit.add(item.unit);
+      itemDiscountRate.add(_fmtReceiptRate(item.discountRate));
+      itemDiscountAmount.add(_fmtReceiptMoney(item.discountAmount));
+      itemVatRate.add(_fmtReceiptRate(item.vatRate));
+      itemOtvRate.add(_fmtReceiptRate(item.otvRate));
+      itemOivRate.add(_fmtReceiptRate(item.oivRate));
+      itemTevkifatRate.add(_fmtReceiptRate(item.kdvTevkifatOrani * 100));
+      itemUnitPriceExcl.add(_fmtReceiptMoney(item.netUnitPrice));
+      itemUnitPriceIncl.add(_fmtReceiptMoney(item.unitPrice));
+      itemTotalExcl.add(_fmtReceiptMoney(item.totalBeforeVat));
+      itemTotalIncl.add(_fmtReceiptMoney(item.total));
+      itemCurrency.add(_receiptCurrencyDisplay(item.currency));
+    }
+
+    final sortedRates = vatGroups.keys.toList()..sort();
+    final selectedDateText = DateFormat('dd.MM.yyyy').format(_selectedDate);
+    final currentTimeText = DateFormat('HH:mm').format(DateTime.now());
+    final noteText = _aciklamaController.text.trim().isEmpty
+        ? '-'
+        : _aciklamaController.text.trim();
+    final itemsTable = _buildRetailItemsTable(txItems, extended: false);
+    final itemsTableExtended = _buildRetailItemsTable(txItems, extended: true);
+    final grandTotalRounded = _genelToplam;
+    final roundingRaw = grandTotalRounded - grandTotal;
+    final roundingValue = roundingRaw.abs() < 0.0001 ? 0.0 : roundingRaw;
+    final bankInfo = await _buildRetailBankInfo(paymentType: paymentType);
+    final cashDisplayAmount = cashCollected > 0
+        ? math.max(cashCollected, cashTendered ?? cashCollected)
+        : 0.0;
+    final changeAmount = cashDisplayAmount > grandTotalRounded
+        ? cashDisplayAmount - grandTotalRounded
+        : 0.0;
+    final kurusBasamak = math.min(2, math.max(0, _genelAyarlar.fiyatOndalik));
+    final retailTitle = tr('nav.trading_operations.retail_sale');
+
+    return {
+      'header_line_1': headerLines.isNotEmpty ? headerLines[0] : '',
+      'header_line_2': headerLines.length > 1 ? headerLines[1] : '',
+      'header_line_3': headerLines.length > 2 ? headerLines[2] : '',
+      'seller_logo': sirket?.ustBilgiLogosu ?? '',
+      'seller_name': sirket?.ad ?? '',
+      'seller_address': sirket?.adres ?? '',
+      'seller_tax_office': sirket?.vergiDairesi ?? '',
+      'seller_tax_no': sirket?.vergiNo ?? '',
+      'seller_phone': sirket?.telefon ?? '',
+      'seller_email': sirket?.eposta ?? '',
+      'seller_web': sirket?.webAdresi ?? '',
+      'bank_info': bankInfo,
+      'customer_name': retailTitle,
+      'customer_code': faturaNo,
+      'customer_account_name': retailTitle,
+      'customer_invoice_title': retailTitle,
+      'customer_address': '',
+      'customer_shipping_address': '',
+      'tax_office': '',
+      'tax_no': '',
+      'customer_phone': '',
+      'customer_phone2': '',
+      'customer_email': '',
+      'customer_web': '',
+      'customer_info1': '',
+      'customer_info2': '',
+      'customer_info3': '',
+      'customer_info4': '',
+      'customer_info5': '',
+      'previous_balance': _fmtReceiptMoney(0),
+      'current_balance': _fmtReceiptMoney(0),
+      'balance_currency': _receiptCurrencyDisplay(_selectedParaBirimi),
+      'invoice_type': retailTitle,
+      'invoice_date': selectedDateText,
+      'invoice_no': faturaNo,
+      'serial_no': '-',
+      'sequence_no': faturaNo,
+      'dispatch_number': '',
+      'dispatch_date': selectedDateText,
+      'dispatch_time': currentTimeText,
+      'actual_dispatch_date': selectedDateText,
+      'due_date': selectedDateText,
+      'validity_date': selectedDateText,
+      'created_date': selectedDateText,
+      'created_time': currentTimeText,
+      'order_no': '',
+      'date': selectedDateText,
+      'time': currentTimeText,
+      'page_no': '1',
+      'note': noteText,
+      'description1': _aciklamaController.text.trim(),
+      'description2': '',
+      'description3': '',
+      'description4': '',
+      'description5': '',
+      'items_table': itemsTable,
+      'items_table_extended': itemsTableExtended,
+      'item_line_no': itemLineNo,
+      'item_name': itemName,
+      'item_code': itemCode,
+      'item_barcode': itemBarcode,
+      'item_description': itemDescription,
+      'item_quantity': itemQuantity,
+      'item_unit': itemUnit,
+      'item_discount_rate': itemDiscountRate,
+      'item_discount_amount': itemDiscountAmount,
+      'item_vat_rate': itemVatRate,
+      'item_otv_rate': itemOtvRate,
+      'item_oiv_rate': itemOivRate,
+      'item_tevkifat_rate': itemTevkifatRate,
+      'item_unit_price_excl': itemUnitPriceExcl,
+      'item_unit_price_incl': itemUnitPriceIncl,
+      'item_total_excl': itemTotalExcl,
+      'item_total_incl': itemTotalIncl,
+      'item_currency': itemCurrency,
+      'subtotal': _fmtReceiptMoney(subtotal),
+      'discount_total': _fmtReceiptMoney(discountTotal),
+      'taxable_amount': _fmtReceiptMoney(taxableAmount),
+      'vat_total': _fmtReceiptMoney(vatTotal),
+      'otv_amount': _fmtReceiptMoney(otvAmount),
+      'oiv_amount': _fmtReceiptMoney(oivAmount),
+      'tevkifat_amount': _fmtReceiptMoney(tevkifatAmount),
+      'rounding': _fmtReceiptMoney(roundingValue),
+      'grand_total': _fmtReceiptMoney(grandTotal),
+      'grand_total_rounded': _fmtReceiptMoney(grandTotalRounded),
+      'currency': _receiptCurrencyDisplay(_selectedParaBirimi),
+      'exchange_rate': _fmtReceiptRate(1),
+      'total_as_text': FormatYardimcisi.tutarYaziyaCevir(
+        grandTotalRounded,
+        paraBirimiKodu: _selectedParaBirimi,
+        yalnizEkle: true,
+        kurusBasamak: kurusBasamak,
       ),
+      'vat_summary': _buildRetailRateSummary(
+        groups: vatGroups,
+        amountLabel: 'KDV',
+      ),
+      'otv_summary': _buildRetailRateSummary(
+        groups: otvGroups,
+        amountLabel: 'OTV',
+      ),
+      'oiv_summary': _buildRetailRateSummary(
+        groups: oivGroups,
+        amountLabel: 'OIV',
+      ),
+      'tevkifat_summary': _buildRetailRateSummary(
+        groups: tevkifatGroups,
+        amountLabel: 'Tevkifat',
+      ),
+      'payment_type': paymentType,
+      'cash_amount': _fmtReceiptMoney(cashDisplayAmount),
+      'card_amount': _fmtReceiptMoney(cardCollected),
+      'bank_transfer_amount': _fmtReceiptMoney(transferCollected),
+      'change_amount': _fmtReceiptMoney(changeAmount),
+      'cashier_name': cashierName.trim().isEmpty ? 'Sistem' : cashierName,
+      'receipt_qr': faturaNo,
+      for (int i = 0; i < 6; i++) ...{
+        'vat_rate_${i + 1}': i < sortedRates.length
+            ? _fmtReceiptRate(sortedRates[i])
+            : _fmtReceiptRate(0),
+        'vat_base_${i + 1}': i < sortedRates.length
+            ? _fmtReceiptMoney(vatGroups[sortedRates[i]]!.base)
+            : _fmtReceiptMoney(0),
+        'vat_amount_${i + 1}': i < sortedRates.length
+            ? _fmtReceiptMoney(vatGroups[sortedRates[i]]!.amount)
+            : _fmtReceiptMoney(0),
+      },
+    };
+  }
+
+  Future<void> _printReceiptPdf({
+    required Printer printer,
+    required String title,
+    required PdfPageFormat format,
+    required List<int> pdfBytes,
+    required int copyCount,
+  }) async {
+    if (_useDesktopRelayPrinter) {
+      await YerelAgYazdirmaServisi().yazdirmaIstegiGonder(
+        title: title,
+        pdfBytes: Uint8List.fromList(pdfBytes),
+        printer: printer,
+        copies: math.max(1, copyCount),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              'print.mobile.remote.queued',
+            ).replaceAll('{printer}', printer.name),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final repeatCount = math.max(1, copyCount);
+    for (int i = 0; i < repeatCount; i++) {
+      await Printing.directPrintPdf(
+        printer: printer,
+        onLayout: (_) async => Uint8List.fromList(pdfBytes),
+        name: title,
+        format: format,
+      );
+    }
+  }
+
+  Future<void> _fisYazdirOnizleme({
+    required String faturaNo,
+    required String paymentType,
+    required String cashierName,
+    double cashCollected = 0,
+    double cardCollected = 0,
+    double transferCollected = 0,
+    double? cashTendered,
+  }) async {
+    if (_receiptTemplates.isEmpty) {
+      await _loadRetailPrintSettings();
+      if (!mounted) return;
+    }
+
+    final template =
+        _findReceiptTemplateById(_selectedReceiptTemplateId) ??
+        _defaultReceiptTemplate();
+    if (template == null) {
+      MesajYardimcisi.uyariGoster(
+        context,
+        tr('print_after_sale.error.no_template_selected'),
+      );
+      return;
+    }
+
+    final printData = await _buildRetailReceiptPrintData(
+      faturaNo: faturaNo,
+      paymentType: paymentType,
+      cashierName: cashierName,
+      cashCollected: cashCollected,
+      cardCollected: cardCollected,
+      transferCollected: transferCollected,
+      cashTendered: cashTendered,
     );
+    if (!mounted) return;
+
+    final title = '${tr('nav.trading_operations.retail_sale')} - $faturaNo';
+    final format = DinamikYazdirmaServisi().getFormat(template);
+
+    if (_printingDisabled) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => DinamikSablonPreviewScreen(
+            title: title,
+            sablon: template,
+            veri: printData,
+          ),
+        ),
+      );
+      return;
+    }
+
+    final selectedPrinter = _decodePrinterSelection(_selectedReceiptPrinterJson);
+    if (selectedPrinter == null) {
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => DinamikSablonPreviewScreen(
+            title: title,
+            sablon: template,
+            veri: printData,
+          ),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final printers = await _loadAvailablePrinters();
+      final resolvedPrinter =
+          _findMatchingPrinter(printers, selectedPrinter) ?? selectedPrinter;
+      final document = await DinamikYazdirmaServisi().pdfOlustur(
+        sablon: template,
+        veri: printData,
+      );
+      final pdfBytes = await document.save();
+
+      await _printReceiptPdf(
+        printer: resolvedPrinter,
+        title: title,
+        format: format,
+        pdfBytes: pdfBytes,
+        copyCount: _receiptCopyCount,
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      final printerName =
+          _printerNameFromRaw(_selectedReceiptPrinterJson) ??
+          selectedPrinter.name;
+      MesajYardimcisi.hataGoster(
+        context,
+        tr(
+          'print.error.during_print',
+        ).replaceAll('{error}', '$printerName: $e'),
+      );
+    }
   }
 
   Future<void> _openProductSearchDialog({String initialQuery = ''}) async {
@@ -3305,7 +4002,15 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       if (!mounted) return;
 
       if (_fisYazdir) {
-        await _fisYazdirOnizleme(faturaNo: faturaNo);
+        await _fisYazdirOnizleme(
+          faturaNo: faturaNo,
+          paymentType: tr('retail.partial_payment.dialog.title'),
+          cashierName: currentUser,
+          cashCollected: nakitTutar,
+          cardCollected: krediKartiTutar,
+          transferCollected: havaleTutar,
+          cashTendered: nakitTutar,
+        );
         if (!mounted) return;
       }
 
@@ -4283,10 +4988,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                               size: 18,
                               color: Colors.grey.shade600,
                             ),
-                            onPressed: () => MesajYardimcisi.bilgiGoster(
-                              context,
-                              tr('common.feature_coming_soon'),
-                            ),
+                            onPressed: _openRetailPrintSettingsDialog,
                           ),
                         ),
                       ],

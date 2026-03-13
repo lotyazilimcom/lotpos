@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
+import '../../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
 import '../../yardimcilar/format_yardimcisi.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../servisler/ayarlar_veritabani_servisi.dart';
@@ -32,6 +33,8 @@ class SatisSonrasiYazdirSayfasi extends StatefulWidget {
   final String initialIrsaliyeNo;
   final DateTime initialTarih;
   final List<Map<String, dynamic>> items; // Ürün listesi (yazdırma için)
+  final List<String>? allowedDocTypes;
+  final String? voucherTransactionType;
 
   const SatisSonrasiYazdirSayfasi({
     super.key,
@@ -44,6 +47,8 @@ class SatisSonrasiYazdirSayfasi extends StatefulWidget {
     this.initialIrsaliyeNo = '',
     required this.initialTarih,
     required this.items,
+    this.allowedDocTypes,
+    this.voucherTransactionType,
   });
 
   @override
@@ -66,6 +71,8 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
   final _duzenlemeSaatiController = TextEditingController();
   final _siparisNoController = TextEditingController();
   final _sonOdemeTarihiController = TextEditingController();
+  final _teslimEdenController = TextEditingController();
+  final _teslimAlanController = TextEditingController();
 
   final List<TextEditingController> _aciklamaControllers = List.generate(
     5,
@@ -82,6 +89,20 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
   YazdirmaSablonuModel? _secilenSablon;
   bool _yukleniyor = true;
   GenelAyarlarModel _genelAyarlar = GenelAyarlarModel();
+
+  List<YazdirmaSablonuModel> get _secilebilirSablonlar => _sablonlar
+      .where((sablon) {
+        final allowedDocTypes = widget.allowedDocTypes;
+        if (allowedDocTypes == null || allowedDocTypes.isEmpty) {
+          return sablon.effectiveDocType != 'voucher';
+        }
+
+        return allowedDocTypes.contains(sablon.effectiveDocType);
+      })
+      .toList(growable: false);
+
+  bool get _isVoucherTemplateSelected =>
+      _secilenSablon?.effectiveDocType == 'voucher';
 
   @override
   void initState() {
@@ -117,6 +138,25 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
     _sonOdemeTarihiController.text = DateFormat(
       'dd.MM.yyyy',
     ).format(_sonOdemeTarihi);
+  }
+
+  @override
+  void dispose() {
+    _irsaliyeNoController.dispose();
+    _faturaNoController.dispose();
+    _irsaliyeTarihiController.dispose();
+    _fiiliSevkTarihiController.dispose();
+    _faturaTarihiController.dispose();
+    _duzenlemeTarihiController.dispose();
+    _duzenlemeSaatiController.dispose();
+    _siparisNoController.dispose();
+    _sonOdemeTarihiController.dispose();
+    _teslimEdenController.dispose();
+    _teslimAlanController.dispose();
+    for (final controller in _aciklamaControllers) {
+      controller.dispose();
+    }
+    super.dispose();
   }
 
   Future<void> _sablonlariYukle() async {
@@ -338,6 +378,24 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
     if (normalized.isEmpty) return '';
     if (!_genelAyarlar.sembolGoster) return normalized;
     return FormatYardimcisi.paraBirimiSembol(normalized);
+  }
+
+  String _shortLabel(String translationKey) {
+    return tr(translationKey)
+        .replaceAll(' (Üst)', '')
+        .replaceAll(' (Alt)', '')
+        .replaceAll(' (Top)', '')
+        .replaceAll(' (Bottom)', '')
+        .replaceAll(' (أعلى)', '')
+        .replaceAll(' (أسفل)', '');
+  }
+
+  String _formatOptionalDate(dynamic raw) {
+    if (raw == null) return '';
+    if (raw is DateTime) return DateFormat('dd.MM.yyyy').format(raw);
+    final parsed = DateTime.tryParse(raw.toString());
+    if (parsed != null) return DateFormat('dd.MM.yyyy').format(parsed);
+    return raw.toString().trim();
   }
 
   String _formatAddress({
@@ -749,7 +807,36 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
     final odemeYeri = (odemeBilgisi?['odemeYeri']?.toString() ?? '').trim();
     final odemeAciklama = (odemeBilgisi?['odemeAciklama']?.toString() ?? '')
         .trim();
+    final odemeHesapAdi = (odemeBilgisi?['hesapAdi']?.toString() ?? '').trim();
+    final odemeHesapKodu = (odemeBilgisi?['hesapKodu']?.toString() ?? '').trim();
+    final odemeBelgeNo = (odemeBilgisi?['belgeNo']?.toString() ?? '').trim();
+    final cekSenetTarihi = _formatOptionalDate(odemeBilgisi?['kesideTarihi']);
+    final cekBanka = (odemeBilgisi?['banka']?.toString() ?? '').trim();
     final double odemeTutar = _toDouble(odemeBilgisi?['tutar']);
+    final double makbuzTutari = odemeTutar > 0 ? odemeTutar : grandTotalRounded;
+    final String? voucherTransactionType = widget.voucherTransactionType;
+    final String islemTuru = switch (voucherTransactionType) {
+      'collection' => tr('transactions.status.collection'),
+      'payment' => tr('transactions.status.payment'),
+      _ when odemeTutar > 0 => tr('transactions.status.collection'),
+      _ => IslemCeviriYardimcisi.cevir(
+          (cariIslem?['source_type']?.toString() ??
+                  cariIslem?['type']?.toString() ??
+                  '')
+              .trim(),
+        ),
+    };
+    final String yerBilgisi = <String>[
+      IslemCeviriYardimcisi.cevir(odemeYeri),
+      odemeHesapAdi,
+      odemeHesapKodu.isEmpty ? '' : '($odemeHesapKodu)',
+    ].where((parca) => parca.trim().isNotEmpty).join(' ');
+    final String toplamYaziIle = FormatYardimcisi.tutarYaziyaCevir(
+      _isVoucherTemplateSelected ? makbuzTutari : grandTotalRounded,
+      paraBirimiKodu: widget.paraBirimi,
+      yalnizEkle: true,
+      kurusBasamak: _genelAyarlar.fiyatOndalik.clamp(0, 2),
+    );
 
     String paymentType = odemeAciklama.isNotEmpty ? odemeAciklama : odemeYeri;
     if (paymentType.trim().isEmpty) paymentType = 'Nakit';
@@ -812,12 +899,10 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
     }
 
     if (bankInfo.trim().isEmpty) {
-      final hesapAdi = (odemeBilgisi?['hesapAdi']?.toString() ?? '').trim();
-      final hesapKodu = (odemeBilgisi?['hesapKodu']?.toString() ?? '').trim();
       final parts = <String>[
         odemeYeri,
-        hesapAdi,
-        hesapKodu.isEmpty ? '' : '($hesapKodu)',
+        odemeHesapAdi,
+        odemeHesapKodu.isEmpty ? '' : '($odemeHesapKodu)',
       ].where((p) => p.isNotEmpty).toList();
       bankInfo = parts.isNotEmpty ? parts.join(' ') : '-';
     }
@@ -889,6 +974,14 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
       'order_no': _siparisNoController.text,
       'date': _faturaTarihiController.text,
       'time': _duzenlemeSaatiController.text,
+      'transaction_type': islemTuru.isNotEmpty ? islemTuru : paymentType,
+      'location': yerBilgisi,
+      'amount': _fmtMoney(makbuzTutari),
+      'check_no': odemeBelgeNo,
+      'check_issue_date': cekSenetTarihi,
+      'check_bank': cekBanka,
+      'delivered_by': _teslimEdenController.text,
+      'received_by': _teslimAlanController.text,
       'page_no': '1',
       'note': noteText,
       'description1': _aciklamaControllers[0].text,
@@ -932,12 +1025,7 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
       'grand_total_rounded': _fmtMoney(grandTotalRounded),
       'currency': docCurrencySymbol,
       'exchange_rate': _fmtRate(docExchangeRate),
-      'total_as_text': FormatYardimcisi.tutarYaziyaCevir(
-        grandTotalRounded,
-        paraBirimiKodu: widget.paraBirimi,
-        yalnizEkle: true,
-        kurusBasamak: _genelAyarlar.fiyatOndalik.clamp(0, 2),
-      ),
+      'total_as_text': toplamYaziIle,
       'vat_summary': vatSummary,
       'otv_summary': otvSummary,
       'oiv_summary': oivSummary,
@@ -1077,9 +1165,13 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
                             color: primaryColor,
                             isCompact: isMobileLayout,
                             child: _buildDropdown(
-                              value: _secilenSablon,
+                              value: _secilebilirSablonlar.contains(
+                                    _secilenSablon,
+                                  )
+                                  ? _secilenSablon
+                                  : null,
                               label: tr('print_after_sale.field.template'),
-                              items: _sablonlar,
+                              items: _secilebilirSablonlar,
                               onChanged: (v) =>
                                   setState(() => _secilenSablon = v),
                               color: primaryColor,
@@ -1091,7 +1183,9 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
                             icon: Icons.description_outlined,
                             color: primaryColor,
                             isCompact: isMobileLayout,
-                            child: _buildFormFields(primaryColor),
+                            child: _isVoucherTemplateSelected
+                                ? _buildMakbuzFields(primaryColor)
+                                : _buildFormFields(primaryColor),
                           ),
                         ],
                       ),
@@ -1536,6 +1630,173 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildMakbuzFields(Color defaultColor) {
+    return Column(
+      children: [
+        _buildResponsiveRow(
+          first: _buildModernField(
+            _shortLabel('common.date'),
+            _faturaTarihiController,
+            color: defaultColor,
+            isDate: true,
+            onTap: () => _tarihSec(context, 'fatura'),
+            enabled: _isFieldInTemplate('date'),
+          ),
+          second: _buildModernField(
+            _shortLabel('print.field.time'),
+            _duzenlemeSaatiController,
+            color: defaultColor,
+            enabled: _isFieldInTemplate('time'),
+          ),
+        ),
+        const SizedBox(height: 16),
+        _buildResponsiveRow(
+          first: _buildSmartField(
+            controller: _teslimEdenController,
+            label: _shortLabel('print.field.delivered_by'),
+            category: 'satis_sonrasi_yazdir_teslim_eden',
+            color: defaultColor,
+            enabled: _isFieldInTemplate('delivered_by'),
+          ),
+          second: _buildSmartField(
+            controller: _teslimAlanController,
+            label: _shortLabel('print.field.received_by'),
+            category: 'satis_sonrasi_yazdir_teslim_alan',
+            color: defaultColor,
+            enabled: _isFieldInTemplate('received_by'),
+            defaultItems: [widget.cariAdi],
+          ),
+        ),
+        const SizedBox(height: 32),
+        Column(
+          children: [
+            _buildResponsiveRow(
+              first: _buildSmartField(
+                controller: _aciklamaControllers[0],
+                label: tr(
+                  'common.description_with_number',
+                ).replaceAll('{n}', '1'),
+                category: 'satis_sonrasi_yazdir_aciklama',
+                color: defaultColor,
+                enabled: _isFieldInTemplate('description1'),
+                defaultItems: [
+                  tr('orders.defaults.description.1'),
+                  tr('orders.defaults.description.2'),
+                  tr('orders.defaults.description.3'),
+                  tr('orders.defaults.description.4'),
+                  tr('orders.defaults.description.5'),
+                ],
+              ),
+              second: _buildSmartField(
+                controller: _aciklamaControllers[1],
+                label: tr(
+                  'common.description_with_number',
+                ).replaceAll('{n}', '2'),
+                category: 'satis_sonrasi_yazdir_aciklama',
+                color: defaultColor,
+                enabled: _isFieldInTemplate('description2'),
+                defaultItems: [
+                  tr('orders.defaults.description2.1'),
+                  tr('orders.defaults.description2.2'),
+                  tr('orders.defaults.description2.3'),
+                  tr('orders.defaults.description2.4'),
+                  tr('orders.defaults.description2.5'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            _buildResponsiveRow(
+              first: _buildSmartField(
+                controller: _aciklamaControllers[2],
+                label: tr(
+                  'common.description_with_number',
+                ).replaceAll('{n}', '3'),
+                category: 'satis_sonrasi_yazdir_aciklama',
+                color: defaultColor,
+                enabled: _isFieldInTemplate('description3'),
+                defaultItems: [
+                  tr('quotes.defaults.description.1'),
+                  tr('quotes.defaults.description.2'),
+                  tr('quotes.defaults.description.3'),
+                  tr('quotes.defaults.description.4'),
+                  tr('quotes.defaults.description.5'),
+                ],
+              ),
+              second: _buildSmartField(
+                controller: _aciklamaControllers[3],
+                label: tr(
+                  'common.description_with_number',
+                ).replaceAll('{n}', '4'),
+                category: 'satis_sonrasi_yazdir_aciklama',
+                color: defaultColor,
+                enabled: _isFieldInTemplate('description4'),
+                defaultItems: [
+                  tr('quotes.defaults.description2.1'),
+                  tr('quotes.defaults.description2.2'),
+                  tr('quotes.defaults.description2.3'),
+                  tr('quotes.defaults.description2.4'),
+                  tr('quotes.defaults.description2.5'),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final bool isCompact = constraints.maxWidth < 700;
+                final widget5 = _buildSmartField(
+                  controller: _aciklamaControllers[4],
+                  label: tr(
+                    'common.description_with_number',
+                  ).replaceAll('{n}', '5'),
+                  category: 'satis_sonrasi_yazdir_aciklama',
+                  color: defaultColor,
+                  enabled: _isFieldInTemplate('description5'),
+                  defaultItems: [
+                    tr('smart_select.sale.desc.1'),
+                    tr('smart_select.sale.desc.2'),
+                    tr('smart_select.sale.desc.3'),
+                    tr('smart_select.sale.desc.4'),
+                    tr('smart_select.sale.desc.5'),
+                  ],
+                );
+
+                if (isCompact) return widget5;
+
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(child: widget5),
+                    const SizedBox(width: 16),
+                    const Expanded(child: SizedBox.shrink()),
+                  ],
+                );
+              },
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildSmartField({
+    required TextEditingController controller,
+    required String label,
+    required String category,
+    required Color color,
+    required bool enabled,
+    List<String> defaultItems = const [],
+  }) {
+    return AkilliAciklamaInput(
+      controller: controller,
+      label: label,
+      category: category,
+      color: color,
+      isDense: true,
+      enabled: enabled,
+      defaultItems: defaultItems,
     );
   }
 

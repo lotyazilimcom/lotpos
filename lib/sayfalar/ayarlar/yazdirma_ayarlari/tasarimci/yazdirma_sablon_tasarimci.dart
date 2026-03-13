@@ -160,7 +160,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     final sablon = _editingTemplate;
     if (sablon != null) {
       _name = sablon.name;
-      _docType = sablon.docType;
+      _docType = sablon.effectiveDocType;
       _paperSize = sablon.paperSize ?? 'A4';
       _customWidth = sablon.customWidth ?? 210;
       _customHeight = sablon.customHeight ?? 297;
@@ -171,7 +171,9 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       _backgroundY = sablon.backgroundY;
       _backgroundWidth = sablon.backgroundWidth;
       _backgroundHeight = sablon.backgroundHeight;
-      _layout = List.from(sablon.layout);
+      _layout = sablon.layout
+          .map(_normalizeLoadedElementLabel)
+          .toList(growable: true);
       _isDefault = sablon.isDefault;
       _isLandscape = sablon.isLandscape;
       if (_backgroundImage != null) {
@@ -205,6 +207,56 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _saveToHistory();
     });
+  }
+
+  LayoutElement _normalizeLoadedElementLabel(LayoutElement element) {
+    final normalizedLabel = _resolvedElementLabel(element);
+    if (normalizedLabel == element.label) {
+      return element;
+    }
+
+    return LayoutElement(
+      id: element.id,
+      key: element.key,
+      label: normalizedLabel,
+      elementType: element.elementType,
+      isStatic: element.isStatic,
+      repeat: element.repeat,
+      x: element.x,
+      y: element.y,
+      width: element.width,
+      height: element.height,
+      fontSize: element.fontSize,
+      fontWeight: element.fontWeight,
+      italic: element.italic,
+      underline: element.underline,
+      alignment: element.alignment,
+      vAlignment: element.vAlignment,
+      color: element.color,
+      backgroundColor: element.backgroundColor,
+      fontFamily: element.fontFamily,
+    );
+  }
+
+  String _resolvedElementLabel(LayoutElement element) {
+    if (element.isStatic) {
+      return element.label;
+    }
+
+    final def = YazdirmaAlanlari.alanBul(element.key);
+    if (def == null) {
+      return element.label;
+    }
+
+    final shouldNormalize =
+        element.label.trim().isEmpty ||
+        element.label == element.key ||
+        element.label == def.labelKey;
+    if (!shouldNormalize) {
+      return element.label;
+    }
+
+    return _fieldLabelForUi(def);
   }
 
   // [2026 FEATURE] Undo History
@@ -1334,7 +1386,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
   }
 
   List<YazdirmaAlanTanim> get _availableFields {
-    final all = YazdirmaAlanlari.tumAlanlar;
+    final all = YazdirmaAlanlari.alanlariGetir(docType: _docType);
     final q = _normalizeForSearch(_fieldSearchQuery);
     if (q.isEmpty) return all;
 
@@ -1494,6 +1546,10 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
           k.startsWith('dispatch_') ||
           k.startsWith('order_') ||
           k.startsWith('description') ||
+          k == 'transaction_type' ||
+          k == 'location' ||
+          k == 'check_no' ||
+          k == 'check_bank' ||
           k == 'date' ||
           k == 'time' ||
           k == 'note' ||
@@ -2576,7 +2632,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       color: bgColor,
       padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 1),
       child: Text(
-        el.label,
+        _resolvedElementLabel(el),
         style: TextStyle(
           fontSize: (double.tryParse(el.fontSize) ?? 12) * (_scale / 3.8),
           fontWeight: _fontWeights[el.fontWeight] ?? FontWeight.normal,
@@ -2924,7 +2980,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                         element?.isStatic == true && !isStaticLine
                             ? tr('print.designer.text_content')
                             : tr('common.label'),
-                        element?.label ?? '',
+                        element != null ? _resolvedElementLabel(element) : '',
                         (val) => _updateSelected(label: val),
                       ),
                       const SizedBox(height: 12),
@@ -3521,10 +3577,9 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     if (now - _lastAddTimestamp < 300) return;
     _lastAddTimestamp = now;
 
-    final def = YazdirmaAlanlari.tumAlanlar.firstWhere(
-      (e) => e.key == key,
-      orElse: () => YazdirmaAlanTanim(key: key, labelKey: key),
-    );
+    final def =
+        YazdirmaAlanlari.alanBul(key) ??
+        YazdirmaAlanTanim(key: key, labelKey: key);
 
     final paperSize = _getPaperSize();
     final double widthMm = math.min(def.defaultWidthMm, paperSize.width)
@@ -4010,6 +4065,10 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
                     DropdownMenuItem(
                       value: 'waybill',
                       child: Text(tr('settings.print.types.waybill')),
+                    ),
+                    DropdownMenuItem(
+                      value: 'voucher',
+                      child: Text(tr('settings.print.types.voucher')),
                     ),
                     DropdownMenuItem(
                       value: 'receipt',

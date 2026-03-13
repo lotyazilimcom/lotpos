@@ -524,6 +524,8 @@ const Map<String, String> arCeviriler = {
   'retail.payment_entry': 'إدخال الدفع',
   'retail.product_search_placeholder': 'اسم المنتج أو الباركود...',
   'retail.print_receipt': 'طباعة الإيصال',
+  'retail.print_settings.copy_count_error':
+      'يجب أن يكون عدد النسخ 1 أو أكثر.',
   'retail.basket': 'سلة',
   'retail.table.code': 'رقم الكود',
   'retail.table.barcode': 'رقم الباركود',
@@ -3097,6 +3099,12 @@ const Map<String, String> arCeviriler = {
   'print.field.change_amount': 'الباقي (أسفل)',
   'print.field.cashier_name': 'أمين الصندوق (أسفل)',
   'print.field.receipt_qr': 'رمز QR (أسفل)',
+  'print.field.transaction_type': 'العملية (أسفل)',
+  'print.field.location': 'المكان (أسفل)',
+  'print.field.amount': 'المبلغ (أسفل)',
+  'print.field.check_no': 'رقم الشيك/السند (أسفل)',
+  'print.field.check_issue_date': 'تاريخ إصدار الشيك/السند (أسفل)',
+  'print.field.check_bank': 'بنك الشيك (أسفل)',
 
   // الشحن / إذن الشحن
   'print.field.vehicle_plate': 'لوحة المركبة (أعلى)',
@@ -3155,7 +3163,8 @@ const Map<String, String> arCeviriler = {
   // أنواع الطباعة
   'print.types.invoice': 'فاتورة',
   'print.types.waybill': 'إذن شحن',
-  'print.types.receipt': 'إيصال',
+  'print.types.voucher': 'إيصال',
+  'print.types.receipt': 'قسيمة',
   'print.types.barcode': 'باركود',
 
   // اختيار القالب
@@ -3288,7 +3297,8 @@ const Map<String, String> arCeviriler = {
   'settings.print.search.placeholder': 'ابحث عن قالب...',
   'settings.print.subtitle': 'إدارة قوالب الفواتير وبوليصات الشحن والباركود.',
   'settings.print.types.invoice': 'فاتورة',
-  'settings.print.types.receipt': 'إيصال / قسيمة',
+  'settings.print.types.voucher': 'إيصال',
+  'settings.print.types.receipt': 'قسيمة',
   'settings.print.types.barcode': 'باركود',
   'settings.print.types.waybill': 'بوليصة شحن',
   'smart_select.user_payment.desc.1': 'الراتب',

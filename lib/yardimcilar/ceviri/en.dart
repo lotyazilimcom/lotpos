@@ -539,6 +539,8 @@ const Map<String, String> enCeviriler = {
   'retail.payment_entry': 'Payment Entry',
   'retail.product_search_placeholder': 'Product name or barcode...',
   'retail.print_receipt': 'Print Receipt',
+  'retail.print_settings.copy_count_error':
+      'Copy count must be 1 or greater.',
   'retail.basket': 'Basket',
   'retail.table.code': 'CODE NO',
   'retail.table.barcode': 'BARCODE NO',
@@ -3170,6 +3172,12 @@ const Map<String, String> enCeviriler = {
   'print.field.change_amount': 'Change (Bottom)',
   'print.field.cashier_name': 'Cashier (Bottom)',
   'print.field.receipt_qr': 'QR Code (Bottom)',
+  'print.field.transaction_type': 'Transaction (Bottom)',
+  'print.field.location': 'Location (Bottom)',
+  'print.field.amount': 'Amount (Bottom)',
+  'print.field.check_no': 'Check/Note No (Bottom)',
+  'print.field.check_issue_date': 'Check/Note Issue Date (Bottom)',
+  'print.field.check_bank': 'Check Bank (Bottom)',
 
   // Shipment / Waybill
   'print.field.vehicle_plate': 'Vehicle Plate (Top)',
@@ -3206,7 +3214,8 @@ const Map<String, String> enCeviriler = {
   // Print Types
   'print.types.invoice': 'Invoice',
   'print.types.waybill': 'Waybill',
-  'print.types.receipt': 'Receipt',
+  'print.types.voucher': 'Receipt',
+  'print.types.receipt': 'Slip',
   'print.types.barcode': 'Barcode',
 
   // Template Selection
@@ -3330,7 +3339,8 @@ const Map<String, String> enCeviriler = {
   'settings.print.search.placeholder': 'Search template...',
   'settings.print.subtitle': 'Manage invoice, waybill and barcode templates.',
   'settings.print.types.invoice': 'Invoice',
-  'settings.print.types.receipt': 'Receipt / Slip',
+  'settings.print.types.voucher': 'Receipt',
+  'settings.print.types.receipt': 'Slip',
   'settings.print.types.barcode': 'Barcode',
   'settings.print.types.waybill': 'Waybill',
 

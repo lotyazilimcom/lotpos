@@ -140,7 +140,8 @@ const Map<String, String> trCeviriler = {
   'settings.print.actions.addNew': 'Yeni Şablon Ekle',
   'settings.print.noTemplates': 'Henüz hiç yazdırma şablonu oluşturulmamış.',
   'settings.print.types.invoice': 'Fatura',
-  'settings.print.types.receipt': 'Makbuz / Fiş',
+  'settings.print.types.voucher': 'Makbuz',
+  'settings.print.types.receipt': 'Fiş',
   'settings.print.types.barcode': 'Barkod',
   'settings.print.types.waybill': 'İrsaliye',
   'settings.print.deleteConfirm.title': 'Şablonu Sil',
@@ -582,6 +583,8 @@ const Map<String, String> trCeviriler = {
   'retail.payment_entry': 'Ödeme Girişi',
   'retail.product_search_placeholder': 'Ürün adı veya barkod...',
   'retail.print_receipt': 'Fiş Yazdır',
+  'retail.print_settings.copy_count_error':
+      'Kopya sayısı 1 veya daha büyük olmalıdır.',
   'retail.basket': 'Sepet',
   'retail.table.code': 'KOD NO',
   'retail.table.barcode': 'BARKOD NO',
@@ -3230,6 +3233,12 @@ const Map<String, String> trCeviriler = {
   'print.field.change_amount': 'Para Üstü (Alt)',
   'print.field.cashier_name': 'Kasiyer (Alt)',
   'print.field.receipt_qr': 'QR Kod (Alt)',
+  'print.field.transaction_type': 'İşlem (Alt)',
+  'print.field.location': 'Yer (Alt)',
+  'print.field.amount': 'Tutar (Alt)',
+  'print.field.check_no': 'Çek Senet No (Alt)',
+  'print.field.check_issue_date': 'Çek Senet Keşide Tarihi (Alt)',
+  'print.field.check_bank': 'Çek Banka (Alt)',
 
   // Sevk / İrsaliye
   'print.field.vehicle_plate': 'Araç Plakası (Üst)',
@@ -3266,7 +3275,8 @@ const Map<String, String> trCeviriler = {
   // Yazdırma Türleri
   'print.types.invoice': 'Fatura',
   'print.types.waybill': 'İrsaliye',
-  'print.types.receipt': 'Fiş / Makbuz',
+  'print.types.voucher': 'Makbuz',
+  'print.types.receipt': 'Fiş',
   'print.types.barcode': 'Barkod',
 
   // Şablon Seçimi
