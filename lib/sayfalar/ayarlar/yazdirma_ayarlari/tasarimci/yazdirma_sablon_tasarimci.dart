@@ -683,19 +683,26 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
 
   Widget _shortcutKeyChip(String text) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1F5F9),
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: const Color(0xFFCBD5E1)),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: const Color(0xFFCBD5E1), width: 1),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0xFFE2E8F0),
+            offset: Offset(0, 1),
+            blurRadius: 0,
+          ),
+        ],
       ),
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
           color: Color(0xFF334155),
-          height: 1.1,
+          letterSpacing: 0.1,
         ),
       ),
     );
@@ -707,14 +714,13 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       if (i > 0) {
         children.add(
           const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 4),
+            padding: EdgeInsets.symmetric(horizontal: 3),
             child: Text(
               '+',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
-                color: Color(0xFF64748B),
-                height: 1.1,
+                color: Color(0xFF94A3B8),
               ),
             ),
           ),
@@ -724,7 +730,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     }
     return Wrap(
       spacing: 0,
-      runSpacing: 6,
+      runSpacing: 4,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: children,
     );
@@ -734,23 +740,29 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     required List<String> keys,
     required String description,
   }) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(width: 150, child: _shortcutCombo(keys)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Text(
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _shortcutCombo(keys),
+          const SizedBox(height: 6),
+          Text(
             description,
             style: const TextStyle(
-              fontSize: 12,
-              height: 1.35,
-              color: Color(0xFF334155),
+              fontSize: 11.5,
+              color: Color(0xFF475569),
               fontWeight: FontWeight.w600,
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -764,20 +776,31 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
       children: [
         Row(
           children: [
-            Icon(icon, size: 16, color: const Color(0xFF64748B)),
+            Container(
+              padding: const EdgeInsets.all(5),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF1F5F9),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Icon(icon, size: 14, color: const Color(0xFF475569)),
+            ),
             const SizedBox(width: 8),
             Text(
               title,
               style: const TextStyle(
-                fontSize: 12.5,
+                fontSize: 13,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF0F172A),
+                letterSpacing: -0.2,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 10),
-        ...children,
+        const SizedBox(height: 12),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: children,
+        ),
       ],
     );
   }
@@ -786,16 +809,17 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     return Material(
       color: Colors.transparent,
       child: Container(
-        constraints: const BoxConstraints(maxWidth: 420, maxHeight: 420),
+        constraints: const BoxConstraints(maxWidth: 860, maxHeight: 420),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFCBD5E1)),
+          border: Border.all(color: const Color(0xFFE2E8F0), width: 1.5),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.16),
-              blurRadius: 26,
-              offset: const Offset(0, 14),
+              color: const Color(0xFF0F172A).withValues(alpha: 0.12),
+              blurRadius: 24,
+              spreadRadius: -4,
+              offset: const Offset(0, 12),
             ),
           ],
         ),
@@ -805,122 +829,132 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF8FAFC),
                   border: Border(
-                    bottom: BorderSide(color: const Color(0xFFCBD5E1)),
+                    bottom: BorderSide(color: Color(0xFFE2E8F0), width: 1.5),
                   ),
                 ),
                 child: Row(
-                  children: const [
-                    Icon(
-                      Icons.keyboard_rounded,
-                      size: 18,
-                      color: Color(0xFF2C3E50),
-                    ),
-                    SizedBox(width: 10),
-                    Text(
-                      'Kısayollar',
-                      style: TextStyle(
-                        color: Color(0xFF2C3E50),
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w900,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFE0E7FF),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(
+                        Icons.keyboard_rounded,
+                        size: 18,
+                        color: Color(0xFF4338CA),
                       ),
                     ),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Klavye Kısayolları',
+                      style: TextStyle(
+                        color: Color(0xFF0F172A),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                    const Spacer(),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFEF2F2),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: const Color(0xFFFECACA)),
+                      ),
+                      child: Row(
+                        children: const [
+                          Icon(Icons.bolt_rounded, size: 12, color: Color(0xFFDC2626)),
+                          SizedBox(width: 4),
+                          Text(
+                            'Hızlı Kullanım',
+                            style: TextStyle(
+                              color: Color(0xFFDC2626),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
                   ],
                 ),
               ),
               Flexible(
                 child: SingleChildScrollView(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _shortcutSection(
-                        icon: Icons.pan_tool_alt_outlined,
-                        title: 'Gezinme',
-                        children: [
-                          _shortcutRow(
-                            keys: const ['Space', 'Sürükle'],
-                            description: 'Sayfayı taşı',
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.all(20),
+                  child: IntrinsicHeight(
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 170,
+                          child: _shortcutSection(
+                            icon: Icons.pan_tool_alt_rounded,
+                            title: 'Gezinme',
+                            children: [
+                              _shortcutRow(keys: const ['Space', 'Sürükle'], description: 'Sayfayı taşı'),
+                              const SizedBox(height: 8),
+                              _shortcutRow(keys: const ['Teker'], description: 'Kaydır'),
+                              const SizedBox(height: 8),
+                              _shortcutRow(keys: const ['Alt', 'Teker'], description: 'Yakınlaştır / Uzaklaştır'),
+                            ],
                           ),
-                          const SizedBox(height: 10),
-                          _shortcutRow(
-                            keys: const ['Teker'],
-                            description: 'Kaydır',
+                        ),
+                        Container(width: 1.5, color: const Color(0xFFF1F5F9), margin: const EdgeInsets.symmetric(horizontal: 16)),
+                        SizedBox(
+                          width: 170,
+                          child: _shortcutSection(
+                            icon: Icons.edit_rounded,
+                            title: 'Düzenleme',
+                            children: [
+                              _shortcutRow(keys: const ['Ctrl/Cmd', 'Z'], description: 'Geri al'),
+                              const SizedBox(height: 8),
+                              _shortcutRow(keys: const ['Ctrl/Cmd', 'C'], description: 'Seçileni çoğalt'),
+                              const SizedBox(height: 8),
+                              _shortcutRow(keys: const ['Delete'], description: 'Seçileni sil'),
+                            ],
                           ),
-                          const SizedBox(height: 10),
-                          _shortcutRow(
-                            keys: const ['Alt', 'Teker'],
-                            description: 'Yakınlaştır / Uzaklaştır',
+                        ),
+                        Container(width: 1.5, color: const Color(0xFFF1F5F9), margin: const EdgeInsets.symmetric(horizontal: 16)),
+                        SizedBox(
+                          width: 170,
+                          child: _shortcutSection(
+                            icon: Icons.open_with_rounded,
+                            title: 'Hassas Taşıma',
+                            children: [
+                              _shortcutRow(keys: const ['Ok'], description: '1 mm taşı'),
+                              const SizedBox(height: 8),
+                              _shortcutRow(keys: const ['Shift', 'Ok'], description: '5 mm taşı'),
+                              const SizedBox(height: 8),
+                              _shortcutRow(keys: const ['Alt', 'Ok'], description: '0,1 mm taşı'),
+                              const SizedBox(height: 8),
+                              _shortcutRow(keys: const ['Ctrl', 'Ok'], description: '0,1 mm taşı'),
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _shortcutSection(
-                        icon: Icons.edit_outlined,
-                        title: 'Düzenleme',
-                        children: [
-                          _shortcutRow(
-                            keys: const ['Ctrl/Cmd', 'Z'],
-                            description: 'Geri al',
+                        ),
+                        Container(width: 1.5, color: const Color(0xFFF1F5F9), margin: const EdgeInsets.symmetric(horizontal: 16)),
+                        SizedBox(
+                          width: 170,
+                          child: _shortcutSection(
+                            icon: Icons.select_all_rounded,
+                            title: 'Seçim',
+                            children: [
+                              _shortcutRow(keys: const ['Ctrl/Cmd', 'Tık'], description: 'Çoklu seçim'),
+                              const SizedBox(height: 8),
+                              _shortcutRow(keys: const ['Alt', 'Sürükle'], description: 'Kopyala ve sürükle'),
+                            ],
                           ),
-                          const SizedBox(height: 10),
-                          _shortcutRow(
-                            keys: const ['Ctrl/Cmd', 'C'],
-                            description: 'Seçileni çoğalt',
-                          ),
-                          const SizedBox(height: 10),
-                          _shortcutRow(
-                            keys: const ['Delete / Backspace'],
-                            description: 'Seçileni sil',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _shortcutSection(
-                        icon: Icons.open_with_rounded,
-                        title: 'Hassas taşıma',
-                        children: [
-                          _shortcutRow(
-                            keys: const ['Ok'],
-                            description: '1 mm taşı',
-                          ),
-                          const SizedBox(height: 10),
-                          _shortcutRow(
-                            keys: const ['Shift', 'Ok'],
-                            description: '5 mm taşı',
-                          ),
-                          const SizedBox(height: 10),
-                          _shortcutRow(
-                            keys: const ['Alt', 'Ok'],
-                            description: '0,1 mm taşı',
-                          ),
-                          const SizedBox(height: 10),
-                          _shortcutRow(
-                            keys: const ['Ctrl', 'Ok'],
-                            description: '0,1 mm taşı',
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      _shortcutSection(
-                        icon: Icons.select_all_rounded,
-                        title: 'Seçim',
-                        children: [
-                          _shortcutRow(
-                            keys: const ['Ctrl/Cmd', 'Tık'],
-                            description: 'Çoklu seçim',
-                          ),
-                          const SizedBox(height: 10),
-                          _shortcutRow(
-                            keys: const ['Alt', 'Sürükle'],
-                            description: 'Kopyalayarak sürükle',
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),

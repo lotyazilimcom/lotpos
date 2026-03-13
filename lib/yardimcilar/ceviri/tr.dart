@@ -70,7 +70,7 @@ const Map<String, String> trCeviriler = {
       'Bu özellik LITE sürümde kapalıdır. Devam etmek için Pro sürüme geçin.',
   'common.lite_report_limit':
       'LITE sürümde raporlar son {days} gün ile sınırlıdır. Daha eski tarihler için Pro sürüme geçin.',
-  'common.license_now': 'Lisansla',
+  'common.license_now': 'Pro Sürüm',
   'common.error_occurred': 'Bir hata oluştu.',
   'common.show_only_list': 'Sadece Listeyi Göster',
   'common.italic': 'İtalik',
@@ -864,7 +864,7 @@ const Map<String, String> trCeviriler = {
   'login.license.hardware_id': 'DONANIM KİMLİĞİ (HARDWARE ID)',
   'login.license.help':
       '* Lisansınızı aktif etmek için yukarıdaki ID\'yi yöneticinize iletin.',
-  'login.license.button': 'LİSANSI DOĞRULA VE AKTİF ET',
+  'login.license.button': 'Pro Sürüme Geç',
   'login.license.success': 'LİSANS BAŞARIYLA AKTİF EDİLDİ!',
   'login.license.error.not_found':
       'Henüz lisans kaydınız oluşturulmadı. Lütfen yönetici ile iletişime geçin.',
