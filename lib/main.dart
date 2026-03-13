@@ -73,22 +73,27 @@ void main() async {
     await windowManager.ensureInitialized();
 
     final savedWindowState = await PencereDurumuServisi().kayitliDurumuGetir();
-    final Size initialSize = Platform.isWindows
+    final bool usesMacOsNativeFirstLaunchFrame =
+        Platform.isMacOS && savedWindowState == null;
+    final Size? initialSize = Platform.isWindows
         ? const Size(1280, 720)
-        : (savedWindowState?.size ?? const Size(1280, 720));
+        : (usesMacOsNativeFirstLaunchFrame
+              ? null
+              : (savedWindowState?.size ?? const Size(1280, 720)));
 
     // Windows'ta `backgroundColor: Colors.transparent` -> window_manager
     // SetWindowCompositionAttribute ile titlebar alanını şeffaflaştırıp (özellikle
     // sistem "dark mode" iken) pencere başlığını ve minimize/maximize ikonlarını
     // görünmez hale getirebiliyor. Windows'ta standart pencere çerçevesini
     // korumak için backgroundColor uygulamıyoruz.
-    final Color? desktopWindowBackgroundColor =
-        Platform.isWindows ? null : Colors.transparent;
+    final Color? desktopWindowBackgroundColor = Platform.isWindows
+        ? null
+        : Colors.transparent;
 
     final WindowOptions windowOptions = WindowOptions(
       size: initialSize,
       minimumSize: const Size(360, 600),
-      center: true,
+      center: usesMacOsNativeFirstLaunchFrame ? null : true,
       backgroundColor: desktopWindowBackgroundColor,
       skipTaskbar: false,
       title: Platform.isWindows ? 'Patisyo' : null,
@@ -98,6 +103,12 @@ void main() async {
     await windowManager.waitUntilReadyToShow(windowOptions, () async {
       if (Platform.isWindows) {
         await windowManager.maximize();
+        await windowManager.show();
+        await windowManager.focus();
+        return;
+      }
+
+      if (usesMacOsNativeFirstLaunchFrame) {
         await windowManager.show();
         await windowManager.focus();
         return;

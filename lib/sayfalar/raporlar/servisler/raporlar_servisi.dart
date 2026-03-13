@@ -139,8 +139,6 @@ class RaporlarServisi {
         RaporFiltreTuru.belgeNo,
         RaporFiltreTuru.referansNo,
         RaporFiltreTuru.kullanici,
-        RaporFiltreTuru.minTutar,
-        RaporFiltreTuru.maxTutar,
       },
     ),
     RaporSecenegi(
