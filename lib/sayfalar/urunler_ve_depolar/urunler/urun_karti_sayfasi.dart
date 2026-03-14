@@ -6,21 +6,38 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../bilesenler/genisletilebilir_tablo.dart';
+import '../../../bilesenler/onay_dialog.dart';
+import '../../../bilesenler/tab_acici_scope.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
+import '../../../yardimcilar/entegrasyon_islem_yardimcisi.dart';
 import '../../../yardimcilar/islem_turu_renkleri.dart';
+import '../../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../../yardimcilar/responsive_yardimcisi.dart';
 import '../../../bilesenler/tarih_araligi_secici_dialog.dart';
 import 'modeller/urun_model.dart';
 
 import '../../../servisler/ayarlar_veritabani_servisi.dart';
+import '../../../servisler/cari_hesaplar_veritabani_servisi.dart';
 import '../../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
 import '../../../servisler/sayfa_senkronizasyon_servisi.dart';
 import '../../../servisler/depolar_veritabani_servisi.dart';
 import '../../../servisler/urunler_veritabani_servisi.dart';
+import '../../../servisler/uretimler_veritabani_servisi.dart';
+import '../../../servisler/yazdirma_veritabani_servisi.dart';
+import '../../alimsatimislemleri/alis_yap_sayfasi.dart';
+import '../../alimsatimislemleri/modeller/transaction_item.dart';
+import '../../alimsatimislemleri/satis_yap_sayfasi.dart';
+import '../../ayarlar/yazdirma_ayarlari/modeller/yazdirma_sablonu_model.dart';
+import '../../carihesaplar/modeller/cari_hesap_model.dart';
+import '../depolar/sevkiyat_olustur_sayfasi.dart';
 import '../../urunler_ve_depolar/depolar/modeller/depo_model.dart';
+import '../../ortak/dinamik_sablon_preview_screen.dart';
 import '../../ortak/genisletilebilir_print_preview_screen.dart';
+import '../uretimler/uretim_yap_sayfasi.dart';
+import 'acilis_stogu_duzenle_sayfasi.dart';
+import 'devir_yap_sayfasi.dart';
 import '../../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
 import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../../../bilesenler/highlight_text.dart';
@@ -139,6 +156,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
 
   // Image Cache
   final Map<String, MemoryImage> _imageCache = {};
+  static const String _prefBarcodeTemplateId = 'urun_karti_barcode_template_id';
 
   MemoryImage? _getCachedMemoryImage(String base64String) {
     if (base64String.isEmpty) return null;
@@ -545,6 +563,297 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
       _loadSerialListRows();
     } else {
       _loadTransactions();
+    }
+  }
+
+  Future<void> _refreshProductCardData() async {
+    try {
+      final freshUrun = await UrunlerVeritabaniServisi().urunGetirById(
+        _currentUrun.id,
+      );
+      if (mounted && freshUrun != null) {
+        setState(() {
+          _currentUrun = freshUrun;
+        });
+      }
+    } catch (e) {
+      debugPrint('Ürün kartı yenileme hatası: $e');
+    }
+
+    if (!mounted) return;
+    _refreshCurrentView();
+  }
+
+  void _clearTransactionSelectionState() {
+    if (!mounted) return;
+    setState(() {
+      _selectedRowId = null;
+      _selectedTransactionIds.clear();
+      _isSelectAllActive = false;
+    });
+  }
+
+  int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString());
+  }
+
+  Future<bool> _openAlisSatisDuzenlemeFromShipment(int shipmentId) async {
+    try {
+      final shipmentData = await DepolarVeritabaniServisi().sevkiyatGetir(
+        shipmentId,
+      );
+      final String ref =
+          shipmentData?['integration_ref']?.toString().trim() ?? '';
+      final bool isSale = ref.startsWith('SALE-');
+      final bool isPurchase = ref.startsWith('PURCHASE-');
+      if (!isSale && !isPurchase) return false;
+
+      if (!mounted) return false;
+
+      bool overlayShown = false;
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) {
+          overlayShown = true;
+          return const Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.all(16),
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        },
+      );
+
+      Map<String, dynamic>? editTx;
+      CariHesapModel? cari;
+      List<TransactionItem> items = const [];
+      Object? error;
+
+      try {
+        editTx = await CariHesaplarVeritabaniServisi().cariIslemGetirByRef(ref);
+        final cariId = _parseInt(editTx?['current_account_id']);
+        if (cariId != null) {
+          cari = await CariHesaplarVeritabaniServisi().cariHesapGetir(cariId);
+        }
+        items = await EntegrasyonIslemYardimcisi.entegrasyonKalemleriniYukle(
+          ref,
+        );
+      } catch (e) {
+        error = e;
+      } finally {
+        if (overlayShown && mounted) {
+          Navigator.of(context, rootNavigator: true).pop();
+        }
+      }
+
+      if (!mounted) return false;
+
+      if (error != null) {
+        EntegrasyonIslemYardimcisi.logError(error);
+        MesajYardimcisi.hataGoster(context, '${tr('common.error')}: $error');
+        return false;
+      }
+
+      if (editTx == null || cari == null || items.isEmpty) {
+        MesajYardimcisi.hataGoster(context, tr('common.no_data'));
+        return false;
+      }
+
+      final String initialCurrency = (items.first.currency == 'TL')
+          ? 'TRY'
+          : items.first.currency;
+      final double initialRate = items.first.exchangeRate;
+
+      final String? initialDescription =
+          (editTx['description'] ?? shipmentData?['description'])?.toString();
+
+      final Map<String, dynamic> duzenlenecekIslem = Map<String, dynamic>.from(
+        editTx,
+      );
+
+      final tabScope = TabAciciScope.of(context);
+      if (tabScope != null) {
+        tabScope.tabAc(
+          menuIndex: isSale ? 11 : 10,
+          initialCari: cari,
+          initialItems: items,
+          initialCurrency: initialCurrency,
+          initialDescription: initialDescription,
+          initialRate: initialRate,
+          duzenlenecekIslem: duzenlenecekIslem,
+        );
+        return false;
+      }
+
+      final Widget page = isSale
+          ? SatisYapSayfasi(
+              initialCari: cari,
+              initialItems: items,
+              initialCurrency: initialCurrency,
+              initialDescription: initialDescription,
+              initialRate: initialRate,
+              duzenlenecekIslem: duzenlenecekIslem,
+            )
+          : AlisYapSayfasi(
+              initialCari: cari,
+              initialItems: items,
+              initialCurrency: initialCurrency,
+              initialDescription: initialDescription,
+              initialRate: initialRate,
+              duzenlenecekIslem: duzenlenecekIslem,
+            );
+
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(builder: (context) => page),
+      );
+
+      return result == true;
+    } catch (e) {
+      if (mounted) {
+        MesajYardimcisi.hataGoster(context, '${tr('common.error')}: $e');
+      }
+      return false;
+    }
+  }
+
+  Future<void> _handleTransactionEdit(Map<String, dynamic> tx) async {
+    final int? id = _parseInt(tx['id']);
+    if (id == null) return;
+
+    final String? customTypeLabel = tx['customTypeLabel']?.toString();
+    final String warehouseName = (tx['depo_adi'] ?? '').toString();
+    bool shouldRefresh = false;
+
+    if (customTypeLabel == 'Açılış Stoğu (Girdi)') {
+      final result = await Navigator.push<bool>(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AcilisStoguDuzenleSayfasi(
+            transactionId: id,
+            urun: _currentUrun,
+            warehouseName: warehouseName,
+          ),
+        ),
+      );
+      shouldRefresh = result == true;
+    } else if (customTypeLabel == 'Devir Girdi' ||
+        customTypeLabel == 'Devir Çıktı') {
+      final data = await DepolarVeritabaniServisi().sevkiyatGetir(id);
+      if (data != null && mounted) {
+        final result = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => DevirYapSayfasi(
+              urun: _currentUrun,
+              editingShipmentId: id,
+              initialData: data,
+            ),
+          ),
+        );
+        shouldRefresh = result == true;
+      }
+    } else if (customTypeLabel != null &&
+        customTypeLabel.contains('Sevkiyat')) {
+      final data = await DepolarVeritabaniServisi().sevkiyatGetir(id);
+      if (data != null && mounted) {
+        final result = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SevkiyatOlusturSayfasi(
+              depolar: _warehouses,
+              editingShipmentId: id,
+              initialData: data,
+            ),
+          ),
+        );
+        shouldRefresh = result == true;
+      }
+    } else if (customTypeLabel != null && customTypeLabel.contains('Üretim')) {
+      final data = await DepolarVeritabaniServisi().sevkiyatGetir(id);
+      if (data != null && mounted) {
+        final uretimler = await UretimlerVeritabaniServisi().uretimleriGetir(
+          aramaTerimi: _currentUrun.kod,
+          sayfaBasinaKayit: 1,
+        );
+        if (uretimler.isNotEmpty && mounted) {
+          final uretimModel = uretimler.firstWhere(
+            (u) => u.kod == _currentUrun.kod,
+            orElse: () => uretimler.first,
+          );
+          final result = await Navigator.push<bool>(
+            context,
+            MaterialPageRoute(
+              builder: (context) => UretimYapSayfasi(
+                initialModel: uretimModel,
+                editingTransactionId: id,
+                initialData: data,
+              ),
+            ),
+          );
+          shouldRefresh = result == true;
+        }
+      }
+    } else {
+      shouldRefresh = await _openAlisSatisDuzenlemeFromShipment(id);
+    }
+
+    _clearTransactionSelectionState();
+    if (shouldRefresh) {
+      await _refreshProductCardData();
+    }
+  }
+
+  Future<void> _deleteTransaction(int id) async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => OnayDialog(
+        baslik: tr('common.confirmation'),
+        mesaj: tr('common.confirm_delete'),
+        onOnay: () {},
+        isDestructive: true,
+        onayButonMetni: tr('common.delete'),
+      ),
+    );
+
+    if (result != true || !mounted) return;
+
+    try {
+      final isProductionMovement = await UretimlerVeritabaniServisi()
+          .uretimHareketiVarMi(id);
+
+      if (isProductionMovement) {
+        await UretimlerVeritabaniServisi().uretimHareketiSil(id);
+      } else {
+        await DepolarVeritabaniServisi().sevkiyatSil(id);
+      }
+
+      _clearTransactionSelectionState();
+      await _refreshProductCardData();
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('common.deleted_successfully')),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('${tr('common.error')}: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -974,7 +1283,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
   }
 
   void _onGlobalSync() {
-    _refreshCurrentView();
+    unawaited(_refreshProductCardData());
   }
 
   @override
@@ -1000,6 +1309,190 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
         _isUnitFilterExpanded = false;
         _isUserFilterExpanded = false;
       });
+    }
+  }
+
+  String _barcodeButtonLabel() {
+    return '${tr('common.barcode')} ${tr('common.print')}';
+  }
+
+  String _barcodeTemplateSelectorLabel() {
+    return '${tr('common.barcode')} ${tr('print.template_label')}';
+  }
+
+  String _formatBarcodeQuantity(double value) {
+    return FormatYardimcisi.sayiFormatla(
+      value,
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: _genelAyarlar.miktarOndalik,
+    );
+  }
+
+  String _formatBarcodePrice(double value) {
+    return FormatYardimcisi.sayiFormatlaOndalikli(
+      value,
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: _genelAyarlar.fiyatOndalik,
+    );
+  }
+
+  String _formatBarcodeVatRate(double value) {
+    final decimalDigits = value == value.truncateToDouble() ? 0 : 2;
+    final formatted = FormatYardimcisi.sayiFormatlaOran(
+      value,
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: decimalDigits,
+    );
+    return '%$formatted';
+  }
+
+  List<String> _extractBarcodeFeatureValues(String ozellikler) {
+    final raw = ozellikler.trim();
+    if (raw.isEmpty) return const [];
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .map((item) {
+              if (item is Map) {
+                return (item['name'] ?? item['label'] ?? item['value'] ?? '')
+                    .toString()
+                    .trim();
+              }
+              return item?.toString().trim() ?? '';
+            })
+            .where((item) => item.isNotEmpty)
+            .toList(growable: false);
+      }
+    } catch (_) {}
+
+    return [raw];
+  }
+
+  Map<String, dynamic> _buildBarcodePrintData() {
+    final urun = _currentUrun;
+    final currency = _genelAyarlar.varsayilanParaBirimi.trim().isNotEmpty
+        ? _genelAyarlar.varsayilanParaBirimi.trim()
+        : 'TRY';
+    final barcodeValue = urun.barkod.trim().isNotEmpty
+        ? urun.barkod.trim()
+        : urun.kod.trim();
+    final stockQty = _formatBarcodeQuantity(urun.stok);
+    final warningQty = _formatBarcodeQuantity(urun.erkenUyariMiktari);
+    final buyPrice = _formatBarcodePrice(urun.alisFiyati);
+    final sellPrice1 = _formatBarcodePrice(urun.satisFiyati1);
+    final sellPrice2 = _formatBarcodePrice(urun.satisFiyati2);
+    final sellPrice3 = _formatBarcodePrice(urun.satisFiyati3);
+    final vatRate = _formatBarcodeVatRate(urun.kdvOrani);
+    final features = _extractBarcodeFeatureValues(urun.ozellikler);
+
+    return {
+      'code': urun.kod,
+      'item_code': urun.kod,
+      'name': urun.ad,
+      'item_name': urun.ad,
+      'barcode': barcodeValue,
+      'item_barcode': barcodeValue,
+      'barcode_number': barcodeValue,
+      'unit': urun.birim,
+      'item_unit': urun.birim,
+      'vatRate': vatRate,
+      'item_vat_rate': vatRate,
+      'group': urun.grubu,
+      'stockQty': stockQty,
+      'item_quantity': stockQty,
+      'warningQty': warningQty,
+      'buyPrice': buyPrice,
+      'item_unit_price_excl': buyPrice,
+      'buyPriceCurrency': currency,
+      'sellPrice1': sellPrice1,
+      'item_unit_price_incl': sellPrice1,
+      'sellPrice1Currency': currency,
+      'sellPrice2': sellPrice2,
+      'sellPrice2Currency': currency,
+      'sellPrice3': sellPrice3,
+      'sellPrice3Currency': currency,
+      'currency': currency,
+      'item_currency': currency,
+      'features': features,
+    };
+  }
+
+  YazdirmaSablonuModel? _findBarcodeTemplateById(
+    int? id,
+    List<YazdirmaSablonuModel> templates,
+  ) {
+    if (id == null) return null;
+    for (final template in templates) {
+      if (template.id == id) return template;
+    }
+    return null;
+  }
+
+  Future<void> _saveBarcodeTemplatePreference(
+    YazdirmaSablonuModel template,
+  ) async {
+    final templateId = template.id;
+    if (templateId == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefBarcodeTemplateId, templateId);
+  }
+
+  Future<void> _handleBarcodePrint() async {
+    if (YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final barcodeTemplates =
+          (await YazdirmaVeritabaniServisi().sablonlariGetir(
+                docType: 'barcode',
+              ))
+              .where((template) => template.barcodePaperConfig != null)
+              .toList(growable: false);
+
+      if (barcodeTemplates.isEmpty) {
+        if (mounted) {
+          MesajYardimcisi.uyariGoster(
+            context,
+            tr('settings.print.noTemplates'),
+          );
+        }
+        return;
+      }
+
+      final savedTemplateId = prefs.getInt(_prefBarcodeTemplateId);
+      final defaultTemplate = await YazdirmaVeritabaniServisi()
+          .varsayilanSablonuGetir('barcode');
+      final selectedTemplate =
+          _findBarcodeTemplateById(savedTemplateId, barcodeTemplates) ??
+          _findBarcodeTemplateById(defaultTemplate?.id, barcodeTemplates) ??
+          barcodeTemplates.first;
+
+      await _saveBarcodeTemplatePreference(selectedTemplate);
+      if (!mounted) return;
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => DinamikSablonPreviewScreen(
+            title: '${_currentUrun.ad} ${tr('common.barcode')}',
+            sablon: selectedTemplate,
+            veri: _buildBarcodePrintData(),
+            availableTemplates: barcodeTemplates,
+            templateSelectorLabel: _barcodeTemplateSelectorLabel(),
+            onTemplateChanged: (template) {
+              unawaited(_saveBarcodeTemplatePreference(template));
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        MesajYardimcisi.hataGoster(context, '${tr('common.error')}: $e');
+      }
     }
   }
 
@@ -5862,6 +6355,8 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
               ),
             ),
           ),
+          const SizedBox(width: 12),
+          _buildDesktopBarcodePrintButton(),
         ],
       ),
       headerWidget: _buildFilters(),
@@ -6263,6 +6758,8 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
               ),
             ),
           ),
+          const SizedBox(width: 12),
+          _buildDesktopBarcodePrintButton(),
         ],
       ),
       headerWidget: _buildFilters(),
@@ -7309,6 +7806,47 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
     );
   }
 
+  Widget _buildDesktopBarcodePrintButton() {
+    final isDisabled = YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif;
+
+    return MouseRegion(
+      cursor: isDisabled ? SystemMouseCursors.basic : SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: isDisabled ? null : _handleBarcodePrint,
+        child: Container(
+          height: 40,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: isDisabled ? Colors.grey.shade200 : const Color(0xFFF39C12),
+            borderRadius: BorderRadius.circular(4),
+            border: Border.all(
+              color: isDisabled ? Colors.grey.shade300 : Colors.transparent,
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.qr_code_2_rounded,
+                size: 18,
+                color: isDisabled ? Colors.grey.shade500 : Colors.white,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                _barcodeButtonLabel(),
+                style: TextStyle(
+                  color: isDisabled ? Colors.grey.shade500 : Colors.white,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFeaturesContent(String ozellikler) {
     if (ozellikler.isEmpty) return const Text('-');
 
@@ -7406,48 +7944,141 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
     });
   }
 
-  Widget _buildPopupMenu(Map<String, dynamic> tx) {
-    return PopupMenuButton<String>(
-      icon: Icon(Icons.more_horiz, size: 20, color: Colors.grey),
-      itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: 'view',
-          child: Row(
-            children: [
-              Icon(Icons.visibility_outlined, size: 18),
-              SizedBox(width: 8),
-              Text(tr('common.view')),
-            ],
-          ),
+  Widget _buildPopupMenu(Map<String, dynamic> tx, {bool compact = false}) {
+    final int? id = _parseInt(tx['id']);
+    final bool menuEnabled = id != null;
+
+    return Theme(
+      data: Theme.of(context).copyWith(
+        dividerTheme: const DividerThemeData(
+          color: Color(0xFFEEEEEE),
+          thickness: 1,
         ),
-      ],
-      onSelected: (value) {
-        // Handle actions
-      },
+        popupMenuTheme: PopupMenuThemeData(
+          color: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+            side: BorderSide(color: Colors.grey.shade300, width: 1),
+          ),
+          elevation: 6,
+        ),
+      ),
+      child: PopupMenuButton<String>(
+        icon: const Icon(Icons.more_horiz, color: Colors.grey, size: 22),
+        iconSize: 22,
+        padding: EdgeInsets.zero,
+        constraints: const BoxConstraints(minWidth: 140),
+        splashRadius: compact ? 16 : 20,
+        style: ButtonStyle(
+          minimumSize: WidgetStateProperty.all(
+            Size(compact ? 32 : 40, compact ? 32 : 40),
+          ),
+          padding: WidgetStateProperty.all(EdgeInsets.zero),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        offset: const Offset(0, 8),
+        tooltip: tr('common.actions'),
+        itemBuilder: (context) => [
+          PopupMenuItem<String>(
+            value: 'edit',
+            enabled: menuEnabled,
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.edit_outlined,
+                  size: 18,
+                  color: menuEnabled
+                      ? const Color(0xFF2C3E50)
+                      : Colors.grey.shade400,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  tr('common.edit'),
+                  style: TextStyle(
+                    color: menuEnabled
+                        ? const Color(0xFF2C3E50)
+                        : Colors.grey.shade400,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  tr('common.key.f2'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const PopupMenuItem<String>(
+            enabled: false,
+            height: 8,
+            padding: EdgeInsets.zero,
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              indent: 8,
+              endIndent: 8,
+              color: Color(0xFFEEEEEE),
+            ),
+          ),
+          PopupMenuItem<String>(
+            value: 'delete',
+            enabled: menuEnabled,
+            height: 36,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.delete_outline,
+                  size: 18,
+                  color: menuEnabled
+                      ? const Color(0xFFEA4335)
+                      : Colors.grey.shade400,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  tr('common.delete'),
+                  style: TextStyle(
+                    color: menuEnabled
+                        ? const Color(0xFFEA4335)
+                        : Colors.grey.shade400,
+                    fontWeight: FontWeight.w600,
+                    fontSize: 13,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  tr('common.key.del'),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.grey.shade400,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+        onSelected: (value) {
+          if (!menuEnabled) return;
+          if (value == 'edit') {
+            unawaited(_handleTransactionEdit(tx));
+          } else if (value == 'delete') {
+            unawaited(_deleteTransaction(id));
+          }
+        },
+      ),
     );
   }
 
   Widget _buildMobilePopupMenu(Map<String, dynamic> tx) {
-    return PopupMenuButton<String>(
-      padding: EdgeInsets.zero,
-      itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: 'view',
-          child: Row(
-            children: [
-              Icon(Icons.visibility_outlined, size: 18),
-              SizedBox(width: 8),
-              Text(tr('common.view')),
-            ],
-          ),
-        ),
-      ],
-      child: const Center(
-        child: Icon(Icons.more_horiz, size: 20, color: Colors.grey),
-      ),
-      onSelected: (value) {
-        // Handle actions
-      },
-    );
+    return _buildPopupMenu(tx, compact: true);
   }
 }

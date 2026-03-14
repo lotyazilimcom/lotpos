@@ -22,7 +22,7 @@ import '../alimsatimislemleri/satis_sonrasi_yazdir_sayfasi.dart';
 import '../carihesaplar/modeller/cari_hesap_model.dart';
 import '../urunler_ve_depolar/urunler/modeller/urun_model.dart';
 import 'modeller/rapor_modelleri.dart';
-import 'servisler/raporlar_servisi.dart';
+import '../../servisler/raporlar_servisi.dart';
 
 class RaporlarSayfasi extends StatefulWidget {
   const RaporlarSayfasi({super.key});
@@ -469,7 +469,9 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     };
 
     final Map<String, bool> visibility = Map<String, bool>.from(defaults);
-    final rawVisibility = prefs.getString('$_prefsColumnVisibilityPrefix$reportId');
+    final rawVisibility = prefs.getString(
+      '$_prefsColumnVisibilityPrefix$reportId',
+    );
     if (rawVisibility != null && rawVisibility.trim().isNotEmpty) {
       try {
         final decoded = jsonDecode(rawVisibility);
@@ -488,9 +490,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
       } catch (_) {}
     }
 
-    final bool hideEmptyColumns = prefs.getBool(
-          '$_prefsHideEmptyColumnsPrefix$reportId',
-        ) ??
+    final bool hideEmptyColumns =
+        prefs.getBool('$_prefsHideEmptyColumnsPrefix$reportId') ??
         _defaultHideEmptyColumns;
 
     return (visibility: visibility, hideEmptyColumns: hideEmptyColumns);
@@ -1127,7 +1128,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                                 child: Row(
                                   children: [
                                     Checkbox(
-                                      value: localVisibility[kolon.key] ??
+                                      value:
+                                          localVisibility[kolon.key] ??
                                           kolon.visibleByDefault,
                                       activeColor: AppPalette.slate,
                                       onChanged: (value) {
@@ -1172,9 +1174,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                           decoration: BoxDecoration(
                             color: const Color(0xFFF8F9FA),
                             borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                              color: Colors.grey.shade200,
-                            ),
+                            border: Border.all(color: Colors.grey.shade200),
                           ),
                           child: Row(
                             children: [
@@ -1599,32 +1599,28 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
             RaporKolonTanimi(key: 'aciklama', labelKey: 'Açıklama', width: 220),
           ]
         : isWarehouseStockListPrint
-            ? const <RaporKolonTanimi>[
-                RaporKolonTanimi(key: 'kod', labelKey: 'KOD NO', width: 110),
-                RaporKolonTanimi(key: 'ad', labelKey: 'ADI', width: 200),
-                RaporKolonTanimi(
-                  key: 'barkod',
-                  labelKey: 'BARKOD NO',
-                  width: 140,
-                ),
-                RaporKolonTanimi(key: 'grup', labelKey: 'GRUBU', width: 140),
-                RaporKolonTanimi(
-                  key: 'miktar_olcu',
-                  labelKey: 'MİKTAR ÖLÇÜ',
-                  width: 150,
-                ),
-              ]
-            : (isProfitLossPrint ||
-                    isBalanceListPrint ||
-                    isBaBsPrint ||
-                    isReceivablesPayablesPrint ||
-                    isVatAccountingPrint ||
-                    isLastTransactionDatePrint ||
-                    isPurchaseSalesMovementsPrint ||
-                    isProductMovementsPrint ||
-                    isWarehouseShipmentListPrint)
-                ? printSourceSonuc.columns
-                : _gorunurKolonlar;
+        ? const <RaporKolonTanimi>[
+            RaporKolonTanimi(key: 'kod', labelKey: 'KOD NO', width: 110),
+            RaporKolonTanimi(key: 'ad', labelKey: 'ADI', width: 200),
+            RaporKolonTanimi(key: 'barkod', labelKey: 'BARKOD NO', width: 140),
+            RaporKolonTanimi(key: 'grup', labelKey: 'GRUBU', width: 140),
+            RaporKolonTanimi(
+              key: 'miktar_olcu',
+              labelKey: 'MİKTAR ÖLÇÜ',
+              width: 150,
+            ),
+          ]
+        : (isProfitLossPrint ||
+              isBalanceListPrint ||
+              isBaBsPrint ||
+              isReceivablesPayablesPrint ||
+              isVatAccountingPrint ||
+              isLastTransactionDatePrint ||
+              isPurchaseSalesMovementsPrint ||
+              isProductMovementsPrint ||
+              isWarehouseShipmentListPrint)
+        ? printSourceSonuc.columns
+        : _gorunurKolonlar;
 
     final List<bool> defaultPrintVisibility = () {
       if (isAllMovementsPrint) {
@@ -2214,7 +2210,8 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         final String olcuVal = (olcu ?? '').trim();
         final String combined = () {
           final bool hasTotal = toplamVal.isNotEmpty && toplamVal != '-';
-          final bool hasUnit = olcuVal.isNotEmpty &&
+          final bool hasUnit =
+              olcuVal.isNotEmpty &&
               olcuVal != '-' &&
               olcuVal.toLowerCase() != 'çoklu';
           if (hasTotal && hasUnit) return '$toplamVal $olcuVal';
@@ -2233,31 +2230,34 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
     final List<RaporSatiri> printableRowsSource =
         (isProductShipmentMovementsPrint || isWarehouseStockListPrint)
         ? rows
-            .map((row) {
-              final String miktar = (row.cells['miktar'] ?? '-').trim();
-              final String olcu = (row.cells['olcu'] ?? '-').trim();
-              final String combined = () {
-                final bool hasQty = miktar.isNotEmpty && miktar != '-';
-                final bool hasUnit = olcu.isNotEmpty && olcu != '-';
-                if (hasQty && hasUnit) return '$miktar $olcu';
-                if (hasQty) return miktar;
-                if (hasUnit) return olcu;
-                return '-';
-              }();
-              return RaporSatiri(
-                id: row.id,
-                cells: <String, String>{...row.cells, 'miktar_olcu': combined},
-                details: row.details,
-                detailTable: row.detailTable,
-                expandable: row.expandable,
-                sourceMenuIndex: row.sourceMenuIndex,
-                sourceSearchQuery: row.sourceSearchQuery,
-                amountValue: row.amountValue,
-                sortValues: row.sortValues,
-                extra: row.extra,
-              );
-            })
-            .toList(growable: false)
+              .map((row) {
+                final String miktar = (row.cells['miktar'] ?? '-').trim();
+                final String olcu = (row.cells['olcu'] ?? '-').trim();
+                final String combined = () {
+                  final bool hasQty = miktar.isNotEmpty && miktar != '-';
+                  final bool hasUnit = olcu.isNotEmpty && olcu != '-';
+                  if (hasQty && hasUnit) return '$miktar $olcu';
+                  if (hasQty) return miktar;
+                  if (hasUnit) return olcu;
+                  return '-';
+                }();
+                return RaporSatiri(
+                  id: row.id,
+                  cells: <String, String>{
+                    ...row.cells,
+                    'miktar_olcu': combined,
+                  },
+                  details: row.details,
+                  detailTable: row.detailTable,
+                  expandable: row.expandable,
+                  sourceMenuIndex: row.sourceMenuIndex,
+                  sourceSearchQuery: row.sourceSearchQuery,
+                  amountValue: row.amountValue,
+                  sortValues: row.sortValues,
+                  extra: row.extra,
+                );
+              })
+              .toList(growable: false)
         : rows;
 
     final printRows = await _buildPrintableRows(

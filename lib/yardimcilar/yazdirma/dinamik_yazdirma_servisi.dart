@@ -602,13 +602,33 @@ class DinamikYazdirmaServisi {
         veri: veri,
         raw: valueOverride ?? veri[el.key],
       );
-      final bytes = _coerceToBytes(raw);
-      if (bytes == null || bytes.isEmpty) {
-        // [2026] QR Support: Allow passing raw string data for `receipt_qr`
-        // without requiring the caller to pre-render an image.
-        if (el.key == 'receipt_qr') {
-          final data = _resolveQrDataPayload(el: el, veri: veri, raw: raw);
-          if (data.isEmpty) return null;
+      // Barcode/QR template elements are stored as `image` in the designer,
+      // but they must render from raw payload before any image-byte decode.
+      if (el.key == 'receipt_qr') {
+        final data = _resolveQrDataPayload(el: el, veri: veri, raw: raw);
+        if (data.isEmpty) return null;
+        return pw.Positioned(
+          left: x,
+          top: y,
+          child: pw.SizedBox(
+            width: w,
+            height: h,
+            child: pw.BarcodeWidget(
+              barcode: pw.Barcode.qrCode(),
+              data: data,
+              drawText: false,
+            ),
+          ),
+        );
+      }
+      if (el.key == 'barcode_graphic') {
+        final data = _resolveBarcodeGraphicData(el, veri, raw);
+        if (data.isEmpty) return null;
+        final config =
+            el.barcodeGraphicConfig ?? BarkodGrafikModel.defaultLotYazilim();
+        final selectedBarcode = _barcodeGraphicRenderer(config);
+        try {
+          selectedBarcode.make(data, width: w, height: h, drawText: false);
           return pw.Positioned(
             left: x,
             top: y,
@@ -616,21 +636,16 @@ class DinamikYazdirmaServisi {
               width: w,
               height: h,
               child: pw.BarcodeWidget(
-                barcode: pw.Barcode.qrCode(),
+                barcode: selectedBarcode,
                 data: data,
                 drawText: false,
               ),
             ),
           );
-        }
-        if (el.key == 'barcode_graphic') {
-          final data = _resolveBarcodeGraphicData(el, veri, raw);
-          if (data.isEmpty) return null;
-          final config =
-              el.barcodeGraphicConfig ?? BarkodGrafikModel.defaultLotYazilim();
-          final selectedBarcode = _barcodeGraphicRenderer(config);
+        } catch (_) {
+          final fallbackBarcode = pw.Barcode.code128();
           try {
-            selectedBarcode.make(data, width: w, height: h, drawText: false);
+            fallbackBarcode.make(data, width: w, height: h, drawText: false);
             return pw.Positioned(
               left: x,
               top: y,
@@ -638,34 +653,20 @@ class DinamikYazdirmaServisi {
                 width: w,
                 height: h,
                 child: pw.BarcodeWidget(
-                  barcode: selectedBarcode,
+                  barcode: fallbackBarcode,
                   data: data,
                   drawText: false,
                 ),
               ),
             );
           } catch (_) {
-            final fallbackBarcode = pw.Barcode.code128();
-            try {
-              fallbackBarcode.make(data, width: w, height: h, drawText: false);
-              return pw.Positioned(
-                left: x,
-                top: y,
-                child: pw.SizedBox(
-                  width: w,
-                  height: h,
-                  child: pw.BarcodeWidget(
-                    barcode: fallbackBarcode,
-                    data: data,
-                    drawText: false,
-                  ),
-                ),
-              );
-            } catch (_) {
-              return null;
-            }
+            return null;
           }
         }
+      }
+
+      final bytes = _coerceToBytes(raw);
+      if (bytes == null || bytes.isEmpty) {
         return null;
       }
 

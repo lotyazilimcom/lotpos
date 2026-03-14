@@ -6,38 +6,38 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:postgres/postgres.dart';
 
-import '../../../bilesenler/tab_acici_scope.dart';
-import '../../../servisler/ayarlar_veritabani_servisi.dart';
-import '../../../servisler/bankalar_veritabani_servisi.dart';
-import '../../../servisler/cari_hesaplar_veritabani_servisi.dart';
-import '../../../servisler/cekler_veritabani_servisi.dart';
-import '../../../servisler/depolar_veritabani_servisi.dart';
-import '../../../servisler/giderler_veritabani_servisi.dart';
-import '../../../servisler/kasalar_veritabani_servisi.dart';
-import '../../../servisler/kredi_kartlari_veritabani_servisi.dart';
-import '../../../servisler/senetler_veritabani_servisi.dart';
-import '../../../servisler/veritabani_havuzu.dart';
-import '../../../servisler/uretimler_veritabani_servisi.dart';
-import '../../../servisler/urunler_veritabani_servisi.dart';
-import '../../../servisler/oturum_servisi.dart';
-import '../../../temalar/app_theme.dart';
-import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
-import '../../../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
-import '../../../yardimcilar/format_yardimcisi.dart';
-import '../../../yardimcilar/islem_turu_renkleri.dart';
-import '../../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
-import '../../ayarlar/kullanicilar/modeller/kullanici_hareket_model.dart';
-import '../../ayarlar/kullanicilar/modeller/kullanici_model.dart';
-import '../../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
-import '../../bankalar/modeller/banka_model.dart';
-import '../../carihesaplar/modeller/cari_hesap_model.dart';
-import '../../giderler/modeller/gider_model.dart';
-import '../../kasalar/modeller/kasa_model.dart';
-import '../../kredikartlari/modeller/kredi_karti_model.dart';
-import '../../urunler_ve_depolar/depolar/modeller/depo_model.dart';
-import '../../urunler_ve_depolar/uretimler/modeller/uretim_model.dart';
-import '../../urunler_ve_depolar/urunler/modeller/urun_model.dart';
-import '../modeller/rapor_modelleri.dart';
+import '../bilesenler/tab_acici_scope.dart';
+import '../sayfalar/ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
+import '../sayfalar/ayarlar/kullanicilar/modeller/kullanici_hareket_model.dart';
+import '../sayfalar/ayarlar/kullanicilar/modeller/kullanici_model.dart';
+import '../sayfalar/bankalar/modeller/banka_model.dart';
+import '../sayfalar/carihesaplar/modeller/cari_hesap_model.dart';
+import '../sayfalar/giderler/modeller/gider_model.dart';
+import '../sayfalar/kasalar/modeller/kasa_model.dart';
+import '../sayfalar/kredikartlari/modeller/kredi_karti_model.dart';
+import '../sayfalar/raporlar/modeller/rapor_modelleri.dart';
+import '../sayfalar/urunler_ve_depolar/depolar/modeller/depo_model.dart';
+import '../sayfalar/urunler_ve_depolar/uretimler/modeller/uretim_model.dart';
+import '../sayfalar/urunler_ve_depolar/urunler/modeller/urun_model.dart';
+import '../temalar/app_theme.dart';
+import '../yardimcilar/ceviri/ceviri_servisi.dart';
+import '../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
+import '../yardimcilar/format_yardimcisi.dart';
+import '../yardimcilar/islem_turu_renkleri.dart';
+import '../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
+import 'ayarlar_veritabani_servisi.dart';
+import 'bankalar_veritabani_servisi.dart';
+import 'cari_hesaplar_veritabani_servisi.dart';
+import 'cekler_veritabani_servisi.dart';
+import 'depolar_veritabani_servisi.dart';
+import 'giderler_veritabani_servisi.dart';
+import 'kasalar_veritabani_servisi.dart';
+import 'kredi_kartlari_veritabani_servisi.dart';
+import 'oturum_servisi.dart';
+import 'senetler_veritabani_servisi.dart';
+import 'uretimler_veritabani_servisi.dart';
+import 'urunler_veritabani_servisi.dart';
+import 'veritabani_havuzu.dart';
 
 class RaporlarServisi {
   RaporlarServisi._internal();
@@ -244,10 +244,7 @@ class RaporlarServisi {
       labelKey: 'reports.items.warehouse_stock_list',
       category: RaporKategori.stokDepo,
       icon: Icons.warehouse_outlined,
-      supportedFilters: {
-        RaporFiltreTuru.tarihAraligi,
-        RaporFiltreTuru.depo,
-      },
+      supportedFilters: {RaporFiltreTuru.tarihAraligi, RaporFiltreTuru.depo},
     ),
     RaporSecenegi(
       id: 'warehouse_shipment_list',
@@ -3298,7 +3295,9 @@ class RaporlarServisi {
           final DateTime? tarih = _toDateTime(item['tarih']);
           final double miktar = _toDouble(item['miktar']);
           final String aciklamaRaw = item['aciklama']?.toString() ?? '';
-          final String aciklama = aciklamaRaw.trim().isEmpty ? '-' : aciklamaRaw;
+          final String aciklama = aciklamaRaw.trim().isEmpty
+              ? '-'
+              : aciklamaRaw;
           final String olcuRaw = item['olcu']?.toString() ?? '';
           final String olcu = olcuRaw.trim().isEmpty ? '-' : olcuRaw;
 
@@ -3372,12 +3371,7 @@ class RaporlarServisi {
         _column('tur', 'Tür', 110),
         _column('kod', 'Kod No', 110),
         _column('ad', 'Adı', 200),
-        _column(
-          'miktar',
-          'Miktar',
-          110,
-          alignment: Alignment.centerRight,
-        ),
+        _column('miktar', 'Miktar', 110, alignment: Alignment.centerRight),
         _column('olcu', 'Ölçü', 120),
         _column('aciklama', 'Açıklama', 220),
       ],
@@ -3499,7 +3493,7 @@ class RaporlarServisi {
             final String text = (raw?.toString() ?? '').trim();
             if (text.isEmpty) return const <String>[];
             if (text == '[]') return const <String>[];
- 
+
             try {
               final decoded = jsonDecode(text);
               if (decoded is List) {
@@ -3516,14 +3510,15 @@ class RaporlarServisi {
             } catch (_) {
               // ignore
             }
- 
+
             // JSON benzeri bir format varsa parçalayıp ham JSON göstermeyelim.
             if (text.startsWith('[') || text.startsWith('{')) {
               return const <String>[];
             }
- 
-            final String normalized =
-                text.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
+
+            final String normalized = text
+                .replaceAll('\r\n', '\n')
+                .replaceAll('\r', '\n');
             List<String> parts;
             if (normalized.contains('|')) {
               parts = normalized.split('|');
@@ -3542,7 +3537,7 @@ class RaporlarServisi {
                 .take(5)
                 .toList(growable: false);
           }
- 
+
           final double miktar = _toDouble(item['miktar']);
           final String olcuRaw = item['olcu']?.toString() ?? '';
           final String olcu = olcuRaw.trim().isEmpty ? '-' : olcuRaw;
@@ -3550,7 +3545,7 @@ class RaporlarServisi {
           final String barkod = barkodRaw.trim().isEmpty ? '-' : barkodRaw;
           final String grupRaw = item['grup']?.toString() ?? '';
           final String grup = grupRaw.trim().isEmpty ? '-' : grupRaw;
- 
+
           final features = splitFirstFiveFeatures(item['ozellikler']);
           String featureAt(int index) =>
               index < features.length ? features[index] : '-';
@@ -3634,12 +3629,7 @@ class RaporlarServisi {
         _column('tur', 'TÜR', 90, allowSorting: false),
         _column('kod', 'KOD NO', 110),
         _column('ad', 'ADI', 200),
-        _column(
-          'miktar',
-          'MİKTAR',
-          110,
-          alignment: Alignment.centerRight,
-        ),
+        _column('miktar', 'MİKTAR', 110, alignment: Alignment.centerRight),
         _column('olcu', 'ÖLÇÜ', 120),
         _column('barkod', 'BARKOD NO', 140, allowSorting: false),
         _column('grup', 'GRUBU', 140),
@@ -3786,7 +3776,9 @@ class RaporlarServisi {
             item['items'],
           );
           final String aciklamaRaw = item['aciklama']?.toString() ?? '';
-          final String aciklama = aciklamaRaw.trim().isEmpty ? '-' : aciklamaRaw;
+          final String aciklama = aciklamaRaw.trim().isEmpty
+              ? '-'
+              : aciklamaRaw;
           final Map<String, String> cells = {
             'kaynak': item['kaynak']?.toString() ?? '-',
             'hedef': item['hedef']?.toString() ?? '-',
@@ -6613,8 +6605,9 @@ class RaporlarServisi {
                       currency: effectiveIslemParaBirimi,
                     )
                   : '-',
-              'son_islem_tarihi':
-                  hasTx ? _formatDate(tarih, includeTime: true) : '-',
+              'son_islem_tarihi': hasTx
+                  ? _formatDate(tarih, includeTime: true)
+                  : '-',
               'gecen_gun': hasTx ? (gecenGun ?? 0).toString() : '-',
             },
             sourceMenuIndex: TabAciciScope.cariKartiIndex,

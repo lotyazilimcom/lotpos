@@ -26,7 +26,9 @@ import '../../../servisler/urunler_veritabani_servisi.dart';
 import '../../../servisler/depolar_veritabani_servisi.dart';
 import '../../../servisler/ayarlar_veritabani_servisi.dart';
 import '../../../servisler/cari_hesaplar_veritabani_servisi.dart';
+import '../../../servisler/yazdirma_veritabani_servisi.dart';
 import '../../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
+import '../../ayarlar/yazdirma_ayarlari/modeller/yazdirma_sablonu_model.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
 import 'acilis_stogu_duzenle_sayfasi.dart';
 import 'hizli_urun_ekle_dialog.dart';
@@ -41,6 +43,7 @@ import '../../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../../yardimcilar/entegrasyon_islem_yardimcisi.dart';
 import '../../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
 import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import '../../ortak/dinamik_sablon_preview_screen.dart';
 import '../../ortak/genisletilebilir_print_preview_screen.dart';
 import '../../../yardimcilar/islem_turu_renkleri.dart';
 import '../../../servisler/sayfa_senkronizasyon_servisi.dart';
@@ -111,11 +114,196 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
     );
   }
 
+  String _barcodeMenuLabel() {
+    return '${tr('common.barcode')} ${tr('common.print')}';
+  }
+
+  String _barcodeTemplateSelectorLabel() {
+    return '${tr('common.barcode')} ${tr('print.template_label')}';
+  }
+
+  String _formatBarcodeQuantity(double value) {
+    return FormatYardimcisi.sayiFormatla(
+      value,
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: _genelAyarlar.miktarOndalik,
+    );
+  }
+
+  String _formatBarcodePrice(double value) {
+    return FormatYardimcisi.sayiFormatlaOndalikli(
+      value,
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: _genelAyarlar.fiyatOndalik,
+    );
+  }
+
+  String _formatBarcodeVatRate(double value) {
+    final decimalDigits = value == value.truncateToDouble() ? 0 : 2;
+    final formatted = FormatYardimcisi.sayiFormatlaOran(
+      value,
+      binlik: _genelAyarlar.binlikAyiraci,
+      ondalik: _genelAyarlar.ondalikAyiraci,
+      decimalDigits: decimalDigits,
+    );
+    return '%$formatted';
+  }
+
+  List<String> _extractBarcodeFeatureValues(String ozellikler) {
+    final raw = ozellikler.trim();
+    if (raw.isEmpty) return const [];
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .map((item) {
+              if (item is Map) {
+                return (item['name'] ?? item['label'] ?? item['value'] ?? '')
+                    .toString()
+                    .trim();
+              }
+              return item?.toString().trim() ?? '';
+            })
+            .where((item) => item.isNotEmpty)
+            .toList(growable: false);
+      }
+    } catch (_) {}
+
+    return [raw];
+  }
+
+  Map<String, dynamic> _buildBarcodePrintData(UrunModel urun) {
+    final currency = _genelAyarlar.varsayilanParaBirimi.trim().isNotEmpty
+        ? _genelAyarlar.varsayilanParaBirimi.trim()
+        : 'TRY';
+    final barcodeValue = urun.barkod.trim().isNotEmpty
+        ? urun.barkod.trim()
+        : urun.kod.trim();
+    final stockQty = _formatBarcodeQuantity(urun.stok);
+    final warningQty = _formatBarcodeQuantity(urun.erkenUyariMiktari);
+    final buyPrice = _formatBarcodePrice(urun.alisFiyati);
+    final sellPrice1 = _formatBarcodePrice(urun.satisFiyati1);
+    final sellPrice2 = _formatBarcodePrice(urun.satisFiyati2);
+    final sellPrice3 = _formatBarcodePrice(urun.satisFiyati3);
+    final vatRate = _formatBarcodeVatRate(urun.kdvOrani);
+    final features = _extractBarcodeFeatureValues(urun.ozellikler);
+
+    return {
+      'code': urun.kod,
+      'item_code': urun.kod,
+      'name': urun.ad,
+      'item_name': urun.ad,
+      'barcode': barcodeValue,
+      'item_barcode': barcodeValue,
+      'barcode_number': barcodeValue,
+      'unit': urun.birim,
+      'item_unit': urun.birim,
+      'vatRate': vatRate,
+      'item_vat_rate': vatRate,
+      'group': urun.grubu,
+      'stockQty': stockQty,
+      'item_quantity': stockQty,
+      'warningQty': warningQty,
+      'buyPrice': buyPrice,
+      'item_unit_price_excl': buyPrice,
+      'buyPriceCurrency': currency,
+      'sellPrice1': sellPrice1,
+      'item_unit_price_incl': sellPrice1,
+      'sellPrice1Currency': currency,
+      'sellPrice2': sellPrice2,
+      'sellPrice2Currency': currency,
+      'sellPrice3': sellPrice3,
+      'sellPrice3Currency': currency,
+      'currency': currency,
+      'item_currency': currency,
+      'features': features,
+    };
+  }
+
+  YazdirmaSablonuModel? _findBarcodeTemplateById(
+    int? id,
+    List<YazdirmaSablonuModel> templates,
+  ) {
+    if (id == null) return null;
+    for (final template in templates) {
+      if (template.id == id) return template;
+    }
+    return null;
+  }
+
+  Future<void> _saveBarcodeTemplatePreference(
+    YazdirmaSablonuModel template,
+  ) async {
+    final templateId = template.id;
+    if (templateId == null) return;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefBarcodeTemplateId, templateId);
+  }
+
+  Future<void> _handleBarcodePrintForProduct(UrunModel urun) async {
+    if (YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif) return;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final barcodeTemplates =
+          (await YazdirmaVeritabaniServisi().sablonlariGetir(
+                docType: 'barcode',
+              ))
+              .where((template) => template.barcodePaperConfig != null)
+              .toList(growable: false);
+
+      if (barcodeTemplates.isEmpty) {
+        if (mounted) {
+          MesajYardimcisi.uyariGoster(
+            context,
+            tr('settings.print.noTemplates'),
+          );
+        }
+        return;
+      }
+
+      final savedTemplateId = prefs.getInt(_prefBarcodeTemplateId);
+      final defaultTemplate = await YazdirmaVeritabaniServisi()
+          .varsayilanSablonuGetir('barcode');
+      final selectedTemplate =
+          _findBarcodeTemplateById(savedTemplateId, barcodeTemplates) ??
+          _findBarcodeTemplateById(defaultTemplate?.id, barcodeTemplates) ??
+          barcodeTemplates.first;
+
+      await _saveBarcodeTemplatePreference(selectedTemplate);
+      if (!mounted) return;
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => DinamikSablonPreviewScreen(
+            title: '${urun.ad} ${tr('common.barcode')}',
+            sablon: selectedTemplate,
+            veri: _buildBarcodePrintData(urun),
+            availableTemplates: barcodeTemplates,
+            templateSelectorLabel: _barcodeTemplateSelectorLabel(),
+            onTemplateChanged: (template) {
+              unawaited(_saveBarcodeTemplatePreference(template));
+            },
+          ),
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        MesajYardimcisi.hataGoster(context, '${tr('common.error')}: $e');
+      }
+    }
+  }
+
   // Seçili detay transaction bilgisi (Son Hareketler için F2/Del kısayolları)
   int? _selectedDetailTransactionId;
   String? _selectedDetailCustomTypeLabel;
   UrunModel? _selectedDetailUrun;
   String? _selectedDetailWarehouseName;
+  static const String _prefBarcodeTemplateId = 'urun_karti_barcode_template_id';
+  bool get _showExpandedDetailActions => false;
   // Clearing cursors on filter change is crucial!
   void _resetPagination() {
     _pageCursors.clear();
@@ -2073,7 +2261,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
         final urun = dataToProcess[i];
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
         final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
-        final int originIndex = _cachedUrunler.indexWhere((u) => u.id == urun.id);
+        final int originIndex = _cachedUrunler.indexWhere(
+          (u) => u.id == urun.id,
+        );
         final int orderNo =
             startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
@@ -4311,8 +4501,7 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
       },
       rowBuilder: (context, urun, index, isExpanded, toggleExpand) {
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
-        final int orderNo =
-            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
+        final int orderNo = ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         return Row(
           children: [
             _buildCell(
@@ -5214,8 +5403,10 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                         child: _buildDetailHeader(tr('warehouses.detail.user')),
                       ),
                     ],
-                    const SizedBox(width: 24), // Extra spacing before Actions
-                    const SizedBox(width: 120), // Actions space
+                    if (_showExpandedDetailActions) ...[
+                      const SizedBox(width: 24), // Extra spacing before Actions
+                      const SizedBox(width: 120), // Actions space
+                    ],
                   ],
                 ),
               ),
@@ -5331,7 +5522,7 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                                   : createdBy!,
                               customTypeLabel: tx['customTypeLabel'],
                               sourceSuffix: tx['sourceSuffix']?.toString(),
-                              showActions: true,
+                              showActions: _showExpandedDetailActions,
                               urun: urun,
                               relatedAccount: tx['relatedPartyName'] as String?,
                             ),
@@ -7571,22 +7762,21 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                       ),
                     ],
 
-                    // Action Menu
-                    const SizedBox(width: 24), // Extra spacing before Actions
-                    SizedBox(
-                      width: 120,
-                      child: showActions
-                          ? Align(
-                              alignment: Alignment.centerRight,
-                              child: _buildTransactionPopupMenu(
-                                id,
-                                customTypeLabel,
-                                urun,
-                                warehouse,
-                              ),
-                            )
-                          : null,
-                    ),
+                    if (showActions) ...[
+                      const SizedBox(width: 24), // Extra spacing before Actions
+                      SizedBox(
+                        width: 120,
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: _buildTransactionPopupMenu(
+                            id,
+                            customTypeLabel,
+                            urun,
+                            warehouse,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -7835,6 +8025,48 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
             ),
           ),
           PopupMenuItem<String>(
+            value: 'barcode_print',
+            enabled: !YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif,
+            height: 44,
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.qr_code_2_rounded,
+                  size: 20,
+                  color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
+                      ? Colors.grey.shade400
+                      : const Color(0xFFF39C12),
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  _barcodeMenuLabel(),
+                  style: TextStyle(
+                    color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
+                        ? Colors.grey.shade400
+                        : const Color(0xFFF39C12),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                  ),
+                ),
+                const Spacer(),
+                const SizedBox(width: 24),
+              ],
+            ),
+          ),
+          const PopupMenuItem<String>(
+            enabled: false,
+            height: 12,
+            padding: EdgeInsets.zero,
+            child: Divider(
+              height: 1,
+              thickness: 1,
+              indent: 10,
+              endIndent: 10,
+              color: Color(0xFFEEEEEE),
+            ),
+          ),
+          PopupMenuItem<String>(
             value: urun.aktifMi ? 'deactivate' : 'activate',
             height: 44,
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
@@ -7918,6 +8150,8 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
         onSelected: (value) {
           if (value == 'open_card') {
             _openUrunKarti(urun);
+          } else if (value == 'barcode_print') {
+            unawaited(_handleBarcodePrintForProduct(urun));
           } else if (value == 'edit') {
             _showEditDialog(urun);
           } else if (value == 'deactivate') {

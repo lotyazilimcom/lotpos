@@ -20,12 +20,18 @@ class DinamikSablonPreviewScreen extends StatefulWidget {
   final String title;
   final YazdirmaSablonuModel sablon;
   final Map<String, dynamic> veri;
+  final List<YazdirmaSablonuModel>? availableTemplates;
+  final ValueChanged<YazdirmaSablonuModel>? onTemplateChanged;
+  final String? templateSelectorLabel;
 
   const DinamikSablonPreviewScreen({
     super.key,
     required this.title,
     required this.sablon,
     required this.veri,
+    this.availableTemplates,
+    this.onTemplateChanged,
+    this.templateSelectorLabel,
   });
 
   @override
@@ -47,6 +53,7 @@ class _DinamikSablonPreviewScreenState
   int _copies = 1;
   bool _showHeaders = true;
   bool _showBackground = true;
+  late YazdirmaSablonuModel _selectedTemplate;
 
   // Printer & Destination
   Printer? _selectedPrinter;
@@ -67,19 +74,57 @@ class _DinamikSablonPreviewScreenState
   // Preview State
   Uint8List? _pdfBytes;
   bool _isLoading = true;
+  int _previewRevision = 0;
+
+  bool get _hasTemplateSelector =>
+      widget.availableTemplates != null &&
+      widget.availableTemplates!.isNotEmpty;
+
+  YazdirmaSablonuModel get _activeTemplate => _selectedTemplate;
+  bool get _isBarcodePreview =>
+      _activeTemplate.effectiveDocType == 'barcode' ||
+      _activeTemplate.barcodePaperConfig != null;
 
   @override
   void initState() {
     super.initState();
+    _selectedTemplate = _resolveInitialTemplate();
     // Initialize from template
     _pageFormat = DinamikYazdirmaServisi().getFormat(
-      widget.sablon,
+      _activeTemplate,
       veri: widget.veri,
     );
-    _isLandscape = widget.sablon.isLandscape;
+    _isLandscape = _activeTemplate.isLandscape;
 
     _fetchPrinters();
     _generatePdf();
+  }
+
+  YazdirmaSablonuModel _resolveInitialTemplate() {
+    final templates = widget.availableTemplates;
+    if (templates == null || templates.isEmpty) {
+      return widget.sablon;
+    }
+
+    final matched = templates.where(
+      (template) => template.id == widget.sablon.id,
+    );
+    if (matched.isNotEmpty) return matched.first;
+    return templates.first;
+  }
+
+  Future<void> _handleTemplateChanged(YazdirmaSablonuModel? template) async {
+    if (template == null || template.id == _activeTemplate.id) return;
+    setState(() {
+      _selectedTemplate = template;
+      _pageFormat = DinamikYazdirmaServisi().getFormat(
+        template,
+        veri: widget.veri,
+      );
+      _isLandscape = template.isLandscape;
+    });
+    widget.onTemplateChanged?.call(template);
+    await _generatePdf();
   }
 
   Future<void> _fetchPrinters() async {
@@ -123,7 +168,7 @@ class _DinamikSablonPreviewScreenState
 
     try {
       final doc = await DinamikYazdirmaServisi().pdfOlustur(
-        sablon: widget.sablon,
+        sablon: _activeTemplate,
         veri: widget.veri,
         overrideFormat: format,
         margin: margins,
@@ -135,12 +180,17 @@ class _DinamikSablonPreviewScreenState
         setState(() {
           _pdfBytes = bytes;
           _isLoading = false;
+          _previewRevision++;
         });
       }
     } catch (e) {
       debugPrint('PDF Oluşturma Hatası: $e');
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<Uint8List> _buildPreviewPdf(PdfPageFormat format) async {
+    return _pdfBytes ?? Uint8List(0);
   }
 
   Future<void> _handlePrint() async {
@@ -186,7 +236,7 @@ class _DinamikSablonPreviewScreenState
       await _saveAsPdf();
     } else {
       final printFormat = DinamikYazdirmaServisi().getFormat(
-        widget.sablon,
+        _activeTemplate,
         veri: widget.veri,
       );
       await Printing.directPrintPdf(
@@ -316,7 +366,8 @@ class _DinamikSablonPreviewScreenState
                                     ],
                                   ),
                                   child: PdfPreview(
-                                    build: (format) => _pdfBytes!,
+                                    key: ValueKey<int>(_previewRevision),
+                                    build: _buildPreviewPdf,
                                     useActions: false,
                                     padding: EdgeInsets.zero,
                                     previewPageMargin: EdgeInsets.zero,
@@ -332,6 +383,7 @@ class _DinamikSablonPreviewScreenState
                                     allowPrinting: false,
                                     allowSharing: false,
                                     maxPageWidth: actualPageW,
+                                    loadingWidget: const SizedBox.shrink(),
                                   ),
                                 ),
                               ),
@@ -419,6 +471,10 @@ class _DinamikSablonPreviewScreenState
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
+                      if (_hasTemplateSelector) ...[
+                        _buildTemplateSelectorRow(),
+                        const SizedBox(height: 16),
+                      ],
                       // Destination
                       _buildDropdownRow<Printer?>(
                         label: tr('print.destination'),
@@ -553,20 +609,7 @@ class _DinamikSablonPreviewScreenState
                           _buildDropdownRow<PdfPageFormat>(
                             label: tr('print.paper_size'),
                             value: _pageFormat,
-                            items: [
-                              DropdownMenuItem(
-                                value: PdfPageFormat.a4,
-                                child: Text(tr('print.paper_size.a4')),
-                              ),
-                              DropdownMenuItem(
-                                value: PdfPageFormat.a5,
-                                child: Text(tr('print.paper_size.a5')),
-                              ),
-                              DropdownMenuItem(
-                                value: PdfPageFormat.letter,
-                                child: Text(tr('print.paper_size.letter')),
-                              ),
-                            ],
+                            items: _buildPaperSizeItems(),
                             onChanged: (val) {
                               setState(() => _pageFormat = val!);
                               _generatePdf();
@@ -639,13 +682,19 @@ class _DinamikSablonPreviewScreenState
                                   children: [
                                     _buildCheckbox(
                                       label: tr('print.headers_footers'),
-                                      value: _showHeaders,
+                                      value: _isBarcodePreview
+                                          ? false
+                                          : _showHeaders,
+                                      enabled: !_isBarcodePreview,
                                       onChanged: (val) =>
                                           setState(() => _showHeaders = val!),
                                     ),
                                     _buildCheckbox(
                                       label: tr('print.background_graphics'),
-                                      value: _showBackground,
+                                      value: _isBarcodePreview
+                                          ? false
+                                          : _showBackground,
+                                      enabled: !_isBarcodePreview,
                                       onChanged: (val) => setState(
                                         () => _showBackground = val!,
                                       ),
@@ -772,7 +821,8 @@ class _DinamikSablonPreviewScreenState
           return Stack(
             children: [
               PdfPreview(
-                build: (_) => _pdfBytes!,
+                key: ValueKey<int>(_previewRevision),
+                build: _buildPreviewPdf,
                 useActions: false,
                 padding: EdgeInsets.fromLTRB(
                   horizontalPadding,
@@ -801,9 +851,7 @@ class _DinamikSablonPreviewScreenState
                 allowSharing: false,
                 maxPageWidth: maxPageWidth,
                 dpi: 144,
-                loadingWidget: const Center(
-                  child: CircularProgressIndicator(color: Color(0xFF2C3E50)),
-                ),
+                loadingWidget: const SizedBox.shrink(),
                 onError: (context, error) =>
                     Center(child: Text(tr('common.error'))),
               ),
@@ -896,6 +944,14 @@ class _DinamikSablonPreviewScreenState
 
   List<Widget> _buildCompactSettingsChildren() {
     return [
+      if (_hasTemplateSelector) ...[
+        _buildCompactSection(
+          title: widget.templateSelectorLabel ?? tr('print.template_label'),
+          icon: Icons.view_quilt_outlined,
+          child: _buildTemplateSelectorRow(),
+        ),
+        const SizedBox(height: 12),
+      ],
       _buildCompactSection(
         title: tr('print.destination'),
         icon: Icons.route_rounded,
@@ -981,20 +1037,7 @@ class _DinamikSablonPreviewScreenState
             _buildDropdownRow<PdfPageFormat>(
               label: tr('print.paper_size'),
               value: _pageFormat,
-              items: [
-                DropdownMenuItem(
-                  value: PdfPageFormat.a4,
-                  child: Text(tr('print.paper_size.a4')),
-                ),
-                DropdownMenuItem(
-                  value: PdfPageFormat.a5,
-                  child: Text(tr('print.paper_size.a5')),
-                ),
-                DropdownMenuItem(
-                  value: PdfPageFormat.letter,
-                  child: Text(tr('print.paper_size.letter')),
-                ),
-              ],
+              items: _buildPaperSizeItems(),
               onChanged: (val) {
                 setState(() => _pageFormat = val!);
                 _generatePdf();
@@ -1056,12 +1099,14 @@ class _DinamikSablonPreviewScreenState
           children: [
             _buildCheckbox(
               label: tr('print.headers_footers'),
-              value: _showHeaders,
+              value: _isBarcodePreview ? false : _showHeaders,
+              enabled: !_isBarcodePreview,
               onChanged: (val) => setState(() => _showHeaders = val!),
             ),
             _buildCheckbox(
               label: tr('print.background_graphics'),
-              value: _showBackground,
+              value: _isBarcodePreview ? false : _showBackground,
+              enabled: !_isBarcodePreview,
               onChanged: (val) => setState(() => _showBackground = val!),
             ),
             const SizedBox(height: 12),
@@ -1122,6 +1167,42 @@ class _DinamikSablonPreviewScreenState
     ];
   }
 
+  List<DropdownMenuItem<PdfPageFormat>> _buildPaperSizeItems() {
+    final items = <DropdownMenuItem<PdfPageFormat>>[
+      DropdownMenuItem(
+        value: PdfPageFormat.a4,
+        child: Text(tr('print.paper_size.a4')),
+      ),
+      DropdownMenuItem(
+        value: PdfPageFormat.a5,
+        child: Text(tr('print.paper_size.a5')),
+      ),
+      DropdownMenuItem(
+        value: PdfPageFormat.letter,
+        child: Text(tr('print.paper_size.letter')),
+      ),
+    ];
+
+    final hasSelectedFormat = items.any((item) => item.value == _pageFormat);
+    if (!hasSelectedFormat) {
+      items.insert(
+        0,
+        DropdownMenuItem(
+          value: _pageFormat,
+          child: Text(_customPaperSizeLabel(_pageFormat)),
+        ),
+      );
+    }
+
+    return items;
+  }
+
+  String _customPaperSizeLabel(PdfPageFormat format) {
+    final widthMm = (format.width / PdfPageFormat.mm).toStringAsFixed(1);
+    final heightMm = (format.height / PdfPageFormat.mm).toStringAsFixed(1);
+    return '${tr('print.paper.custom')} ($widthMm x $heightMm mm)';
+  }
+
   Widget _buildTemplateInfoCard() {
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1157,15 +1238,15 @@ class _DinamikSablonPreviewScreenState
           Text(
             tr(
               'print.preview.template',
-            ).replaceAll('{name}', widget.sablon.name),
+            ).replaceAll('{name}', _activeTemplate.name),
             style: const TextStyle(fontSize: 11),
           ),
           Text(
             tr('print.preview.paper').replaceAll(
               '{paper}',
-              widget.sablon.paperSizeTranslationKey != null
-                  ? tr(widget.sablon.paperSizeTranslationKey!)
-                  : (widget.sablon.paperSize ?? ''),
+              _activeTemplate.paperSizeTranslationKey != null
+                  ? tr(_activeTemplate.paperSizeTranslationKey!)
+                  : (_activeTemplate.paperSize ?? ''),
             ),
             style: const TextStyle(fontSize: 11),
           ),
@@ -1365,6 +1446,24 @@ class _DinamikSablonPreviewScreenState
     );
   }
 
+  Widget _buildTemplateSelectorRow() {
+    final templates =
+        widget.availableTemplates ?? const <YazdirmaSablonuModel>[];
+    return _buildDropdownRow<YazdirmaSablonuModel>(
+      label: widget.templateSelectorLabel ?? tr('print.template_label'),
+      value: _activeTemplate,
+      items: templates
+          .map(
+            (template) => DropdownMenuItem<YazdirmaSablonuModel>(
+              value: template,
+              child: Text(template.name, overflow: TextOverflow.ellipsis),
+            ),
+          )
+          .toList(growable: false),
+      onChanged: _handleTemplateChanged,
+    );
+  }
+
   Widget _buildInputRow({required String label, required Widget child}) {
     return Row(
       children: [
@@ -1388,6 +1487,7 @@ class _DinamikSablonPreviewScreenState
     required String label,
     required bool value,
     required ValueChanged<bool?> onChanged,
+    bool enabled = true,
   }) {
     return Row(
       children: [
@@ -1396,7 +1496,7 @@ class _DinamikSablonPreviewScreenState
           height: 24,
           child: Checkbox(
             value: value,
-            onChanged: onChanged,
+            onChanged: enabled ? onChanged : null,
             activeColor: const Color(0xFF2C3E50),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(4),
@@ -1406,7 +1506,10 @@ class _DinamikSablonPreviewScreenState
         const SizedBox(width: 8),
         Text(
           label,
-          style: const TextStyle(fontSize: 13, color: Colors.black87),
+          style: TextStyle(
+            fontSize: 13,
+            color: enabled ? Colors.black87 : Colors.black38,
+          ),
         ),
       ],
     );
