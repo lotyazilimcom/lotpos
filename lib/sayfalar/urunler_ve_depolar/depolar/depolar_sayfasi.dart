@@ -4320,7 +4320,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                                         Icons.expand_more,
                                         size: 18,
                                       ),
-                                      label: const Text('Daha fazla yükle'),
+                                      label: Text(tr('common.load_more')),
                                     )
                                   : const SizedBox.shrink()),
                       ),
@@ -6177,7 +6177,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                                       Icons.expand_more,
                                       size: 18,
                                     ),
-                                    label: const Text('Daha fazla yükle'),
+                                    label: Text(tr('common.load_more')),
                                   )
                                 : const SizedBox.shrink()),
                     ),

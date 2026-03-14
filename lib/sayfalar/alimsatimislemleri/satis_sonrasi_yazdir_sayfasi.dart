@@ -161,6 +161,9 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
 
   Future<void> _sablonlariYukle() async {
     try {
+      await YazdirmaVeritabaniServisi().eksikVarsayilanSablonlariEkle(
+        templateNames: const {'Satış Fişi 3', 'Satış Fişi 4'},
+      );
       final sablonlar = await YazdirmaVeritabaniServisi().sablonlariGetir();
       GenelAyarlarModel genelAyarlar = GenelAyarlarModel();
       try {
@@ -281,7 +284,10 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
 
       if (!mounted) return;
 
-      final PdfPageFormat baseFormat = _templateBasePageFormat(sablon);
+      final PdfPageFormat baseFormat = DinamikYazdirmaServisi().getFormat(
+        sablon,
+        veri: printData,
+      );
 
       // [2026] Generate Toggles
       final uniqueKeys = <String>{};
@@ -434,21 +440,6 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
       }
     } catch (_) {}
     return '';
-  }
-
-  PdfPageFormat _templateBasePageFormat(YazdirmaSablonuModel template) {
-    final mm = PdfPageFormat.mm;
-    return switch (template.paperSize) {
-      'A4' => PdfPageFormat.a4,
-      'A5' => PdfPageFormat.a5,
-      'Continuous' => PdfPageFormat(240 * mm, 280 * mm),
-      'Thermal80' => PdfPageFormat(80 * mm, 200 * mm),
-      'Thermal58' => PdfPageFormat(58 * mm, 150 * mm),
-      _ => PdfPageFormat(
-        (template.customWidth ?? 210) * mm,
-        (template.customHeight ?? 297) * mm,
-      ),
-    };
   }
 
   Future<
@@ -808,7 +799,8 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
     final odemeAciklama = (odemeBilgisi?['odemeAciklama']?.toString() ?? '')
         .trim();
     final odemeHesapAdi = (odemeBilgisi?['hesapAdi']?.toString() ?? '').trim();
-    final odemeHesapKodu = (odemeBilgisi?['hesapKodu']?.toString() ?? '').trim();
+    final odemeHesapKodu = (odemeBilgisi?['hesapKodu']?.toString() ?? '')
+        .trim();
     final odemeBelgeNo = (odemeBilgisi?['belgeNo']?.toString() ?? '').trim();
     final cekSenetTarihi = _formatOptionalDate(odemeBilgisi?['kesideTarihi']);
     final cekBanka = (odemeBilgisi?['banka']?.toString() ?? '').trim();
@@ -820,11 +812,11 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
       'payment' => tr('transactions.status.payment'),
       _ when odemeTutar > 0 => tr('transactions.status.collection'),
       _ => IslemCeviriYardimcisi.cevir(
-          (cariIslem?['source_type']?.toString() ??
-                  cariIslem?['type']?.toString() ??
-                  '')
-              .trim(),
-        ),
+        (cariIslem?['source_type']?.toString() ??
+                cariIslem?['type']?.toString() ??
+                '')
+            .trim(),
+      ),
     };
     final String yerBilgisi = <String>[
       IslemCeviriYardimcisi.cevir(odemeYeri),
@@ -1165,9 +1157,8 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
                             color: primaryColor,
                             isCompact: isMobileLayout,
                             child: _buildDropdown(
-                              value: _secilebilirSablonlar.contains(
-                                    _secilenSablon,
-                                  )
+                              value:
+                                  _secilebilirSablonlar.contains(_secilenSablon)
                                   ? _secilenSablon
                                   : null,
                               label: tr('print_after_sale.field.template'),

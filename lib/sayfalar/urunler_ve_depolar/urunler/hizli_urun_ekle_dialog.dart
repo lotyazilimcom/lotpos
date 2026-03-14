@@ -207,7 +207,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
       (item['kritikStok'] as TextEditingController).text = '0';
       (item['renk'] as TextEditingController).clear();
       (item['kapasite'] as TextEditingController).clear();
-      item['durum'] = 'Sıfır';
+      item['durum'] = 'common.condition.new';
       item['garantiBitis'] = null;
       (item['imeiList'] as List<String>).clear();
       (item['ozellikler'] as TextEditingController).clear();
@@ -313,7 +313,10 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
       }
     } catch (e) {
       if (mounted) {
-        MesajYardimcisi.hataGoster(context, 'Yapay zeka analizi hatası: $e');
+        MesajYardimcisi.hataGoster(
+          context,
+          tr('products.quick_add.ai_error', args: {'error': '$e'}),
+        );
       }
     } finally {
       if (mounted) setState(() => _isAiScanning = false);
@@ -404,7 +407,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
       'depoId': _selectedWarehouseId,
       'renk': renkCtrl,
       'kapasite': kapasiteCtrl,
-      'durum': data['durum']?.toString() ?? 'Sıfır',
+      'durum': data['durum']?.toString() ?? 'common.condition.new',
       'garantiBitis': garantiBitis,
       'imeiList': imeiList,
       'ozellikler': ozelliklerCtrl,
@@ -685,7 +688,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
               Expanded(
                 child: _buildAiActionButton(
                   icon: Icons.camera_alt_rounded,
-                  label: 'Kamerayı Kullan',
+                  label: tr('products.quick_add.use_camera'),
                   onPressed: _handleAiScan,
                   color: primaryColor,
                 ),
@@ -694,7 +697,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
               Expanded(
                 child: _buildAiActionButton(
                   icon: Icons.photo_library_rounded,
-                  label: 'Galeriden Seç',
+                  label: tr('products.quick_add.select_from_gallery'),
                   onPressed: _handleAiScan,
                   color: const Color(0xFFF39C12),
                 ),
@@ -718,7 +721,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Ürün resmini çekerek veya seçerek yapay zeka ile otomatik ekleyebilirsiniz.',
+                    tr('products.quick_add.capture_or_select_hint'),
                     style: TextStyle(
                       fontSize: 11,
                       color: primaryColor.withValues(alpha: 0.8),
@@ -792,7 +795,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
             ),
             const SizedBox(height: 16),
             Text(
-              'Henüz ürün eklenmedi',
+              tr('products.quick_add.no_items_added'),
               style: TextStyle(color: Colors.grey.shade500, fontSize: 16),
             ),
           ],
@@ -863,7 +866,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                       children: [
                         Text(
                           (item['ad'] as TextEditingController).text.isEmpty
-                              ? 'İsimsiz Ürün'
+                              ? tr('products.quick_add.unnamed_product')
                               : (item['ad'] as TextEditingController).text,
                           style: const TextStyle(
                             fontWeight: FontWeight.bold,
@@ -874,7 +877,18 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Barkod: ${(item['barkod'] as TextEditingController).text.isEmpty ? '-' : (item['barkod'] as TextEditingController).text}',
+                          tr(
+                            'products.quick_add.barcode_value',
+                            args: {
+                              'value':
+                                  (item['barkod'] as TextEditingController)
+                                          .text
+                                          .isEmpty
+                                      ? '-'
+                                      : (item['barkod'] as TextEditingController)
+                                          .text,
+                            },
+                          ),
                           style: TextStyle(
                             color: Colors.grey.shade600,
                             fontSize: 12,
@@ -883,7 +897,15 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                         if (_genelAyarlar.cihazListesiModuluAktif) ...[
                           const SizedBox(height: 4),
                           Text(
-                            'IMEI/Seri: ${(item['imeiList'] as List).length}',
+                            tr(
+                              'products.quick_add.identity_count',
+                              args: {
+                                'count':
+                                    (item['imeiList'] as List)
+                                        .length
+                                        .toString(),
+                              },
+                            ),
                             style: TextStyle(
                               color: primaryColor.withValues(alpha: 0.8),
                               fontSize: 12,
@@ -938,7 +960,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                   ),
-                  child: const Text('Detayları Düzenle'),
+                  child: Text(tr('products.quick_add.edit_details')),
                 ),
               ),
             ],
@@ -1028,26 +1050,29 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                   padding: const EdgeInsets.all(20),
                   children: [
                     Text(
-                      'Ürün Detayları',
+                      tr('products.quick_add.product_details'),
                       style: Theme.of(context).textTheme.titleLarge?.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 24),
-                    _mobileEditorField('Ürün Adı', _items[index]['ad']),
+                    _mobileEditorField(
+                      tr('products.table.name'),
+                      _items[index]['ad'],
+                    ),
                     const SizedBox(height: 16),
                     Row(
                       children: [
                         Expanded(
                           child: _mobileEditorField(
-                            'Barkod',
+                            tr('common.barcode'),
                             _items[index]['barkod'],
                           ),
                         ),
                         const SizedBox(width: 16),
                         Expanded(
                           child: _mobileEditorField(
-                            'Ürün Kodu',
+                            tr('products.table.code'),
                             _items[index]['kod'],
                           ),
                         ),
@@ -1058,7 +1083,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                       children: [
                         Expanded(
                           child: _mobileEditorField(
-                            'Alış Fiyatı',
+                            tr('products.table.purchase_price'),
                             _items[index]['alisFiyati'],
                             isNumeric: true,
                           ),
@@ -1066,7 +1091,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: _mobileEditorField(
-                            'Satış Fiyatı',
+                            tr('products.form.sales_price_1.label'),
                             _items[index]['satisFiyati1'],
                             isNumeric: true,
                           ),
@@ -1078,7 +1103,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                       children: [
                         Expanded(
                           child: _mobileEditorField(
-                            'KDV',
+                            tr('products.form.vat.label'),
                             _items[index]['kdvOrani'],
                             isNumeric: true,
                           ),
@@ -1086,7 +1111,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: _mobileEditorField(
-                            'Stok',
+                            tr('products.table.stock'),
                             _items[index]['stok'],
                             isNumeric: true,
                           ),
@@ -1094,8 +1119,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const Text(
-                      'Resimler',
+                    Text(
+                      tr('common.images'),
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 14,
@@ -1105,8 +1130,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                     _buildMobileResimler(index),
                     if (_genelAyarlar.cihazListesiModuluAktif) ...[
                       const SizedBox(height: 24),
-                      const Text(
-                        'IMEI / Seri Numaraları',
+                      Text(
+                        tr('products.imei_list'),
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           fontSize: 14,
@@ -1125,8 +1150,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Bitti',
+                      child: Text(
+                        tr('common.done'),
                         style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -1178,7 +1203,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                             children: [
                               Expanded(
                                 child: Text(
-                                  'Ürün Detayları',
+                                  tr('products.quick_add.product_details'),
                                   style: Theme.of(dialogContext)
                                       .textTheme
                                       .titleLarge
@@ -1204,7 +1229,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 _mobileEditorField(
-                                  'Ürün Adı',
+                                  tr('products.table.name'),
                                   _items[index]['ad'],
                                 ),
                                 const SizedBox(height: 16),
@@ -1212,14 +1237,14 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                                   children: [
                                     Expanded(
                                       child: _mobileEditorField(
-                                        'Barkod',
+                                        tr('common.barcode'),
                                         _items[index]['barkod'],
                                       ),
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: _mobileEditorField(
-                                        'Ürün Kodu',
+                                        tr('products.table.code'),
                                         _items[index]['kod'],
                                       ),
                                     ),
@@ -1230,7 +1255,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                                   children: [
                                     Expanded(
                                       child: _mobileEditorField(
-                                        'Alış Fiyatı',
+                                        tr('products.table.purchase_price'),
                                         _items[index]['alisFiyati'],
                                         isNumeric: true,
                                       ),
@@ -1238,7 +1263,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: _mobileEditorField(
-                                        'Satış Fiyatı',
+                                        tr('products.form.sales_price_1.label'),
                                         _items[index]['satisFiyati1'],
                                         isNumeric: true,
                                       ),
@@ -1250,7 +1275,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                                   children: [
                                     Expanded(
                                       child: _mobileEditorField(
-                                        'KDV',
+                                        tr('products.form.vat.label'),
                                         _items[index]['kdvOrani'],
                                         isNumeric: true,
                                       ),
@@ -1258,7 +1283,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: _mobileEditorField(
-                                        'Stok',
+                                        tr('products.table.stock'),
                                         _items[index]['stok'],
                                         isNumeric: true,
                                       ),
@@ -1266,8 +1291,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                                   ],
                                 ),
                                 const SizedBox(height: 24),
-                                const Text(
-                                  'Resimler',
+                                Text(
+                                  tr('common.images'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 14,
@@ -1277,8 +1302,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                                 _buildMobileResimler(index),
                                 if (_genelAyarlar.cihazListesiModuluAktif) ...[
                                   const SizedBox(height: 24),
-                                  const Text(
-                                    'IMEI / Seri Numaraları',
+                                  Text(
+                                    tr('products.imei_list'),
                                     style: TextStyle(
                                       fontWeight: FontWeight.bold,
                                       fontSize: 14,
@@ -1305,8 +1330,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                                   borderRadius: BorderRadius.circular(12),
                                 ),
                               ),
-                              child: const Text(
-                                'Bitti',
+                              child: Text(
+                                tr('common.done'),
                                 style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -1507,7 +1532,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
         TextButton.icon(
           onPressed: () => _showImeiPopup(index),
           icon: const Icon(Icons.add_rounded),
-          label: const Text('Toplu Ekle'),
+          label: Text(tr('products.quick_add.bulk_add')),
         ),
       ],
     );

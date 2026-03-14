@@ -3747,7 +3747,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
               ),
               DropdownMenuItem<String>(
                 value: eBelgeVarSentinel,
-                child: const Text('Var'),
+                child: Text(tr('common.exists')),
               ),
               DropdownMenuItem<String>(value: '-', child: const Text('-')),
             ],
@@ -3845,7 +3845,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         if (_supports(RaporFiltreTuru.hesapTuru))
           addFilter(
             _buildDropdownField<String>(
-              label: 'Hesap Türü',
+              label: tr('accounts.table.account_type'),
               icon: Icons.manage_accounts_outlined,
               value: _sanitizeHesapTuru(_filtreler.hesapTuru),
               items: <DropdownMenuItem<String>>[
@@ -3853,17 +3853,26 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                   value: null,
                   child: Text(tr('common.all')),
                 ),
-                const DropdownMenuItem<String>(
+                DropdownMenuItem<String>(
                   value: 'Alıcı',
-                  child: Text('Alıcı', overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    tr('accounts.type.buyer'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const DropdownMenuItem<String>(
+                DropdownMenuItem<String>(
                   value: 'Satıcı',
-                  child: Text('Satıcı', overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    tr('accounts.type.seller'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const DropdownMenuItem<String>(
+                DropdownMenuItem<String>(
                   value: 'Alıcı/Satıcı',
-                  child: Text('Alıcı/Satıcı', overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    tr('accounts.type.buyer_seller'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
               ],
               onChanged: (value) => _secimGuncelle(
@@ -3878,7 +3887,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         if (_supports(RaporFiltreTuru.bakiyeDurumu))
           addFilter(
             _buildDropdownField<String>(
-              label: 'Bakiye',
+              label: tr('reports.filters.balance_status'),
               icon: Icons.balance_rounded,
               value: _filtreler.bakiyeDurumu,
               items: <DropdownMenuItem<String>>[
@@ -3886,14 +3895,17 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
                   value: null,
                   child: Text(tr('common.all')),
                 ),
-                const DropdownMenuItem<String>(
+                DropdownMenuItem<String>(
                   value: 'borc',
-                  child: Text('Borcu Olanlar', overflow: TextOverflow.ellipsis),
+                  child: Text(
+                    tr('reports.filters.balance_debtors'),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                const DropdownMenuItem<String>(
+                DropdownMenuItem<String>(
                   value: 'alacak',
                   child: Text(
-                    'Alacağı Olanlar',
+                    tr('reports.filters.balance_creditors'),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -4005,7 +4017,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         if (_supports(RaporFiltreTuru.cikisDepo))
           addFilter(
             _buildDropdownField<int>(
-              label: 'Çıkış Yapılan Depo',
+              label: tr('warehouses.detail.source_warehouse'),
               icon: Icons.warehouse_outlined,
               value: _filtreler.cikisDepoId,
               items: _filtreKaynaklari.depolar
@@ -4028,7 +4040,7 @@ class _RaporlarSayfasiState extends State<RaporlarSayfasi> {
         if (_supports(RaporFiltreTuru.girisDepo))
           addFilter(
             _buildDropdownField<int>(
-              label: 'Giriş Yapılan Depo',
+              label: tr('warehouses.detail.target_warehouse'),
               icon: Icons.warehouse_outlined,
               value: _filtreler.girisDepoId,
               items: _filtreKaynaklari.depolar

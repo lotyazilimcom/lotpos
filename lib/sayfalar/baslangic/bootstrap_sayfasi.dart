@@ -418,7 +418,7 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
                             BaglantiYoneticisi().clusterKimliginiKabulEt(),
                           ),
                           icon: const Icon(Icons.verified_rounded, size: 18),
-                          label: const Text('Bu veri setini kabul et'),
+                          label: Text(tr('bootstrap.accept_dataset')),
                           style: OutlinedButton.styleFrom(
                             foregroundColor: Colors.white,
                             side: BorderSide(

@@ -54,6 +54,8 @@ class YapayZekaServisi {
         return {'width': 240.0, 'height': 280.0};
       case 'Thermal80':
         return {'width': 80.0, 'height': 200.0};
+      case 'Thermal80Cutter':
+        return {'width': 80.0, 'height': 200.0};
       case 'Thermal58':
         return {'width': 58.0, 'height': 150.0};
       default:

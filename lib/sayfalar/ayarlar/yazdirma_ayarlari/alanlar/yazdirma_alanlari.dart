@@ -780,34 +780,147 @@ class YazdirmaAlanlari {
       defaultWidthMm: 45,
       defaultHeightMm: 6,
     ),
+  ];
+
+  static const List<YazdirmaAlanTanim> barkodAlanlar = [
     YazdirmaAlanTanim(
-      key: 'delivery_signature',
-      labelKey: 'print.field.delivery_signature',
-      defaultWidthMm: 35,
-      defaultHeightMm: 12,
-    ),
-    YazdirmaAlanTanim(
-      key: 'vehicle_plate',
-      labelKey: 'print.field.vehicle_plate',
-      defaultWidthMm: 35,
+      key: 'barcode_product_code',
+      labelKey: 'print.field.barcode_product_code',
+      defaultWidthMm: 36,
       defaultHeightMm: 6,
     ),
     YazdirmaAlanTanim(
-      key: 'driver_name',
-      labelKey: 'print.field.driver_name',
-      defaultWidthMm: 45,
+      key: 'barcode_product_name',
+      labelKey: 'print.field.barcode_product_name',
+      defaultWidthMm: 44,
       defaultHeightMm: 6,
     ),
     YazdirmaAlanTanim(
-      key: 'driver_tckn',
-      labelKey: 'print.field.driver_tckn',
-      defaultWidthMm: 40,
+      key: 'barcode_number',
+      labelKey: 'print.field.barcode_number',
+      defaultWidthMm: 44,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_graphic',
+      labelKey: 'print.field.barcode_graphic',
+      type: YazdirmaAlanTipi.image,
+      defaultWidthMm: 42,
+      defaultHeightMm: 16,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_unit',
+      labelKey: 'print.field.barcode_unit',
+      defaultWidthMm: 28,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_vat_rate',
+      labelKey: 'print.field.barcode_vat_rate',
+      defaultWidthMm: 26,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_group',
+      labelKey: 'print.field.barcode_group',
+      defaultWidthMm: 34,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_current_quantity',
+      labelKey: 'print.field.barcode_current_quantity',
+      defaultWidthMm: 34,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_warning_quantity',
+      labelKey: 'print.field.barcode_warning_quantity',
+      defaultWidthMm: 36,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_purchase_price',
+      labelKey: 'print.field.barcode_purchase_price',
+      defaultWidthMm: 32,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_purchase_currency',
+      labelKey: 'print.field.barcode_purchase_currency',
+      defaultWidthMm: 28,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_sales_price_1',
+      labelKey: 'print.field.barcode_sales_price_1',
+      defaultWidthMm: 32,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_sales_price_1_currency',
+      labelKey: 'print.field.barcode_sales_price_1_currency',
+      defaultWidthMm: 28,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_sales_price_2',
+      labelKey: 'print.field.barcode_sales_price_2',
+      defaultWidthMm: 32,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_sales_price_2_currency',
+      labelKey: 'print.field.barcode_sales_price_2_currency',
+      defaultWidthMm: 28,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_sales_price_3',
+      labelKey: 'print.field.barcode_sales_price_3',
+      defaultWidthMm: 32,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_sales_price_3_currency',
+      labelKey: 'print.field.barcode_sales_price_3_currency',
+      defaultWidthMm: 28,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_feature_1',
+      labelKey: 'print.field.barcode_feature_1',
+      defaultWidthMm: 30,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_feature_2',
+      labelKey: 'print.field.barcode_feature_2',
+      defaultWidthMm: 30,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_feature_3',
+      labelKey: 'print.field.barcode_feature_3',
+      defaultWidthMm: 30,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_feature_4',
+      labelKey: 'print.field.barcode_feature_4',
+      defaultWidthMm: 30,
+      defaultHeightMm: 6,
+    ),
+    YazdirmaAlanTanim(
+      key: 'barcode_feature_5',
+      labelKey: 'print.field.barcode_feature_5',
+      defaultWidthMm: 30,
       defaultHeightMm: 6,
     ),
   ];
 
   static final Map<String, YazdirmaAlanTanim> _tumAlanHaritasi = {
-    for (final alan in [...tumAlanlar, ...ozelAlanlar]) alan.key: alan,
+    for (final alan in [...tumAlanlar, ...ozelAlanlar, ...barkodAlanlar])
+      alan.key: alan,
   };
 
   static const List<String> _makbuzAlanAnahtarlari = [
@@ -851,9 +964,38 @@ class YazdirmaAlanlari {
     'description5',
   ];
 
+  static const List<String> _barkodAlanAnahtarlari = [
+    'barcode_product_code',
+    'barcode_product_name',
+    'barcode_number',
+    'barcode_graphic',
+    'barcode_unit',
+    'barcode_vat_rate',
+    'barcode_group',
+    'barcode_current_quantity',
+    'barcode_warning_quantity',
+    'barcode_purchase_price',
+    'barcode_purchase_currency',
+    'barcode_sales_price_1',
+    'barcode_sales_price_1_currency',
+    'barcode_sales_price_2',
+    'barcode_sales_price_2_currency',
+    'barcode_sales_price_3',
+    'barcode_sales_price_3_currency',
+    'barcode_feature_1',
+    'barcode_feature_2',
+    'barcode_feature_3',
+    'barcode_feature_4',
+    'barcode_feature_5',
+  ];
+
   static List<YazdirmaAlanTanim> alanlariGetir({String? docType}) {
-    if ((docType ?? '').trim().toLowerCase() == 'voucher') {
+    final normalizedDocType = (docType ?? '').trim().toLowerCase();
+    if (normalizedDocType == 'voucher') {
       return _anahtarlardanAlanlariGetir(_makbuzAlanAnahtarlari);
+    }
+    if (normalizedDocType == 'barcode') {
+      return _anahtarlardanAlanlariGetir(_barkodAlanAnahtarlari);
     }
     return List<YazdirmaAlanTanim>.unmodifiable(tumAlanlar);
   }

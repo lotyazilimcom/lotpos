@@ -5369,7 +5369,7 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                               Icons.expand_more_rounded,
                               size: 18,
                             ),
-                            label: const Text('Daha fazla yükle'),
+                            label: Text(tr('common.load_more')),
                           ),
                         ),
                     ],

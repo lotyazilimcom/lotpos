@@ -3640,7 +3640,7 @@ class _CeklerSayfasiState extends State<CeklerSayfasi> {
                                       Icons.expand_more,
                                       size: 18,
                                     ),
-                                    label: const Text('Daha fazla yükle'),
+                                    label: Text(tr('common.load_more')),
                                   )
                                 : const SizedBox.shrink()),
                     ),
@@ -5295,7 +5295,7 @@ class _CeklerSayfasiState extends State<CeklerSayfasi> {
                                   initialTransactions,
                                 ),
                                 icon: const Icon(Icons.expand_more, size: 18),
-                                label: const Text('Daha fazla yükle'),
+                                label: Text(tr('common.load_more')),
                               )
                             : const SizedBox.shrink()),
                 ),

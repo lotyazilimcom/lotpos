@@ -4208,7 +4208,7 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
                               Icons.expand_more_rounded,
                               size: 18,
                             ),
-                            label: const Text('Daha fazla yükle'),
+                            label: Text(tr('common.load_more')),
                           ),
                         ),
                     ],
@@ -6399,7 +6399,7 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
                                   initialTransactions,
                                 ),
                                 icon: const Icon(Icons.expand_more, size: 18),
-                                label: const Text('Daha fazla yükle'),
+                                label: Text(tr('common.load_more')),
                               )
                             : const SizedBox.shrink()),
                 ),

@@ -1,5 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_grafik_model.dart';
+import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_kagit_modeli.dart';
+import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/qr_kod_icerik_model.dart';
 
 bool _boolFromDynamic(dynamic value) {
   if (value == null) return false;
@@ -25,6 +28,38 @@ String _normalizeFontWeightString(dynamic raw) {
   return v;
 }
 
+Map<String, dynamic>? _mapFromDynamic(dynamic value) {
+  if (value == null) return null;
+  if (value is Map<String, dynamic>) {
+    return Map<String, dynamic>.from(value);
+  }
+  if (value is Map) {
+    return value.map((key, item) => MapEntry(key.toString(), item));
+  }
+  if (value is String) {
+    try {
+      final decoded = jsonDecode(value);
+      if (decoded is Map) {
+        return decoded.map((key, item) => MapEntry(key.toString(), item));
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+Map<String, dynamic>? _cloneMap(Map<String, dynamic>? value) {
+  if (value == null) return null;
+  try {
+    final cloned = jsonDecode(jsonEncode(value));
+    if (cloned is Map) {
+      return cloned.map((key, item) => MapEntry(key.toString(), item));
+    }
+  } catch (_) {}
+  return Map<String, dynamic>.from(value);
+}
+
+const Object _layoutElementNoChange = Object();
+
 class YazdirmaSablonuModel {
   final int? id;
   final String name;
@@ -43,6 +78,7 @@ class YazdirmaSablonuModel {
   final bool isDefault;
   final bool isLandscape;
   final String? viewMatrix; // Matrix4 data as string (16 doubles)
+  final Map<String, dynamic>? templateConfigJson;
 
   YazdirmaSablonuModel({
     this.id,
@@ -62,6 +98,7 @@ class YazdirmaSablonuModel {
     this.isDefault = false,
     this.isLandscape = false,
     this.viewMatrix,
+    this.templateConfigJson,
   });
 
   bool get _looksLikeLegacyVoucherTemplate {
@@ -73,6 +110,40 @@ class YazdirmaSablonuModel {
   String get effectiveDocType {
     if (_looksLikeLegacyVoucherTemplate) return 'voucher';
     return docType;
+  }
+
+  bool get usesDynamicThermalFlow => paperSize == 'Thermal80Cutter';
+
+  String? get paperSizeTranslationKey => paperSizeTranslationKeyFor(paperSize);
+
+  BarkodKagitAyari? get barcodePaperConfig {
+    if (!BarkodKagitKatalog.barkodKagitMi(paperSize)) return null;
+    return BarkodKagitKatalog.ayarOlustur(
+      paperSize ?? BarkodKagitKatalog.varsayilanA4Preset.paperSizeCode,
+      storedConfig: _mapFromDynamic(templateConfigJson),
+    );
+  }
+
+  static String? paperSizeTranslationKeyFor(String? paperSize) {
+    return switch (paperSize) {
+      'A4' => 'print.paper_size.a4',
+      'A5' => 'print.paper_size.a5',
+      'Continuous' => 'print.paper.continuous_form',
+      'Thermal80' => 'print.paper.thermal_80',
+      'Thermal80Cutter' => 'print.paper.thermal_80_cutter',
+      'Thermal58' => 'print.paper.thermal_58',
+      'BarcodeA4_12' => 'print.paper.barcode_a4_12',
+      'BarcodeA4_24' => 'print.paper.barcode_a4_24',
+      'BarcodeA4_40' => 'print.paper.barcode_a4_40',
+      'BarcodeA4_65' => 'print.paper.barcode_a4_65',
+      'BarcodeA4_80' => 'print.paper.barcode_a4_80',
+      'BarcodeA4_95' => 'print.paper.barcode_a4_95',
+      'BarcodeA4Manual' => 'print.paper.barcode_a4_manual',
+      'BarcodeThermal80' => 'print.paper.barcode_thermal_manual',
+      'BarcodeThermal80Cutter' => 'print.paper.barcode_thermal_cutter_manual',
+      'Custom' => 'print.paper.custom_size',
+      _ => null,
+    };
   }
 
   Map<String, dynamic> toMap() {
@@ -94,6 +165,9 @@ class YazdirmaSablonuModel {
       'is_default': isDefault ? 1 : 0,
       'is_landscape': isLandscape ? 1 : 0,
       'view_matrix': viewMatrix,
+      'template_config_json': templateConfigJson == null
+          ? null
+          : jsonEncode(templateConfigJson),
     };
   }
 
@@ -126,6 +200,7 @@ class YazdirmaSablonuModel {
       isDefault: map['is_default'] == 1,
       isLandscape: map['is_landscape'] == 1,
       viewMatrix: map['view_matrix'],
+      templateConfigJson: _mapFromDynamic(map['template_config_json']),
     );
   }
 }
@@ -150,6 +225,7 @@ class LayoutElement {
   final String? color; // hex color
   final String? backgroundColor; // hex color or null
   final String? fontFamily; // 'Roboto', 'OpenSans', etc.
+  final Map<String, dynamic>? extraConfig; // element specific metadata
 
   LayoutElement({
     required this.id,
@@ -171,7 +247,45 @@ class LayoutElement {
     this.color = '#000000',
     this.backgroundColor,
     this.fontFamily = 'Inter',
-  });
+    Map<String, dynamic>? extraConfig,
+  }) : extraConfig = _cloneMap(extraConfig);
+
+  static const String qrContentConfigKey = 'qrContent';
+  static const String barcodeGraphicConfigKey = 'barcodeGraphic';
+
+  QrKodIcerikModel? get qrContentConfig =>
+      QrKodIcerikModel.fromDynamic(extraConfig?[qrContentConfigKey]);
+
+  BarkodGrafikModel? get barcodeGraphicConfig =>
+      BarkodGrafikModel.fromDynamic(extraConfig?[barcodeGraphicConfigKey]);
+
+  LayoutElement withQrContentConfig(QrKodIcerikModel? config) {
+    final updatedConfig = extraConfig == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(extraConfig!);
+
+    if (config == null) {
+      updatedConfig.remove(qrContentConfigKey);
+    } else {
+      updatedConfig[qrContentConfigKey] = config.toMap();
+    }
+
+    return copyWith(extraConfig: updatedConfig.isEmpty ? null : updatedConfig);
+  }
+
+  LayoutElement withBarcodeGraphicConfig(BarkodGrafikModel? config) {
+    final updatedConfig = extraConfig == null
+        ? <String, dynamic>{}
+        : Map<String, dynamic>.from(extraConfig!);
+
+    if (config == null) {
+      updatedConfig.remove(barcodeGraphicConfigKey);
+    } else {
+      updatedConfig[barcodeGraphicConfigKey] = config.toMap();
+    }
+
+    return copyWith(extraConfig: updatedConfig.isEmpty ? null : updatedConfig);
+  }
 
   Map<String, dynamic> toMap() {
     return {
@@ -194,6 +308,7 @@ class LayoutElement {
       'color': color,
       'backgroundColor': backgroundColor,
       'fontFamily': fontFamily,
+      'extraConfig': extraConfig,
     };
   }
 
@@ -221,6 +336,55 @@ class LayoutElement {
       color: map['color'],
       backgroundColor: map['backgroundColor'],
       fontFamily: map['fontFamily'] ?? 'Inter',
+      extraConfig: _mapFromDynamic(map['extraConfig']),
+    );
+  }
+
+  LayoutElement copyWith({
+    String? id,
+    String? key,
+    String? label,
+    String? elementType,
+    bool? isStatic,
+    bool? repeat,
+    double? x,
+    double? y,
+    double? width,
+    double? height,
+    String? fontSize,
+    String? fontWeight,
+    bool? italic,
+    bool? underline,
+    String? alignment,
+    String? vAlignment,
+    String? color,
+    String? backgroundColor,
+    String? fontFamily,
+    Object? extraConfig = _layoutElementNoChange,
+  }) {
+    return LayoutElement(
+      id: id ?? this.id,
+      key: key ?? this.key,
+      label: label ?? this.label,
+      elementType: elementType ?? this.elementType,
+      isStatic: isStatic ?? this.isStatic,
+      repeat: repeat ?? this.repeat,
+      x: x ?? this.x,
+      y: y ?? this.y,
+      width: width ?? this.width,
+      height: height ?? this.height,
+      fontSize: fontSize ?? this.fontSize,
+      fontWeight: fontWeight ?? this.fontWeight,
+      italic: italic ?? this.italic,
+      underline: underline ?? this.underline,
+      alignment: alignment ?? this.alignment,
+      vAlignment: vAlignment ?? this.vAlignment,
+      color: color ?? this.color,
+      backgroundColor: backgroundColor ?? this.backgroundColor,
+      fontFamily: fontFamily ?? this.fontFamily,
+      extraConfig: identical(extraConfig, _layoutElementNoChange)
+          ? this.extraConfig
+          : extraConfig as Map<String, dynamic>?,
     );
   }
 }

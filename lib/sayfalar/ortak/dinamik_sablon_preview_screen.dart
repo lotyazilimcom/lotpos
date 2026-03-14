@@ -72,7 +72,10 @@ class _DinamikSablonPreviewScreenState
   void initState() {
     super.initState();
     // Initialize from template
-    _pageFormat = DinamikYazdirmaServisi().getFormat(widget.sablon);
+    _pageFormat = DinamikYazdirmaServisi().getFormat(
+      widget.sablon,
+      veri: widget.veri,
+    );
     _isLandscape = widget.sablon.isLandscape;
 
     _fetchPrinters();
@@ -182,11 +185,15 @@ class _DinamikSablonPreviewScreenState
     if (_selectedPrinter == null) {
       await _saveAsPdf();
     } else {
+      final printFormat = DinamikYazdirmaServisi().getFormat(
+        widget.sablon,
+        veri: widget.veri,
+      );
       await Printing.directPrintPdf(
         printer: _selectedPrinter!,
         onLayout: (format) => _pdfBytes!,
         name: widget.title,
-        format: _isLandscape ? _pageFormat.landscape : _pageFormat.portrait,
+        format: _isLandscape ? printFormat.landscape : printFormat.portrait,
       );
     }
   }
@@ -1154,9 +1161,12 @@ class _DinamikSablonPreviewScreenState
             style: const TextStyle(fontSize: 11),
           ),
           Text(
-            tr(
-              'print.preview.paper',
-            ).replaceAll('{paper}', widget.sablon.paperSize ?? ''),
+            tr('print.preview.paper').replaceAll(
+              '{paper}',
+              widget.sablon.paperSizeTranslationKey != null
+                  ? tr(widget.sablon.paperSizeTranslationKey!)
+                  : (widget.sablon.paperSize ?? ''),
+            ),
             style: const TextStyle(fontSize: 11),
           ),
           Text(

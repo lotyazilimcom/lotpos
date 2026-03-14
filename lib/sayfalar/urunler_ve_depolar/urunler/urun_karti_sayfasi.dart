@@ -5718,7 +5718,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
         const SizedBox(width: 8),
         if (_transactionsHasMore || _transactionsLoadingMore)
           Tooltip(
-            message: 'Daha fazla yükle',
+            message: tr('common.load_more'),
             child: InkWell(
               mouseCursor: WidgetStateMouseCursor.clickable,
               onTap: _transactionsLoadingMore ? null : _loadMoreTransactions,
@@ -5983,7 +5983,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
       ],
       data: displayTransactions,
       isRowSelected: (tx, index) => _selectedRowId == tx['id'],
-      expandOnRowTap: true,
+      expandOnRowTap: false,
       onRowTap: (tx) => setState(() => _selectedRowId = tx['id'] as int?),
       rowBuilder: (context, tx, index, isExpanded, toggleExpand) {
         return _buildTransactionMainRow(

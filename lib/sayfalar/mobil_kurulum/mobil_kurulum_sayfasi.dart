@@ -192,8 +192,8 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                             const SizedBox(height: 16),
                             Text(
                               _foundServers.length == 1
-                                  ? 'Sunucu Bulundu!'
-                                  : 'Sunucular Bulundu!',
+                                  ? tr('mobile_setup.server_found_single')
+                                  : tr('mobile_setup.server_found_multiple'),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 18,
@@ -288,8 +288,8 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                 onPressed: (_selectedServer?.host ?? '').trim().isEmpty
                                     ? null
                                     : () => _setupTamamla(context, mode: 'local'),
-                                child: const Text(
-                                  'Devam Et',
+                                child: Text(
+                                  tr('common.continue'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.bold,
                                     fontSize: 16,
@@ -301,7 +301,7 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                               onPressed: () =>
                                   setState(() => _foundServers = []),
                               child: Text(
-                                'Tekrar Ara',
+                                tr('common.search_again'),
                                 style: TextStyle(
                                   color: Colors.white.withValues(alpha: 0.5),
                                 ),
@@ -314,9 +314,8 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                       _buildOptionCard(
                         context,
                         icon: Icons.public_rounded,
-                        title: 'İnternetten Kullan',
-                        subtitle:
-                            'Bulut altyapısı üzerinden her yerden erişim',
+                        title: tr('mobile_setup.use_internet'),
+                        subtitle: tr('mobile_setup.use_internet_desc'),
                         color: const Color(0xFF81C784),
                         onTap: () => _setupTamamla(context, mode: 'cloud'),
                       ),
@@ -330,7 +329,7 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                 ),
                                 const SizedBox(height: 24),
                                 Text(
-                                  'Sunucu aranıyor...',
+                                  tr('mobile_setup.searching_server'),
                                   style: TextStyle(
                                     color: Colors.white.withValues(alpha: 0.8),
                                     fontSize: 16,
@@ -340,9 +339,8 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                 _buildOptionCard(
                                   context,
                                   icon: Icons.public_rounded,
-                                  title: 'İnternetten Kullan',
-                                  subtitle:
-                                      'Bulut altyapısı üzerinden her yerden erişim',
+                                  title: tr('mobile_setup.use_internet'),
+                                  subtitle: tr('mobile_setup.use_internet_desc'),
                                   color: const Color(0xFF81C784),
                                   onTap: () =>
                                       _setupTamamla(context, mode: 'cloud'),
@@ -354,9 +352,10 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                 _buildOptionCard(
                                   context,
                                   icon: Icons.lan_outlined,
-                                  title: 'Yerel Ana Bilgisayarı Bul',
-                                  subtitle:
-                                      'Ofis ağındaki sunucuya otomatik bağlanın',
+                                  title: tr('mobile_setup.find_local_server'),
+                                  subtitle: tr(
+                                    'mobile_setup.find_local_server_desc',
+                                  ),
                                   color: const Color(0xFF64B5F6),
                                   onTap: _bulVeBaglan,
                                 ),
@@ -364,9 +363,8 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                 _buildOptionCard(
                                   context,
                                   icon: Icons.public_rounded,
-                                  title: 'İnternetten Kullan',
-                                  subtitle:
-                                      'Bulut altyapısı üzerinden her yerden erişim',
+                                  title: tr('mobile_setup.use_internet'),
+                                  subtitle: tr('mobile_setup.use_internet_desc'),
                                   color: const Color(0xFF81C784),
                                   onTap: () =>
                                       _setupTamamla(context, mode: 'cloud'),

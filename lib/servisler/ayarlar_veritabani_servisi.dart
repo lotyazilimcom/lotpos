@@ -118,13 +118,12 @@ class AyarlarVeritabaniServisi {
       }
 
       final bulut = _bulutModundaMi();
-      final semaHazir =
-          bulut
-              ? await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
-                  executor: _pool!,
-                  databaseName: _config.database,
-                )
-              : false;
+      final semaHazir = bulut
+          ? await BulutSemaDogrulamaServisi().bulutSemasiHazirMi(
+              executor: _pool!,
+              databaseName: _config.database,
+            )
+          : false;
 
       if (!semaHazir) {
         await _tablolariOlustur();
@@ -171,8 +170,9 @@ class AyarlarVeritabaniServisi {
     if (pool == null) return false;
 
     final env = Platform.environment;
-    final poolerMode =
-        (env['PATISYO_DB_POOLER_MODE'] ?? '').trim().toLowerCase();
+    final poolerMode = (env['PATISYO_DB_POOLER_MODE'] ?? '')
+        .trim()
+        .toLowerCase();
     final hostLower = _config.host.trim().toLowerCase();
     final looksLikePoolerHost =
         hostLower.contains('-pooler') || hostLower.contains('pooler.');
@@ -204,8 +204,7 @@ class AyarlarVeritabaniServisi {
       final isPreparedStmtIssue =
           raw.contains('prepared statement') ||
           raw.contains('prepared statements') ||
-          (e is ServerException &&
-              (e.code == '0A000' || e.code == '26000'));
+          (e is ServerException && (e.code == '0A000' || e.code == '26000'));
 
       if (isPreparedStmtIssue) {
         _sonHata =
@@ -961,7 +960,8 @@ class AyarlarVeritabaniServisi {
     }
 
     final Map<String, String> env = kIsWeb ? {} : Platform.environment;
-    final bool isLocalDesktop = _desktopPlatformMi() && _baglantiLocalMakineMi();
+    final bool isLocalDesktop =
+        _desktopPlatformMi() && _baglantiLocalMakineMi();
 
     final List<String> olasiKullanicilar = <String>[];
     final Set<String> seenUsers = <String>{};
@@ -1001,8 +1001,7 @@ class AyarlarVeritabaniServisi {
     final adminSettings = ConnectionSettings(
       sslMode: _config.sslMode,
       // Desktop-local kurulumlarda hızlı fail/success için kısa timeout.
-      connectTimeout:
-          isLocalDesktop ? const Duration(milliseconds: 800) : null,
+      connectTimeout: isLocalDesktop ? const Duration(milliseconds: 800) : null,
       queryMode: _config.queryMode,
       onOpen: _config.tuneConnection,
     );
@@ -1436,7 +1435,8 @@ class AyarlarVeritabaniServisi {
         layout_json TEXT,
         is_default INTEGER DEFAULT 0,
         is_landscape INTEGER DEFAULT 0,
-        view_matrix TEXT
+        view_matrix TEXT,
+        template_config_json TEXT
       )
     ''');
 
@@ -1465,6 +1465,9 @@ class AyarlarVeritabaniServisi {
       );
       await _pool!.execute(
         'ALTER TABLE print_templates ADD COLUMN IF NOT EXISTS view_matrix TEXT',
+      );
+      await _pool!.execute(
+        'ALTER TABLE print_templates ADD COLUMN IF NOT EXISTS template_config_json TEXT',
       );
     } catch (_) {}
   }
@@ -2454,7 +2457,8 @@ class AyarlarVeritabaniServisi {
         return false;
       }
 
-      final tumSatirlarLegacyLayout = rows.isNotEmpty &&
+      final tumSatirlarLegacyLayout =
+          rows.isNotEmpty &&
           rows.every((row) => layoutJsonLegacyMi(row[2] as String?));
 
       // Legacy varsayılan şablon seti (eski sürümlerde/yanlış seed ile oluşan)
@@ -2469,7 +2473,8 @@ class AyarlarVeritabaniServisi {
         'Satış Fişi (Market)',
       };
 
-      final onlyLegacyDefaults = existingNames.isNotEmpty &&
+      final onlyLegacyDefaults =
+          existingNames.isNotEmpty &&
           existingNames.every(legacyDefaultNames.contains);
 
       // Eski varsayılanları, ekrandaki 3 şablona dönüştür:
@@ -2508,7 +2513,8 @@ class AyarlarVeritabaniServisi {
         layout_json,
         is_default,
         is_landscape,
-        view_matrix
+        view_matrix,
+        template_config_json
       )
       VALUES (
         @name,
@@ -2526,7 +2532,8 @@ class AyarlarVeritabaniServisi {
         @layout_json,
         @is_default,
         @is_landscape,
-        @view_matrix
+        @view_matrix,
+        @template_config_json
       )
     ''';
 
@@ -2549,6 +2556,9 @@ class AyarlarVeritabaniServisi {
         'is_default': tpl['is_default'] ?? 0,
         'is_landscape': tpl['is_landscape'] ?? 0,
         'view_matrix': tpl['view_matrix'],
+        'template_config_json': tpl['template_config_json'] == null
+            ? null
+            : jsonEncode(tpl['template_config_json']),
       };
 
       await _pool!.execute(Sql.named(insertSql), parameters: params);

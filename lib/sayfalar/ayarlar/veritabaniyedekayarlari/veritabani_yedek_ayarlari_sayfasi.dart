@@ -285,7 +285,7 @@ class _VeritabaniYedekAyarlariSayfasiState
                   const SizedBox(width: 12),
                   Expanded(
                     child: Text(
-                      'Farklı veri seti tespit edildi',
+                      tr('settings.database.cluster_mismatch.title'),
                       style: const TextStyle(
                         fontSize: 17,
                         fontWeight: FontWeight.w800,
@@ -297,8 +297,7 @@ class _VeritabaniYedekAyarlariSayfasiState
               ),
               const SizedBox(height: 12),
               Text(
-                'Yerel ve Bulut veritabanlarının Cluster ID değerleri farklı. '
-                'Bu durumda devam etmek veri karışmasına veya beklenmeyen senkrona yol açabilir.',
+                tr('settings.database.cluster_mismatch.message'),
                 style: TextStyle(
                   fontSize: 13.5,
                   height: 1.5,
@@ -319,7 +318,10 @@ class _VeritabaniYedekAyarlariSayfasiState
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Yerel ($localHost): $localId',
+                      tr(
+                        'settings.database.cluster_mismatch.local_value',
+                        args: {'host': localHost, 'id': localId},
+                      ),
                       style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
@@ -328,7 +330,10 @@ class _VeritabaniYedekAyarlariSayfasiState
                     ),
                     const SizedBox(height: 6),
                     Text(
-                      'Bulut ($cloudHost): $cloudId',
+                      tr(
+                        'settings.database.cluster_mismatch.cloud_value',
+                        args: {'host': cloudHost, 'id': cloudId},
+                      ),
                       style: const TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w800,
@@ -344,9 +349,9 @@ class _VeritabaniYedekAyarlariSayfasiState
                 children: [
                   TextButton(
                     onPressed: () => Navigator.pop(ctx, false),
-                    child: const Text(
-                      'İptal',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                    child: Text(
+                      tr('common.cancel'),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -364,9 +369,9 @@ class _VeritabaniYedekAyarlariSayfasiState
                         vertical: 12,
                       ),
                     ),
-                    child: const Text(
-                      'Bilinçli olarak devam et',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                    child: Text(
+                      tr('settings.database.cluster_mismatch.continue_anyway'),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                   ),
                 ],
@@ -646,8 +651,8 @@ class _VeritabaniYedekAyarlariSayfasiState
         border: Border.all(color: Colors.grey.shade200),
       ),
       child: _buildBackupRow(
-        title: 'Cluster ID',
-        subtitle: 'Aynı veri seti doğrulaması için kullanılır.',
+        title: tr('settings.database.cluster_id.title'),
+        subtitle: tr('settings.database.cluster_id.subtitle'),
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -796,7 +801,7 @@ class _VeritabaniYedekAyarlariSayfasiState
       builder: (ctx) {
         return AlertDialog(
           title: Text(tr('common.loading')),
-          content: const Row(
+          content: Row(
             children: [
               SizedBox(
                 width: 18,
@@ -806,7 +811,7 @@ class _VeritabaniYedekAyarlariSayfasiState
               SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  'Yerel sunucu aranıyor...',
+                  tr('settings.database.local_server_searching'),
                   style: TextStyle(fontSize: 13),
                 ),
               ),
@@ -867,7 +872,7 @@ class _VeritabaniYedekAyarlariSayfasiState
             final groupValue = host.isEmpty ? null : host;
 
             return AlertDialog(
-              title: const Text('Yerel Sunucu Seç'),
+              title: Text(tr('settings.database.local_server_select')),
               content: SizedBox(
                 width: double.maxFinite,
                 child: SingleChildScrollView(
@@ -1240,19 +1245,19 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     String syncSubtitle;
     if (isLite) {
-      syncSubtitle = 'Pro sürümde kullanılabilir.';
+      syncSubtitle = tr('settings.database.sync.available_pro');
     } else if (!isHybridMode) {
-      syncSubtitle = 'Karma (Yerel + Bulut) modda otomatik çalışır.';
+      syncSubtitle = tr('settings.database.sync.hybrid_auto');
     } else if (!_yedeklemeAcik) {
       syncSubtitle = tr('settings.backup.warning.off');
     } else if (syncService.inFlight) {
-      syncSubtitle = 'Senkron yapılıyor...';
+      syncSubtitle = tr('settings.database.sync.in_progress');
     } else if (hasSyncError) {
-      syncSubtitle = '⚠️ Senkron bekliyor. Otomatik yeniden denenecek.';
+      syncSubtitle = tr('settings.database.sync.pending_retry');
     } else if (syncService.started) {
       syncSubtitle = tr('common.on');
     } else {
-      syncSubtitle = 'Beklemede';
+      syncSubtitle = tr('settings.database.sync.waiting');
     }
 
     Widget syncTrailing;
@@ -1261,7 +1266,7 @@ class _VeritabaniYedekAyarlariSayfasiState
           Icon(Icons.sync_disabled_rounded, color: Colors.grey.shade400);
     } else {
       syncTrailing = IconButton(
-        tooltip: 'Şimdi senkronla',
+        tooltip: tr('settings.database.sync.now'),
         onPressed: () => unawaited(syncService.tetikle(force: true)),
         icon: Icon(Icons.sync_rounded, color: primaryColor),
       );
@@ -1279,7 +1284,7 @@ class _VeritabaniYedekAyarlariSayfasiState
           _buildBackupRow(
             title: tr('settings.backup.status'),
             subtitle: isLite
-                ? 'Pro sürümde kullanılabilir.'
+                ? tr('settings.database.sync.available_pro')
                 : (_yedeklemeAcik
                       ? tr('common.on')
                       : tr('settings.backup.warning.off')),
@@ -1369,7 +1374,7 @@ class _VeritabaniYedekAyarlariSayfasiState
                   ),
                   const SizedBox(width: 4),
                   Text(
-                    "Cloud",
+                    tr('common.cloud'),
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
@@ -1383,7 +1388,7 @@ class _VeritabaniYedekAyarlariSayfasiState
           ),
           const Divider(height: 32),
           _buildBackupRow(
-            title: 'Senkron Durumu',
+            title: tr('settings.database.sync.status'),
             subtitle: syncSubtitle,
             trailing: syncTrailing,
             isMobile: isMobile,
@@ -2875,7 +2880,7 @@ class _VeritabaniYedekAyarlariSayfasiState
         initialDirectory: lastPath,
         acceptedTypeGroups: [
           XTypeGroup(
-            label: 'SQL',
+            label: tr('common.sql'),
             extensions: const ['sql'],
             uniformTypeIdentifiers: const ['public.sql'],
           ),
@@ -2903,7 +2908,7 @@ class _VeritabaniYedekAyarlariSayfasiState
           content: Text(
             tr(
               'common.success.export_path',
-              args: {'name': 'SQL', 'path': outputPath},
+            args: {'name': tr('common.sql'), 'path': outputPath},
             ),
           ),
           backgroundColor: Colors.green.shade700,

@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_grafik_model.dart';
 import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/yazdirma_sablonu_model.dart';
 import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 
@@ -26,6 +27,7 @@ class DinamikYazdirmaServisi {
     await Printing.layoutPdf(
       onLayout: (PdfPageFormat format) async => doc.save(),
       name: '${sablon.name}_Çıktı',
+      format: getFormat(sablon, veri: veri),
     );
   }
 
@@ -38,9 +40,6 @@ class DinamikYazdirmaServisi {
     Map<String, bool>? visibleElements,
   }) async {
     final pdf = pw.Document();
-
-    final PdfPageFormat format =
-        formatOverride ?? overrideFormat ?? getFormat(sablon);
 
     pw.MemoryImage? bgImage;
     if (sablon.backgroundImage != null) {
@@ -71,6 +70,24 @@ class DinamikYazdirmaServisi {
     final int rowCount = _resolveRepeatRowCount(repeatElements, veri);
     final double rowHeightMm = _resolveRowHeightMm(repeatElements);
     final double rowStepMm = rowHeightMm + sablon.itemRowSpacing;
+
+    final layoutMetrics = _resolveLayoutMetrics(
+      sablon: sablon,
+      nonRepeatElements: nonRepeatElements,
+      repeatElements: repeatElements,
+      rowCount: rowCount,
+      rowStepMm: rowStepMm,
+    );
+    final baseFormat =
+        formatOverride ??
+        overrideFormat ??
+        getFormat(sablon, veri: veri, visibleElements: visibleElements);
+    final format = sablon.usesDynamicThermalFlow
+        ? PdfPageFormat(
+            baseFormat.width,
+            layoutMetrics.pageHeightMm * PdfPageFormat.mm,
+          )
+        : baseFormat;
 
     final double pageHeightMm = format.height / PdfPageFormat.mm;
 
@@ -114,6 +131,12 @@ class DinamikYazdirmaServisi {
               veri: veri,
               resolveFont: resolveFont,
               valueOverride: null,
+              yOffsetMm: _footerShiftForElement(
+                el: el,
+                footerTopMm: layoutMetrics.footerTopMm,
+                footerShiftMm: layoutMetrics.footerShiftMm,
+                enabled: sablon.usesDynamicThermalFlow,
+              ),
             );
             if (widget != null) children.add(widget);
           }
@@ -151,7 +174,19 @@ class DinamikYazdirmaServisi {
     return pdf;
   }
 
-  PdfPageFormat getFormat(YazdirmaSablonuModel sablon) {
+  PdfPageFormat getFormat(
+    YazdirmaSablonuModel sablon, {
+    Map<String, dynamic>? veri,
+    Map<String, bool>? visibleElements,
+  }) {
+    final barcodeConfig = sablon.barcodePaperConfig;
+    if (barcodeConfig != null) {
+      return PdfPageFormat(
+        barcodeConfig.pageWidthMm * PdfPageFormat.mm,
+        barcodeConfig.resolvedPageHeightMm * PdfPageFormat.mm,
+      );
+    }
+
     final PdfPageFormat base = switch (sablon.paperSize) {
       'A4' => PdfPageFormat.a4,
       'A5' => PdfPageFormat.a5,
@@ -160,6 +195,10 @@ class DinamikYazdirmaServisi {
         280 * PdfPageFormat.mm,
       ),
       'Thermal80' => const PdfPageFormat(
+        80 * PdfPageFormat.mm,
+        200 * PdfPageFormat.mm,
+      ),
+      'Thermal80Cutter' => const PdfPageFormat(
         80 * PdfPageFormat.mm,
         200 * PdfPageFormat.mm,
       ),
@@ -173,7 +212,139 @@ class DinamikYazdirmaServisi {
       ),
     };
 
-    return sablon.isLandscape ? base.landscape : base;
+    final oriented = sablon.isLandscape ? base.landscape : base;
+
+    if (!sablon.usesDynamicThermalFlow || veri == null) {
+      return oriented;
+    }
+
+    final effectiveLayout = sablon.layout.where((el) {
+      if (visibleElements != null && visibleElements.containsKey(el.key)) {
+        return visibleElements[el.key]!;
+      }
+      return true;
+    }).toList();
+    final nonRepeatElements = effectiveLayout.where((e) => !e.repeat).toList();
+    final repeatElements = effectiveLayout.where((e) => e.repeat).toList();
+    final rowCount = _resolveRepeatRowCount(repeatElements, veri);
+    final rowHeightMm = _resolveRowHeightMm(repeatElements);
+    final rowStepMm = rowHeightMm + sablon.itemRowSpacing;
+    final layoutMetrics = _resolveLayoutMetrics(
+      sablon: sablon,
+      nonRepeatElements: nonRepeatElements,
+      repeatElements: repeatElements,
+      rowCount: rowCount,
+      rowStepMm: rowStepMm,
+    );
+
+    return PdfPageFormat(
+      oriented.width,
+      layoutMetrics.pageHeightMm * PdfPageFormat.mm,
+    );
+  }
+
+  ({double footerTopMm, double footerShiftMm, double pageHeightMm})
+  _resolveLayoutMetrics({
+    required YazdirmaSablonuModel sablon,
+    required List<LayoutElement> nonRepeatElements,
+    required List<LayoutElement> repeatElements,
+    required int rowCount,
+    required double rowStepMm,
+  }) {
+    if (!sablon.usesDynamicThermalFlow || repeatElements.isEmpty) {
+      final contentBottomMm = _contentBottomForStaticLayout(
+        nonRepeatElements: nonRepeatElements,
+        repeatElements: repeatElements,
+        rowCount: rowCount,
+        rowStepMm: rowStepMm,
+      );
+      return (
+        footerTopMm: double.infinity,
+        footerShiftMm: 0.0,
+        pageHeightMm: math.max(contentBottomMm + 4.0, 40.0),
+      );
+    }
+
+    final double repeatBottomMm = repeatElements
+        .map((e) => e.y + e.height)
+        .fold<double>(0.0, math.max);
+    final footerCandidates = nonRepeatElements
+        .where((e) => e.y >= repeatBottomMm - 0.001)
+        .toList();
+    if (footerCandidates.isEmpty) {
+      final contentBottomMm = _contentBottomForStaticLayout(
+        nonRepeatElements: nonRepeatElements,
+        repeatElements: repeatElements,
+        rowCount: rowCount,
+        rowStepMm: rowStepMm,
+      );
+      return (
+        footerTopMm: double.infinity,
+        footerShiftMm: 0.0,
+        pageHeightMm: math.max(contentBottomMm + 4.0, 40.0),
+      );
+    }
+
+    final double footerTopMm = footerCandidates
+        .map((e) => e.y)
+        .fold<double>(double.infinity, math.min);
+    final int effectiveRowCount = math.max(rowCount, 1);
+    final double actualRepeatBottomMm =
+        repeatBottomMm + ((effectiveRowCount - 1) * rowStepMm);
+    final double originalGapMm = math.max(0.0, footerTopMm - repeatBottomMm);
+    final double compactGapMm = math.min(originalGapMm, 3.0);
+    final double footerShiftMm =
+        (actualRepeatBottomMm + compactGapMm) - footerTopMm;
+
+    double contentBottomMm = 0.0;
+    for (final el in nonRepeatElements) {
+      final shift = _footerShiftForElement(
+        el: el,
+        footerTopMm: footerTopMm,
+        footerShiftMm: footerShiftMm,
+        enabled: true,
+      );
+      contentBottomMm = math.max(contentBottomMm, el.y + shift + el.height);
+    }
+    contentBottomMm = math.max(contentBottomMm, actualRepeatBottomMm);
+
+    return (
+      footerTopMm: footerTopMm,
+      footerShiftMm: footerShiftMm,
+      pageHeightMm: math.max(contentBottomMm + 4.0, 40.0),
+    );
+  }
+
+  double _contentBottomForStaticLayout({
+    required List<LayoutElement> nonRepeatElements,
+    required List<LayoutElement> repeatElements,
+    required int rowCount,
+    required double rowStepMm,
+  }) {
+    double contentBottomMm = 0.0;
+    for (final el in nonRepeatElements) {
+      contentBottomMm = math.max(contentBottomMm, el.y + el.height);
+    }
+    if (repeatElements.isNotEmpty && rowCount > 0) {
+      final repeatBottomMm = repeatElements
+          .map((e) => e.y + e.height)
+          .fold<double>(0.0, math.max);
+      contentBottomMm = math.max(
+        contentBottomMm,
+        repeatBottomMm + ((rowCount - 1) * rowStepMm),
+      );
+    }
+    return contentBottomMm;
+  }
+
+  double _footerShiftForElement({
+    required LayoutElement el,
+    required double footerTopMm,
+    required double footerShiftMm,
+    required bool enabled,
+  }) {
+    if (!enabled || !footerTopMm.isFinite || footerShiftMm == 0.0) return 0.0;
+    return el.y >= footerTopMm - 0.001 ? footerShiftMm : 0.0;
   }
 
   int _resolveRepeatRowCount(
@@ -214,6 +385,190 @@ class DinamikYazdirmaServisi {
     return null;
   }
 
+  bool _isEmptyValue(dynamic value) {
+    if (value == null) return true;
+    if (value is String) return value.trim().isEmpty;
+    if (value is Iterable) return value.isEmpty;
+    return false;
+  }
+
+  List<String> _extractBarcodeFeatureValues(dynamic raw) {
+    if (raw == null) return const [];
+    if (raw is List) {
+      return raw
+          .map((item) {
+            if (item is Map) {
+              return item['name']?.toString().trim() ?? '';
+            }
+            return item.toString().trim();
+          })
+          .where((item) => item.isNotEmpty)
+          .toList(growable: false);
+    }
+
+    if (raw is String) {
+      final trimmed = raw.trim();
+      if (trimmed.isEmpty) return const [];
+      try {
+        final decoded = jsonDecode(trimmed);
+        return _extractBarcodeFeatureValues(decoded);
+      } catch (_) {
+        return trimmed
+            .split(RegExp(r'[\n,;]+'))
+            .map((item) => item.trim())
+            .where((item) => item.isNotEmpty)
+            .toList(growable: false);
+      }
+    }
+
+    return [raw.toString().trim()].where((item) => item.isNotEmpty).toList();
+  }
+
+  dynamic _resolveBarcodeFieldValue({
+    required String key,
+    required Map<String, dynamic> veri,
+    dynamic raw,
+  }) {
+    if (!_isEmptyValue(raw)) return raw;
+
+    dynamic firstOf(List<String> keys) {
+      for (final candidateKey in keys) {
+        final candidate = veri[candidateKey];
+        if (!_isEmptyValue(candidate)) return candidate;
+      }
+      return null;
+    }
+
+    switch (key) {
+      case 'barcode_product_code':
+        return firstOf(['code', 'item_code']);
+      case 'barcode_product_name':
+        return firstOf(['name', 'item_name']);
+      case 'barcode_number':
+      case 'barcode_graphic':
+        return firstOf(['barcode', 'item_barcode', 'barcode_number']);
+      case 'barcode_unit':
+        return firstOf(['unit', 'item_unit']);
+      case 'barcode_vat_rate':
+        return firstOf(['vatRate', 'item_vat_rate']);
+      case 'barcode_group':
+        return firstOf(['group']);
+      case 'barcode_current_quantity':
+        return firstOf(['stockQty', 'item_quantity']);
+      case 'barcode_warning_quantity':
+        return firstOf(['warningQty', 'barcode_warning_quantity']);
+      case 'barcode_purchase_price':
+        return firstOf(['buyPrice', 'item_unit_price_excl']);
+      case 'barcode_purchase_currency':
+        return firstOf(['buyPriceCurrency', 'currency', 'item_currency']);
+      case 'barcode_sales_price_1':
+        return firstOf(['sellPrice1', 'item_unit_price_incl']);
+      case 'barcode_sales_price_1_currency':
+        return firstOf(['sellPrice1Currency', 'currency', 'item_currency']);
+      case 'barcode_sales_price_2':
+        return firstOf(['sellPrice2']);
+      case 'barcode_sales_price_2_currency':
+        return firstOf(['sellPrice2Currency', 'currency', 'item_currency']);
+      case 'barcode_sales_price_3':
+        return firstOf(['sellPrice3']);
+      case 'barcode_sales_price_3_currency':
+        return firstOf(['sellPrice3Currency', 'currency', 'item_currency']);
+      case 'barcode_feature_1':
+      case 'barcode_feature_2':
+      case 'barcode_feature_3':
+      case 'barcode_feature_4':
+      case 'barcode_feature_5':
+        final featureIndex =
+            int.tryParse(key.substring('barcode_feature_'.length)) ?? 1;
+        final features = _extractBarcodeFeatureValues(veri['features']);
+        if (featureIndex < 1 || featureIndex > features.length) return null;
+        return features[featureIndex - 1];
+      default:
+        return raw;
+    }
+  }
+
+  String _resolveQrDataPayload({
+    required LayoutElement el,
+    required Map<String, dynamic> veri,
+    dynamic raw,
+  }) {
+    final configured = el.qrContentConfig?.buildPayload(veri).trim() ?? '';
+    if (configured.isNotEmpty) return configured;
+    return raw?.toString().trim() ?? '';
+  }
+
+  pw.Barcode _barcodeGraphicRenderer(BarkodGrafikModel config) {
+    switch (config.standard) {
+      case BarkodGrafikStandartlari.code39:
+      case BarkodGrafikStandartlari.code39Extended:
+        return pw.Barcode.code39();
+      case BarkodGrafikStandartlari.code128A:
+        return pw.Barcode.code128(
+          useCode128A: true,
+          useCode128B: false,
+          useCode128C: false,
+        );
+      case BarkodGrafikStandartlari.code128B:
+        return pw.Barcode.code128(
+          useCode128A: false,
+          useCode128B: true,
+          useCode128C: false,
+        );
+      case BarkodGrafikStandartlari.code128C:
+        return pw.Barcode.code128(
+          useCode128A: false,
+          useCode128B: false,
+          useCode128C: true,
+        );
+      case BarkodGrafikStandartlari.gs1128:
+        return pw.Barcode.gs128();
+      case BarkodGrafikStandartlari.interleaved2of5:
+      case BarkodGrafikStandartlari.standard2of5:
+        return pw.Barcode.itf();
+      case BarkodGrafikStandartlari.code93:
+        return pw.Barcode.code93();
+      case BarkodGrafikStandartlari.codabar:
+        return pw.Barcode.codabar();
+      case BarkodGrafikStandartlari.upcA:
+        return pw.Barcode.upcA();
+      case BarkodGrafikStandartlari.upcE:
+        return pw.Barcode.upcE(fallback: true);
+      case BarkodGrafikStandartlari.ean13:
+        return pw.Barcode.ean13();
+      case BarkodGrafikStandartlari.ean8:
+        return pw.Barcode.ean8();
+      case BarkodGrafikStandartlari.postnet:
+        return pw.Barcode.postnet();
+      case BarkodGrafikStandartlari.royalMail:
+        return pw.Barcode.rm4scc();
+      case BarkodGrafikStandartlari.pdf417:
+        return pw.Barcode.pdf417();
+      case BarkodGrafikStandartlari.dataMatrix:
+        return pw.Barcode.dataMatrix();
+      case BarkodGrafikStandartlari.qrCode:
+        return pw.Barcode.qrCode();
+      case BarkodGrafikStandartlari.code11:
+      case BarkodGrafikStandartlari.msiPlessey:
+      case BarkodGrafikStandartlari.intelligentMail:
+        return pw.Barcode.code128();
+      case BarkodGrafikStandartlari.code128Auto:
+      default:
+        return pw.Barcode.code128();
+    }
+  }
+
+  String _resolveBarcodeGraphicData(
+    LayoutElement el,
+    Map<String, dynamic> veri,
+    dynamic raw,
+  ) {
+    final config =
+        el.barcodeGraphicConfig ?? BarkodGrafikModel.defaultLotYazilim();
+    final resolvedRaw = raw?.toString() ?? '';
+    return config.preparePayload(resolvedRaw);
+  }
+
   pw.Widget? _buildElementWidget({
     required LayoutElement el,
     required Map<String, dynamic> veri,
@@ -242,13 +597,17 @@ class DinamikYazdirmaServisi {
     }
 
     if (el.elementType == 'image') {
-      final raw = valueOverride ?? veri[el.key];
+      final raw = _resolveBarcodeFieldValue(
+        key: el.key,
+        veri: veri,
+        raw: valueOverride ?? veri[el.key],
+      );
       final bytes = _coerceToBytes(raw);
       if (bytes == null || bytes.isEmpty) {
         // [2026] QR Support: Allow passing raw string data for `receipt_qr`
         // without requiring the caller to pre-render an image.
         if (el.key == 'receipt_qr') {
-          final data = raw?.toString().trim() ?? '';
+          final data = _resolveQrDataPayload(el: el, veri: veri, raw: raw);
           if (data.isEmpty) return null;
           return pw.Positioned(
             left: x,
@@ -263,6 +622,49 @@ class DinamikYazdirmaServisi {
               ),
             ),
           );
+        }
+        if (el.key == 'barcode_graphic') {
+          final data = _resolveBarcodeGraphicData(el, veri, raw);
+          if (data.isEmpty) return null;
+          final config =
+              el.barcodeGraphicConfig ?? BarkodGrafikModel.defaultLotYazilim();
+          final selectedBarcode = _barcodeGraphicRenderer(config);
+          try {
+            selectedBarcode.make(data, width: w, height: h, drawText: false);
+            return pw.Positioned(
+              left: x,
+              top: y,
+              child: pw.SizedBox(
+                width: w,
+                height: h,
+                child: pw.BarcodeWidget(
+                  barcode: selectedBarcode,
+                  data: data,
+                  drawText: false,
+                ),
+              ),
+            );
+          } catch (_) {
+            final fallbackBarcode = pw.Barcode.code128();
+            try {
+              fallbackBarcode.make(data, width: w, height: h, drawText: false);
+              return pw.Positioned(
+                left: x,
+                top: y,
+                child: pw.SizedBox(
+                  width: w,
+                  height: h,
+                  child: pw.BarcodeWidget(
+                    barcode: fallbackBarcode,
+                    data: data,
+                    drawText: false,
+                  ),
+                ),
+              );
+            } catch (_) {
+              return null;
+            }
+          }
         }
         return null;
       }
@@ -281,7 +683,12 @@ class DinamikYazdirmaServisi {
 
     final String text = el.isStatic
         ? el.label
-        : (valueOverride ?? veri[el.key])?.toString() ?? '';
+        : _resolveBarcodeFieldValue(
+                key: el.key,
+                veri: veri,
+                raw: valueOverride ?? veri[el.key],
+              )?.toString() ??
+              '';
 
     final PdfColor? color = _parsePdfColor(el.color);
     final PdfColor? bgColor = _parsePdfColor(el.backgroundColor);

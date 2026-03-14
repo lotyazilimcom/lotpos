@@ -34,6 +34,9 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
 
   Future<void> _yukle() async {
     setState(() => _yukleniyor = true);
+    await _dbServisi.eksikVarsayilanSablonlariEkle(
+      templateNames: const {'Satış Fişi 3', 'Satış Fişi 4'},
+    );
     final list = await _dbServisi.sablonlariGetir();
     setState(() {
       _sablonlar = list;
@@ -45,6 +48,12 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  String _paperSizeLabel(YazdirmaSablonuModel sablon) {
+    final translationKey = sablon.paperSizeTranslationKey;
+    if (translationKey == null) return sablon.paperSize ?? '-';
+    return tr(translationKey);
   }
 
   @override
@@ -136,9 +145,9 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
       final effectiveDocType = s.effectiveDocType;
       return s.name.toLowerCase().contains(_searchQuery) ||
           effectiveDocType.toLowerCase().contains(_searchQuery) ||
-          tr('settings.print.types.$effectiveDocType')
-              .toLowerCase()
-              .contains(_searchQuery);
+          tr(
+            'settings.print.types.$effectiveDocType',
+          ).toLowerCase().contains(_searchQuery);
     }).toList();
 
     if (filtrelenmis.isEmpty) {
@@ -235,7 +244,7 @@ class _YazdirmaAyarlariSayfasiState extends State<YazdirmaAyarlariSayfasi> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '${tr('settings.print.types.${sablon.effectiveDocType}')} • ${sablon.paperSize}',
+                    '${tr('settings.print.types.${sablon.effectiveDocType}')} • ${_paperSizeLabel(sablon)}',
                     style: TextStyle(color: Colors.grey[600], fontSize: 12),
                   ),
                   const SizedBox(height: 12),
@@ -490,6 +499,9 @@ class _TemplateBlueprintPreview extends StatelessWidget {
         baseSize = const Size(240, 280);
         break;
       case 'Thermal80':
+        baseSize = const Size(80, 200);
+        break;
+      case 'Thermal80Cutter':
         baseSize = const Size(80, 200);
         break;
       case 'Thermal58':

@@ -105,7 +105,8 @@ class _DinamikYazdirmaOnizlemeSayfasiState
     if (_useDesktopRelayPrinter && _selectedPrinter != null) {
       try {
         await YerelAgYazdirmaServisi().yazdirmaIstegiGonder(
-          title: '${widget.sablon.name}_Çıktı',
+          title:
+              '${widget.sablon.name}_${tr('products.transaction.type.output')}',
           pdfBytes: _pdfBytes!,
           printer: _selectedPrinter!,
           copies: 1,
@@ -145,14 +146,19 @@ class _DinamikYazdirmaOnizlemeSayfasiState
     await Printing.directPrintPdf(
       printer: _selectedPrinter!,
       onLayout: (_) => _pdfBytes!,
-      name: '${widget.sablon.name}_Çıktı',
+      name: '${widget.sablon.name}_${tr('products.transaction.type.output')}',
+      format: DinamikYazdirmaServisi().getFormat(
+        widget.sablon,
+        veri: widget.veri,
+      ),
     );
   }
 
   Future<void> _saveAsPdf() async {
     if (_pdfBytes == null) return;
 
-    final fileName = '${widget.sablon.name}_Çıktı.pdf';
+    final fileName =
+        '${widget.sablon.name}_${tr('products.transaction.type.output')}.pdf';
     if (_useCompactLayout) {
       await Printing.sharePdf(bytes: _pdfBytes!, filename: fileName);
       return;
@@ -637,9 +643,12 @@ class _DinamikYazdirmaOnizlemeSayfasiState
             style: const TextStyle(fontSize: 11),
           ),
           Text(
-            tr(
-              'print.preview.paper',
-            ).replaceAll('{paper}', widget.sablon.paperSize ?? ''),
+            tr('print.preview.paper').replaceAll(
+              '{paper}',
+              widget.sablon.paperSizeTranslationKey != null
+                  ? tr(widget.sablon.paperSizeTranslationKey!)
+                  : (widget.sablon.paperSize ?? ''),
+            ),
             style: const TextStyle(fontSize: 11),
           ),
           Text(

@@ -2448,7 +2448,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                     style: const pw.TextStyle(fontSize: 16),
                   ),
                   pw.SizedBox(height: 16),
-                  pw.Text('Tarih: $now'),
+                  pw.Text('${tr('common.date')}: $now'),
                 ],
               ),
             );

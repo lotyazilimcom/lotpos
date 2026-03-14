@@ -7,12 +7,229 @@ import 'package:patisyov10/servisler/kredi_kartlari_veritabani_servisi.dart';
 import 'package:patisyov10/servisler/lite_kisitlari.dart';
 import 'package:patisyov10/servisler/urunler_veritabani_servisi.dart';
 
+class PerakendeSonSatisKaydi {
+  final String integrationRef;
+  final String faturaNo;
+  final DateTime tarih;
+  final String kullanici;
+  final String aciklama;
+  final double genelToplam;
+  final double toplamMiktar;
+  final double nakitTutar;
+  final double krediKartiTutar;
+  final double havaleTutar;
+  final List<Map<String, dynamic>> kalemler;
+
+  const PerakendeSonSatisKaydi({
+    required this.integrationRef,
+    required this.faturaNo,
+    required this.tarih,
+    required this.kullanici,
+    required this.aciklama,
+    required this.genelToplam,
+    required this.toplamMiktar,
+    required this.nakitTutar,
+    required this.krediKartiTutar,
+    required this.havaleTutar,
+    required this.kalemler,
+  });
+
+  bool get hasMultiplePaymentTypes {
+    int count = 0;
+    if (nakitTutar > 0.0001) count++;
+    if (krediKartiTutar > 0.0001) count++;
+    if (havaleTutar > 0.0001) count++;
+    return count > 1;
+  }
+}
+
 /// Perakende Satış işlemleriyle ilgili Entegre Veritabanı Servisi
 class PerakendeSatisVeritabaniServisi {
   static final PerakendeSatisVeritabaniServisi _instance =
       PerakendeSatisVeritabaniServisi._internal();
   factory PerakendeSatisVeritabaniServisi() => _instance;
   PerakendeSatisVeritabaniServisi._internal();
+
+  double _toDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0.0;
+  }
+
+  List<Map<String, dynamic>> _itemsFromDynamic(dynamic raw) {
+    if (raw == null) return const [];
+    dynamic decoded = raw;
+    if (raw is String) {
+      try {
+        decoded = jsonDecode(raw);
+      } catch (_) {
+        return const [];
+      }
+    }
+
+    if (decoded is List) {
+      return decoded
+          .whereType<Map>()
+          .map((item) => Map<String, dynamic>.from(item))
+          .toList(growable: false);
+    }
+
+    return const [];
+  }
+
+  Future<List<PerakendeSonSatisKaydi>> sonSatislariGetir({
+    int limit = 10,
+  }) async {
+    final urunServisi = UrunlerVeritabaniServisi();
+    return urunServisi.transactionBaslat((s) async {
+      final rows = await s.execute(
+        Sql.named(r'''
+          WITH retail_sales AS (
+            SELECT
+              MAX(COALESCE(s.integration_ref, '')) AS integration_ref,
+              MAX(s.date) AS tarih,
+              MAX(COALESCE(s.created_by, '')) AS created_by,
+              MAX(COALESCE(NULLIF(TRIM(s.description), ''), 'Perakende Satış')) AS aciklama,
+              COALESCE(
+                jsonb_agg(item ORDER BY COALESCE(item->>'code', ''), COALESCE(item->>'name', ''))
+                  FILTER (WHERE item IS NOT NULL),
+                '[]'::jsonb
+              ) AS items,
+              COALESCE(
+                SUM(
+                  COALESCE(
+                    CASE
+                      WHEN COALESCE(item->>'total', '') ~ '^-?[0-9]+([.,][0-9]+)?$' THEN
+                        REPLACE(item->>'total', ',', '.')::numeric
+                      ELSE NULL
+                    END,
+                    COALESCE(
+                      CASE
+                        WHEN COALESCE(item->>'quantity', '') ~ '^-?[0-9]+([.,][0-9]+)?$' THEN
+                          REPLACE(item->>'quantity', ',', '.')::numeric
+                        ELSE NULL
+                      END,
+                      0
+                    ) *
+                    COALESCE(
+                      CASE
+                        WHEN COALESCE(item->>'price', '') ~ '^-?[0-9]+([.,][0-9]+)?$' THEN
+                          REPLACE(item->>'price', ',', '.')::numeric
+                        ELSE NULL
+                      END,
+                      CASE
+                        WHEN COALESCE(item->>'unitCost', '') ~ '^-?[0-9]+([.,][0-9]+)?$' THEN
+                          REPLACE(item->>'unitCost', ',', '.')::numeric
+                        ELSE NULL
+                      END,
+                      0
+                    )
+                  )
+                ),
+                0
+              ) AS amount,
+              COALESCE(
+                SUM(
+                  COALESCE(
+                    CASE
+                      WHEN COALESCE(item->>'quantity', '') ~ '^-?[0-9]+([.,][0-9]+)?$' THEN
+                        REPLACE(item->>'quantity', ',', '.')::numeric
+                      ELSE NULL
+                    END,
+                    0
+                  )
+                ),
+                0
+              ) AS total_quantity
+            FROM shipments s
+            LEFT JOIN LATERAL jsonb_array_elements(COALESCE(s.items, '[]'::jsonb)) item ON TRUE
+            WHERE COALESCE(s.integration_ref, '') LIKE 'RETAIL-%'
+            GROUP BY s.integration_ref
+          ),
+          cash_tx AS (
+            SELECT
+              integration_ref,
+              COALESCE(SUM(amount), 0) AS amount,
+              COALESCE(MAX(user_name), '') AS user_name
+            FROM cash_register_transactions
+            WHERE COALESCE(integration_ref, '') LIKE 'RETAIL-%'
+            GROUP BY integration_ref
+          ),
+          bank_tx AS (
+            SELECT
+              integration_ref,
+              COALESCE(SUM(amount), 0) AS amount,
+              COALESCE(MAX(user_name), '') AS user_name
+            FROM bank_transactions
+            WHERE COALESCE(integration_ref, '') LIKE 'RETAIL-%'
+            GROUP BY integration_ref
+          ),
+          card_tx AS (
+            SELECT
+              integration_ref,
+              COALESCE(SUM(amount), 0) AS amount,
+              COALESCE(MAX(user_name), '') AS user_name
+            FROM credit_card_transactions
+            WHERE COALESCE(integration_ref, '') LIKE 'RETAIL-%'
+            GROUP BY integration_ref
+          )
+          SELECT
+            rs.integration_ref,
+            rs.tarih,
+            COALESCE(
+              NULLIF(TRIM(card_tx.user_name), ''),
+              NULLIF(TRIM(cash_tx.user_name), ''),
+              NULLIF(TRIM(bank_tx.user_name), ''),
+              NULLIF(TRIM(rs.created_by), ''),
+              'Sistem'
+            ) AS kullanici,
+            rs.aciklama,
+            rs.items,
+            rs.amount,
+            rs.total_quantity,
+            COALESCE(cash_tx.amount, 0) AS cash_amount,
+            COALESCE(card_tx.amount, 0) AS card_amount,
+            COALESCE(bank_tx.amount, 0) AS bank_amount
+          FROM retail_sales rs
+          LEFT JOIN cash_tx ON cash_tx.integration_ref = rs.integration_ref
+          LEFT JOIN card_tx ON card_tx.integration_ref = rs.integration_ref
+          LEFT JOIN bank_tx ON bank_tx.integration_ref = rs.integration_ref
+          ORDER BY rs.tarih DESC, rs.integration_ref DESC
+          LIMIT @limit
+        '''),
+        parameters: {'limit': limit},
+      );
+
+      return rows
+          .map((row) {
+            final integrationRef = (row[0] ?? '').toString().trim();
+            final tarih = row[1] is DateTime
+                ? row[1] as DateTime
+                : DateTime.tryParse('${row[1]}') ?? DateTime.now();
+            final kullanici = (row[2] ?? '').toString().trim();
+            final aciklama = (row[3] ?? '').toString().trim();
+            final items = _itemsFromDynamic(row[4]);
+            final faturaNo = integrationRef.startsWith('RETAIL-')
+                ? integrationRef.substring('RETAIL-'.length)
+                : integrationRef;
+
+            return PerakendeSonSatisKaydi(
+              integrationRef: integrationRef,
+              faturaNo: faturaNo,
+              tarih: tarih,
+              kullanici: kullanici.isEmpty ? 'Sistem' : kullanici,
+              aciklama: aciklama.isEmpty ? 'Perakende Satış' : aciklama,
+              genelToplam: _toDouble(row[5]),
+              toplamMiktar: _toDouble(row[6]),
+              nakitTutar: _toDouble(row[7]),
+              krediKartiTutar: _toDouble(row[8]),
+              havaleTutar: _toDouble(row[9]),
+              kalemler: items,
+            );
+          })
+          .toList(growable: false);
+    }, isolationLevel: IsolationLevel.readCommitted);
+  }
 
   Future<void> satisIsleminiKaydet({
     required Map<String, dynamic> satisBilgileri,

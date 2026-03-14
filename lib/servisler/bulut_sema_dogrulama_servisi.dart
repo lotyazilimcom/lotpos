@@ -276,7 +276,10 @@ class BulutSemaDogrulamaServisi {
       'trg_update_cash_register_search_tags',
       'cash_register_transactions',
     ),
-    _TriggerRef('trg_update_credit_card_search_tags', 'credit_card_transactions'),
+    _TriggerRef(
+      'trg_update_credit_card_search_tags',
+      'credit_card_transactions',
+    ),
     _TriggerRef('trg_update_depots_search_tags', 'depots'),
     _TriggerRef(
       'trg_update_production_stock_movements_search_tags',
@@ -370,6 +373,7 @@ class BulutSemaDogrulamaServisi {
     _ColumnRef('print_templates', 'background_y'),
     _ColumnRef('print_templates', 'is_landscape'),
     _ColumnRef('print_templates', 'item_row_spacing'),
+    _ColumnRef('print_templates', 'template_config_json'),
     _ColumnRef('print_templates', 'view_matrix'),
     _ColumnRef('product_devices', 'is_sold'),
     _ColumnRef('product_devices', 'last_tx_at'),
@@ -485,7 +489,12 @@ class BulutSemaDogrulamaServisi {
       final bool columnsOk = row[5] == true;
 
       final ok =
-          extOk && tablesOk && indexesOk && functionsOk && triggersOk && columnsOk;
+          extOk &&
+          tablesOk &&
+          indexesOk &&
+          functionsOk &&
+          triggersOk &&
+          columnsOk;
 
       if (kDebugMode) {
         debugPrint(

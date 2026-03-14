@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
@@ -1831,6 +1833,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
   bool _isProcessing = false;
   double _faturaIskontoOrani = 0.0;
   bool _showHizliUrunler = false; // Closed by default as per user request
+  bool _showSonIslemler = false;
 
   final List<_PerakendeSepetItem> _sepetItems = [];
   final List<DepoModel> _depolar = [];
@@ -1856,11 +1859,30 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
         defaultTargetPlatform == TargetPlatform.iOS;
   }
 
-  bool get _printingDisabled =>
-      YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif;
+  bool get _printingDisabled => YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif;
 
   bool get _useDesktopRelayPrinter =>
       YazdirmaErisimKontrolu.mobilYerelAgMasaustuYazdirmaAktif;
+
+  void _toggleHizliUrunlerPanel() {
+    setState(() {
+      final nextValue = !_showHizliUrunler;
+      _showHizliUrunler = nextValue;
+      if (nextValue) {
+        _showSonIslemler = false;
+      }
+    });
+  }
+
+  void _toggleSonIslemlerPanel() {
+    setState(() {
+      final nextValue = !_showSonIslemler;
+      _showSonIslemler = nextValue;
+      if (nextValue) {
+        _showHizliUrunler = false;
+      }
+    });
+  }
 
   void _lockPortraitOnly() {
     if (!_isMobilePlatform) return;
@@ -2018,6 +2040,24 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     }
   }
 
+  void _handleFisYazdirToggle() {
+    final nextValue = !_fisYazdir;
+    setState(() {
+      _fisYazdir = nextValue;
+      _genelAyarlar.otomatikYazdir = nextValue;
+    });
+    unawaited(_saveRetailAutoPrintSetting(nextValue));
+  }
+
+  Future<void> _saveRetailAutoPrintSetting(bool value) async {
+    try {
+      _genelAyarlar.otomatikYazdir = value;
+      await AyarlarVeritabaniServisi().genelAyarlariKaydet(_genelAyarlar);
+    } catch (e) {
+      debugPrint('Perakende fis yazdir tercihi kaydedilemedi: $e');
+    }
+  }
+
   Future<void> _loadDepolar() async {
     try {
       final depolar = await DepolarVeritabaniServisi().tumDepolariGetir();
@@ -2069,6 +2109,9 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
   Future<void> _loadRetailPrintSettings() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      await YazdirmaVeritabaniServisi().eksikVarsayilanSablonlariEkle(
+        templateNames: const {'Satış Fişi 3', 'Satış Fişi 4'},
+      );
       final allTemplates = await YazdirmaVeritabaniServisi().sablonlariGetir();
       final templates = allTemplates
           .where((template) => template.effectiveDocType == _receiptDocType)
@@ -2082,8 +2125,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
 
       final savedPrinterJson = prefs.getString(_prefRetailPrintPrinterJson);
       final fallbackPrinterJson = _genelAyarlar.yaziciSecimi.trim();
-      final resolvedPrinterJson =
-          (savedPrinterJson?.trim().isNotEmpty ?? false)
+      final resolvedPrinterJson = (savedPrinterJson?.trim().isNotEmpty ?? false)
           ? savedPrinterJson!.trim()
           : (fallbackPrinterJson.isNotEmpty ? fallbackPrinterJson : null);
 
@@ -2126,9 +2168,13 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     return templates.first;
   }
 
+  bool _isRetailPdfSaveSelection(String? raw) {
+    return (raw ?? '').trim() == perakendePdfPrinterSelectionValue;
+  }
+
   Printer? _decodePrinterSelection(String? raw) {
     final value = (raw ?? '').trim();
-    if (value.isEmpty) return null;
+    if (value.isEmpty || _isRetailPdfSaveSelection(value)) return null;
 
     try {
       final decoded = jsonDecode(value);
@@ -2160,6 +2206,9 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
   }
 
   String? _printerNameFromRaw(String? raw) {
+    if (_isRetailPdfSaveSelection(raw)) {
+      return tr('print.destination.pdf');
+    }
     final printer = _decodePrinterSelection(raw);
     if (printer == null) return null;
     final name = printer.name.trim();
@@ -2759,6 +2808,61 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       oivRate: item.oivOrani,
       oivIncluded: item.oivDahil,
       kdvTevkifatOrani: item.kdvTevkifatOrani,
+    );
+  }
+
+  double _doubleFromDynamic(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    return double.tryParse(value.toString().replaceAll(',', '.')) ?? 0.0;
+  }
+
+  int _intFromDynamic(dynamic value) {
+    if (value == null) return 0;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return int.tryParse(value.toString()) ?? 0;
+  }
+
+  bool _boolFromDynamic(dynamic value, {bool defaultValue = false}) {
+    if (value is bool) return value;
+    final normalized = value?.toString().trim().toLowerCase();
+    if (normalized == 'true' || normalized == '1') return true;
+    if (normalized == 'false' || normalized == '0') return false;
+    return defaultValue;
+  }
+
+  TransactionItem _transactionItemFromSavedMap(Map<String, dynamic> item) {
+    final currency = (item['currency'] ?? _selectedParaBirimi)
+        .toString()
+        .trim()
+        .toUpperCase();
+    final exchangeRate = _doubleFromDynamic(item['exchangeRate']);
+
+    return TransactionItem(
+      code: (item['code'] ?? '').toString().trim(),
+      name: (item['name'] ?? '').toString().trim(),
+      barcode: (item['barcode'] ?? '').toString().trim(),
+      unit: (item['unit'] ?? '').toString().trim(),
+      quantity: _doubleFromDynamic(item['quantity']),
+      unitPrice: _doubleFromDynamic(
+        item['price'] ?? item['unitPrice'] ?? item['unitCost'],
+      ),
+      currency: currency.isEmpty ? _selectedParaBirimi : currency,
+      exchangeRate: exchangeRate <= 0 ? 1.0 : exchangeRate,
+      vatRate: _doubleFromDynamic(item['vatRate']),
+      discountRate: _doubleFromDynamic(item['discountRate']),
+      warehouseId: _intFromDynamic(item['warehouseId']),
+      warehouseName: (item['warehouseName'] ?? '').toString().trim(),
+      vatIncluded: _boolFromDynamic(item['vatIncluded']),
+      otvRate: _doubleFromDynamic(item['otvRate']),
+      otvIncluded: _boolFromDynamic(item['otvIncluded']),
+      oivRate: _doubleFromDynamic(item['oivRate']),
+      oivIncluded: _boolFromDynamic(item['oivIncluded']),
+      kdvTevkifatOrani: _doubleFromDynamic(item['kdvTevkifatOrani']),
+      serialNumber: (item['serialNumber'] ?? '').toString().trim().isEmpty
+          ? null
+          : (item['serialNumber'] ?? '').toString().trim(),
     );
   }
 
@@ -3492,52 +3596,317 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
     };
   }
 
-  Future<void> _printReceiptPdf({
-    required Printer printer,
-    required String title,
-    required PdfPageFormat format,
-    required List<int> pdfBytes,
-    required int copyCount,
+  Future<Map<String, dynamic>> _buildRetailReceiptPrintDataFromSale({
+    required PerakendeSonSatisKaydi kayit,
   }) async {
-    if (_useDesktopRelayPrinter) {
-      await YerelAgYazdirmaServisi().yazdirmaIstegiGonder(
-        title: title,
-        pdfBytes: Uint8List.fromList(pdfBytes),
-        printer: printer,
-        copies: math.max(1, copyCount),
-      );
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            tr(
-              'print.mobile.remote.queued',
-            ).replaceAll('{printer}', printer.name),
-          ),
-        ),
-      );
-      return;
+    final txItems = kayit.kalemler
+        .map(_transactionItemFromSavedMap)
+        .where(
+          (item) =>
+              item.name.trim().isNotEmpty ||
+              item.code.trim().isNotEmpty ||
+              item.barcode.trim().isNotEmpty,
+        )
+        .toList(growable: false);
+
+    if (txItems.isEmpty) {
+      throw tr('retail.recent_transactions.no_items');
     }
 
-    final repeatCount = math.max(1, copyCount);
-    for (int i = 0; i < repeatCount; i++) {
-      await Printing.directPrintPdf(
-        printer: printer,
-        onLayout: (_) async => Uint8List.fromList(pdfBytes),
-        name: title,
-        format: format,
+    final paraBirimi = _recentSaleCurrencyCode(kayit, txItems);
+    final paymentType = _recentSalePaymentType(kayit);
+    final sirket = OturumServisi().aktifSirket;
+    final headerLines = (sirket?.ustBilgiSatirlari.isNotEmpty ?? false)
+        ? sirket!.ustBilgiSatirlari
+        : (sirket?.basliklar ?? const <String>[]);
+
+    double subtotal = 0;
+    double discountTotal = 0;
+    double taxableAmount = 0;
+    double vatTotal = 0;
+    double otvAmount = 0;
+    double oivAmount = 0;
+    double tevkifatAmount = 0;
+    double grandTotal = 0;
+
+    final vatGroups = <double, ({double base, double amount})>{};
+    final otvGroups = <double, ({double base, double amount})>{};
+    final oivGroups = <double, ({double base, double amount})>{};
+    final tevkifatGroups = <double, ({double base, double amount})>{};
+
+    final itemLineNo = <String>[];
+    final itemName = <String>[];
+    final itemCode = <String>[];
+    final itemBarcode = <String>[];
+    final itemDescription = <String>[];
+    final itemQuantity = <String>[];
+    final itemUnit = <String>[];
+    final itemDiscountRate = <String>[];
+    final itemDiscountAmount = <String>[];
+    final itemVatRate = <String>[];
+    final itemOtvRate = <String>[];
+    final itemOivRate = <String>[];
+    final itemTevkifatRate = <String>[];
+    final itemUnitPriceExcl = <String>[];
+    final itemUnitPriceIncl = <String>[];
+    final itemTotalExcl = <String>[];
+    final itemTotalIncl = <String>[];
+    final itemCurrency = <String>[];
+
+    for (int i = 0; i < txItems.length; i++) {
+      final item = txItems[i];
+      subtotal += item.quantity * item.netUnitPrice;
+      discountTotal += item.discountAmount;
+      taxableAmount += item.vatBase;
+      vatTotal += item.vatAmount;
+      otvAmount += item.otvAmount;
+      oivAmount += item.oivAmount;
+      tevkifatAmount += item.kdvTevkifatAmount;
+      grandTotal += item.total;
+
+      final vatCurrent = vatGroups[item.vatRate];
+      vatGroups[item.vatRate] = (
+        base: (vatCurrent?.base ?? 0) + item.vatBase,
+        amount: (vatCurrent?.amount ?? 0) + item.vatAmount,
       );
+
+      final base = item.quantity * item.netUnitPrice;
+      if (item.otvRate != 0 || item.otvAmount != 0) {
+        final otvCurrent = otvGroups[item.otvRate];
+        otvGroups[item.otvRate] = (
+          base: (otvCurrent?.base ?? 0) + base,
+          amount: (otvCurrent?.amount ?? 0) + item.otvAmount,
+        );
+      }
+
+      if (item.oivRate != 0 || item.oivAmount != 0) {
+        final oivCurrent = oivGroups[item.oivRate];
+        oivGroups[item.oivRate] = (
+          base: (oivCurrent?.base ?? 0) + base,
+          amount: (oivCurrent?.amount ?? 0) + item.oivAmount,
+        );
+      }
+
+      if (item.kdvTevkifatOrani != 0 || item.kdvTevkifatAmount != 0) {
+        final tevkifatRate = item.kdvTevkifatOrani * 100;
+        final tevkifatCurrent = tevkifatGroups[tevkifatRate];
+        tevkifatGroups[tevkifatRate] = (
+          base: (tevkifatCurrent?.base ?? 0) + item.vatAmount,
+          amount: (tevkifatCurrent?.amount ?? 0) + item.kdvTevkifatAmount,
+        );
+      }
+
+      itemLineNo.add('${i + 1}');
+      itemName.add(item.name);
+      itemCode.add(item.code);
+      itemBarcode.add(item.barcode);
+      itemDescription.add(item.name);
+      itemQuantity.add(_fmtReceiptQuantity(item.quantity));
+      itemUnit.add(item.unit);
+      itemDiscountRate.add(_fmtReceiptRate(item.discountRate));
+      itemDiscountAmount.add(_fmtReceiptMoney(item.discountAmount));
+      itemVatRate.add(_fmtReceiptRate(item.vatRate));
+      itemOtvRate.add(_fmtReceiptRate(item.otvRate));
+      itemOivRate.add(_fmtReceiptRate(item.oivRate));
+      itemTevkifatRate.add(_fmtReceiptRate(item.kdvTevkifatOrani * 100));
+      itemUnitPriceExcl.add(_fmtReceiptMoney(item.netUnitPrice));
+      itemUnitPriceIncl.add(_fmtReceiptMoney(item.unitPrice));
+      itemTotalExcl.add(_fmtReceiptMoney(item.totalBeforeVat));
+      itemTotalIncl.add(_fmtReceiptMoney(item.total));
+      itemCurrency.add(_receiptCurrencyDisplay(item.currency));
     }
+
+    final sortedRates = vatGroups.keys.toList()..sort();
+    final selectedDateText = DateFormat('dd.MM.yyyy').format(kayit.tarih);
+    final currentTimeText = DateFormat('HH:mm').format(kayit.tarih);
+    final noteText = kayit.aciklama.trim().isEmpty
+        ? '-'
+        : kayit.aciklama.trim();
+    final itemsTable = _buildRetailItemsTable(txItems, extended: false);
+    final itemsTableExtended = _buildRetailItemsTable(txItems, extended: true);
+    final grandTotalRounded = kayit.genelToplam > 0
+        ? kayit.genelToplam
+        : grandTotal;
+    final roundingRaw = grandTotalRounded - grandTotal;
+    final roundingValue = roundingRaw.abs() < 0.0001 ? 0.0 : roundingRaw;
+    final bankInfo = await _buildRetailBankInfo(paymentType: paymentType);
+    final cashDisplayAmount = kayit.nakitTutar > 0
+        ? math.max(kayit.nakitTutar, kayit.nakitTutar)
+        : 0.0;
+    final changeAmount = cashDisplayAmount > grandTotalRounded
+        ? cashDisplayAmount - grandTotalRounded
+        : 0.0;
+    final kurusBasamak = math.min(2, math.max(0, _genelAyarlar.fiyatOndalik));
+    final retailTitle = tr('nav.trading_operations.retail_sale');
+
+    return {
+      'header_line_1': headerLines.isNotEmpty ? headerLines[0] : '',
+      'header_line_2': headerLines.length > 1 ? headerLines[1] : '',
+      'header_line_3': headerLines.length > 2 ? headerLines[2] : '',
+      'seller_logo': sirket?.ustBilgiLogosu ?? '',
+      'seller_name': sirket?.ad ?? '',
+      'seller_address': sirket?.adres ?? '',
+      'seller_tax_office': sirket?.vergiDairesi ?? '',
+      'seller_tax_no': sirket?.vergiNo ?? '',
+      'seller_phone': sirket?.telefon ?? '',
+      'seller_email': sirket?.eposta ?? '',
+      'seller_web': sirket?.webAdresi ?? '',
+      'bank_info': bankInfo,
+      'customer_name': retailTitle,
+      'customer_code': kayit.faturaNo,
+      'customer_account_name': retailTitle,
+      'customer_invoice_title': retailTitle,
+      'customer_address': '',
+      'customer_shipping_address': '',
+      'tax_office': '',
+      'tax_no': '',
+      'customer_phone': '',
+      'customer_phone2': '',
+      'customer_email': '',
+      'customer_web': '',
+      'customer_info1': '',
+      'customer_info2': '',
+      'customer_info3': '',
+      'customer_info4': '',
+      'customer_info5': '',
+      'previous_balance': _fmtReceiptMoney(0),
+      'current_balance': _fmtReceiptMoney(0),
+      'balance_currency': _receiptCurrencyDisplay(paraBirimi),
+      'invoice_type': retailTitle,
+      'invoice_date': selectedDateText,
+      'invoice_no': kayit.faturaNo,
+      'serial_no': '-',
+      'sequence_no': kayit.faturaNo,
+      'dispatch_number': '',
+      'dispatch_date': selectedDateText,
+      'dispatch_time': currentTimeText,
+      'actual_dispatch_date': selectedDateText,
+      'due_date': selectedDateText,
+      'validity_date': selectedDateText,
+      'created_date': selectedDateText,
+      'created_time': currentTimeText,
+      'order_no': '',
+      'date': selectedDateText,
+      'time': currentTimeText,
+      'page_no': '1',
+      'note': noteText,
+      'description1': kayit.aciklama.trim(),
+      'description2': '',
+      'description3': '',
+      'description4': '',
+      'description5': '',
+      'items_table': itemsTable,
+      'items_table_extended': itemsTableExtended,
+      'item_line_no': itemLineNo,
+      'item_name': itemName,
+      'item_code': itemCode,
+      'item_barcode': itemBarcode,
+      'item_description': itemDescription,
+      'item_quantity': itemQuantity,
+      'item_unit': itemUnit,
+      'item_discount_rate': itemDiscountRate,
+      'item_discount_amount': itemDiscountAmount,
+      'item_vat_rate': itemVatRate,
+      'item_otv_rate': itemOtvRate,
+      'item_oiv_rate': itemOivRate,
+      'item_tevkifat_rate': itemTevkifatRate,
+      'item_unit_price_excl': itemUnitPriceExcl,
+      'item_unit_price_incl': itemUnitPriceIncl,
+      'item_total_excl': itemTotalExcl,
+      'item_total_incl': itemTotalIncl,
+      'item_currency': itemCurrency,
+      'subtotal': _fmtReceiptMoney(subtotal),
+      'discount_total': _fmtReceiptMoney(discountTotal),
+      'taxable_amount': _fmtReceiptMoney(taxableAmount),
+      'vat_total': _fmtReceiptMoney(vatTotal),
+      'otv_amount': _fmtReceiptMoney(otvAmount),
+      'oiv_amount': _fmtReceiptMoney(oivAmount),
+      'tevkifat_amount': _fmtReceiptMoney(tevkifatAmount),
+      'rounding': _fmtReceiptMoney(roundingValue),
+      'grand_total': _fmtReceiptMoney(grandTotal),
+      'grand_total_rounded': _fmtReceiptMoney(grandTotalRounded),
+      'currency': _receiptCurrencyDisplay(paraBirimi),
+      'exchange_rate': _fmtReceiptRate(1),
+      'total_as_text': FormatYardimcisi.tutarYaziyaCevir(
+        grandTotalRounded,
+        paraBirimiKodu: paraBirimi,
+        yalnizEkle: true,
+        kurusBasamak: kurusBasamak,
+      ),
+      'vat_summary': _buildRetailRateSummary(
+        groups: vatGroups,
+        amountLabel: 'KDV',
+      ),
+      'otv_summary': _buildRetailRateSummary(
+        groups: otvGroups,
+        amountLabel: 'OTV',
+      ),
+      'oiv_summary': _buildRetailRateSummary(
+        groups: oivGroups,
+        amountLabel: 'OIV',
+      ),
+      'tevkifat_summary': _buildRetailRateSummary(
+        groups: tevkifatGroups,
+        amountLabel: 'Tevkifat',
+      ),
+      'payment_type': paymentType,
+      'cash_amount': _fmtReceiptMoney(cashDisplayAmount),
+      'card_amount': _fmtReceiptMoney(kayit.krediKartiTutar),
+      'bank_transfer_amount': _fmtReceiptMoney(kayit.havaleTutar),
+      'change_amount': _fmtReceiptMoney(changeAmount),
+      'cashier_name': kayit.kullanici.trim().isEmpty
+          ? 'Sistem'
+          : kayit.kullanici,
+      'receipt_qr': kayit.faturaNo,
+      for (int i = 0; i < 6; i++) ...{
+        'vat_rate_${i + 1}': i < sortedRates.length
+            ? _fmtReceiptRate(sortedRates[i])
+            : _fmtReceiptRate(0),
+        'vat_base_${i + 1}': i < sortedRates.length
+            ? _fmtReceiptMoney(vatGroups[sortedRates[i]]!.base)
+            : _fmtReceiptMoney(0),
+        'vat_amount_${i + 1}': i < sortedRates.length
+            ? _fmtReceiptMoney(vatGroups[sortedRates[i]]!.amount)
+            : _fmtReceiptMoney(0),
+      },
+    };
   }
 
-  Future<void> _fisYazdirOnizleme({
-    required String faturaNo,
-    required String paymentType,
-    required String cashierName,
-    double cashCollected = 0,
-    double cardCollected = 0,
-    double transferCollected = 0,
-    double? cashTendered,
+  String _recentSalePaymentType(PerakendeSonSatisKaydi kayit) {
+    if (kayit.hasMultiplePaymentTypes) {
+      return tr('retail.partial_payment');
+    }
+    if (kayit.nakitTutar > 0.0001) {
+      return tr('common.cash');
+    }
+    if (kayit.krediKartiTutar > 0.0001) {
+      return tr('retail.partial_payment.field.credit_card');
+    }
+    if (kayit.havaleTutar > 0.0001) {
+      return tr('retail.partial_payment.field.transfer');
+    }
+    return tr('nav.trading_operations.retail_sale');
+  }
+
+  String _recentSaleCurrencyCode(
+    PerakendeSonSatisKaydi kayit, [
+    List<TransactionItem>? items,
+  ]) {
+    final sourceItems = items ?? const <TransactionItem>[];
+    for (final item in sourceItems) {
+      final currency = item.currency.trim().toUpperCase();
+      if (currency.isNotEmpty) return currency;
+    }
+    for (final raw in kayit.kalemler) {
+      final currency = (raw['currency'] ?? '').toString().trim().toUpperCase();
+      if (currency.isNotEmpty) return currency;
+    }
+    return _selectedParaBirimi;
+  }
+
+  Future<void> _printRetailReceiptFromData({
+    required String title,
+    required Map<String, dynamic> printData,
   }) async {
     if (_receiptTemplates.isEmpty) {
       await _loadRetailPrintSettings();
@@ -3555,19 +3924,31 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       return;
     }
 
-    final printData = await _buildRetailReceiptPrintData(
-      faturaNo: faturaNo,
-      paymentType: paymentType,
-      cashierName: cashierName,
-      cashCollected: cashCollected,
-      cardCollected: cardCollected,
-      transferCollected: transferCollected,
-      cashTendered: cashTendered,
+    final format = DinamikYazdirmaServisi().getFormat(
+      template,
+      veri: printData,
     );
-    if (!mounted) return;
+    final saveAsPdf = _isRetailPdfSaveSelection(_selectedReceiptPrinterJson);
 
-    final title = '${tr('nav.trading_operations.retail_sale')} - $faturaNo';
-    final format = DinamikYazdirmaServisi().getFormat(template);
+    if (saveAsPdf) {
+      try {
+        final document = await DinamikYazdirmaServisi().pdfOlustur(
+          sablon: template,
+          veri: printData,
+        );
+        final pdfBytes = await document.save();
+        await _saveRetailReceiptPdf(title: title, pdfBytes: pdfBytes);
+      } catch (e) {
+        if (!mounted) return;
+        MesajYardimcisi.hataGoster(
+          context,
+          tr(
+            'print.error.during_print',
+          ).replaceAll('{error}', '${tr('print.destination.pdf')}: $e'),
+        );
+      }
+      return;
+    }
 
     if (_printingDisabled) {
       await Navigator.of(context).push(
@@ -3582,7 +3963,9 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       return;
     }
 
-    final selectedPrinter = _decodePrinterSelection(_selectedReceiptPrinterJson);
+    final selectedPrinter = _decodePrinterSelection(
+      _selectedReceiptPrinterJson,
+    );
     if (selectedPrinter == null) {
       await Navigator.of(context).push(
         MaterialPageRoute(
@@ -3626,6 +4009,129 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
         ).replaceAll('{error}', '$printerName: $e'),
       );
     }
+  }
+
+  Future<void> _sonIslemFisiYazdir(PerakendeSonSatisKaydi kayit) async {
+    try {
+      final printData = await _buildRetailReceiptPrintDataFromSale(
+        kayit: kayit,
+      );
+      if (!mounted) return;
+      final title =
+          '${tr('nav.trading_operations.retail_sale')} - ${kayit.faturaNo}';
+      await _printRetailReceiptFromData(title: title, printData: printData);
+    } catch (e) {
+      if (!mounted) return;
+      MesajYardimcisi.hataGoster(context, '${tr('common.error')}: $e');
+    }
+  }
+
+  Future<void> _printReceiptPdf({
+    required Printer printer,
+    required String title,
+    required PdfPageFormat format,
+    required List<int> pdfBytes,
+    required int copyCount,
+  }) async {
+    if (_useDesktopRelayPrinter) {
+      await YerelAgYazdirmaServisi().yazdirmaIstegiGonder(
+        title: title,
+        pdfBytes: Uint8List.fromList(pdfBytes),
+        printer: printer,
+        copies: math.max(1, copyCount),
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            tr(
+              'print.mobile.remote.queued',
+            ).replaceAll('{printer}', printer.name),
+          ),
+        ),
+      );
+      return;
+    }
+
+    final repeatCount = math.max(1, copyCount);
+    for (int i = 0; i < repeatCount; i++) {
+      await Printing.directPrintPdf(
+        printer: printer,
+        onLayout: (_) async => Uint8List.fromList(pdfBytes),
+        name: title,
+        format: format,
+      );
+    }
+  }
+
+  Future<void> _saveRetailReceiptPdf({
+    required String title,
+    required List<int> pdfBytes,
+  }) async {
+    final bytes = Uint8List.fromList(pdfBytes);
+    final fileName = '$title.pdf';
+
+    if (_isMobilePlatform) {
+      await Printing.sharePdf(bytes: bytes, filename: fileName);
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final lastPath = prefs.getString('last_export_path');
+
+    final result = await getSaveLocation(
+      suggestedName: fileName,
+      initialDirectory: lastPath,
+      acceptedTypeGroups: [
+        XTypeGroup(
+          label: tr('common.pdf'),
+          extensions: ['pdf'],
+          uniformTypeIdentifiers: ['com.adobe.pdf'],
+        ),
+      ],
+    );
+
+    if (result == null) return;
+
+    final path = result.path;
+    final file = File(path);
+    await file.writeAsBytes(bytes);
+    await prefs.setString('last_export_path', file.parent.path);
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          tr(
+            'common.success.export_path',
+          ).replaceAll('{name}', fileName).replaceAll('{path}', path),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _fisYazdirOnizleme({
+    required String faturaNo,
+    required String paymentType,
+    required String cashierName,
+    double cashCollected = 0,
+    double cardCollected = 0,
+    double transferCollected = 0,
+    double? cashTendered,
+  }) async {
+    final printData = await _buildRetailReceiptPrintData(
+      faturaNo: faturaNo,
+      paymentType: paymentType,
+      cashierName: cashierName,
+      cashCollected: cashCollected,
+      cardCollected: cardCollected,
+      transferCollected: transferCollected,
+      cashTendered: cashTendered,
+    );
+    if (!mounted) return;
+
+    final title = '${tr('nav.trading_operations.retail_sale')} - $faturaNo';
+    await _printRetailReceiptFromData(title: title, printData: printData);
   }
 
   Future<void> _openProductSearchDialog({String initialQuery = ''}) async {
@@ -4089,7 +4595,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
             _openHizliUrunlerSheet();
             return;
           }
-          setState(() => _showHizliUrunler = !_showHizliUrunler);
+          _toggleHizliUrunlerPanel();
         },
         LogicalKeySet(LogicalKeyboardKey.f12): _toggleNumericKeypad,
       },
@@ -4155,11 +4661,15 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
             }
 
             final allowQuickSidePanel = constraints.maxWidth >= 1300;
-            if (!allowQuickSidePanel && _showHizliUrunler) {
+            if (!allowQuickSidePanel &&
+                (_showHizliUrunler || _showSonIslemler)) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (!mounted) return;
-                if (!_showHizliUrunler) return;
-                setState(() => _showHizliUrunler = false);
+                if (!_showHizliUrunler && !_showSonIslemler) return;
+                setState(() {
+                  _showHizliUrunler = false;
+                  _showSonIslemler = false;
+                });
               });
             }
 
@@ -4189,6 +4699,8 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                     // Entegre Hızlı Ürünler Paneli
                     if (allowQuickSidePanel && _showHizliUrunler)
                       _buildHizliUrunlerSidePanel(),
+                    if (allowQuickSidePanel && _showSonIslemler)
+                      _buildSonIslemlerSidePanel(),
                     // Sağ Dar Aksiyon Paneli
                     _buildRightActionPanel(
                       useQuickProductsSheet: !allowQuickSidePanel,
@@ -4226,6 +4738,9 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
   Future<void> _openHizliUrunlerSheet() async {
     if (!mounted) return;
     FocusScope.of(context).unfocus();
+    if (_showSonIslemler) {
+      setState(() => _showSonIslemler = false);
+    }
 
     await showModalBottomSheet<void>(
       context: context,
@@ -4247,6 +4762,47 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                   hizliUrunler: _hizliUrunler,
                   onSelect: _hizliUrunSecildi,
                   onChanged: _loadHizliUrunler,
+                  onClose: () => Navigator.of(sheetContext).pop(),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openSonIslemlerSheet() async {
+    if (!mounted) return;
+    FocusScope.of(context).unfocus();
+    if (_showHizliUrunler) {
+      setState(() => _showHizliUrunler = false);
+    }
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return SafeArea(
+          top: false,
+          child: FractionallySizedBox(
+            heightFactor: 0.9,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(18),
+              ),
+              child: Material(
+                color: Colors.white,
+                child: _PerakendeSonIslemlerPaneli(
+                  amountFormatter: _formatTutar,
+                  quantityFormatter: _formatMiktar,
+                  currencyCodeBuilder: _recentSaleCurrencyCode,
+                  paymentTypeLabelBuilder: _recentSalePaymentType,
+                  onPrint: (kayit) async {
+                    Navigator.of(sheetContext).pop();
+                    await _sonIslemFisiYazdir(kayit);
+                  },
                   onClose: () => Navigator.of(sheetContext).pop(),
                 ),
               ),
@@ -4353,6 +4909,20 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                         _seciliyiSil();
                       },
                       outlined: true,
+                    ),
+                    const SizedBox(height: 8),
+                    _buildActionButton(
+                      label: tr('retail.recent_transactions'),
+                      shortcut: '',
+                      color: const Color(0xFFF3F7FF),
+                      textColor: const Color(0xFF1E5BB8),
+                      icon: Icons.history_rounded,
+                      onPressed: () {
+                        Navigator.of(sheetContext).pop();
+                        _openSonIslemlerSheet();
+                      },
+                      outlined: true,
+                      borderColor: const Color(0xFFB9CCF7),
                     ),
                   ],
                 ),
@@ -5194,7 +5764,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       cursor: SystemMouseCursors.click,
       hitTestBehavior: HitTestBehavior.deferToChild,
       child: GestureDetector(
-        onTap: () => setState(() => _fisYazdir = !_fisYazdir),
+        onTap: _handleFisYazdirToggle,
         child: Container(
           width: 60,
           height: 30,
@@ -6552,6 +7122,19 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                   onPressed: _seciliyiSil,
                   outlined: true,
                 ),
+                const SizedBox(height: 8),
+                _buildActionButton(
+                  label: tr('retail.recent_transactions'),
+                  shortcut: '',
+                  color: const Color(0xFFF3F7FF),
+                  textColor: const Color(0xFF1E5BB8),
+                  icon: Icons.history_rounded,
+                  onPressed: useQuickProductsSheet
+                      ? _openSonIslemlerSheet
+                      : _toggleSonIslemlerPanel,
+                  outlined: true,
+                  borderColor: const Color(0xFFB9CCF7),
+                ),
               ],
             ),
           ),
@@ -6563,7 +7146,7 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
             icon: Icons.bolt,
             onPressed: useQuickProductsSheet
                 ? _openHizliUrunlerSheet
-                : () => setState(() => _showHizliUrunler = !_showHizliUrunler),
+                : _toggleHizliUrunlerPanel,
           ),
           const SizedBox(height: 8),
           // Sayısal Klavye [F12]
@@ -6781,6 +7364,31 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
         onSelect: _hizliUrunSecildi,
         onChanged: _loadHizliUrunler,
         onClose: () => setState(() => _showHizliUrunler = false),
+      ),
+    );
+  }
+
+  Widget _buildSonIslemlerSidePanel() {
+    return Container(
+      width: 400,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(left: BorderSide(color: Colors.grey.shade200)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(-2, 0),
+          ),
+        ],
+      ),
+      child: _PerakendeSonIslemlerPaneli(
+        amountFormatter: _formatTutar,
+        quantityFormatter: _formatMiktar,
+        currencyCodeBuilder: _recentSaleCurrencyCode,
+        paymentTypeLabelBuilder: _recentSalePaymentType,
+        onPrint: _sonIslemFisiYazdir,
+        onClose: () => setState(() => _showSonIslemler = false),
       ),
     );
   }
@@ -7301,6 +7909,432 @@ class _FloatingNumericKeypad extends StatelessWidget {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PerakendeSonIslemlerPaneli extends StatefulWidget {
+  final String Function(double amount) amountFormatter;
+  final String Function(double quantity) quantityFormatter;
+  final String Function(PerakendeSonSatisKaydi kayit) currencyCodeBuilder;
+  final String Function(PerakendeSonSatisKaydi kayit) paymentTypeLabelBuilder;
+  final Future<void> Function(PerakendeSonSatisKaydi kayit) onPrint;
+  final VoidCallback? onClose;
+
+  const _PerakendeSonIslemlerPaneli({
+    required this.amountFormatter,
+    required this.quantityFormatter,
+    required this.currencyCodeBuilder,
+    required this.paymentTypeLabelBuilder,
+    required this.onPrint,
+    this.onClose,
+  });
+
+  @override
+  State<_PerakendeSonIslemlerPaneli> createState() =>
+      _PerakendeSonIslemlerPaneliState();
+}
+
+class _PerakendeSonIslemlerPaneliState
+    extends State<_PerakendeSonIslemlerPaneli> {
+  bool _isLoading = true;
+  bool _isPrinting = false;
+  String? _errorMessage;
+  List<PerakendeSonSatisKaydi> _kayitlar = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadKayitlar();
+  }
+
+  Future<void> _loadKayitlar() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+
+    try {
+      final kayitlar = await PerakendeSatisVeritabaniServisi()
+          .sonSatislariGetir(limit: 10);
+      if (!mounted) return;
+      setState(() {
+        _kayitlar = kayitlar;
+        _isLoading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = '$e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _handlePrint(PerakendeSonSatisKaydi kayit) async {
+    if (_isPrinting) return;
+    setState(() => _isPrinting = true);
+    try {
+      await widget.onPrint(kayit);
+    } finally {
+      if (mounted) {
+        setState(() => _isPrinting = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _buildHeader(),
+        Expanded(child: _buildBody()),
+      ],
+    );
+  }
+
+  Widget _buildHeader() {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 48, 16, 16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: const Color(0xFFE8F0FE),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.history_rounded, color: Color(0xFF1E5BB8)),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  tr('retail.recent_transactions'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  tr('retail.recent_transactions.subtitle'),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.grey.shade600,
+                    height: 1.35,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          IconButton(
+            onPressed: _isLoading ? null : _loadKayitlar,
+            tooltip: tr('retail.recent_transactions.refresh'),
+            icon: const Icon(Icons.refresh_rounded),
+          ),
+          if (widget.onClose != null)
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              onPressed: widget.onClose,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator(strokeWidth: 2.2));
+    }
+
+    if (_errorMessage != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.error_outline_rounded,
+                size: 42,
+                color: Colors.red.shade300,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                tr('common.error_occurred'),
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                _errorMessage!,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: _loadKayitlar,
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(tr('retail.recent_transactions.refresh')),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    if (_kayitlar.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.receipt_long_outlined,
+                size: 48,
+                color: Colors.grey.shade300,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                tr('retail.recent_transactions.empty'),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Colors.grey.shade500,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.all(16),
+      itemCount: _kayitlar.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 12),
+      itemBuilder: (context, index) => _buildSaleCard(_kayitlar[index]),
+    );
+  }
+
+  Widget _buildSaleCard(PerakendeSonSatisKaydi kayit) {
+    final paymentLabel = widget.paymentTypeLabelBuilder(kayit);
+    final currencyCode = widget.currencyCodeBuilder(kayit);
+    final formattedDate = DateFormat('dd.MM.yyyy').format(kayit.tarih);
+    final formattedTime = DateFormat('HH:mm').format(kayit.tarih);
+    final amountText =
+        '${widget.amountFormatter(kayit.genelToplam)} ${currencyCode.trim()}'
+            .trim();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE3E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        kayit.faturaNo,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF202124),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    _buildPaymentBadge(paymentLabel),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildInfoTile(
+                        icon: Icons.event_outlined,
+                        label: tr('common.date'),
+                        value: '$formattedDate  •  $formattedTime',
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _buildMetricTile(
+                        label: tr('common.total_amount'),
+                        value: amountText,
+                        accent: const Color(0xFF1E88E5),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: _buildMetricTile(
+                        label: tr('common.quantity'),
+                        value: widget.quantityFormatter(kayit.toplamMiktar),
+                        accent: const Color(0xFFFF9800),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Tooltip(
+            message: tr('common.print'),
+            child: Material(
+              color: const Color(0xFF1E5BB8),
+              borderRadius: BorderRadius.circular(14),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: _isPrinting ? null : () => _handlePrint(kayit),
+                child: SizedBox(
+                  width: 46,
+                  height: 46,
+                  child: _isPrinting
+                      ? const Padding(
+                          padding: EdgeInsets.all(12),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Colors.white,
+                            ),
+                          ),
+                        )
+                      : const Icon(
+                          Icons.print_rounded,
+                          color: Colors.white,
+                          size: 22,
+                        ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoTile({
+    required IconData icon,
+    required String label,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 15, color: Colors.grey.shade500),
+        const SizedBox(width: 6),
+        Expanded(
+          child: RichText(
+            text: TextSpan(
+              style: const TextStyle(color: Color(0xFF202124)),
+              children: [
+                TextSpan(
+                  text: '$label: ',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.grey.shade600,
+                  ),
+                ),
+                TextSpan(
+                  text: value,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildMetricTile({
+    required String label,
+    required String value,
+    required Color accent,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              color: accent.withValues(alpha: 0.78),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentBadge(String label) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEAF4EA),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: Color(0xFF2E7D32),
         ),
       ),
     );

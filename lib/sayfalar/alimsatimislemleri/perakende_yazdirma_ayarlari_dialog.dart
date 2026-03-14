@@ -7,6 +7,8 @@ import 'package:printing/printing.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../ayarlar/yazdirma_ayarlari/modeller/yazdirma_sablonu_model.dart';
 
+const String perakendePdfPrinterSelectionValue = '__retail_save_as_pdf__';
+
 class PerakendeYazdirmaAyarlariDialogResult {
   final int? sablonId;
   final String? yaziciJson;
@@ -87,7 +89,12 @@ class _PerakendeYazdirmaAyarlariDialogState
       final normalized = printers.toList()
         ..sort((a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()));
 
-      final savedPrinter = _decodePrinter(widget.seciliYaziciJson);
+      final saveAsPdfSelected =
+          (widget.seciliYaziciJson ?? '').trim() ==
+          perakendePdfPrinterSelectionValue;
+      final savedPrinter = saveAsPdfSelected
+          ? null
+          : _decodePrinter(widget.seciliYaziciJson);
       final matchedPrinter = savedPrinter == null
           ? null
           : _findMatchingPrinter(normalized, savedPrinter);
@@ -98,7 +105,9 @@ class _PerakendeYazdirmaAyarlariDialogState
         _kayitliEksikYaziciJson = null;
         _kayitliEksikYaziciEtiketi = null;
 
-        if (matchedPrinter != null) {
+        if (saveAsPdfSelected) {
+          _seciliYaziciDegeri = perakendePdfPrinterSelectionValue;
+        } else if (matchedPrinter != null) {
           _seciliYaziciDegeri = _printerIdentity(matchedPrinter);
         } else if (savedPrinter != null) {
           _seciliYaziciDegeri = _missingPrinterValue;
@@ -120,7 +129,9 @@ class _PerakendeYazdirmaAyarlariDialogState
 
   Printer? _decodePrinter(String? raw) {
     final value = (raw ?? '').trim();
-    if (value.isEmpty) return null;
+    if (value.isEmpty || value == perakendePdfPrinterSelectionValue) {
+      return null;
+    }
 
     try {
       final decoded = jsonDecode(value);
@@ -161,6 +172,9 @@ class _PerakendeYazdirmaAyarlariDialogState
 
   String? _seciliYaziciJsonDegeri() {
     if (_seciliYaziciDegeri.isEmpty) return null;
+    if (_seciliYaziciDegeri == perakendePdfPrinterSelectionValue) {
+      return perakendePdfPrinterSelectionValue;
+    }
     if (_seciliYaziciDegeri == _missingPrinterValue) {
       return _kayitliEksikYaziciJson;
     }
@@ -181,10 +195,11 @@ class _PerakendeYazdirmaAyarlariDialogState
   }
 
   void _kaydet() {
-    final kopyaSayisi =
-        int.tryParse(_kopyaSayisiController.text.trim()) ?? 0;
+    final kopyaSayisi = int.tryParse(_kopyaSayisiController.text.trim()) ?? 0;
     if (kopyaSayisi < 1) {
-      setState(() => _kopyaHatasi = tr('retail.print_settings.copy_count_error'));
+      setState(
+        () => _kopyaHatasi = tr('retail.print_settings.copy_count_error'),
+      );
       return;
     }
 
@@ -196,6 +211,12 @@ class _PerakendeYazdirmaAyarlariDialogState
         kopyaSayisi: kopyaSayisi,
       ),
     );
+  }
+
+  String _paperSizeLabel(YazdirmaSablonuModel sablon) {
+    final translationKey = sablon.paperSizeTranslationKey;
+    if (translationKey == null) return sablon.paperSize ?? '-';
+    return tr(translationKey);
   }
 
   Widget _buildSettingCard({
@@ -296,9 +317,10 @@ class _PerakendeYazdirmaAyarlariDialogState
 
   List<DropdownMenuItem<String>> _printerItems() {
     final items = <DropdownMenuItem<String>>[
+      DropdownMenuItem<String>(value: '', child: Text(tr('common.none'))),
       DropdownMenuItem<String>(
-        value: '',
-        child: Text(tr('common.none')),
+        value: perakendePdfPrinterSelectionValue,
+        child: Text(tr('print.destination.pdf')),
       ),
     ];
 
@@ -347,7 +369,10 @@ class _PerakendeYazdirmaAyarlariDialogState
         autofocus: true,
         child: Dialog(
           backgroundColor: Colors.white,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 24),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 12,
+            vertical: 24,
+          ),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(dialogRadius),
           ),
@@ -442,9 +467,9 @@ class _PerakendeYazdirmaAyarlariDialogState
                           width: 42,
                           height: 42,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF1E88E5).withValues(
-                              alpha: 0.12,
-                            ),
+                            color: const Color(
+                              0xFF1E88E5,
+                            ).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(
@@ -458,7 +483,8 @@ class _PerakendeYazdirmaAyarlariDialogState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                sablon?.name ?? tr('print_after_sale.select_template'),
+                                sablon?.name ??
+                                    tr('print_after_sale.select_template'),
                                 style: const TextStyle(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w800,
@@ -468,8 +494,10 @@ class _PerakendeYazdirmaAyarlariDialogState
                               const SizedBox(height: 4),
                               Text(
                                 sablon == null
-                                    ? tr('print_after_sale.error.no_template_selected')
-                                    : '${tr('settings.print.types.${sablon.effectiveDocType}')} • ${sablon.paperSize ?? '-'}',
+                                    ? tr(
+                                        'print_after_sale.error.no_template_selected',
+                                      )
+                                    : '${tr('settings.print.types.${sablon.effectiveDocType}')} • ${_paperSizeLabel(sablon)}',
                                 style: const TextStyle(
                                   fontSize: 12,
                                   fontWeight: FontWeight.w500,
@@ -495,9 +523,10 @@ class _PerakendeYazdirmaAyarlariDialogState
                           key: ValueKey<String>(
                             'template-${_seciliSablonId ?? 'none'}-${widget.sablonlar.length}',
                           ),
-                          initialValue: widget.sablonlar.any(
-                            (template) => template.id == _seciliSablonId,
-                          )
+                          initialValue:
+                              widget.sablonlar.any(
+                                (template) => template.id == _seciliSablonId,
+                              )
                               ? _seciliSablonId
                               : null,
                           isExpanded: true,
@@ -528,9 +557,13 @@ class _PerakendeYazdirmaAyarlariDialogState
                         icon: Icons.print_rounded,
                         accentColor: const Color(0xFF14B8A6),
                         title: tr('settings.printer.default.label'),
-                        description: tr('settings.cashPrint.print.printer.help'),
+                        description: tr(
+                          'settings.cashPrint.print.printer.help',
+                        ),
                         trailing: IconButton(
-                          onPressed: _printersLoading ? null : _yazicilariYenile,
+                          onPressed: _printersLoading
+                              ? null
+                              : _yazicilariYenile,
                           tooltip: tr('settings.connection.printer.refresh'),
                           icon: const Icon(
                             Icons.refresh_rounded,
@@ -545,11 +578,10 @@ class _PerakendeYazdirmaAyarlariDialogState
                               key: ValueKey<String>(
                                 'printer-$_seciliYaziciDegeri-${_printers.length}-${_kayitliEksikYaziciEtiketi ?? 'none'}',
                               ),
-                              initialValue: _printerItems()
-                                      .any(
-                                        (item) =>
-                                            item.value == _seciliYaziciDegeri,
-                                      )
+                              initialValue:
+                                  _printerItems().any(
+                                    (item) => item.value == _seciliYaziciDegeri,
+                                  )
                                   ? _seciliYaziciDegeri
                                   : '',
                               isExpanded: true,
@@ -560,7 +592,8 @@ class _PerakendeYazdirmaAyarlariDialogState
                                 ),
                               ),
                               items: _printerItems(),
-                              onChanged: (_printersLoading || _printerError != null)
+                              onChanged:
+                                  (_printersLoading || _printerError != null)
                                   ? null
                                   : (value) {
                                       setState(() {
@@ -568,7 +601,9 @@ class _PerakendeYazdirmaAyarlariDialogState
                                       });
                                     },
                             ),
-                            if (_printersLoading) ...[
+                            if (_seciliYaziciDegeri !=
+                                    perakendePdfPrinterSelectionValue &&
+                                _printersLoading) ...[
                               const SizedBox(height: 10),
                               Text(
                                 tr('settings.connection.printer.loading'),
@@ -579,7 +614,9 @@ class _PerakendeYazdirmaAyarlariDialogState
                                 ),
                               ),
                             ],
-                            if (_printerError != null) ...[
+                            if (_seciliYaziciDegeri !=
+                                    perakendePdfPrinterSelectionValue &&
+                                _printerError != null) ...[
                               const SizedBox(height: 10),
                               Text(
                                 tr('settings.connection.printer.error'),
@@ -589,7 +626,9 @@ class _PerakendeYazdirmaAyarlariDialogState
                                   color: Color(0xFFEA4335),
                                 ),
                               ),
-                            ] else if (_kayitliEksikYaziciJson != null) ...[
+                            ] else if (_seciliYaziciDegeri !=
+                                    perakendePdfPrinterSelectionValue &&
+                                _kayitliEksikYaziciJson != null) ...[
                               const SizedBox(height: 10),
                               Text(
                                 tr('settings.connection.printer.missing'),
@@ -599,7 +638,10 @@ class _PerakendeYazdirmaAyarlariDialogState
                                   color: Color(0xFFF39C12),
                                 ),
                               ),
-                            ] else if (!_printersLoading && _printers.isEmpty) ...[
+                            ] else if (_seciliYaziciDegeri !=
+                                    perakendePdfPrinterSelectionValue &&
+                                !_printersLoading &&
+                                _printers.isEmpty) ...[
                               const SizedBox(height: 10),
                               Text(
                                 tr('settings.connection.printer.empty'),
@@ -645,7 +687,9 @@ class _PerakendeYazdirmaAyarlariDialogState
                       child: TextField(
                         controller: _kopyaSayisiController,
                         keyboardType: TextInputType.number,
-                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
                         textAlign: TextAlign.center,
                         decoration: _inputDecoration(errorText: _kopyaHatasi),
                         onChanged: (_) {
