@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
@@ -1942,8 +1943,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
         final order = dataToProcess[i];
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
         final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
-        final int originIndex =
-            _siparisler.indexWhere((o) => o.id == order.id);
+        final int originIndex = _siparisler.indexWhere((o) => o.id == order.id);
         final int orderNo =
             startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
@@ -2124,15 +2124,11 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                   ),
                 ),
                 const SizedBox(width: 6),
-                Text(
-                  tr('common.key.f7'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: printDisabled
-                        ? Colors.grey.shade400
-                        : Colors.grey.shade500,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f7'),
+                  textColor: printDisabled
+                      ? Colors.grey.shade400
+                      : Colors.grey.shade500,
                 ),
               ],
             ),
@@ -4128,21 +4124,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                 ),
               ),
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Text(
-                  tr('common.key.f4'),
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 10,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
+              KlavyeKisayolRozeti.filled(label: tr('common.key.f4')),
             ],
           ),
         ),
@@ -4174,14 +4156,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
               ),
             ),
             const SizedBox(width: 8),
-            Text(
-              tr('common.key.f1'),
-              style: TextStyle(
-                color: Colors.white.withValues(alpha: 0.7),
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            KlavyeKisayolRozeti.filled(label: tr('common.key.f1')),
           ],
         ),
       ),
@@ -4699,23 +4674,10 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF2C3E50).withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    tr('common.key.f6'),
-                    style: TextStyle(
-                      color: Color(0xFF2C3E50),
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                KlavyeKisayolRozeti.tinted(
+                  label: tr('common.key.f6'),
+                  color: const Color(0xFF2C3E50),
+                  compact: true,
                 ),
               ],
             ),
@@ -4813,13 +4775,9 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4853,13 +4811,9 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -5288,9 +5242,10 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
                 children: [
                   Icon(Icons.edit, size: 9),
                   const SizedBox(width: 1),
-                  Text(
-                    tr('common.key.f5'),
-                    style: TextStyle(fontSize: 7, fontWeight: FontWeight.w900),
+                  KlavyeKisayolRozeti.neutral(
+                    label: tr('common.key.f5'),
+                    textColor: const Color(0xFF80868B),
+                    compact: true,
                   ),
                 ],
               ),
@@ -5854,20 +5809,10 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
             ),
             if (isCodeField) ...[
               const SizedBox(width: 8),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: Colors.red.shade700.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.zero,
-                ),
-                child: Text(
-                  tr('common.key.f3'),
-                  style: TextStyle(
-                    color: Colors.red.shade700,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
+              KlavyeKisayolRozeti.tinted(
+                label: tr('common.key.f3'),
+                color: Colors.red.shade700,
+                compact: true,
               ),
             ],
             if (searchHint != null) ...[

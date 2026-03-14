@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
@@ -793,55 +794,45 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
             message: tr('common.delete_selected_items'),
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                onTap: _removeSelectedUrunler,
-                child: Container(
-                  height: 32,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEA4335),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.delete_outline,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${tr('common.delete_selected_items')} (${_selectedUrunIndices.length})',
-                        style: const TextStyle(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                hitTestBehavior: HitTestBehavior.deferToChild,
+                child: GestureDetector(
+                  onTap: _removeSelectedUrunler,
+                  child: Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEA4335),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.delete_outline,
+                          size: 16,
                           color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(
-                          tr('common.key.f8'),
-                          style: TextStyle(
+                        const SizedBox(width: 6),
+                        Text(
+                          '${tr('common.delete_selected_items')} (${_selectedUrunIndices.length})',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
-                            fontSize: 10,
+                            fontSize: 12,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        KlavyeKisayolRozeti.filled(
+                          label: tr('common.key.f8'),
+                          compact: true,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              )),
+              ),
             ),
           ),
         if (_selectedUrunIndices.isNotEmpty && _eklenenUrunler.isNotEmpty)
@@ -851,51 +842,45 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
             message: tr('common.delete_all'),
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                onTap: _removeAllUrunler,
-                child: Container(
-                  height: 32,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEF5350),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.delete_forever, size: 16, color: Colors.white),
-                      SizedBox(width: 6),
-                      Text(
-                        tr('common.delete_all'),
-                        style: TextStyle(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                hitTestBehavior: HitTestBehavior.deferToChild,
+                child: GestureDetector(
+                  onTap: _removeAllUrunler,
+                  child: Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEF5350),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.delete_forever,
+                          size: 16,
                           color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
                         ),
-                      ),
-                      SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(
-                          tr('common.key.f6'),
+                        SizedBox(width: 6),
+                        Text(
+                          tr('common.delete_all'),
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
-                            fontSize: 10,
+                            fontSize: 12,
                           ),
                         ),
-                      ),
-                    ],
+                        SizedBox(width: 6),
+                        KlavyeKisayolRozeti.filled(
+                          label: tr('common.key.f6'),
+                          compact: true,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              )),
+              ),
             ),
           ),
       ],
@@ -1652,23 +1637,9 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
                     Text(tr('quotes.add_item')),
                     if (!isCompact) ...[
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(
-                          tr('common.key.f1'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 10,
-                          ),
-                        ),
+                      KlavyeKisayolRozeti.filled(
+                        label: tr('common.key.f1'),
+                        compact: true,
                       ),
                     ],
                   ],
@@ -2382,13 +2353,9 @@ class _TeklifEkleSayfasiState extends State<TeklifEkleSayfasi> {
                             ),
                           ),
                           const SizedBox(width: 6),
-                          Text(
-                            tr('common.key.f4'),
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.grey.shade400,
-                            ),
+                          KlavyeKisayolRozeti.neutral(
+                            label: tr('common.key.f4'),
+                            textColor: Colors.grey.shade400,
                           ),
                         ],
                       ),

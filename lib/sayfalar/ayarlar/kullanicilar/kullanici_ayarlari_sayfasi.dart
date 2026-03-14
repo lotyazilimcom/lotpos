@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
@@ -1657,15 +1658,12 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('common.key.f7'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade500,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f7'),
+                        textColor:
+                            YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade500,
                       ),
                     ],
                   ),
@@ -1702,14 +1700,7 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('common.key.f1'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f1')),
                     ],
                   ),
                 ),
@@ -2969,13 +2960,9 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -3013,13 +3000,9 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -3112,13 +3095,9 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
-            ),
+          KlavyeKisayolRozeti.neutral(
+            label: label,
+            textColor: Colors.grey.shade600,
           ),
           const SizedBox(height: 4),
           HighlightText(
@@ -3197,13 +3176,9 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -3241,13 +3216,9 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f9'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f9'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -3273,13 +3244,9 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f10'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f10'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -3326,13 +3293,9 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f6'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f6'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -3375,13 +3338,9 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4471,13 +4430,9 @@ class _KullaniciAyarlarSayfasiState extends State<KullaniciAyarlarSayfasi> {
         children: [
           SizedBox(
             width: 120,
-            child: Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
+            child: KlavyeKisayolRozeti.neutral(
+              label: label,
+              textColor: Colors.grey.shade600,
             ),
           ),
           const SizedBox(width: 8),

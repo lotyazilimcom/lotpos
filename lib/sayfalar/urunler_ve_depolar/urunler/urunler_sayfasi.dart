@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../bilesenler/genisletilebilir_tablo.dart';
@@ -4064,15 +4065,12 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tr('common.key.f7'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade500,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f7'),
+                        textColor:
+                            YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade500,
                       ),
                     ],
                   ),
@@ -4133,13 +4131,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                         ),
                       ),
                       const Spacer(),
-                      Text(
-                        tr('common.key.f10'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade400,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f10'),
+                        textColor: Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -4178,13 +4172,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                         ),
                       ),
                       const Spacer(),
-                      Text(
-                        tr('common.key.f11'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade400,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f11'),
+                        textColor: Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -4223,13 +4213,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                         ),
                       ),
                       const Spacer(),
-                      Text(
-                        tr('common.key.f12'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade400,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f12'),
+                        textColor: Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -4381,14 +4367,7 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tr('common.key.f1'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f1')),
                     ],
                   ),
                 ),
@@ -5585,13 +5564,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
+            KlavyeKisayolRozeti.neutral(
+              label: label,
+              textColor: Colors.grey.shade600,
             ),
             const SizedBox(height: 4),
             value,
@@ -5607,13 +5582,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
-            ),
+          KlavyeKisayolRozeti.neutral(
+            label: label,
+            textColor: Colors.grey.shade600,
           ),
           const SizedBox(height: 4),
           HighlightText(
@@ -7843,13 +7814,10 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
+                  compact: true,
                 ),
               ],
             ),
@@ -7887,13 +7855,10 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
+                  compact: true,
                 ),
               ],
             ),
@@ -7957,13 +7922,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -8001,13 +7962,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  'F9',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: 'F9',
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -8091,13 +8048,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f6'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f6'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -8135,13 +8088,9 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../bilesenler/tab_acici_scope.dart';
@@ -1662,9 +1663,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     setState(() {
       if (value == true) {
         _selectedIds.addAll(
-          _filterKasalar(_cachedKasalar)
-              .where((k) => !k.korumali)
-              .map((e) => e.id),
+          _filterKasalar(
+            _cachedKasalar,
+          ).where((k) => !k.korumali).map((e) => e.id),
         );
       } else {
         _selectedIds.clear();
@@ -1687,8 +1688,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
   void _onSelectRow(bool? value, int id) {
     setState(() {
       if (value == true) {
-        final bool isProtected =
-            _cachedKasalar.any((k) => k.id == id && k.korumali);
+        final bool isProtected = _cachedKasalar.any(
+          (k) => k.id == id && k.korumali,
+        );
         if (isProtected) return;
         _selectedIds.add(id);
       } else {
@@ -1887,8 +1889,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
         final depo = dataToProcess[i];
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
         final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
-        final int originIndex =
-            _cachedKasalar.indexWhere((k) => k.id == depo.id);
+        final int originIndex = _cachedKasalar.indexWhere(
+          (k) => k.id == depo.id,
+        );
         final int orderNo =
             startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
@@ -2865,8 +2868,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
     List<KasaModel> depolar,
     BoxConstraints constraints,
   ) {
-    final selectableKasalar =
-        depolar.where((d) => !d.korumali).toList(growable: false);
+    final selectableKasalar = depolar
+        .where((d) => !d.korumali)
+        .toList(growable: false);
     final bool allSelected =
         selectableKasalar.isNotEmpty &&
         selectableKasalar.every((d) => _selectedIds.contains(d.id));
@@ -3111,15 +3115,12 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tr('common.key.f7'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade500,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f7'),
+                        textColor:
+                            YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade500,
                       ),
                     ],
                   ),
@@ -3156,14 +3157,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tr('common.key.f1'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f1')),
                     ],
                   ),
                 ),
@@ -3263,8 +3257,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
       onClearSelection: _clearAllTableSelections,
       rowBuilder: (context, kasa, index, isExpanded, toggleExpand) {
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
-        final int orderNo =
-            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
+        final int orderNo = ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         final bool isProtected = kasa.korumali;
         return Row(
           children: [
@@ -3277,7 +3270,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                 height: 20,
                 child: Checkbox(
                   value: _selectedIds.contains(kasa.id),
-                  onChanged: isProtected ? null : (val) => _onSelectRow(val, kasa.id),
+                  onChanged: isProtected
+                      ? null
+                      : (val) => _onSelectRow(val, kasa.id),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -4569,13 +4564,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4613,13 +4604,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4692,7 +4679,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
 
   Widget _buildPopupMenu(KasaModel depo) {
     final bool deleteEnabled = !depo.korumali;
-    final Color deleteColor = deleteEnabled ? const Color(0xFFEA4335) : Colors.grey;
+    final Color deleteColor = deleteEnabled
+        ? const Color(0xFFEA4335)
+        : Colors.grey;
     return Theme(
       data: Theme.of(context).copyWith(
         dividerTheme: const DividerThemeData(
@@ -4737,13 +4726,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4781,13 +4766,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f9'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f9'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4813,13 +4794,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f10'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f10'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4861,13 +4838,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f6'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f6'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4918,11 +4891,7 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             child: Row(
               children: [
-                Icon(
-                  Icons.delete_outline,
-                  size: 20,
-                  color: deleteColor,
-                ),
+                Icon(Icons.delete_outline, size: 20, color: deleteColor),
                 const SizedBox(width: 12),
                 Text(
                   tr('common.delete'),
@@ -4933,13 +4902,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -5614,7 +5579,9 @@ class _KasalarSayfasiState extends State<KasalarSayfasi> {
                 height: 24,
                 child: Checkbox(
                   value: _selectedIds.contains(depo.id),
-                  onChanged: isProtected ? null : (v) => _onSelectRow(v, depo.id),
+                  onChanged: isProtected
+                      ? null
+                      : (v) => _onSelectRow(v, depo.id),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),

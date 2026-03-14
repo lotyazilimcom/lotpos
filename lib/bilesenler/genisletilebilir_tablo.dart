@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'package:sticky_headers/sticky_headers.dart';
 import '../yardimcilar/ceviri/ceviri_servisi.dart';
@@ -789,13 +790,9 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                               right: 8,
                                               top: 12,
                                             ),
-                                            child: Text(
-                                              tr('common.key.f3'),
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w600,
-                                                color: Colors.grey.shade400,
-                                              ),
+                                            child: KlavyeKisayolRozeti.neutral(
+                                              label: tr('common.key.f3'),
+                                              textColor: Colors.grey.shade400,
                                             ),
                                           ),
                                     contentPadding: EdgeInsets.zero,

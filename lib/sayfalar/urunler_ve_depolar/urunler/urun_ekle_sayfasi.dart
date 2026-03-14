@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'dart:convert';
 
@@ -2261,13 +2262,9 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('common.key.f9'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: color.withValues(alpha: 0.5),
-                        ),
+                      KlavyeKisayolRozeti.tinted(
+                        label: tr('common.key.f9'),
+                        color: color,
                       ),
                     ],
                   ),
@@ -2461,13 +2458,9 @@ class _UrunEkleSayfasiState extends State<UrunEkleSayfasi> {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                tr('common.key.f4'),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade400,
-                ),
+              KlavyeKisayolRozeti.neutral(
+                label: tr('common.key.f4'),
+                textColor: Colors.grey.shade400,
               ),
             ],
           ),

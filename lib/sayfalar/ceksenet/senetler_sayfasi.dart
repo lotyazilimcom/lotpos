@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../bilesenler/genisletilebilir_tablo.dart';
@@ -2626,15 +2627,12 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tr('common.key.f7'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade500,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f7'),
+                        textColor:
+                            YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade500,
                       ),
                     ],
                   ),
@@ -2675,14 +2673,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tr('common.key.f4'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f4')),
                     ],
                   ),
                 ),
@@ -2722,14 +2713,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tr('common.key.f1'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f1')),
                     ],
                   ),
                 ),
@@ -2829,8 +2813,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
       data: depolar,
       rowBuilder: (context, senet, index, isExpanded, toggleExpand) {
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
-        final int orderNo =
-            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
+        final int orderNo = ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         return Row(
           children: [
             _buildCell(
@@ -4085,13 +4068,9 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4223,13 +4202,9 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4271,13 +4246,9 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f9'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f9'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4320,13 +4291,9 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f10'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f10'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4365,13 +4332,9 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),

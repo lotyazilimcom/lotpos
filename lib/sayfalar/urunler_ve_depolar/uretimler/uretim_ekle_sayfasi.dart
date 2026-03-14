@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -1439,13 +1440,9 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('common.key.f9'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: color.withValues(alpha: 0.5),
-                        ),
+                      KlavyeKisayolRozeti.tinted(
+                        label: tr('common.key.f9'),
+                        color: color,
                       ),
                     ],
                   ),
@@ -1639,13 +1636,9 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
                 ),
               ),
               const SizedBox(width: 6),
-              Text(
-                tr('common.key.f4'),
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.grey.shade400,
-                ),
+              KlavyeKisayolRozeti.neutral(
+                label: tr('common.key.f4'),
+                textColor: Colors.grey.shade400,
               ),
             ],
           ),
@@ -2662,104 +2655,110 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
         final item = _recipeItems[index];
         final bool isSelected = _selectedRecipeIndices.contains(index);
 
-        return MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-          onTap: () {
-            setState(() {
-              if (isSelected) {
-                _selectedRecipeIndices.remove(index);
-              } else {
-                _selectedRecipeIndices.add(index);
-              }
-            });
-          },
-          child: Container(
-            width: double.infinity,
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: isSelected ? color.withValues(alpha: 0.06) : Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(
+        return MouseRegion(
+          cursor: SystemMouseCursors.click,
+          hitTestBehavior: HitTestBehavior.deferToChild,
+          child: GestureDetector(
+            onTap: () {
+              setState(() {
+                if (isSelected) {
+                  _selectedRecipeIndices.remove(index);
+                } else {
+                  _selectedRecipeIndices.add(index);
+                }
+              });
+            },
+            child: Container(
+              width: double.infinity,
+              margin: const EdgeInsets.only(bottom: 10),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
                 color: isSelected
-                    ? color.withValues(alpha: 0.45)
-                    : const Color(0xFFE5E7EB),
-              ),
-            ),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                SizedBox(
-                  width: 22,
-                  height: 22,
-                  child: Checkbox(
-                    value: isSelected,
-                    onChanged: (v) {
-                      setState(() {
-                        if (v == true) {
-                          _selectedRecipeIndices.add(index);
-                        } else {
-                          _selectedRecipeIndices.remove(index);
-                        }
-                      });
-                    },
-                  ),
+                    ? color.withValues(alpha: 0.06)
+                    : Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(
+                  color: isSelected
+                      ? color.withValues(alpha: 0.45)
+                      : const Color(0xFFE5E7EB),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        item.ad,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF202124),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: Checkbox(
+                      value: isSelected,
+                      onChanged: (v) {
+                        setState(() {
+                          if (v == true) {
+                            _selectedRecipeIndices.add(index);
+                          } else {
+                            _selectedRecipeIndices.remove(index);
+                          }
+                        });
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.ad,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: Color(0xFF202124),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        item.kod,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                          color: Color(0xFF606368),
+                        const SizedBox(height: 4),
+                        Text(
+                          item.kod,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                            color: Color(0xFF606368),
+                          ),
                         ),
-                      ),
-                      const SizedBox(height: 8),
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8FAFC),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              '${FormatYardimcisi.sayiFormatla(item.miktar, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.miktarOndalik)} ${item.birim}',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF2C3E50),
+                        const SizedBox(height: 8),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF8FAFC),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                '${FormatYardimcisi.sayiFormatla(item.miktar, binlik: _genelAyarlar.binlikAyiraci, ondalik: _genelAyarlar.ondalikAyiraci, decimalDigits: _genelAyarlar.miktarOndalik)} ${item.birim}',
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF2C3E50),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
-                      ),
-                    ],
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
-        ));
+        );
       }),
     );
   }

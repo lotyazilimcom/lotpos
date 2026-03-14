@@ -6,6 +6,7 @@ import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
@@ -693,14 +694,7 @@ class _PerakendeParcaliOdemeDialogState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: borderColor,
-          ),
-        ),
+        KlavyeKisayolRozeti.tinted(label: label, color: borderColor),
         const SizedBox(height: 12),
         TextField(
           controller: controller,
@@ -1339,14 +1333,7 @@ class _PerakendeIskontoDialogState extends State<_PerakendeIskontoDialog> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: borderColor,
-          ),
-        ),
+        KlavyeKisayolRozeti.tinted(label: label, color: borderColor),
         const SizedBox(height: 12),
         TextField(
           controller: controller,
@@ -6431,13 +6418,9 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: Colors.grey.shade600,
-            ),
+          KlavyeKisayolRozeti.neutral(
+            label: label,
+            textColor: Colors.grey.shade600,
           ),
           const SizedBox(height: 6),
           if (isEditing && suffix != null && field != 'discount')
@@ -7217,13 +7200,10 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                     ),
                   ),
                   if (shortcut.isNotEmpty)
-                    Text(
-                      shortcut,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: effectiveTextColor.withValues(alpha: 0.7),
-                      ),
+                    KlavyeKisayolRozeti.tinted(
+                      label: shortcut,
+                      color: effectiveTextColor,
+                      compact: true,
                     ),
                 ],
               ),
@@ -7258,13 +7238,10 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                     ),
                   ),
                   if (shortcut.isNotEmpty)
-                    Text(
-                      shortcut,
-                      style: TextStyle(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w500,
-                        color: effectiveTextColor.withValues(alpha: 0.7),
-                      ),
+                    KlavyeKisayolRozeti.tinted(
+                      label: shortcut,
+                      color: effectiveTextColor,
+                      compact: true,
                     ),
                 ],
               ),
@@ -7311,13 +7288,10 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
                 ),
               ),
               if (shortcut.isNotEmpty)
-                Text(
-                  shortcut,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.grey.shade500,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: shortcut,
+                  textColor: Colors.grey.shade500,
+                  compact: true,
                 ),
             ],
           ),
@@ -7327,21 +7301,10 @@ class _PerakendeSatisSayfasiState extends State<PerakendeSatisSayfasi>
   }
 
   Widget _buildShortcutBadge(String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF1F3F4),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: const Color(0xFFE0E0E0)),
-      ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w800,
-          color: Color(0xFF5F6368),
-        ),
-      ),
+    return KlavyeKisayolRozeti.neutral(
+      label: label,
+      textColor: Color(0xFF5F6368),
+      compact: true,
     );
   }
 
@@ -8302,14 +8265,7 @@ class _PerakendeSonIslemlerPaneliState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: accent.withValues(alpha: 0.78),
-            ),
-          ),
+          KlavyeKisayolRozeti.tinted(label: label, color: accent),
           const SizedBox(height: 4),
           Text(
             value,
@@ -8329,14 +8285,7 @@ class _PerakendeSonIslemlerPaneliState
         color: const Color(0xFFEAF4EA),
         borderRadius: BorderRadius.circular(999),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: Color(0xFF2E7D32),
-        ),
-      ),
+      child: KlavyeKisayolRozeti.tinted(label: label, color: Color(0xFF2E7D32)),
     );
   }
 }

@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+
 enum DialogOnayStili { kirmizi, turuncu, gri }
 
 class DialogAltButonlari extends StatelessWidget {
@@ -60,7 +62,9 @@ class DialogAltButonlari extends StatelessWidget {
             side: BorderSide(color: scheme.outline.withValues(alpha: 0.45)),
             minimumSize: const Size(0, 44),
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             visualDensity: VisualDensity.compact,
             textStyle: const TextStyle(fontWeight: FontWeight.w700),
           ),
@@ -76,13 +80,10 @@ class DialogAltButonlari extends StatelessWidget {
                     ),
                     if (iptalKisayol != null) ...[
                       const SizedBox(width: 6),
-                      Text(
-                        iptalKisayol!,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: scheme.outline.withValues(alpha: 0.85),
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: iptalKisayol!,
+                        compact: true,
+                        textColor: scheme.outline.withValues(alpha: 0.9),
                       ),
                     ],
                   ],
@@ -98,7 +99,9 @@ class DialogAltButonlari extends StatelessWidget {
             disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.65),
             minimumSize: const Size(0, 44),
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             elevation: 0,
             visualDensity: VisualDensity.compact,
             textStyle: const TextStyle(fontWeight: FontWeight.w800),
@@ -113,28 +116,25 @@ class DialogAltButonlari extends StatelessWidget {
                   ),
                 )
               : compact
-                  ? Text(onayMetni, maxLines: 1, overflow: TextOverflow.ellipsis)
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          onayMetni,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        if (onayKisayol != null) ...[
-                          const SizedBox(width: 6),
-                          Text(
-                            onayKisayol!,
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w700,
-                              color: confirmFg.withValues(alpha: 0.9),
-                            ),
-                          ),
-                        ],
-                      ],
+              ? Text(onayMetni, maxLines: 1, overflow: TextOverflow.ellipsis)
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      onayMetni,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
+                    if (onayKisayol != null) ...[
+                      const SizedBox(width: 6),
+                      KlavyeKisayolRozeti.filled(
+                        label: onayKisayol!,
+                        compact: true,
+                        textColor: confirmFg,
+                      ),
+                    ],
+                  ],
+                ),
         );
 
         if (compact) {
@@ -156,11 +156,7 @@ class DialogAltButonlari extends StatelessWidget {
         return Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            cancelButton,
-            const SizedBox(width: 12),
-            confirmButton,
-          ],
+          children: [cancelButton, const SizedBox(width: 12), confirmButton],
         );
       },
     );

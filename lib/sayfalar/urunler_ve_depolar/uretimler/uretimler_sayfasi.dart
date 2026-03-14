@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../bilesenler/genisletilebilir_tablo.dart';
@@ -1785,8 +1786,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
         final urun = dataToProcess[i];
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
         final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
-        final int originIndex =
-            _cachedUretimler.indexWhere((u) => u.id == urun.id);
+        final int originIndex = _cachedUretimler.indexWhere(
+          (u) => u.id == urun.id,
+        );
         final int orderNo =
             startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
@@ -3555,15 +3557,12 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tr('common.key.f7'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade500,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f7'),
+                        textColor:
+                            YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade500,
                       ),
                     ],
                   ),
@@ -3620,13 +3619,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                         ),
                       ),
                       const Spacer(),
-                      Text(
-                        tr('common.key.f10'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade400,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f10'),
+                        textColor: Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -3665,13 +3660,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                         ),
                       ),
                       const Spacer(),
-                      Text(
-                        tr('common.key.f11'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade400,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f11'),
+                        textColor: Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -3710,13 +3701,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                         ),
                       ),
                       const Spacer(),
-                      Text(
-                        tr('common.key.f12'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.grey.shade400,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f12'),
+                        textColor: Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -3824,14 +3811,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 6),
-                      Text(
-                        tr('common.key.f1'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f1')),
                     ],
                   ),
                 ),
@@ -3937,8 +3917,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
       },
       rowBuilder: (context, urun, index, isExpanded, toggleExpand) {
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
-        final int orderNo =
-            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
+        final int orderNo = ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         return Row(
           children: [
             _buildCell(
@@ -5161,13 +5140,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade600,
-              ),
+            KlavyeKisayolRozeti.neutral(
+              label: label,
+              textColor: Colors.grey.shade600,
             ),
             const SizedBox(height: 4),
             value,
@@ -5183,13 +5158,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Colors.grey.shade600,
-            ),
+          KlavyeKisayolRozeti.neutral(
+            label: label,
+            textColor: Colors.grey.shade600,
           ),
           const SizedBox(height: 4),
           HighlightText(
@@ -7288,13 +7259,10 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
+                  compact: true,
                 ),
               ],
             ),
@@ -7332,13 +7300,10 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
+                  compact: true,
                 ),
               ],
             ),
@@ -7402,13 +7367,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -7450,13 +7411,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f6'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f6'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -7494,13 +7451,9 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),

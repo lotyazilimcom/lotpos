@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'cari_para_al_ver_sayfasi.dart';
 import 'borc_alacak_dekontu_isle_sayfasi.dart';
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../bilesenler/genisletilebilir_tablo.dart';
@@ -788,7 +789,9 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
           initialTarih: initialDate,
           items: items,
           allowedDocTypes: _allowedDocumentTemplateTypes(selectedTx),
-          voucherTransactionType: _voucherTransactionTypeForDocument(selectedTx),
+          voucherTransactionType: _voucherTransactionTypeForDocument(
+            selectedTx,
+          ),
         ),
       ),
     );
@@ -7254,15 +7257,9 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('common.key.f7'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade400,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f7'),
+                        textColor: Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -7384,24 +7381,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          tr('common.key.f4'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f4')),
                     ],
                   ),
                 ),
@@ -7469,24 +7449,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          tr('common.key.f1'),
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f1')),
                     ],
                   ),
                 ),
@@ -7910,15 +7873,9 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('common.key.f7'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade400,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f7'),
+                        textColor: Colors.grey.shade400,
                       ),
                     ],
                   ),
@@ -8035,24 +7992,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          tr('common.key.f4'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f4')),
                     ],
                   ),
                 ),
@@ -8120,24 +8060,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 6,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          tr('common.key.f1'),
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f1')),
                     ],
                   ),
                 ),

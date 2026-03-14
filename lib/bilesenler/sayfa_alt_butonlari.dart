@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+
 import 'dialog_alt_butonlari.dart';
 
 export 'dialog_alt_butonlari.dart' show DialogOnayStili;
@@ -23,8 +25,9 @@ class SayfaAltBar extends StatelessWidget {
     final bool isDark = scheme.brightness == Brightness.dark;
 
     return Container(
-      padding:
-          compact ? const EdgeInsets.fromLTRB(16, 12, 16, 12) : const EdgeInsets.all(16),
+      padding: compact
+          ? const EdgeInsets.fromLTRB(16, 12, 16, 12)
+          : const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: scheme.surface,
         boxShadow: [
@@ -83,7 +86,8 @@ class SayfaAltButonlari extends StatelessWidget {
       builder: (context, constraints) {
         final bool compact = constraints.maxWidth < 520;
         final double maxRowWidth =
-            (constraints.maxWidth > 320 ? 320 : constraints.maxWidth).toDouble();
+            (constraints.maxWidth > 320 ? 320 : constraints.maxWidth)
+                .toDouble();
         const double gap = 12;
         final double buttonWidth = (maxRowWidth - gap) / 2;
 
@@ -111,7 +115,9 @@ class SayfaAltButonlari extends StatelessWidget {
             side: BorderSide(color: scheme.outline.withValues(alpha: 0.45)),
             minimumSize: const Size(0, 44),
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             visualDensity: VisualDensity.compact,
             textStyle: const TextStyle(fontWeight: FontWeight.w700),
           ),
@@ -135,13 +141,10 @@ class SayfaAltButonlari extends StatelessWidget {
               ),
               if (!compact && solKisayol != null) ...[
                 const SizedBox(width: 6),
-                Text(
-                  solKisayol!,
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w700,
-                    color: scheme.outline.withValues(alpha: 0.85),
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: solKisayol!,
+                  compact: true,
+                  textColor: scheme.outline.withValues(alpha: 0.9),
                 ),
               ],
             ],
@@ -157,7 +160,9 @@ class SayfaAltButonlari extends StatelessWidget {
             disabledForegroundColor: scheme.onSurface.withValues(alpha: 0.65),
             minimumSize: const Size(0, 44),
             padding: const EdgeInsets.symmetric(horizontal: 14),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10),
+            ),
             elevation: 0,
             visualDensity: VisualDensity.compact,
             textStyle: const TextStyle(fontWeight: FontWeight.w800),
@@ -191,13 +196,10 @@ class SayfaAltButonlari extends StatelessWidget {
                     ),
                     if (!compact && sagKisayol != null) ...[
                       const SizedBox(width: 6),
-                      Text(
-                        sagKisayol!,
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: confirmFg.withValues(alpha: 0.9),
-                        ),
+                      KlavyeKisayolRozeti.filled(
+                        label: sagKisayol!,
+                        compact: true,
+                        textColor: confirmFg,
                       ),
                     ],
                   ],
@@ -223,11 +225,7 @@ class SayfaAltButonlari extends StatelessWidget {
         return Row(
           mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.end,
-          children: [
-            leftButton,
-            const SizedBox(width: 12),
-            rightButton,
-          ],
+          children: [leftButton, const SizedBox(width: 12), rightButton],
         );
       },
     );

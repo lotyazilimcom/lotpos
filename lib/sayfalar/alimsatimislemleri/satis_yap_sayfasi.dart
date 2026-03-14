@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:postgres/postgres.dart';
 // ignore_for_file: deprecated_member_use
 import 'dart:async';
@@ -755,67 +756,76 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
                                       () => hoveredIndex = null,
                                     ),
                                     cursor: SystemMouseCursors.click,
-                                    child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                                      onTap: () {
-                                        setState(() {
-                                          _selectedSerialNumber =
-                                              device.identityValue;
-                                          _quantityController.text = '1';
-                                        });
-                                        Navigator.pop(context);
-                                      },
-                                      child: Container(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 16,
-                                          vertical: 12,
-                                        ),
-                                        color: isHovered
-                                            ? Colors.grey[200]
-                                            : Colors.transparent,
-                                        child: Row(
-                                          children: [
-                                            const Icon(
-                                              Icons.qr_code_rounded,
-                                              color: Color(0xFF2C3E50),
-                                              size: 20,
-                                            ),
-                                            const SizedBox(width: 12),
-                                            Expanded(
-                                              child: Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    device.identityValue,
-                                                    style: const TextStyle(
-                                                      fontSize: 15,
-                                                      fontWeight:
-                                                          FontWeight.w700,
-                                                      color: Color(0xFF202124),
-                                                    ),
-                                                  ),
-                                                  const SizedBox(height: 2),
-                                                  Text(
-                                                    '${device.color ?? ''} ${device.capacity ?? ''} (${device.condition})',
-                                                    style: const TextStyle(
-                                                      fontSize: 13,
-                                                      fontWeight:
-                                                          FontWeight.w500,
-                                                      color: Color(0xFF606368),
-                                                    ),
-                                                  ),
-                                                ],
-                                              ),
-                                            ),
-                                            if (isHovered)
+                                    child: MouseRegion(
+                                      cursor: SystemMouseCursors.click,
+                                      hitTestBehavior:
+                                          HitTestBehavior.deferToChild,
+                                      child: GestureDetector(
+                                        onTap: () {
+                                          setState(() {
+                                            _selectedSerialNumber =
+                                                device.identityValue;
+                                            _quantityController.text = '1';
+                                          });
+                                          Navigator.pop(context);
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 16,
+                                            vertical: 12,
+                                          ),
+                                          color: isHovered
+                                              ? Colors.grey[200]
+                                              : Colors.transparent,
+                                          child: Row(
+                                            children: [
                                               const Icon(
-                                                Icons.chevron_right_rounded,
+                                                Icons.qr_code_rounded,
                                                 color: Color(0xFF2C3E50),
+                                                size: 20,
                                               ),
-                                          ],
+                                              const SizedBox(width: 12),
+                                              Expanded(
+                                                child: Column(
+                                                  crossAxisAlignment:
+                                                      CrossAxisAlignment.start,
+                                                  children: [
+                                                    Text(
+                                                      device.identityValue,
+                                                      style: const TextStyle(
+                                                        fontSize: 15,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: Color(
+                                                          0xFF202124,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                    const SizedBox(height: 2),
+                                                    Text(
+                                                      '${device.color ?? ''} ${device.capacity ?? ''} (${device.condition})',
+                                                      style: const TextStyle(
+                                                        fontSize: 13,
+                                                        fontWeight:
+                                                            FontWeight.w500,
+                                                        color: Color(
+                                                          0xFF606368,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                              if (isHovered)
+                                                const Icon(
+                                                  Icons.chevron_right_rounded,
+                                                  color: Color(0xFF2C3E50),
+                                                ),
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    )),
+                                    ),
                                   );
                                 },
                               ),
@@ -1453,55 +1463,45 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
             message: '${tr('common.delete_selected_items')} (F8)',
             child: MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                onTap: _deleteSelected,
-                child: Container(
-                  height: 32,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEA4335),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.delete_outline,
-                        size: 16,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${tr('common.delete_selected_items')} (${_selectedItemIndices.length})',
-                        style: const TextStyle(
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                hitTestBehavior: HitTestBehavior.deferToChild,
+                child: GestureDetector(
+                  onTap: _deleteSelected,
+                  child: Container(
+                    height: 32,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEA4335),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(
+                          Icons.delete_outline,
+                          size: 16,
                           color: Colors.white,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 12,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 4,
-                          vertical: 1,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.2),
-                          borderRadius: BorderRadius.circular(3),
-                        ),
-                        child: Text(
-                          tr('common.key.f8'),
-                          style: TextStyle(
+                        const SizedBox(width: 6),
+                        Text(
+                          '${tr('common.delete_selected_items')} (${_selectedItemIndices.length})',
+                          style: const TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.w600,
-                            fontSize: 10,
+                            fontSize: 12,
                           ),
                         ),
-                      ),
-                    ],
+                        const SizedBox(width: 6),
+                        KlavyeKisayolRozeti.filled(
+                          label: tr('common.key.f8'),
+                          compact: true,
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              )),
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -1512,56 +1512,46 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
             cursor: _items.isEmpty
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.click,
-            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-              onTap: _items.isEmpty ? null : _deleteAllItems,
-              child: Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: const Color(
-                    0xFFEF5350,
-                  ).withValues(alpha: _items.isEmpty ? 0.5 : 1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.delete_forever,
-                      size: 16,
-                      color: Colors.white,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      tr('common.delete_all'),
-                      style: const TextStyle(
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              hitTestBehavior: HitTestBehavior.deferToChild,
+              child: GestureDetector(
+                onTap: _items.isEmpty ? null : _deleteAllItems,
+                child: Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(
+                      0xFFEF5350,
+                    ).withValues(alpha: _items.isEmpty ? 0.5 : 1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.delete_forever,
+                        size: 16,
                         color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
                       ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Text(
-                        tr('common.key.f6'),
-                        style: TextStyle(
+                      const SizedBox(width: 6),
+                      Text(
+                        tr('common.delete_all'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
-                          fontSize: 10,
+                          fontSize: 12,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      KlavyeKisayolRozeti.filled(
+                        label: tr('common.key.f6'),
+                        compact: true,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            )),
+            ),
           ),
         ),
         const SizedBox(width: 8),
@@ -1571,52 +1561,42 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
             cursor: _items.isEmpty
                 ? SystemMouseCursors.basic
                 : SystemMouseCursors.click,
-            child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-              onTap: _items.isEmpty ? null : _showInvoiceDiscountDialog,
-              child: Container(
-                height: 32,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: const Color(
-                    0xFF2C3E50,
-                  ).withValues(alpha: _items.isEmpty ? 0.5 : 1),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.percent, size: 16, color: Colors.white),
-                    const SizedBox(width: 6),
-                    Text(
-                      tr('sale.button.invoice_discount'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 12,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 1,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                      child: Text(
-                        tr('common.key.f5'),
-                        style: TextStyle(
+            child: MouseRegion(
+              cursor: SystemMouseCursors.click,
+              hitTestBehavior: HitTestBehavior.deferToChild,
+              child: GestureDetector(
+                onTap: _items.isEmpty ? null : _showInvoiceDiscountDialog,
+                child: Container(
+                  height: 32,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: const Color(
+                      0xFF2C3E50,
+                    ).withValues(alpha: _items.isEmpty ? 0.5 : 1),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.percent, size: 16, color: Colors.white),
+                      const SizedBox(width: 6),
+                      Text(
+                        tr('sale.button.invoice_discount'),
+                        style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w600,
-                          fontSize: 10,
+                          fontSize: 12,
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      KlavyeKisayolRozeti.filled(
+                        label: tr('common.key.f5'),
+                        compact: true,
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            )),
+            ),
           ),
         ),
       ],
@@ -1945,23 +1925,9 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
               ),
               if (!compact) ...[
                 const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: 1,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                  child: Text(
-                    tr('common.key.f1'),
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 10,
-                    ),
-                  ),
+                KlavyeKisayolRozeti.filled(
+                  label: tr('common.key.f1'),
+                  compact: true,
                 ),
               ],
             ],
@@ -3400,13 +3366,9 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: Colors.grey.shade600,
-          ),
+        KlavyeKisayolRozeti.neutral(
+          label: label,
+          textColor: Colors.grey.shade600,
         ),
         const SizedBox(height: 4),
         Container(
@@ -4334,16 +4296,16 @@ class _SatisYapSayfasiState extends State<SatisYapSayfasi> {
         : Colors.blue.shade700;
     final bool isCompact = MediaQuery.sizeOf(context).width < 640;
 
-	    Widget inputField = TextFormField(
-	      controller: controller,
-	      focusNode: focusNode,
-	      readOnly: readOnly,
-	      mouseCursor: (readOnly && onTap != null)
-	          ? SystemMouseCursors.click
-	          : SystemMouseCursors.text,
-	      keyboardType: isNumeric
-	          ? const TextInputType.numberWithOptions(decimal: true)
-	          : TextInputType.text,
+    Widget inputField = TextFormField(
+      controller: controller,
+      focusNode: focusNode,
+      readOnly: readOnly,
+      mouseCursor: (readOnly && onTap != null)
+          ? SystemMouseCursors.click
+          : SystemMouseCursors.text,
+      keyboardType: isNumeric
+          ? const TextInputType.numberWithOptions(decimal: true)
+          : TextInputType.text,
       inputFormatters: isNumeric
           ? [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),

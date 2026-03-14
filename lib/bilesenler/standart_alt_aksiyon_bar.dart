@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+
 class StandartAltAksiyonBar extends StatelessWidget {
   const StandartAltAksiyonBar({
     super.key,
@@ -169,13 +171,9 @@ class StandartAltAksiyonBar extends StatelessWidget {
               ),
               if (secondaryHintText != null) ...[
                 const SizedBox(width: 6),
-                Text(
-                  secondaryHintText!,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: secondaryHintText!,
+                  textColor: Colors.grey.shade500,
                 ),
               ],
             ],

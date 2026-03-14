@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
+import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../bilesenler/genisletilebilir_tablo.dart';
@@ -2112,8 +2113,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
         final depo = dataToProcess[i];
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
         final int startRecordIndex = (_currentPage - 1) * safeRowsPerPage;
-        final int originIndex =
-            _cachedDepolar.indexWhere((d) => d.id == depo.id);
+        final int originIndex = _cachedDepolar.indexWhere(
+          (d) => d.id == depo.id,
+        );
         final int orderNo =
             startRecordIndex + (originIndex >= 0 ? originIndex : i) + 1;
 
@@ -3156,15 +3158,12 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('common.key.f7'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
-                              ? Colors.grey.shade400
-                              : Colors.grey.shade500,
-                        ),
+                      KlavyeKisayolRozeti.neutral(
+                        label: tr('common.key.f7'),
+                        textColor:
+                            YazdirmaErisimKontrolu.mobilBulutYazdirmaPasif
+                            ? Colors.grey.shade400
+                            : Colors.grey.shade500,
                       ),
                     ],
                   ),
@@ -3205,14 +3204,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('common.key.f10'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f10')),
                     ],
                   ),
                 ),
@@ -3248,14 +3240,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text(
-                        tr('common.key.f1'),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.white.withValues(alpha: 0.7),
-                        ),
-                      ),
+                      KlavyeKisayolRozeti.filled(label: tr('common.key.f1')),
                     ],
                   ),
                 ),
@@ -3345,8 +3330,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       data: depolar,
       rowBuilder: (context, depo, index, isExpanded, toggleExpand) {
         final int safeRowsPerPage = _rowsPerPage <= 0 ? 25 : _rowsPerPage;
-        final int orderNo =
-            ((_currentPage - 1) * safeRowsPerPage) + index + 1;
+        final int orderNo = ((_currentPage - 1) * safeRowsPerPage) + index + 1;
         final bool isProtected = _anaDepoId != null && depo.id == _anaDepoId;
         return Row(
           children: [
@@ -3359,7 +3343,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                 height: 20,
                 child: Checkbox(
                   value: _selectedIds.contains(depo.id),
-                  onChanged: isProtected ? null : (val) => _onSelectRow(val, depo.id),
+                  onChanged: isProtected
+                      ? null
+                      : (val) => _onSelectRow(val, depo.id),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(4),
                   ),
@@ -4816,13 +4802,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -4860,13 +4842,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -5114,8 +5092,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
   Widget _buildPopupMenu(DepoModel depo) {
     final bool deleteEnabled = _anaDepoId == null || depo.id != _anaDepoId;
-    final Color deleteColor =
-        deleteEnabled ? const Color(0xFFEA4335) : Colors.grey;
+    final Color deleteColor = deleteEnabled
+        ? const Color(0xFFEA4335)
+        : Colors.grey;
     return Theme(
       data: Theme.of(context).copyWith(
         dividerTheme: const DividerThemeData(
@@ -5160,13 +5139,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f2'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f2'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -5208,13 +5183,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.f6'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.f6'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -5238,11 +5209,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
             padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
             child: Row(
               children: [
-                Icon(
-                  Icons.delete_outline,
-                  size: 20,
-                  color: deleteColor,
-                ),
+                Icon(Icons.delete_outline, size: 20, color: deleteColor),
                 const SizedBox(width: 12),
                 Text(
                   tr('common.delete'),
@@ -5253,13 +5220,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                   ),
                 ),
                 const Spacer(),
-                Text(
-                  tr('common.key.del'),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade400,
-                  ),
+                KlavyeKisayolRozeti.neutral(
+                  label: tr('common.key.del'),
+                  textColor: Colors.grey.shade400,
                 ),
               ],
             ),
@@ -5955,7 +5918,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
                     height: 24,
                     child: Checkbox(
                       value: _selectedIds.contains(depo.id),
-                      onChanged: isProtected ? null : (v) => _onSelectRow(v, depo.id),
+                      onChanged: isProtected
+                          ? null
+                          : (v) => _onSelectRow(v, depo.id),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(4),
                       ),
