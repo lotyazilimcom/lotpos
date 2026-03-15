@@ -2191,11 +2191,13 @@ class AyarlarVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
 
-    final result = await _pool!.execute(
-      Sql.named('SELECT COUNT(*) FROM users WHERE role = @role'),
-      parameters: {'role': rol},
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'users',
+      whereConditions: const <String>['role = @role'],
+      params: {'role': rol},
+      unfilteredTable: 'users',
     );
-    return result[0][0] as int;
   }
 
   /// Kullanıcı filtre select'leri için (Rol / Durum) sayım istatistikleri döner.
@@ -2657,8 +2659,13 @@ class AyarlarVeritabaniServisi {
     if (_pool == null) return;
 
     try {
-      final rolesCount = await _pool!.execute('SELECT COUNT(*) FROM roles');
-      if (rolesCount[0][0] == 0) {
+      final rolesCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+        _pool!,
+        fromClause: 'roles',
+        unfilteredTable: 'roles',
+        exactThreshold: 1,
+      );
+      if (rolesCount == 0) {
         // Rolleri ekle...
         final List<String> tumIzinler = [];
         void tara(MenuItem oge) {
@@ -2714,8 +2721,13 @@ class AyarlarVeritabaniServisi {
     }
 
     try {
-      final usersCount = await _pool!.execute('SELECT COUNT(*) FROM users');
-      if (usersCount[0][0] == 0) {
+      final usersCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+        _pool!,
+        fromClause: 'users',
+        unfilteredTable: 'users',
+        exactThreshold: 1,
+      );
+      if (usersCount == 0) {
         await kullaniciEkle(
           KullaniciModel(
             id: '1',
@@ -2737,10 +2749,12 @@ class AyarlarVeritabaniServisi {
 
     // Şirket Kontrolü - Güncellenmiş Mantık
     try {
-      final companiesCountRaw = await _pool!.execute(
-        'SELECT COUNT(*) FROM company_settings',
+      final int companiesCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+        _pool!,
+        fromClause: 'company_settings',
+        unfilteredTable: 'company_settings',
+        exactThreshold: 1,
       );
-      final int companiesCount = companiesCountRaw[0][0] as int;
       final bulut = _bulutModundaMi();
       final varsayilanSirketKodu = bulut ? _config.database : 'patisyo2025';
 

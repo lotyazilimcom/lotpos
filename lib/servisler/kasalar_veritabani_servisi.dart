@@ -232,23 +232,22 @@ class KasalarVeritabaniServisi {
 
       final companyId = _companyId;
 
-      final companyCountRes = await pool.execute(
-        Sql.named(
-          "SELECT COUNT(*) FROM cash_registers WHERE COALESCE(company_id, '$_defaultCompanyId') = @companyId",
-        ),
-        parameters: {'companyId': companyId},
-      );
-      final int companyCount = parseInt(
-        companyCountRes.isNotEmpty ? companyCountRes.first.first : 0,
+      final int companyCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+        pool,
+        fromClause: 'cash_registers',
+        whereConditions: <String>[
+          "COALESCE(company_id, '$_defaultCompanyId') = @companyId",
+        ],
+        params: {'companyId': companyId},
+        unfilteredTable: 'cash_registers',
       );
       final bool isFreshCompany = companyCount == 0;
 
       if (isFreshCompany) {
-        final totalCountRes = await pool.execute(
-          'SELECT COUNT(*) FROM cash_registers',
-        );
-        final int totalCount = parseInt(
-          totalCountRes.isNotEmpty ? totalCountRes.first.first : 0,
+        final int totalCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+          pool,
+          fromClause: 'cash_registers',
+          unfilteredTable: 'cash_registers',
         );
 
         if (totalCount == 0) {
@@ -864,10 +863,6 @@ class KasalarVeritabaniServisi {
         try {
           // 1 Milyar Kayıt İçin GIN İndeksi (Trigram)
           await PgEklentiler.ensurePgTrgm(_pool!);
-          // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-          try {
-            await PgEklentiler.ensurePgSearch(_pool!);
-          } catch (_) {}
           await PgEklentiler.ensureSearchTagsNotNullDefault(
             _pool!,
             'cash_registers',
@@ -875,16 +870,6 @@ class KasalarVeritabaniServisi {
           await PgEklentiler.ensureSearchTagsNotNullDefault(
             _pool!,
             'cash_register_transactions',
-          );
-          await PgEklentiler.ensureSearchTagsFtsIndex(
-            _pool!,
-            table: 'cash_registers',
-            indexName: 'idx_cash_registers_search_tags_fts_gin',
-          );
-          await PgEklentiler.ensureSearchTagsFtsIndex(
-            _pool!,
-            table: 'cash_register_transactions',
-            indexName: 'idx_crt_search_tags_fts_gin',
           );
           await _pool!.execute(
             'CREATE INDEX IF NOT EXISTS idx_cash_registers_search_tags_gin ON cash_registers USING GIN (search_tags gin_trgm_ops)',
@@ -918,20 +903,6 @@ class KasalarVeritabaniServisi {
           await _pool!.execute(
             'CREATE INDEX IF NOT EXISTS idx_crt_created_at_brin ON cash_register_transactions USING BRIN (created_at) WITH (pages_per_range = 128)',
           );
-
-          // BM25 indexler (Google-like search fast path)
-          try {
-            await PgEklentiler.ensureBm25Index(
-              _pool!,
-              table: 'cash_registers',
-              indexName: 'idx_cash_registers_search_tags_bm25',
-            );
-            await PgEklentiler.ensureBm25Index(
-              _pool!,
-              table: 'cash_register_transactions',
-              indexName: 'idx_cash_register_transactions_search_tags_bm25',
-            );
-          } catch (_) {}
 
           // Search Tags Trigger
           await _pool!.execute('''
@@ -1869,14 +1840,15 @@ class KasalarVeritabaniServisi {
       }
     }
 
+    final totalFuture = HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'cash_registers',
+      whereConditions: baseConditions,
+      params: params,
+      unfilteredTable: 'cash_registers',
+    );
+
     final results = await Future.wait([
-      // Toplam
-      _pool!.execute(
-        Sql.named(
-          'SELECT COUNT(*) FROM cash_registers ${baseConditions.isNotEmpty ? 'WHERE ${baseConditions.join(' AND ')}' : ''}',
-        ),
-        parameters: params,
-      ),
       // Durumlar
       _pool!.execute(
         Sql.named(buildQuery('is_active, COUNT(*)', durumConds, durumParams)),
@@ -1922,30 +1894,30 @@ class KasalarVeritabaniServisi {
     ]);
 
     Map<String, Map<String, int>> stats = {
-      'ozet': {'toplam': results[0][0][0] as int},
+      'ozet': {'toplam': await totalFuture},
       'durumlar': {},
       'varsayilanlar': {},
       'islem_turleri': {},
       'kullanicilar': {},
     };
 
-    for (final row in results[1]) {
+    for (final row in results[0]) {
       final key = (row[0] as int) == 1 ? 'active' : 'passive';
       stats['durumlar']![key] = row[1] as int;
     }
 
-    for (final row in results[2]) {
+    for (final row in results[1]) {
       final key = (row[0] as int) == 1 ? 'default' : 'regular';
       stats['varsayilanlar']![key] = row[1] as int;
     }
 
-    for (final row in results[3]) {
+    for (final row in results[2]) {
       if (row[0] != null) {
         stats['islem_turleri']![row[0] as String] = row[1] as int;
       }
     }
 
-    for (final row in results[4]) {
+    for (final row in results[3]) {
       if (row[0] != null) {
         stats['kullanicilar']![row[0] as String] = row[1] as int;
       }

@@ -679,10 +679,6 @@ class CariHesaplarVeritabaniServisi {
     if (_pool == null) return;
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'current_accounts',
@@ -690,16 +686,6 @@ class CariHesaplarVeritabaniServisi {
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'current_account_transactions',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'current_accounts',
-        indexName: 'idx_accounts_search_tags_fts_gin',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'current_account_transactions',
-        indexName: 'idx_cat_search_tags_fts_gin',
       );
 
       // Ana Tablo İndeksleri
@@ -763,20 +749,6 @@ class CariHesaplarVeritabaniServisi {
         ON current_account_transactions USING BRIN (date) 
         WITH (pages_per_range = 128)
       ''');
-
-      // BM25 indexler (Google-like search fast path)
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'current_accounts',
-          indexName: 'idx_current_accounts_search_tags_bm25',
-        );
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'current_account_transactions',
-          indexName: 'idx_current_account_transactions_search_tags_bm25',
-        );
-      } catch (_) {}
 
       debugPrint('🚀 Cari Hesaplar İndeksleri Hazır.');
     } catch (e) {
@@ -2127,12 +2099,6 @@ class CariHesaplarVeritabaniServisi {
     if (kullanici != null) durumParams['kullanici'] = kullanici;
 
     // [GENEL TOPLAM] Diğer hiçbir filtre (durum, tür, işlem türü) yokken, sadece arama ve tarihe göre toplam
-    String toplamQuery =
-        '''
-      SELECT COUNT(*) FROM current_accounts 
-      ${baseConditions.isNotEmpty ? 'WHERE ${baseConditions.join(' AND ')}' : ''}
-    ''';
-
     String durumQuery =
         '''
       SELECT aktif_mi, COUNT(*) 
@@ -2261,15 +2227,22 @@ class CariHesaplarVeritabaniServisi {
       GROUP BY cat.user_name
     ''';
 
+    final totalFuture = HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'current_accounts',
+      whereConditions: baseConditions,
+      params: params,
+      unfilteredTable: 'current_accounts',
+    );
+
     final results = await Future.wait([
       _pool!.execute(Sql.named(durumQuery), parameters: durumParams),
       _pool!.execute(Sql.named(turQuery), parameters: turParams),
       _pool!.execute(Sql.named(islemTuruQuery), parameters: islemTuruParams),
       _pool!.execute(Sql.named(kullaniciQuery), parameters: kullaniciParams),
-      _pool!.execute(Sql.named(toplamQuery), parameters: params),
     ]);
 
-    int genelToplam = results[4].isEmpty ? 0 : (results[4].first[0] as int);
+    int genelToplam = await totalFuture;
 
     Map<String, int> durumlar = {};
     for (var row in results[0]) {

@@ -322,16 +322,7 @@ class UretimlerVeritabaniServisi {
     // 50 Milyon Veri İçin Performans İndeksleri
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'productions');
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'productions',
-        indexName: 'idx_productions_search_tags_fts_gin',
-      );
 
       // Üretimler tablosu için Trigram Indexler (Metin Arama)
       await _pool!.execute(
@@ -378,15 +369,6 @@ class UretimlerVeritabaniServisi {
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_productions_search_tags_gin ON productions USING GIN (search_tags gin_trgm_ops)',
       );
-
-      // BM25 indexler (Google-like search fast path)
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'productions',
-          indexName: 'idx_productions_search_tags_bm25',
-        );
-      } catch (_) {}
 
       // OTO-INDEKSLEME (TRIGGER)
       await _pool!.execute('''
@@ -711,30 +693,14 @@ class UretimlerVeritabaniServisi {
     // [2026 GOOGLE-LIKE] production_stock_movements search_tags + trigram index
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'production_stock_movements',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'production_stock_movements',
-        indexName: 'idx_psm_search_tags_fts_gin',
       );
 
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_psm_search_tags_gin ON production_stock_movements USING GIN (search_tags gin_trgm_ops)',
       );
-
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'production_stock_movements',
-          indexName: 'idx_production_stock_movements_search_tags_bm25',
-        );
-      } catch (_) {}
 
       await _pool!.execute('''
         CREATE OR REPLACE FUNCTION update_production_stock_movements_search_tags()
@@ -1266,37 +1232,6 @@ class UretimlerVeritabaniServisi {
       } catch (_) {}
     }
 
-    final String shipmentSearchMembership = '''
-      productions.kod IN (
-        SELECT DISTINCT item->>'code'
-        FROM shipments s
-        LEFT JOIN depots sw ON s.source_warehouse_id = sw.id
-        LEFT JOIN depots dw ON s.dest_warehouse_id = dw.id
-        CROSS JOIN LATERAL jsonb_array_elements(
-          COALESCE(s.items, '[]'::jsonb)
-        ) item
-        WHERE COALESCE(item->>'code', '') <> ''
-          AND (
-            COALESCE(s.description, '') ILIKE @search OR
-            COALESCE(s.created_by, '') ILIKE @search OR
-            COALESCE(sw.ad, '') ILIKE @search OR
-            COALESCE(dw.ad, '') ILIKE @search OR
-            TO_CHAR(s.date, 'DD.MM.YYYY HH24:MI') ILIKE @search OR
-            TO_CHAR(s.date, 'FMDD.FMMM.YYYY HH24:MI') ILIKE @search OR
-            COALESCE(item->>'quantity', '') ILIKE @search OR
-            COALESCE(item->>'unitCost', '') ILIKE @search OR
-            (CASE
-              WHEN s.source_warehouse_id IS NULL AND
-                  s.dest_warehouse_id IS NOT NULL THEN 'devir girdi'
-              WHEN s.source_warehouse_id IS NOT NULL AND
-                  s.dest_warehouse_id IS NULL THEN 'devir çıktı'
-              WHEN s.source_warehouse_id IS NOT NULL AND
-                  s.dest_warehouse_id IS NOT NULL THEN 'sevkiyat'
-              ELSE 'işlem'
-            END) ILIKE @search
-          )
-      )
-    ''';
     const String movementSearchMembership = '''
       productions.id IN (
         SELECT DISTINCT psm.production_id
@@ -1315,12 +1250,7 @@ class UretimlerVeritabaniServisi {
           , (CASE 
               WHEN (
                 (search_tags ILIKE @search) OR
-                ozellikler ILIKE @search OR
-                grubu ILIKE @search OR
-                barkod ILIKE @search OR
-                kullanici ILIKE @search OR
-                $movementSearchMembership OR
-                $shipmentSearchMembership
+                $movementSearchMembership
               )
               AND NOT (
                  kod ILIKE @search OR 
@@ -1342,14 +1272,7 @@ class UretimlerVeritabaniServisi {
       whereConditions.add('''
         (
             (search_tags ILIKE @search) OR
-            kod ILIKE @search OR
-            ad ILIKE @search OR
-            ozellikler ILIKE @search OR
-            grubu ILIKE @search OR
-            barkod ILIKE @search OR
-            kullanici ILIKE @search OR
-            $movementSearchMembership OR
-            $shipmentSearchMembership
+            $movementSearchMembership
         )
       ''');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
@@ -1380,23 +1303,20 @@ class UretimlerVeritabaniServisi {
       params['idArray'] = sadeceIdler;
     }
 
-    final bool useShipmentBasedMovementFilter =
+    if (baslangicTarihi != null ||
+        bitisTarihi != null ||
+        (depoIds != null && depoIds.isNotEmpty) ||
         (islemTuru != null && islemTuru.trim().isNotEmpty) ||
-        (kullanici != null && kullanici.trim().isNotEmpty);
-
-    if (useShipmentBasedMovementFilter) {
+        (kullanici != null && kullanici.trim().isNotEmpty)) {
       String existsQuery = '''
-        productions.kod IN (
-          SELECT DISTINCT item->>'code'
-          FROM shipments s
-          CROSS JOIN LATERAL jsonb_array_elements(
-            COALESCE(s.items, '[]'::jsonb)
-          ) item
-          WHERE COALESCE(item->>'code', '') <> ''
+        productions.id IN (
+          SELECT DISTINCT psm.production_id
+          FROM production_stock_movements psm
+          WHERE TRUE
       ''';
 
       if (baslangicTarihi != null) {
-        existsQuery += ' AND s.date >= @startDate';
+        existsQuery += ' AND psm.movement_date >= @startDate';
         params['startDate'] = baslangicTarihi.toIso8601String();
       }
 
@@ -1411,109 +1331,60 @@ class UretimlerVeritabaniServisi {
           59,
           999,
         );
-        existsQuery += ' AND s.date <= @endDate';
+        existsQuery += ' AND psm.movement_date <= @endDate';
         params['endDate'] = endOfDay.toIso8601String();
       }
 
       if (depoIds != null && depoIds.isNotEmpty) {
-        existsQuery +=
-            ' AND (s.source_warehouse_id = ANY(@depoIdArray) OR s.dest_warehouse_id = ANY(@depoIdArray))';
+        existsQuery += ' AND psm.warehouse_id = ANY(@depoIdArray)';
         params['depoIdArray'] = depoIds;
       }
 
       if (kullanici != null && kullanici.trim().isNotEmpty) {
-        existsQuery += ' AND COALESCE(s.created_by, \'\') = @shipmentUser';
-        params['shipmentUser'] = kullanici.trim();
+        existsQuery += ' AND COALESCE(psm.created_by, \'\') = @movementUser';
+        params['movementUser'] = kullanici.trim();
       }
 
       if (islemTuru != null && islemTuru.trim().isNotEmpty) {
         switch (islemTuru.trim()) {
           case 'Açılış Stoğu (Girdi)':
+          case 'Açılış Stoğu':
             existsQuery +=
-                " AND s.source_warehouse_id IS NULL AND s.dest_warehouse_id IS NOT NULL AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'opening_stock') OR COALESCE(s.description, '') ILIKE '%Açılış%')";
+                " AND psm.movement_type = 'giris' AND psm.search_tags ILIKE '%açılış%'";
             break;
           case 'Devir Girdi':
           case 'Devir (Girdi)':
-            existsQuery +=
-                " AND s.source_warehouse_id IS NULL AND s.dest_warehouse_id IS NOT NULL AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'opening_stock') OR COALESCE(s.description, '') ILIKE '%Açılış%') AND NOT EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.movement_type = 'uretim_giris') AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref LIKE 'PURCHASE-%') OR COALESCE(s.description, '') ILIKE 'Alış%' OR COALESCE(s.description, '') ILIKE 'Alis%')";
+            existsQuery += " AND psm.movement_type = 'devir_giris'";
             break;
           case 'Devir Çıktı':
           case 'Devir (Çıktı)':
-            existsQuery +=
-                " AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'production_output') OR COALESCE(s.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND (sm.integration_ref LIKE 'SALE-%' OR sm.integration_ref LIKE 'RETAIL-%')) OR COALESCE(s.description, '') ILIKE 'Satış%' OR COALESCE(s.description, '') ILIKE 'Satis%')";
+            existsQuery += " AND psm.movement_type = 'devir_cikis'";
             break;
           case 'Sevkiyat':
           case 'Transfer':
-            existsQuery +=
-                ' AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NOT NULL';
+            existsQuery += " AND psm.movement_type = 'sevkiyat'";
             break;
           case 'Satış Yapıldı':
           case 'Satış Faturası':
-            existsQuery +=
-                " AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND (sm.integration_ref LIKE 'SALE-%' OR sm.integration_ref LIKE 'RETAIL-%')) OR COALESCE(s.description, '') ILIKE 'Satış%' OR COALESCE(s.description, '') ILIKE 'Satis%')";
+            existsQuery += " AND psm.movement_type = 'satis_faturasi'";
             break;
           case 'Alış Yapıldı':
           case 'Alış Faturası':
-            existsQuery +=
-                " AND s.source_warehouse_id IS NULL AND s.dest_warehouse_id IS NOT NULL AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref LIKE 'PURCHASE-%') OR COALESCE(s.description, '') ILIKE 'Alış%' OR COALESCE(s.description, '') ILIKE 'Alis%')";
+            existsQuery += " AND psm.movement_type = 'alis_faturasi'";
             break;
           case 'Üretim Girişi':
           case 'Üretim (Girdi)':
-            existsQuery +=
-                " AND EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.movement_type = 'uretim_giris')";
+            existsQuery += " AND psm.movement_type = 'uretim_giris'";
             break;
           case 'Üretim Çıkışı':
           case 'Üretim (Çıktı)':
-            existsQuery +=
-                " AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'production_output') OR COALESCE(s.description, '') ILIKE '%Üretim (Çıktı)%')";
+            existsQuery += " AND psm.movement_type = 'uretim_cikis'";
             break;
         }
       }
 
       existsQuery += ')';
       whereConditions.add(existsQuery);
-    } else {
-      if (baslangicTarihi != null || bitisTarihi != null) {
-        String existsQuery = '''
-          productions.id IN (
-            SELECT DISTINCT psm.production_id
-            FROM production_stock_movements psm
-            WHERE TRUE
-        ''';
-
-        if (baslangicTarihi != null) {
-          existsQuery += ' AND psm.movement_date >= @startDate';
-          params['startDate'] = baslangicTarihi.toIso8601String();
-        }
-        if (bitisTarihi != null) {
-          final eDate = bitisTarihi;
-          final endOfDay = DateTime(
-            eDate.year,
-            eDate.month,
-            eDate.day,
-            23,
-            59,
-            59,
-            999,
-          );
-          existsQuery += ' AND psm.movement_date <= @endDate';
-          params['endDate'] = endOfDay.toIso8601String();
-        }
-
-        existsQuery += ')';
-        whereConditions.add(existsQuery);
-      }
-
-      if (depoIds != null && depoIds.isNotEmpty) {
-        whereConditions.add('''
-          productions.id IN (
-            SELECT DISTINCT psm_depo.production_id
-            FROM production_stock_movements psm_depo
-            WHERE psm_depo.warehouse_id = ANY(@depoIdArray)
-          )
-        ''');
-        params['depoIdArray'] = depoIds;
-      }
     }
 
     // [KEYSET FILTER]
@@ -1592,39 +1463,6 @@ class UretimlerVeritabaniServisi {
 
     Map<String, dynamic> params = {};
     List<String> whereConditions = [];
-    final String shipmentSearchMembership = '''
-      productions.kod IN (
-        SELECT DISTINCT item->>'code'
-        FROM shipments s
-        LEFT JOIN depots sw ON s.source_warehouse_id = sw.id
-        LEFT JOIN depots dw ON s.dest_warehouse_id = dw.id
-        CROSS JOIN LATERAL jsonb_array_elements(
-          COALESCE(s.items, '[]'::jsonb)
-        ) item
-        WHERE COALESCE(item->>'code', '') <> ''
-          AND (
-            COALESCE(s.description, '') ILIKE @search OR
-            COALESCE(s.created_by, '') ILIKE @search OR
-            COALESCE(sw.ad, '') ILIKE @search OR
-            COALESCE(dw.ad, '') ILIKE @search OR
-            TO_CHAR(s.date, 'DD.MM.YYYY HH24:MI') ILIKE @search OR
-            TO_CHAR(s.date, 'FMDD.FMMM.YYYY HH24:MI') ILIKE @search OR
-            TO_CHAR(s.date, 'DD.MM') ILIKE @search OR
-            TO_CHAR(s.date, 'HH24:MI') ILIKE @search OR
-            COALESCE(item->>'quantity', '') ILIKE @search OR
-            COALESCE(item->>'unitCost', '') ILIKE @search OR
-            (CASE
-              WHEN s.source_warehouse_id IS NULL AND
-                  s.dest_warehouse_id IS NOT NULL THEN 'devir girdi'
-              WHEN s.source_warehouse_id IS NOT NULL AND
-                  s.dest_warehouse_id IS NULL THEN 'devir çıktı'
-              WHEN s.source_warehouse_id IS NOT NULL AND
-                  s.dest_warehouse_id IS NOT NULL THEN 'sevkiyat'
-              ELSE 'işlem'
-            END) ILIKE @search
-          )
-      )
-    ''';
     const String movementSearchMembership = '''
       productions.id IN (
         SELECT DISTINCT psm.production_id
@@ -1656,14 +1494,7 @@ class UretimlerVeritabaniServisi {
       whereConditions.add('''
         (
           (search_tags ILIKE @search) OR
-          kod ILIKE @search OR
-          ad ILIKE @search OR
-          ozellikler ILIKE @search OR
-          grubu ILIKE @search OR
-          barkod ILIKE @search OR
-          kullanici ILIKE @search OR
-          $movementSearchMembership OR
-          $shipmentSearchMembership
+          $movementSearchMembership
         )
       ''');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
@@ -1689,23 +1520,20 @@ class UretimlerVeritabaniServisi {
       params['kdvOrani'] = kdvOrani;
     }
 
-    final bool useShipmentBasedMovementFilter =
+    if (baslangicTarihi != null ||
+        bitisTarihi != null ||
+        (depoIds != null && depoIds.isNotEmpty) ||
         (islemTuru != null && islemTuru.trim().isNotEmpty) ||
-        (kullanici != null && kullanici.trim().isNotEmpty);
-
-    if (useShipmentBasedMovementFilter) {
+        (kullanici != null && kullanici.trim().isNotEmpty)) {
       String existsQuery = '''
-        productions.kod IN (
-          SELECT DISTINCT item->>'code'
-          FROM shipments s
-          CROSS JOIN LATERAL jsonb_array_elements(
-            COALESCE(s.items, '[]'::jsonb)
-          ) item
-          WHERE COALESCE(item->>'code', '') <> ''
+        productions.id IN (
+          SELECT DISTINCT psm.production_id
+          FROM production_stock_movements psm
+          WHERE TRUE
       ''';
 
       if (baslangicTarihi != null) {
-        existsQuery += ' AND s.date >= @startDate';
+        existsQuery += ' AND psm.movement_date >= @startDate';
         params['startDate'] = baslangicTarihi.toIso8601String();
       }
 
@@ -1720,112 +1548,60 @@ class UretimlerVeritabaniServisi {
           59,
           999,
         );
-        existsQuery += ' AND s.date <= @endDate';
+        existsQuery += ' AND psm.movement_date <= @endDate';
         params['endDate'] = endOfDay.toIso8601String();
       }
 
       if (depoIds != null && depoIds.isNotEmpty) {
-        existsQuery +=
-            ' AND (s.source_warehouse_id = ANY(@depoIdArray) OR s.dest_warehouse_id = ANY(@depoIdArray))';
+        existsQuery += ' AND psm.warehouse_id = ANY(@depoIdArray)';
         params['depoIdArray'] = depoIds;
       }
 
       if (kullanici != null && kullanici.trim().isNotEmpty) {
-        existsQuery += ' AND COALESCE(s.created_by, \'\') = @shipmentUser';
-        params['shipmentUser'] = kullanici.trim();
+        existsQuery += ' AND COALESCE(psm.created_by, \'\') = @movementUser';
+        params['movementUser'] = kullanici.trim();
       }
 
       if (islemTuru != null && islemTuru.trim().isNotEmpty) {
         switch (islemTuru.trim()) {
           case 'Açılış Stoğu (Girdi)':
+          case 'Açılış Stoğu':
             existsQuery +=
-                " AND s.source_warehouse_id IS NULL AND s.dest_warehouse_id IS NOT NULL AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'opening_stock') OR COALESCE(s.description, '') ILIKE '%Açılış%')";
+                " AND psm.movement_type = 'giris' AND psm.search_tags ILIKE '%açılış%'";
             break;
           case 'Devir Girdi':
           case 'Devir (Girdi)':
-            existsQuery +=
-                " AND s.source_warehouse_id IS NULL AND s.dest_warehouse_id IS NOT NULL AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'opening_stock') OR COALESCE(s.description, '') ILIKE '%Açılış%') AND NOT EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.movement_type = 'uretim_giris') AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref LIKE 'PURCHASE-%') OR COALESCE(s.description, '') ILIKE 'Alış%' OR COALESCE(s.description, '') ILIKE 'Alis%')";
+            existsQuery += " AND psm.movement_type = 'devir_giris'";
             break;
           case 'Devir Çıktı':
           case 'Devir (Çıktı)':
-            existsQuery +=
-                " AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'production_output') OR COALESCE(s.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND (sm.integration_ref LIKE 'SALE-%' OR sm.integration_ref LIKE 'RETAIL-%')) OR COALESCE(s.description, '') ILIKE 'Satış%' OR COALESCE(s.description, '') ILIKE 'Satis%')";
+            existsQuery += " AND psm.movement_type = 'devir_cikis'";
             break;
           case 'Sevkiyat':
           case 'Transfer':
-            existsQuery +=
-                ' AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NOT NULL';
+            existsQuery += " AND psm.movement_type = 'sevkiyat'";
             break;
           case 'Satış Yapıldı':
           case 'Satış Faturası':
-            existsQuery +=
-                " AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND (sm.integration_ref LIKE 'SALE-%' OR sm.integration_ref LIKE 'RETAIL-%')) OR COALESCE(s.description, '') ILIKE 'Satış%' OR COALESCE(s.description, '') ILIKE 'Satis%')";
+            existsQuery += " AND psm.movement_type = 'satis_faturasi'";
             break;
           case 'Alış Yapıldı':
           case 'Alış Faturası':
-            existsQuery +=
-                " AND s.source_warehouse_id IS NULL AND s.dest_warehouse_id IS NOT NULL AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref LIKE 'PURCHASE-%') OR COALESCE(s.description, '') ILIKE 'Alış%' OR COALESCE(s.description, '') ILIKE 'Alis%')";
+            existsQuery += " AND psm.movement_type = 'alis_faturasi'";
             break;
           case 'Üretim Girişi':
           case 'Üretim (Girdi)':
-            existsQuery +=
-                " AND EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.movement_type = 'uretim_giris')";
+            existsQuery += " AND psm.movement_type = 'uretim_giris'";
             break;
           case 'Üretim Çıkışı':
           case 'Üretim (Çıktı)':
-            existsQuery +=
-                " AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'production_output') OR COALESCE(s.description, '') ILIKE '%Üretim (Çıktı)%')";
+            existsQuery += " AND psm.movement_type = 'uretim_cikis'";
             break;
         }
       }
 
       existsQuery += ')';
       whereConditions.add(existsQuery);
-    } else {
-      // Tarih Filtresi (Aynı mantık)
-      if (baslangicTarihi != null || bitisTarihi != null) {
-        String existsQuery = '''
-          productions.id IN (
-            SELECT DISTINCT psm.production_id
-            FROM production_stock_movements psm
-            WHERE TRUE
-        ''';
-
-        if (baslangicTarihi != null) {
-          existsQuery += ' AND psm.movement_date >= @startDate';
-          params['startDate'] = baslangicTarihi.toIso8601String();
-        }
-        if (bitisTarihi != null) {
-          // Count için end date inclusive
-          final eDate = bitisTarihi;
-          final endOfDay = DateTime(
-            eDate.year,
-            eDate.month,
-            eDate.day,
-            23,
-            59,
-            59,
-            999,
-          );
-          existsQuery += ' AND psm.movement_date <= @endDate';
-          params['endDate'] = endOfDay.toIso8601String();
-        }
-
-        existsQuery += ')';
-        whereConditions.add(existsQuery);
-      }
-
-      // Depo Filtresi (Count için de ekle)
-      if (depoIds != null && depoIds.isNotEmpty) {
-        whereConditions.add('''
-          productions.id IN (
-            SELECT DISTINCT psm_depo.production_id
-            FROM production_stock_movements psm_depo
-            WHERE psm_depo.warehouse_id = ANY(@depoIdArray)
-          )
-        ''');
-        params['depoIdArray'] = depoIds;
-      }
     }
 
     if (whereConditions.isNotEmpty) {
@@ -1955,35 +1731,35 @@ class UretimlerVeritabaniServisi {
       }
     }
 
-    String? buildShipmentTypeCondition(String? t) {
+    String? buildMovementTypeCondition(String? t) {
       final String? trimmedType = t?.trim();
       if (trimmedType == null || trimmedType.isEmpty) return null;
 
       switch (trimmedType) {
         case 'Açılış Stoğu (Girdi)':
         case 'Açılış Stoğu':
-          return "s.source_warehouse_id IS NULL AND s.dest_warehouse_id IS NOT NULL AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'opening_stock') OR COALESCE(s.description, '') ILIKE '%Açılış%')";
+          return "psm.movement_type = 'giris' AND psm.search_tags ILIKE '%açılış%'";
         case 'Devir Girdi':
         case 'Devir (Girdi)':
-          return "s.source_warehouse_id IS NULL AND s.dest_warehouse_id IS NOT NULL AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'opening_stock') OR COALESCE(s.description, '') ILIKE '%Açılış%') AND NOT EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.movement_type = 'uretim_giris') AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref LIKE 'PURCHASE-%') OR COALESCE(s.description, '') ILIKE 'Alış%' OR COALESCE(s.description, '') ILIKE 'Alis%')";
+          return "psm.movement_type = 'devir_giris'";
         case 'Devir Çıktı':
         case 'Devir (Çıktı)':
-          return "s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'production_output') OR COALESCE(s.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND (sm.integration_ref LIKE 'SALE-%' OR sm.integration_ref LIKE 'RETAIL-%')) OR COALESCE(s.description, '') ILIKE 'Satış%' OR COALESCE(s.description, '') ILIKE 'Satis%')";
+          return "psm.movement_type = 'devir_cikis'";
         case 'Sevkiyat':
         case 'Transfer':
-          return 's.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NOT NULL';
+          return "psm.movement_type = 'sevkiyat'";
         case 'Üretim Girişi':
         case 'Üretim (Girdi)':
-          return "EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.movement_type = 'uretim_giris')";
+          return "psm.movement_type = 'uretim_giris'";
         case 'Üretim Çıkışı':
         case 'Üretim (Çıktı)':
-          return "(EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref = 'production_output') OR COALESCE(s.description, '') ILIKE '%Üretim (Çıktı)%')";
+          return "psm.movement_type = 'uretim_cikis'";
         case 'Satış Yapıldı':
         case 'Satış Faturası':
-          return "s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND (sm.integration_ref LIKE 'SALE-%' OR sm.integration_ref LIKE 'RETAIL-%')) OR COALESCE(s.description, '') ILIKE 'Satış%' OR COALESCE(s.description, '') ILIKE 'Satis%')";
+          return "psm.movement_type = 'satis_faturasi'";
         case 'Alış Yapıldı':
         case 'Alış Faturası':
-          return "s.source_warehouse_id IS NULL AND s.dest_warehouse_id IS NOT NULL AND (EXISTS (SELECT 1 FROM stock_movements sm WHERE sm.shipment_id = s.id AND sm.integration_ref LIKE 'PURCHASE-%') OR COALESCE(s.description, '') ILIKE 'Alış%' OR COALESCE(s.description, '') ILIKE 'Alis%')";
+          return "psm.movement_type = 'alis_faturasi'";
       }
 
       return null;
@@ -1999,96 +1775,41 @@ class UretimlerVeritabaniServisi {
       String? type,
       String? user,
     }) {
-      if (useShipments) {
-        final String? trimmedUser = user?.trim();
-        final String? trimmedType = type?.trim();
+      final String? trimmedUser = user?.trim();
+      final String? trimmedType = type?.trim();
+      final psmConds = <String>[];
 
-        if (start == null &&
-            end == null &&
-            (depolar == null || depolar.isEmpty) &&
-            (trimmedUser == null || trimmedUser.isEmpty) &&
-            (trimmedType == null || trimmedType.isEmpty)) {
-          return;
-        }
-
-        final List<String> shipmentConds = [
-          's.items @> jsonb_build_array(jsonb_build_object(\'code\', productions.kod))',
-        ];
-
-        if (start != null) {
-          shipmentConds.add('s.date >= @startDate');
-          params['startDate'] = start.toIso8601String();
-        }
-
-        if (end != null) {
-          shipmentConds.add('s.date <= @endDate');
-          params['endDate'] = endOfDay(end)!.toIso8601String();
-        }
-
-        if (depolar != null && depolar.isNotEmpty) {
-          shipmentConds.add(
-            '(s.source_warehouse_id = ANY(@depoIdArray) OR s.dest_warehouse_id = ANY(@depoIdArray))',
-          );
-          params['depoIdArray'] = depolar;
-        }
-
-        if (trimmedUser != null && trimmedUser.isNotEmpty) {
-          shipmentConds.add("COALESCE(s.created_by, '') = @shipmentUser");
-          params['shipmentUser'] = trimmedUser;
-        }
-
-        if (trimmedType != null && trimmedType.isNotEmpty) {
-          final tc = buildShipmentTypeCondition(trimmedType);
-          if (tc != null && tc.isNotEmpty) {
-            shipmentConds.add(tc);
-          }
-        }
-
-        conds.add('''
-          productions.kod IN (
-            SELECT DISTINCT item->>'code'
-            FROM shipments s
-            CROSS JOIN LATERAL jsonb_array_elements(
-              COALESCE(s.items, '[]'::jsonb)
-            ) item
-            WHERE COALESCE(item->>'code', '') <> ''
-              AND ${shipmentConds.join(' AND ')}
-          )
-        ''');
-        return;
+      if (start != null) {
+        psmConds.add('psm.movement_date >= @startDate');
+        params['startDate'] = start.toIso8601String();
       }
-
-      // Tarih (production_stock_movements)
-      if (start != null || end != null) {
-        final List<String> psmConds = <String>[];
-        if (start != null) {
-          psmConds.add('psm.movement_date >= @startDate');
-          params['startDate'] = start.toIso8601String();
-        }
-        if (end != null) {
-          psmConds.add('psm.movement_date <= @endDate');
-          params['endDate'] = endOfDay(end)!.toIso8601String();
-        }
-        conds.add('''
-          productions.id IN (
-            SELECT DISTINCT psm.production_id
-            FROM production_stock_movements psm
-            WHERE ${psmConds.join(' AND ')}
-          )
-        ''');
+      if (end != null) {
+        psmConds.add('psm.movement_date <= @endDate');
+        params['endDate'] = endOfDay(end)!.toIso8601String();
       }
-
-      // Depo (production_stock_movements) - tarih filtresiyle bağımsız (mevcut davranış)
       if (depolar != null && depolar.isNotEmpty) {
-        conds.add('''
-          EXISTS (
-            SELECT 1 FROM production_stock_movements psm_depo
-            WHERE psm_depo.production_id = productions.id
-              AND psm_depo.warehouse_id = ANY(@depoIdArray)
-          )
-        ''');
+        psmConds.add('psm.warehouse_id = ANY(@depoIdArray)');
         params['depoIdArray'] = depolar;
       }
+      if (trimmedUser != null && trimmedUser.isNotEmpty) {
+        psmConds.add("COALESCE(psm.created_by, '') = @movementUser");
+        params['movementUser'] = trimmedUser;
+      }
+      if (trimmedType != null && trimmedType.isNotEmpty) {
+        final tc = buildMovementTypeCondition(trimmedType);
+        if (tc != null && tc.isNotEmpty) {
+          psmConds.add(tc);
+        }
+      }
+      if (psmConds.isEmpty) return;
+
+      conds.add('''
+        productions.id IN (
+          SELECT DISTINCT psm.production_id
+          FROM production_stock_movements psm
+          WHERE ${psmConds.join(' AND ')}
+        )
+      ''');
     }
 
     // [GENEL TOPLAM] Cari ile aynı mantık: sadece arama + tarih (diğer facetler hariç)
@@ -2224,108 +1945,44 @@ class UretimlerVeritabaniServisi {
 
     // 5) Depo facet
     final warehouseParams = <String, dynamic>{};
-    late final String warehouseQuery;
-    if (useShipmentBasedMovementFilter) {
-      final warehouseConds = <String>[];
-      addProductionConds(
-        warehouseConds,
-        warehouseParams,
-        q: aramaTerimi,
-        aktif: aktifMi,
-        g: grup,
-        u: birim,
-        vat: kdvOrani,
-      );
-
-      final shipmentConds = <String>[
-        's.items @> jsonb_build_array(jsonb_build_object(\'code\', productions.kod))',
-      ];
-
-      if (baslangicTarihi != null) {
-        shipmentConds.add('s.date >= @startDate');
-        warehouseParams['startDate'] = baslangicTarihi.toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        shipmentConds.add('s.date <= @endDate');
-        warehouseParams['endDate'] = endOfDay(bitisTarihi)!.toIso8601String();
-      }
-
-      final String? trimmedUser = kullanici?.trim();
-      if (trimmedUser != null && trimmedUser.isNotEmpty) {
-        shipmentConds.add("COALESCE(s.created_by, '') = @shipmentUser");
-        warehouseParams['shipmentUser'] = trimmedUser;
-      }
-
-      final String? trimmedType = islemTuru?.trim();
-      if (trimmedType != null && trimmedType.isNotEmpty) {
-        final tc = buildShipmentTypeCondition(trimmedType);
-        if (tc != null && tc.isNotEmpty) shipmentConds.add(tc);
-      }
-
-      final String whereProd = warehouseConds.isEmpty
-          ? ''
-          : 'AND ${warehouseConds.join(' AND ')}';
-      final String whereShip = shipmentConds.join(' AND ');
-
-      warehouseQuery =
-          '''
-        SELECT warehouse_id, COUNT(DISTINCT production_id) FROM (
-          SELECT s.source_warehouse_id as warehouse_id, productions.id as production_id
-          FROM productions
-          JOIN shipments s ON s.items @> jsonb_build_array(jsonb_build_object('code', productions.kod))
-          WHERE s.source_warehouse_id IS NOT NULL
-          $whereProd
-          AND $whereShip
-          UNION ALL
-          SELECT s.dest_warehouse_id as warehouse_id, productions.id as production_id
-          FROM productions
-          JOIN shipments s ON s.items @> jsonb_build_array(jsonb_build_object('code', productions.kod))
-          WHERE s.dest_warehouse_id IS NOT NULL
-          $whereProd
-          AND $whereShip
-        ) t
-        GROUP BY warehouse_id
-      ''';
-    } else {
-      final warehouseConds = <String>[];
-      addProductionConds(
-        warehouseConds,
-        warehouseParams,
-        q: aramaTerimi,
-        aktif: aktifMi,
-        g: grup,
-        u: birim,
-        vat: kdvOrani,
-      );
-
-      if (baslangicTarihi != null || bitisTarihi != null) {
-        final psmConds = <String>[];
-        if (baslangicTarihi != null) {
-          psmConds.add('psm.movement_date >= @startDate');
-          warehouseParams['startDate'] = baslangicTarihi.toIso8601String();
-        }
-        if (bitisTarihi != null) {
-          psmConds.add('psm.movement_date <= @endDate');
-          warehouseParams['endDate'] = endOfDay(bitisTarihi)!.toIso8601String();
-        }
-        warehouseConds.add('''
-          productions.id IN (
-            SELECT DISTINCT psm.production_id
-            FROM production_stock_movements psm
-            WHERE ${psmConds.join(' AND ')}
-          )
-        ''');
-      }
-
-      warehouseQuery =
-          '''
-        SELECT psm_depo.warehouse_id, COUNT(DISTINCT productions.id)
-        FROM productions
-        JOIN production_stock_movements psm_depo ON psm_depo.production_id = productions.id
-        ${warehouseConds.isNotEmpty ? 'WHERE ${warehouseConds.join(' AND ')}' : ''}
-        GROUP BY psm_depo.warehouse_id
-      ''';
+    final warehouseConds = <String>[];
+    addProductionConds(
+      warehouseConds,
+      warehouseParams,
+      q: aramaTerimi,
+      aktif: aktifMi,
+      g: grup,
+      u: birim,
+      vat: kdvOrani,
+    );
+    final warehouseMovementConds = <String>['psm.warehouse_id IS NOT NULL'];
+    if (baslangicTarihi != null) {
+      warehouseMovementConds.add('psm.movement_date >= @startDate');
+      warehouseParams['startDate'] = baslangicTarihi.toIso8601String();
     }
+    if (bitisTarihi != null) {
+      warehouseMovementConds.add('psm.movement_date <= @endDate');
+      warehouseParams['endDate'] = endOfDay(bitisTarihi)!.toIso8601String();
+    }
+    final String? trimmedWarehouseUser = kullanici?.trim();
+    if (trimmedWarehouseUser != null && trimmedWarehouseUser.isNotEmpty) {
+      warehouseMovementConds.add("COALESCE(psm.created_by, '') = @movementUser");
+      warehouseParams['movementUser'] = trimmedWarehouseUser;
+    }
+    final String? trimmedWarehouseType = islemTuru?.trim();
+    if (trimmedWarehouseType != null && trimmedWarehouseType.isNotEmpty) {
+      final tc = buildMovementTypeCondition(trimmedWarehouseType);
+      if (tc != null && tc.isNotEmpty) warehouseMovementConds.add(tc);
+    }
+    final warehouseQuery =
+        '''
+      SELECT psm.warehouse_id, COUNT(DISTINCT productions.id)
+      FROM productions
+      JOIN production_stock_movements psm ON psm.production_id = productions.id
+      WHERE ${warehouseMovementConds.join(' AND ')}
+      ${warehouseConds.isEmpty ? '' : 'AND ${warehouseConds.join(' AND ')}'}
+      GROUP BY psm.warehouse_id
+    ''';
 
     // 6) Kullanıcı facet (shipments.created_by) - seçili kullanıcı hariç
     final userParams = <String, dynamic>{};
@@ -2340,40 +1997,37 @@ class UretimlerVeritabaniServisi {
       vat: kdvOrani,
     );
 
-    // Kullanıcı facet her zaman shipments üzerinden çalışır (kullanıcı seçimi shipments'e ait)
-    final shipmentUserConds = <String>[
-      's.items @> jsonb_build_array(jsonb_build_object(\'code\', productions.kod))',
-    ];
+    final shipmentUserConds = <String>[];
     if (baslangicTarihi != null) {
-      shipmentUserConds.add('s.date >= @startDate');
+      shipmentUserConds.add('psm.movement_date >= @startDate');
       userParams['startDate'] = baslangicTarihi.toIso8601String();
     }
     if (bitisTarihi != null) {
-      shipmentUserConds.add('s.date <= @endDate');
+      shipmentUserConds.add('psm.movement_date <= @endDate');
       userParams['endDate'] = endOfDay(bitisTarihi)!.toIso8601String();
     }
     if (depoIds != null && depoIds.isNotEmpty) {
-      shipmentUserConds.add(
-        '(s.source_warehouse_id = ANY(@depoIdArray) OR s.dest_warehouse_id = ANY(@depoIdArray))',
-      );
+      shipmentUserConds.add('psm.warehouse_id = ANY(@depoIdArray)');
       userParams['depoIdArray'] = depoIds;
     }
     final String? trimmedSelectedType = islemTuru?.trim();
     if (trimmedSelectedType != null && trimmedSelectedType.isNotEmpty) {
-      final tc = buildShipmentTypeCondition(trimmedSelectedType);
+      final tc = buildMovementTypeCondition(trimmedSelectedType);
       if (tc != null && tc.isNotEmpty) shipmentUserConds.add(tc);
     }
 
     final String whereUserProd = userConds.isEmpty
         ? ''
         : 'AND ${userConds.join(' AND ')}';
-    final String whereUserShip = shipmentUserConds.join(' AND ');
+    final String whereUserShip = shipmentUserConds.isEmpty
+        ? 'TRUE'
+        : shipmentUserConds.join(' AND ');
 
     final userQuery =
         '''
-      SELECT COALESCE(s.created_by, '') as kullanici, COUNT(DISTINCT productions.id)
+      SELECT COALESCE(psm.created_by, '') as kullanici, COUNT(DISTINCT productions.id)
       FROM productions
-      JOIN shipments s ON s.items @> jsonb_build_array(jsonb_build_object('code', productions.kod))
+      JOIN production_stock_movements psm ON psm.production_id = productions.id
       WHERE $whereUserShip
       $whereUserProd
       GROUP BY 1
@@ -2393,48 +2047,42 @@ class UretimlerVeritabaniServisi {
         vat: kdvOrani,
       );
 
-      final List<String> shipConds = [
-        's.items @> jsonb_build_array(jsonb_build_object(\'code\', productions.kod))',
-      ];
+      final List<String> shipConds = <String>[];
       if (baslangicTarihi != null) {
-        shipConds.add('s.date >= @startDate');
+        shipConds.add('psm.movement_date >= @startDate');
         typeParams['startDate'] = baslangicTarihi.toIso8601String();
       }
       if (bitisTarihi != null) {
-        shipConds.add('s.date <= @endDate');
+        shipConds.add('psm.movement_date <= @endDate');
         typeParams['endDate'] = endOfDay(bitisTarihi)!.toIso8601String();
       }
       if (depoIds != null && depoIds.isNotEmpty) {
-        shipConds.add(
-          '(s.source_warehouse_id = ANY(@depoIdArray) OR s.dest_warehouse_id = ANY(@depoIdArray))',
-        );
+        shipConds.add('psm.warehouse_id = ANY(@depoIdArray)');
         typeParams['depoIdArray'] = depoIds;
       }
       final String? trimmedUser = kullanici?.trim();
       if (trimmedUser != null && trimmedUser.isNotEmpty) {
-        shipConds.add("COALESCE(s.created_by, '') = @shipmentUser");
-        typeParams['shipmentUser'] = trimmedUser;
+        shipConds.add("COALESCE(psm.created_by, '') = @movementUser");
+        typeParams['movementUser'] = trimmedUser;
       }
-      final tc = buildShipmentTypeCondition(t);
+      final tc = buildMovementTypeCondition(t);
       if (tc != null && tc.isNotEmpty) shipConds.add(tc);
 
-      final String whereShip = shipConds.join(' AND ');
-
       typeConds.add('''
-        EXISTS (
-          SELECT 1 FROM shipments s
-          WHERE $whereShip
+        productions.id IN (
+          SELECT DISTINCT psm.production_id
+          FROM production_stock_movements psm
+          WHERE ${shipConds.isEmpty ? 'TRUE' : shipConds.join(' AND ')}
         )
       ''');
 
-      final res = await _pool!.execute(
-        Sql.named('''
-          SELECT COUNT(*) FROM productions
-          ${buildWhere(typeConds)}
-        '''),
-        parameters: typeParams,
+      return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+        _pool!,
+        fromClause: 'productions',
+        whereConditions: typeConds,
+        params: typeParams,
+        unfilteredTable: 'productions',
       );
-      return res.isEmpty ? 0 : (res.first[0] as int);
     }
 
     try {
@@ -2742,10 +2390,11 @@ class UretimlerVeritabaniServisi {
         toplamKayit = (estimateResult[0][0] as int);
       }
     } catch (_) {
-      final countResult = await _pool!.execute(
-        'SELECT COUNT(*) FROM productions',
+      toplamKayit = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+        _pool!,
+        fromClause: 'productions',
+        unfilteredTable: 'productions',
       );
-      toplamKayit = countResult[0][0] as int;
     }
 
     if (toplamKayit == 0) return;
@@ -2843,13 +2492,13 @@ class UretimlerVeritabaniServisi {
 
     // Metadata'da kayıt yoksa klasik COUNT(*) ile devam et
     if (toplamKayit == 0) {
-      final countResult = await _pool!.execute(
-        Sql.named(
-          'SELECT COUNT(*) FROM productions WHERE kdv_orani = @eskiKdv',
-        ),
-        parameters: {'eskiKdv': eskiKdv},
+      toplamKayit = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+        _pool!,
+        fromClause: 'productions',
+        whereConditions: const <String>['kdv_orani = @eskiKdv'],
+        params: {'eskiKdv': eskiKdv},
+        unfilteredTable: 'productions',
       );
-      toplamKayit = countResult[0][0] as int;
     }
 
     if (toplamKayit == 0) {

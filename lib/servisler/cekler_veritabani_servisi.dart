@@ -360,24 +360,10 @@ class CeklerVeritabaniServisi {
     // 1 Milyar Kayıt İçin Performans İndeksleri (GIN Trigram)
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'cheques');
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'cheque_transactions',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'cheques',
-        indexName: 'idx_cheques_search_tags_fts_gin',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'cheque_transactions',
-        indexName: 'idx_cheque_transactions_search_tags_fts_gin',
       );
 
       // Çekler için arama indeksleri
@@ -425,20 +411,6 @@ class CeklerVeritabaniServisi {
       } catch (e) {
         debugPrint('BRIN index error: $e');
       }
-
-      // BM25 indexler (Google-like search fast path)
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'cheques',
-          indexName: 'idx_cheques_search_tags_bm25',
-        );
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'cheque_transactions',
-          indexName: 'idx_cheque_transactions_search_tags_bm25',
-        );
-      } catch (_) {}
 
       debugPrint(
         '🚀 Çekler Performans Modu: İndeksler başarıyla yapılandırıldı.',

@@ -880,10 +880,6 @@ class KrediKartlariVeritabaniServisi {
 
           // İndeksler
           await PgEklentiler.ensurePgTrgm(_pool!);
-          // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-          try {
-            await PgEklentiler.ensurePgSearch(_pool!);
-          } catch (_) {}
           await PgEklentiler.ensureSearchTagsNotNullDefault(
             _pool!,
             'credit_cards',
@@ -891,16 +887,6 @@ class KrediKartlariVeritabaniServisi {
           await PgEklentiler.ensureSearchTagsNotNullDefault(
             _pool!,
             'credit_card_transactions',
-          );
-          await PgEklentiler.ensureSearchTagsFtsIndex(
-            _pool!,
-            table: 'credit_cards',
-            indexName: 'idx_credit_cards_search_tags_fts_gin',
-          );
-          await PgEklentiler.ensureSearchTagsFtsIndex(
-            _pool!,
-            table: 'credit_card_transactions',
-            indexName: 'idx_cct_search_tags_fts_gin',
           );
           await _pool!.execute(
             'CREATE INDEX IF NOT EXISTS idx_credit_cards_search_tags_gin ON credit_cards USING GIN (search_tags gin_trgm_ops)',
@@ -923,20 +909,6 @@ class KrediKartlariVeritabaniServisi {
           await _pool!.execute(
             'CREATE INDEX IF NOT EXISTS idx_cct_created_at ON credit_card_transactions (created_at)',
           );
-
-          // BM25 indexler (Google-like search fast path)
-          try {
-            await PgEklentiler.ensureBm25Index(
-              _pool!,
-              table: 'credit_cards',
-              indexName: 'idx_credit_cards_search_tags_bm25',
-            );
-            await PgEklentiler.ensureBm25Index(
-              _pool!,
-              table: 'credit_card_transactions',
-              indexName: 'idx_credit_card_transactions_search_tags_bm25',
-            );
-          } catch (_) {}
 
           // Trigger
           await _pool!.execute('''
@@ -1840,14 +1812,15 @@ class KrediKartlariVeritabaniServisi {
       }
     }
 
+    final totalFuture = HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'credit_cards',
+      whereConditions: baseConditions,
+      params: params,
+      unfilteredTable: 'credit_cards',
+    );
+
     final results = await Future.wait([
-      // Toplam
-      _pool!.execute(
-        Sql.named(
-          'SELECT COUNT(*) FROM credit_cards ${baseConditions.isNotEmpty ? 'WHERE ${baseConditions.join(' AND ')}' : ''}',
-        ),
-        parameters: params,
-      ),
       // Durumlar
       _pool!.execute(
         Sql.named(buildQuery('is_active, COUNT(*)', durumConds)),
@@ -1891,30 +1864,30 @@ class KrediKartlariVeritabaniServisi {
     ]);
 
     Map<String, Map<String, int>> stats = {
-      'ozet': {'toplam': results[0][0][0] as int},
+      'ozet': {'toplam': await totalFuture},
       'durumlar': {},
       'varsayilanlar': {},
       'islem_turleri': {},
       'kullanicilar': {},
     };
 
-    for (final row in results[1]) {
+    for (final row in results[0]) {
       final key = (row[0] as int) == 1 ? 'active' : 'passive';
       stats['durumlar']![key] = row[1] as int;
     }
 
-    for (final row in results[2]) {
+    for (final row in results[1]) {
       final key = (row[0] as int) == 1 ? 'default' : 'regular';
       stats['varsayilanlar']![key] = row[1] as int;
     }
 
-    for (final row in results[3]) {
+    for (final row in results[2]) {
       if (row[0] != null) {
         stats['islem_turleri']![row[0] as String] = row[1] as int;
       }
     }
 
-    for (final row in results[4]) {
+    for (final row in results[3]) {
       if (row[0] != null) {
         stats['kullanicilar']![row[0] as String] = row[1] as int;
       }

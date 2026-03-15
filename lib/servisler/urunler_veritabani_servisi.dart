@@ -480,29 +480,13 @@ class UrunlerVeritabaniServisi {
     // [2026 GOOGLE-LIKE] product_devices search_tags (indexed deep search)
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'product_devices',
       );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'product_devices',
-        indexName: 'idx_pd_search_tags_fts_gin',
-      );
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_pd_search_tags_gin ON product_devices USING GIN (search_tags gin_trgm_ops)',
       );
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'product_devices',
-          indexName: 'idx_product_devices_search_tags_bm25',
-        );
-      } catch (_) {}
 
       // normalize_text yoksa trigger kurulumları patlar; burada best-effort garanti ediyoruz.
       await _pool!.execute('''
@@ -1101,24 +1085,10 @@ class UrunlerVeritabaniServisi {
     // Not: Bu blok yalnızca şema kurulurken çalışır, mevcut indekslere zarar vermez.
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'products');
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'stock_movements',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'products',
-        indexName: 'idx_products_search_tags_fts_gin',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'stock_movements',
-        indexName: 'idx_sm_search_tags_fts_gin',
       );
 
       // Metin aramaları için trigram indeksleri
@@ -1163,20 +1133,6 @@ class UrunlerVeritabaniServisi {
       );
 
       debugPrint('🚀 Ürünler Performans Modu: GIN ve B-Tree indeksleri hazır.');
-
-      // BM25 indexler (Google-like search fast path)
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'products',
-          indexName: 'idx_products_search_tags_bm25',
-        );
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'stock_movements',
-          indexName: 'idx_stock_movements_search_tags_bm25',
-        );
-      } catch (_) {}
 
       // [2025 HYPERSCALE] BRIN Index for 10B rows
       await _executeCreateIndexSafe('''
@@ -1645,15 +1601,10 @@ class UrunlerVeritabaniServisi {
         bitisTarihi != null ||
         islemTuru != null ||
         kullanici != null) {
-      final bool needsShipmentJoin = islemTuru == 'Devir Çıktı';
       String existsQuery = '''
         products.id IN (
           SELECT DISTINCT sm.product_id FROM stock_movements sm
       ''';
-
-      if (needsShipmentJoin) {
-        existsQuery += ' JOIN shipments s ON s.id = sm.shipment_id';
-      }
 
       existsQuery += ' WHERE TRUE';
 
@@ -1693,7 +1644,7 @@ class UrunlerVeritabaniServisi {
             break;
           case 'Devir Çıktı':
             existsQuery +=
-                " AND sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL";
+                " AND sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND sm.shipment_id IN (SELECT s.id FROM shipments s WHERE s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL)";
             break;
           case 'Sevkiyat':
             existsQuery += " AND sm.movement_type = 'transfer_giris'";
@@ -1939,15 +1890,10 @@ class UrunlerVeritabaniServisi {
         bitisTarihi != null ||
         islemTuru != null ||
         kullanici != null) {
-      final bool needsShipmentJoin = islemTuru == 'Devir Çıktı';
       String existsQuery = '''
         products.id IN (
           SELECT DISTINCT sm.product_id FROM stock_movements sm
       ''';
-
-      if (needsShipmentJoin) {
-        existsQuery += ' JOIN shipments s ON s.id = sm.shipment_id';
-      }
 
       existsQuery += ' WHERE TRUE';
 
@@ -1977,7 +1923,7 @@ class UrunlerVeritabaniServisi {
             break;
           case 'Devir Çıktı':
             existsQuery +=
-                " AND sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL";
+                " AND sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND sm.shipment_id IN (SELECT s.id FROM shipments s WHERE s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL)";
             break;
           case 'Sevkiyat':
             existsQuery += " AND sm.movement_type = 'transfer_giris'";
@@ -2179,17 +2125,14 @@ class UrunlerVeritabaniServisi {
       }
     }
 
-    String? buildMovementTypeCondition({
-      required String type,
-      required bool includeShipmentConstraint,
-    }) {
+    String? buildMovementTypeCondition({required String type}) {
       switch (type) {
         case 'Açılış Stoğu (Girdi)':
           return "sm.movement_type = 'giris' AND (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%')";
         case 'Devir Girdi':
           return "sm.movement_type = 'giris' AND NOT (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%') AND NOT (COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%' OR sm.movement_type = 'Alış Faturası' OR COALESCE(sm.description, '') ILIKE 'Alış%' OR COALESCE(sm.description, '') ILIKE 'Alis%')";
         case 'Devir Çıktı':
-          return "sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%')${includeShipmentConstraint ? ' AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL' : ''}";
+          return "sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND sm.shipment_id IN (SELECT s.id FROM shipments s WHERE s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL)";
         case 'Sevkiyat':
           return "sm.movement_type = 'transfer_giris'";
         case 'Üretim Girişi':
@@ -2223,8 +2166,6 @@ class UrunlerVeritabaniServisi {
         return '';
       }
 
-      final bool needsShipmentJoin = trimmedType == 'Devir Çıktı';
-
       final List<String> movementConds = <String>[];
 
       if (start != null) {
@@ -2242,10 +2183,7 @@ class UrunlerVeritabaniServisi {
       }
 
       if (trimmedType != null && trimmedType.isNotEmpty) {
-        final typeCond = buildMovementTypeCondition(
-          type: trimmedType,
-          includeShipmentConstraint: needsShipmentJoin,
-        );
+        final typeCond = buildMovementTypeCondition(type: trimmedType);
         if (typeCond != null && typeCond.isNotEmpty) {
           movementConds.add(typeCond);
         }
@@ -2254,7 +2192,6 @@ class UrunlerVeritabaniServisi {
       return '''
         products.id IN (
           SELECT DISTINCT sm.product_id FROM stock_movements sm
-          ${needsShipmentJoin ? 'JOIN shipments s ON s.id = sm.shipment_id' : ''}
           WHERE ${movementConds.join(' AND ')}
         )
       ''';
@@ -2460,7 +2397,6 @@ class UrunlerVeritabaniServisi {
       depolar: depoIds,
     );
     final String? trimmedSelectedType = islemTuru?.trim();
-    final bool userNeedsShipmentJoin = trimmedSelectedType == 'Devir Çıktı';
     final List<String> userMovementConds = ['sm.product_id = products.id'];
 
     if (baslangicTarihi != null) {
@@ -2473,10 +2409,7 @@ class UrunlerVeritabaniServisi {
     }
 
     if (trimmedSelectedType != null && trimmedSelectedType.isNotEmpty) {
-      final typeCond = buildMovementTypeCondition(
-        type: trimmedSelectedType,
-        includeShipmentConstraint: userNeedsShipmentJoin,
-      );
+      final typeCond = buildMovementTypeCondition(type: trimmedSelectedType);
       if (typeCond != null && typeCond.isNotEmpty) {
         userMovementConds.add(typeCond);
       }
@@ -2487,7 +2420,6 @@ class UrunlerVeritabaniServisi {
       SELECT COALESCE(sm.created_by, '') as kullanici, COUNT(DISTINCT products.id)
       FROM products
       JOIN stock_movements sm ON sm.product_id = products.id
-      ${userNeedsShipmentJoin ? 'JOIN shipments s ON s.id = sm.shipment_id' : ''}
       ${buildWhere(userProductConds)}
       ${userProductConds.isNotEmpty ? 'AND' : 'WHERE'} ${userMovementConds.join(' AND ')}
       GROUP BY 1
@@ -2659,15 +2591,10 @@ class UrunlerVeritabaniServisi {
         bitisTarihi != null ||
         islemTuru != null ||
         kullanici != null) {
-      final bool needsShipmentJoin = islemTuru == 'Devir Çıktı';
       String existsQuery = '''
           products.id IN (
             SELECT DISTINCT sm.product_id FROM stock_movements sm
         ''';
-
-      if (needsShipmentJoin) {
-        existsQuery += ' JOIN shipments s ON s.id = sm.shipment_id';
-      }
 
       existsQuery += ' WHERE TRUE';
 
@@ -2697,7 +2624,7 @@ class UrunlerVeritabaniServisi {
             break;
           case 'Devir Çıktı':
             existsQuery +=
-                " AND sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL";
+                " AND sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND sm.shipment_id IN (SELECT s.id FROM shipments s WHERE s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL)";
             break;
           case 'Sevkiyat':
             existsQuery += " AND sm.movement_type = 'transfer_giris'";
@@ -3146,8 +3073,11 @@ class UrunlerVeritabaniServisi {
       }
     } catch (_) {
       // Fallback: Count (Sadece estimate başarısızsa)
-      final countResult = await _pool!.execute('SELECT COUNT(*) FROM products');
-      toplamKayit = countResult[0][0] as int;
+      toplamKayit = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+        _pool!,
+        fromClause: 'products',
+        unfilteredTable: 'products',
+      );
     }
 
     if (toplamKayit == 0) return;
@@ -3253,11 +3183,13 @@ class UrunlerVeritabaniServisi {
 
     // Metadata'da kayıt yoksa klasik COUNT(*) ile devam et
     if (toplamKayit == 0) {
-      final countResult = await _pool!.execute(
-        Sql.named('SELECT COUNT(*) FROM products WHERE kdv_orani = @eskiKdv'),
-        parameters: {'eskiKdv': eskiKdv},
+      toplamKayit = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+        _pool!,
+        fromClause: 'products',
+        whereConditions: const <String>['kdv_orani = @eskiKdv'],
+        params: {'eskiKdv': eskiKdv},
+        unfilteredTable: 'products',
       );
-      toplamKayit = countResult[0][0] as int;
     }
 
     if (toplamKayit == 0) {

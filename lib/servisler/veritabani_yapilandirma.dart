@@ -140,12 +140,6 @@ class VeritabaniYapilandirma {
     return v == '1' || v == 'true' || v == 'yes' || v == 'on';
   }
 
-  /// pg_search gibi opsiyonel PostgreSQL extension'ları sadece açık izin varsa kur.
-  /// Varsayılan kapalıdır; saf PostgreSQL (B-Tree/GIN/BRIN/partition/keyset) akışı esastır.
-  bool get allowPgSearchExtension {
-    return false;
-  }
-
   /// Citus yalnızca explicit satış/kurulum senaryosunda opt-in olmalıdır.
   /// Varsayılan kapalıdır.
   bool get allowCitusExtension {

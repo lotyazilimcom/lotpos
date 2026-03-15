@@ -2,7 +2,6 @@
 ///
 /// Omurga:
 /// - `pg_trgm` + `search_tags` GIN trigram
-/// - `search_tags` FTS GIN
 /// - Büyük tarih akışları için BRIN
 /// - Keyset/cursor sıraları için temel composite index'ler
 class BuyukOlcekAramaBootstrapSpec {

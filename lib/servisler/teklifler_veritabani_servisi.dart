@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../sayfalar/siparisler_teklifler/modeller/teklif_model.dart';
 import '../yardimcilar/format_yardimcisi.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'pg_eklentiler.dart';
@@ -385,21 +386,8 @@ class TekliflerVeritabaniServisi {
     // İndeksler
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'quotes');
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'quote_items');
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'quotes',
-        indexName: 'idx_quotes_search_tags_fts_gin',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'quote_items',
-        indexName: 'idx_quote_items_search_tags_fts_gin',
-      );
       // Partitioned tablolarda unique index partition key içermelidir.
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_quotes_tarih ON quotes(tarih DESC)',
@@ -419,18 +407,6 @@ class TekliflerVeritabaniServisi {
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_quote_items_search_tags_gin ON quote_items USING GIN (search_tags gin_trgm_ops)',
       );
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'quotes',
-          indexName: 'idx_quotes_search_tags_bm25',
-        );
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'quote_items',
-          indexName: 'idx_quote_items_search_tags_bm25',
-        );
-      } catch (_) {}
     } catch (e) {
       debugPrint('Teklif indeksleme uyarısı: $e');
     }
@@ -441,21 +417,8 @@ class TekliflerVeritabaniServisi {
     if (pool == null || !pool.isOpen) return;
     try {
       await PgEklentiler.ensurePgTrgm(pool);
-      try {
-        await PgEklentiler.ensurePgSearch(pool);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(pool, 'quotes');
       await PgEklentiler.ensureSearchTagsNotNullDefault(pool, 'quote_items');
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        pool,
-        table: 'quotes',
-        indexName: 'idx_quotes_search_tags_fts_gin',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        pool,
-        table: 'quote_items',
-        indexName: 'idx_quote_items_search_tags_fts_gin',
-      );
       await pool.execute(
         'CREATE INDEX IF NOT EXISTS idx_quotes_tarih ON quotes(tarih DESC)',
       );
@@ -471,18 +434,6 @@ class TekliflerVeritabaniServisi {
       await pool.execute(
         'CREATE INDEX IF NOT EXISTS idx_quote_items_search_tags_gin ON quote_items USING GIN (search_tags gin_trgm_ops)',
       );
-      try {
-        await PgEklentiler.ensureBm25Index(
-          pool,
-          table: 'quotes',
-          indexName: 'idx_quotes_search_tags_bm25',
-        );
-        await PgEklentiler.ensureBm25Index(
-          pool,
-          table: 'quote_items',
-          indexName: 'idx_quote_items_search_tags_bm25',
-        );
-      } catch (_) {}
     } catch (e) {
       debugPrint('Teklifler kritik indeks garantisi uyarısı: $e');
     }
@@ -543,13 +494,6 @@ class TekliflerVeritabaniServisi {
       childIndexName: 'idx_${partitionTable}_search_tags_gin',
       createChildSql:
           'CREATE INDEX IF NOT EXISTS idx_${partitionTable}_search_tags_gin ON $partitionTable USING GIN (search_tags gin_trgm_ops)',
-    );
-    await _partitionIndexiniGarantiEt(
-      parentIndex: 'idx_quotes_search_tags_fts_gin',
-      partitionTable: partitionTable,
-      childIndexName: 'idx_${partitionTable}_search_tags_fts_gin',
-      createChildSql:
-          "CREATE INDEX IF NOT EXISTS idx_${partitionTable}_search_tags_fts_gin ON $partitionTable USING GIN (to_tsvector('simple', search_tags))",
     );
   }
 
@@ -1613,12 +1557,13 @@ class TekliflerVeritabaniServisi {
       debugPrint('quotes count estimate failed: $e');
     }
 
-    final result = await _pool!.execute(
-      Sql.named('SELECT COUNT(*) FROM quotes $whereClause'),
-      parameters: params,
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'quotes',
+      whereConditions: whereConditions,
+      params: params,
+      unfilteredTable: 'quotes',
     );
-
-    return _toInt(result.first[0]) ?? 0;
   }
 
   /// [2026 HYPER-SPEED] Dinamik filtre seçeneklerini ve sayıları getirir.
@@ -1871,10 +1816,13 @@ class TekliflerVeritabaniServisi {
       existsQuery += ' GROUP BY qi.quote_id)';
       totalConds.add(existsQuery);
     }
-    final totalWhere = totalConds.isEmpty
-        ? ''
-        : 'WHERE ${totalConds.join(' AND ')}';
-    final totalQuery = 'SELECT COUNT(*) FROM quotes $totalWhere';
+    final totalFuture = HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'quotes',
+      whereConditions: totalConds,
+      params: totalParams,
+      unfilteredTable: 'quotes',
+    );
 
     final depotQuery =
         '''
@@ -1901,7 +1849,6 @@ class TekliflerVeritabaniServisi {
     ''';
 
     final results = await Future.wait([
-      _pool!.execute(Sql.named(totalQuery), parameters: totalParams),
       _pool!.execute(
         Sql.named(buildQuoteCappedGroupQuery('durum, COUNT(*)', statusConds)),
         parameters: statusParams,
@@ -1928,7 +1875,7 @@ class TekliflerVeritabaniServisi {
     ]);
 
     Map<String, Map<String, int>> stats = {
-      'ozet': {'toplam': _toInt(results[0][0][0]) ?? 0},
+      'ozet': {'toplam': await totalFuture},
       'durumlar': {},
       'turler': {},
       'depolar': {},
@@ -1937,41 +1884,41 @@ class TekliflerVeritabaniServisi {
       'kullanicilar': {},
     };
 
-    for (final row in results[1]) {
+    for (final row in results[0]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['durumlar']![key] = row[1] as int;
       }
     }
 
-    for (final row in results[2]) {
+    for (final row in results[1]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['turler']![key] = row[1] as int;
       }
     }
 
-    for (final row in results[3]) {
+    for (final row in results[2]) {
       if (row[0] != null) {
         stats['depolar']![row[0].toString()] = row[1] as int;
       }
     }
 
-    for (final row in results[4]) {
+    for (final row in results[3]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['birimler']![key] = row[1] as int;
       }
     }
 
-    for (final row in results[5]) {
+    for (final row in results[4]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['hesaplar']![key] = row[1] as int;
       }
     }
 
-    for (final row in results[6]) {
+    for (final row in results[5]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['kullanicilar']![key] = row[1] as int;

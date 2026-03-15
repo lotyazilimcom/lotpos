@@ -353,10 +353,6 @@ class SenetlerVeritabaniServisi {
     // 1 Milyar Kayıt İçin Performans İndeksleri (GIN Trigram)
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'promissory_notes',
@@ -364,16 +360,6 @@ class SenetlerVeritabaniServisi {
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'note_transactions',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'promissory_notes',
-        indexName: 'idx_notes_search_tags_fts_gin',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'note_transactions',
-        indexName: 'idx_note_transactions_search_tags_fts_gin',
       );
 
       // Senetler için trigram indeksleri
@@ -421,20 +407,6 @@ class SenetlerVeritabaniServisi {
       } catch (e) {
         debugPrint('BRIN index error: $e');
       }
-
-      // BM25 indexler (Google-like search fast path)
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'promissory_notes',
-          indexName: 'idx_notes_search_tags_bm25',
-        );
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'note_transactions',
-          indexName: 'idx_note_transactions_search_tags_bm25',
-        );
-      } catch (_) {}
 
       debugPrint(
         '🚀 Senetler Performans Modu: GIN ve B-Tree indeksleri hazır.',
@@ -1071,14 +1043,15 @@ class SenetlerVeritabaniServisi {
       userParams['islemTuru'] = islemTuru;
     }
 
+    final totalFuture = HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'promissory_notes',
+      whereConditions: baseConditions,
+      params: params,
+      unfilteredTable: 'promissory_notes',
+    );
+
     final results = await Future.wait([
-      // Toplam (search + tarih aralığı bazında)
-      _pool!.execute(
-        Sql.named(
-          'SELECT COUNT(*) FROM promissory_notes ${baseConditions.isNotEmpty ? 'WHERE ${baseConditions.join(' AND ')}' : ''}',
-        ),
-        parameters: params,
-      ),
       // Bankalar
       _pool!.execute(
         Sql.named(buildQuery('bank, COUNT(*)', bankConds)),
@@ -1111,25 +1084,25 @@ class SenetlerVeritabaniServisi {
     ]);
 
     Map<String, Map<String, int>> stats = {
-      'ozet': {'toplam': results[0][0][0] as int},
+      'ozet': {'toplam': await totalFuture},
       'bankalar': {},
       'islem_turleri': {},
       'kullanicilar': {},
     };
 
-    for (final row in results[1]) {
+    for (final row in results[0]) {
       if (row[0] != null) {
         stats['bankalar']![row[0] as String] = row[1] as int;
       }
     }
 
-    for (final row in results[2]) {
+    for (final row in results[1]) {
       if (row[0] != null) {
         stats['islem_turleri']![row[0] as String] = row[1] as int;
       }
     }
 
-    for (final row in results[3]) {
+    for (final row in results[2]) {
       if (row[0] != null) {
         stats['kullanicilar']![row[0] as String] = row[1] as int;
       }

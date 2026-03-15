@@ -2041,7 +2041,13 @@ class RaporlarServisi {
     final tokens = _searchTokens(arama);
     if (tokens.isEmpty) return;
     _bindSearchTokenParams(params, tokens);
-    final fallbackParts = expressions
+    final preferredExpressions = expressions
+        .where((expr) => expr.toLowerCase().contains('search_tags'))
+        .toList(growable: false);
+    final sourceExpressions = preferredExpressions.isNotEmpty
+        ? preferredExpressions
+        : expressions;
+    final fallbackParts = sourceExpressions
         .map((expr) => _tokenLikeClause(expr, tokens.length))
         .toList(growable: false);
     if (fallbackParts.isEmpty) return;

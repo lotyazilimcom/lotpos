@@ -789,10 +789,6 @@ class DepolarVeritabaniServisi {
 
               // 50 Milyon Veri İçin Performans İndeksleri
               await PgEklentiler.ensurePgTrgm(_pool!);
-              // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-              try {
-                await PgEklentiler.ensurePgSearch(_pool!);
-              } catch (_) {}
               try {
                 // [2026 FIX] Hyper-Optimized Turkish Normalization for 100B+ Rows
                 await _pool!.execute('''
@@ -814,17 +810,9 @@ class DepolarVeritabaniServisi {
               await _executeCreateIndexSafe(
                 'CREATE INDEX IF NOT EXISTS idx_sm_search_tags_gin ON stock_movements USING GIN (search_tags gin_trgm_ops)',
               );
-              await _executeCreateIndexSafe(
-                "CREATE INDEX IF NOT EXISTS idx_sm_search_tags_fts_gin ON stock_movements USING GIN (to_tsvector('simple', search_tags))",
-              );
               await PgEklentiler.ensureSearchTagsNotNullDefault(
                 _pool!,
                 'depots',
-              );
-              await PgEklentiler.ensureSearchTagsFtsIndex(
-                _pool!,
-                table: 'depots',
-                indexName: 'idx_depots_search_tags_fts_gin',
               );
               await _pool!.execute(
                 'CREATE INDEX IF NOT EXISTS idx_depots_kod_trgm ON depots USING GIN (kod gin_trgm_ops)',
@@ -865,33 +853,9 @@ class DepolarVeritabaniServisi {
                 _pool!,
                 'shipments',
               );
-              await PgEklentiler.ensureSearchTagsFtsIndex(
-                _pool!,
-                table: 'shipments',
-                indexName: 'idx_shipments_search_tags_fts_gin',
-              );
               await _pool!.execute(
                 'CREATE INDEX IF NOT EXISTS idx_shipments_search_tags_gin ON shipments USING GIN (search_tags gin_trgm_ops)',
               );
-
-              // BM25 indexler (Google-like search fast path)
-              try {
-                await PgEklentiler.ensureBm25Index(
-                  _pool!,
-                  table: 'depots',
-                  indexName: 'idx_depots_search_tags_bm25',
-                );
-                await PgEklentiler.ensureBm25Index(
-                  _pool!,
-                  table: 'shipments',
-                  indexName: 'idx_shipments_search_tags_bm25',
-                );
-                await PgEklentiler.ensureBm25Index(
-                  _pool!,
-                  table: 'stock_movements',
-                  indexName: 'idx_stock_movements_search_tags_bm25',
-                );
-              } catch (_) {}
 
               await _pool!.execute('''
                 CREATE OR REPLACE FUNCTION update_shipments_search_tags()

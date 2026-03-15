@@ -28,11 +28,6 @@ END;
     await session.execute(_ensurePgTrgmSql);
   }
 
-  static Future<void> ensurePgSearch(Session session) async {
-    // Saf PostgreSQL sıcak yolunda pg_search/BM25 devre dışı tutulur.
-    return;
-  }
-
   static const String _ensureCitusSql = '''
 DO \$\$
 BEGIN
@@ -100,30 +95,6 @@ END;
           LIMIT 1
         '''),
         parameters: {'i': i},
-      );
-      return res.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
-
-  static Future<bool> hasBm25IndexForTable(
-    Session executor,
-    String table,
-  ) async {
-    final t = table.trim();
-    if (t.isEmpty) return false;
-    try {
-      final res = await executor.execute(
-        Sql.named(r'''
-          SELECT 1
-          FROM pg_indexes
-          WHERE schemaname = 'public'
-            AND tablename = @t
-            AND indexdef ILIKE '%USING bm25%'
-          LIMIT 1
-        '''),
-        parameters: {'t': t},
       );
       return res.isNotEmpty;
     } catch (_) {
@@ -315,27 +286,6 @@ END;
     } catch (_) {}
   }
 
-  /// `search_tags` için PostgreSQL Full Text Search (FTS) GIN indeksini garanti eder.
-  ///
-  /// İndeks ifadesi: `to_tsvector('simple', search_tags)`
-  static Future<void> ensureSearchTagsFtsIndex(
-    Session executor, {
-    required String table,
-    required String indexName,
-    String column = 'search_tags',
-    String config = 'simple',
-  }) async {
-    final t = table.trim();
-    final i = indexName.trim();
-    final c = column.trim();
-    final cfg = config.trim();
-    if (t.isEmpty || i.isEmpty || c.isEmpty || cfg.isEmpty) return;
-
-    await executor.execute(
-      'CREATE INDEX IF NOT EXISTS ${_qi(i)} ON ${_qt(t)} USING GIN (to_tsvector(\'$cfg\', ${_qi(c)}))',
-    );
-  }
-
   /// `search_tags` için trigram GIN indeksini garanti eder.
   static Future<void> ensureSearchTagsTrgmIndex(
     Session executor, {
@@ -381,34 +331,6 @@ END;
     }
   }
 
-  static Future<bool> hasFtsIndexForTableColumn(
-    Session executor, {
-    required String table,
-    String column = 'search_tags',
-  }) async {
-    final t = table.trim();
-    final c = column.trim();
-    if (t.isEmpty || c.isEmpty) return false;
-    try {
-      final res = await executor.execute(
-        Sql.named(r'''
-          SELECT 1
-          FROM pg_indexes
-          WHERE schemaname = 'public'
-            AND tablename = @t
-            AND indexdef ILIKE '%USING GIN%'
-            AND indexdef ILIKE '%to_tsvector%'
-            AND indexdef ILIKE @colPattern
-          LIMIT 1
-        '''),
-        parameters: {'t': t, 'colPattern': '%$c%'},
-      );
-      return res.isNotEmpty;
-    } catch (_) {
-      return false;
-    }
-  }
-
   static Future<void> ensureCompositeIndex(
     Session executor, {
     required String table,
@@ -443,45 +365,4 @@ END;
     );
   }
 
-  /// ParadeDB / pg_search BM25 indexini garanti eder.
-  ///
-  /// Notlar:
-  /// - `pg_search` extension'ı yoksa sessizce no-op.
-  /// - `keyField` pratikte benzersiz olmalıdır (PK önerilir).
-  /// - Büyük tablolarda index build uzun sürebilir (bakım penceresi).
-  static Future<void> ensureBm25Index(
-    Session executor, {
-    required String table,
-    required String indexName,
-    String keyField = 'id',
-    String searchTagsColumn = 'search_tags',
-    int ngramMin = 2,
-    int ngramMax = 3,
-  }) async {
-    if (!VeritabaniYapilandirma().allowPgSearchExtension) return;
-    final t = table.trim();
-    final i = indexName.trim();
-    final key = keyField.trim();
-    final col = searchTagsColumn.trim();
-    if (t.isEmpty || i.isEmpty || key.isEmpty || col.isEmpty) return;
-    if (!await hasExtension(executor, 'pg_search')) return;
-
-    // Keep the statement simple and predictable:
-    // - key field first (required)
-    // - index `search_tags` with ngram tokenizer to preserve "%term%"-like UX
-    final sql =
-        'CREATE INDEX IF NOT EXISTS ${_qi(i)} ON ${_qt(t)} USING bm25 (${_qi(key)}, (${_qi(col)}::pdb.ngram($ngramMin,$ngramMax))) WITH (key_field=${_qLit(key)})';
-    try {
-      await executor.execute(sql);
-    } catch (_) {
-      // Best-effort: pg_search farklı sürümlerde/managed ortamlarda desteklenmeyebilir.
-      // Uygulama akışını bozma.
-    }
-  }
-
-  static String _qLit(String val) {
-    // very small helper for WITH (...) string literals
-    final v = val.replaceAll("'", "''");
-    return "'$v'";
-  }
 }

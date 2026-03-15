@@ -352,24 +352,10 @@ class GiderlerVeritabaniServisi {
     // Indexes
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      // ParadeDB / BM25 (best-effort; extension yoksa no-op)
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'expenses');
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'expense_items',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'expenses',
-        indexName: 'idx_expenses_search_tags_fts_gin',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'expense_items',
-        indexName: 'idx_expense_items_search_tags_fts_gin',
       );
 
       await _pool!.execute(
@@ -402,20 +388,6 @@ class GiderlerVeritabaniServisi {
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_expense_items_search_tags_gin ON expense_items USING GIN (search_tags gin_trgm_ops)',
       );
-
-      // BM25 indexler (Google-like search fast path)
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'expenses',
-          indexName: 'idx_expenses_search_tags_bm25',
-        );
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'expense_items',
-          indexName: 'idx_expense_items_search_tags_bm25',
-        );
-      } catch (_) {}
     } catch (e) {
       debugPrint('Giderler: indeks uyarısı: $e');
     }
@@ -456,24 +428,9 @@ class GiderlerVeritabaniServisi {
 
     try {
       await PgEklentiler.ensurePgTrgm(pool);
-      try {
-        await PgEklentiler.ensurePgSearch(pool);
-      } catch (_) {}
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        pool,
-        table: 'expense_items',
-        indexName: 'idx_expense_items_search_tags_fts_gin',
-      );
       await pool.execute(
         'CREATE INDEX IF NOT EXISTS idx_expense_items_search_tags_gin ON expense_items USING GIN (search_tags gin_trgm_ops)',
       );
-      try {
-        await PgEklentiler.ensureBm25Index(
-          pool,
-          table: 'expense_items',
-          indexName: 'idx_expense_items_search_tags_bm25',
-        );
-      } catch (_) {}
     } catch (_) {}
 
     _expenseItemsHasSearchTags = await _columnExists(

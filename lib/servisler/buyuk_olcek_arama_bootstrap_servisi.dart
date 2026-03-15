@@ -112,11 +112,6 @@ class BuyukOlcekAramaBootstrapServisi {
           table: table,
           indexName: 'idx_${table}_search_tags_gin',
         );
-        await PgEklentiler.ensureSearchTagsFtsIndex(
-          pool,
-          table: table,
-          indexName: 'idx_${table}_search_tags_fts_gin',
-        );
       } catch (e) {
         if (kDebugMode) {
           debugPrint('Core search index uyarisi: table=$table err=$e');

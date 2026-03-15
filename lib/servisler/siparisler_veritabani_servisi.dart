@@ -399,21 +399,8 @@ class SiparislerVeritabaniServisi {
     // İndeksler
     try {
       await PgEklentiler.ensurePgTrgm(_pool!);
-      try {
-        await PgEklentiler.ensurePgSearch(_pool!);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'orders');
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'order_items');
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'orders',
-        indexName: 'idx_orders_search_tags_fts_gin',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        _pool!,
-        table: 'order_items',
-        indexName: 'idx_order_items_search_tags_fts_gin',
-      );
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_orders_tarih ON orders(tarih DESC)',
       );
@@ -435,19 +422,6 @@ class SiparislerVeritabaniServisi {
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_order_items_search_tags_gin ON order_items USING GIN (search_tags gin_trgm_ops)',
       );
-
-      try {
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'orders',
-          indexName: 'idx_orders_search_tags_bm25',
-        );
-        await PgEklentiler.ensureBm25Index(
-          _pool!,
-          table: 'order_items',
-          indexName: 'idx_order_items_search_tags_bm25',
-        );
-      } catch (_) {}
     } catch (e) {
       debugPrint('İndeksleme uyarısı: $e');
     }
@@ -458,21 +432,8 @@ class SiparislerVeritabaniServisi {
     if (pool == null || !pool.isOpen) return;
     try {
       await PgEklentiler.ensurePgTrgm(pool);
-      try {
-        await PgEklentiler.ensurePgSearch(pool);
-      } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(pool, 'orders');
       await PgEklentiler.ensureSearchTagsNotNullDefault(pool, 'order_items');
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        pool,
-        table: 'orders',
-        indexName: 'idx_orders_search_tags_fts_gin',
-      );
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        pool,
-        table: 'order_items',
-        indexName: 'idx_order_items_search_tags_fts_gin',
-      );
       await pool.execute(
         'CREATE INDEX IF NOT EXISTS idx_orders_tarih ON orders(tarih DESC)',
       );
@@ -488,18 +449,6 @@ class SiparislerVeritabaniServisi {
       await pool.execute(
         'CREATE INDEX IF NOT EXISTS idx_order_items_search_tags_gin ON order_items USING GIN (search_tags gin_trgm_ops)',
       );
-      try {
-        await PgEklentiler.ensureBm25Index(
-          pool,
-          table: 'orders',
-          indexName: 'idx_orders_search_tags_bm25',
-        );
-        await PgEklentiler.ensureBm25Index(
-          pool,
-          table: 'order_items',
-          indexName: 'idx_order_items_search_tags_bm25',
-        );
-      } catch (_) {}
     } catch (e) {
       debugPrint('Siparisler kritik indeks garantisi uyarısı: $e');
     }
@@ -561,13 +510,6 @@ class SiparislerVeritabaniServisi {
       childIndexName: 'idx_${partitionTable}_search_tags_gin',
       createChildSql:
           'CREATE INDEX IF NOT EXISTS idx_${partitionTable}_search_tags_gin ON $partitionTable USING GIN (search_tags gin_trgm_ops)',
-    );
-    await _partitionIndexiniGarantiEt(
-      parentIndex: 'idx_orders_search_tags_fts_gin',
-      partitionTable: partitionTable,
-      childIndexName: 'idx_${partitionTable}_search_tags_fts_gin',
-      createChildSql:
-          "CREATE INDEX IF NOT EXISTS idx_${partitionTable}_search_tags_fts_gin ON $partitionTable USING GIN (to_tsvector('simple', search_tags))",
     );
   }
 
@@ -898,11 +840,6 @@ class SiparislerVeritabaniServisi {
 
     try {
       await PgEklentiler.ensurePgTrgm(pool);
-      await PgEklentiler.ensureSearchTagsFtsIndex(
-        pool,
-        table: 'order_items',
-        indexName: 'idx_order_items_search_tags_fts_gin',
-      );
       await pool.execute(
         'CREATE INDEX IF NOT EXISTS idx_order_items_search_tags_gin ON order_items USING GIN (search_tags gin_trgm_ops)',
       );
