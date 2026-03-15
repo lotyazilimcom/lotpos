@@ -224,44 +224,43 @@ class _GiderlerSayfasiState extends State<GiderlerSayfasi> {
       List<GiderModel> giderler = [];
       bool hasMore = false;
       String? nextCursor;
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<GiderModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'expenses',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) => GiderlerVeritabaniServisi().giderleriGetir(
-          sayfa: 1,
-          sayfaBasinaKayit: ids.length,
-          // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-          aramaTerimi: _searchQuery,
-          sortBy: null,
-          sortAscending: true,
-          aktifMi: aktifMi,
-          odemeDurumu: _selectedPaymentStatus,
-          kategori: _selectedCategory,
-          baslangicTarihi: _startDate,
-          bitisTarihi: _endDate,
-          kullanici: _selectedUser,
-          sadeceIdler: ids,
-          lastId: null,
-        ),
-        idOf: (g) => g.id,
-        setMatchedInHidden: (g, matched) =>
-            g.copyWith(matchedInHidden: matched),
-      );
-
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<GiderModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'expenses',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) => GiderlerVeritabaniServisi().giderleriGetir(
+            sayfa: 1,
+            sayfaBasinaKayit: ids.length,
+            // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+            aramaTerimi: _searchQuery,
+            sortBy: null,
+            sortAscending: true,
+            aktifMi: aktifMi,
+            odemeDurumu: _selectedPaymentStatus,
+            kategori: _selectedCategory,
+            baslangicTarihi: _startDate,
+            bitisTarihi: _endDate,
+            kullanici: _selectedUser,
+            sadeceIdler: ids,
+            lastId: null,
+          ),
+          idOf: (g) => g.id,
+          setMatchedInHidden: (g, matched) =>
+              g.copyWith(matchedInHidden: matched),
+        );
         giderler = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
       } else {
-        // Fallback: DB deep-search (mevcut davranış).
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {

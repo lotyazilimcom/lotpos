@@ -94,3 +94,128 @@ hey birde cari hesapta hızlı not gir ve ticari bilgiler neden var anlamadım b
 
 
 Çok önemli kural çok kısa ve öz rpaor yazacaksın çok anlaşılır şekilde bak öyle bir zerresine kadar inceleyeceksinki önce çok kısa rapor yazacaksın sonra yapılacakları en açıklayıcı şekilde maddeleyeceksin kesinlile bu yapılacakkları yazarken en ufak zerre kadar bir özellik style bozulmayacak şekilde yazacaksın ve bak öyle bir zerresine kadar inceleyeceksinki senden birdaha rapor istediğimde şuda yapılmalı diyeceğin hiçbirşey aklamayacak çok dikaktli ol çok 
+
+
+
+
+
+
+
+
+
+
+
+Şİmdi reis bak belge yazdır da barkod görünmesin ilk eklediğim resmi incele bak kağıt tipi barkodsa görünmeyecek isimden gitmeyeceksin ve bak fatura irsaliye seçtiğimde hata vermiyor ancak satış fişi seçtiğimde şablonda hata veriyor hatanın reismleirni ve terminal çıktılarını verdim bak çok dikkatli ol iyice incele
+
+Çok önemli kural resimleri ve dosyaları inceleyeceksin çalışma şeklini anlayacaksın sonra aşağıdaki hataları inceleyeceksin ve sonra düzeltmeye geçeceksin çok çok önemli kural en ufak başka bir style özellik dosya bozmayacaksın sakın ha çok dikaktli olacaksın çok 
+
+nasip@192 lotpos % flutter run -d macos
+Launching lib/main.dart on macOS in debug mode...
+Building macOS application...                                           
+✓ Built build/macos/Build/Products/Debug/patisyov10.app
+Failed to foreground app; open returned 1
+Syncing files to device macOS...                                   317ms
+
+Flutter run key commands.
+r Hot reload. 🔥🔥🔥
+R Hot restart.
+h List all available interactive commands.
+d Detach (terminate "flutter run" but leave application running).
+c Clear the screen
+q Quit (terminate the application on the device).
+
+A Dart VM Service on macOS is available at: http://127.0.0.1:49268/3Dr1pllwTfA=/
+The Flutter DevTools debugger and profiler on macOS is available at:
+http://127.0.0.1:49268/3Dr1pllwTfA=/devtools/?uri=ws://127.0.0.1:49268/3Dr1pllwTfA=/ws
+flutter: VeritabaniYapilandirma: Yapılandırma yüklendi. Mod: local, Effective: 127.0.0.1:5432/patisyosettings, CloudReady: false, DiscoveredHost: 127.0.0.1
+flutter: supabase.supabase_flutter: INFO: ***** Supabase init completed ***** 
+flutter: Varsayılan şirket veritabanı kontrol ediliyor: patisyo_lotpos
+flutter: AyarlarVeritabaniServisi: Admin connection established: postgres
+flutter: Şirket veritabanı zaten mevcut: patisyo_lotpos
+flutter: AyarlarVeritabaniServisi: Database connection and setup successful: patisyosettings
+flutter: DovizGuncellemeServisi: Başlatılıyor...
+flutter: Lisans Servisi: Hardware ID: 5EE67433
+flutter: DovizGuncellemeServisi: Kurlar başarıyla güncellendi.
+flutter: DB aktarım kontrolü: Cloud kimlikler hazır değil, atlanıyor.
+flutter: Lisans Servisi: Durum güncelleniyor: Online
+flutter: Aktif Şirket Değişti: Lot Yazılım (DB: patisyo_lotpos)
+flutter: Stok Hareketleri Tablo Durumu: tableExists=true, relkind=p, isPartitioned=true
+flutter: Depolar veritabanı bağlantısı başarılı (Havuz): patisyo_lotpos
+flutter: mDNS: Sunucu yayını başlatıldı: Patisyo POS Server (_patisyo-pos._tcp) Port: 5432, Pro: true
+flutter: Stok Hareketleri Tablo Durumu (Products): relkind=p
+flutter: 🚀 Ürünler Performans Modu: GIN ve B-Tree indeksleri hazır.
+flutter: 🚀 10B Performans: BRIN indeksleri hazır.
+flutter: Ürünler veritabanı bağlantısı başarılı (Havuz): patisyo_lotpos
+flutter: 🚀 Üretimler Performans Modu: Triggerlar ve B-Tree İndeksleri Aktif Edildi.
+flutter: 🍳 Üretim Reçetesi Tablosu hazır.
+flutter: 🏭 Üretim Stok Hareketleri Tablosu (Partitioned & Optimized) hazır.
+flutter: Üretimler veritabanı bağlantısı başarılı (Havuz): patisyo_lotpos
+flutter: Kasa Hareketleri Tablo Durumu: tableExists=true, relkind=p, isPartitioned=true
+flutter: KasalarVeritabaniServisi: Pool connection established successfully.
+flutter: Banka Hareketleri Tablo Durumu: tableExists=true, relkind=p, isPartitioned=true
+flutter: BankalarVeritabaniServisi: Pool connection established successfully.
+flutter: Kredi Kartı Hareketleri Tablo Durumu: tableExists=true, relkind=p, isPartitioned=true
+flutter: KrediKartlariVeritabaniServisi: Pool connection established successfully.
+flutter: 🚀 Çekler Performans Modu: İndeksler başarıyla yapılandırıldı.
+flutter: CeklerVeritabaniServisi: Pool connection established successfully.
+flutter: 🚀 Senetler Performans Modu: GIN ve B-Tree indeksleri hazır.
+flutter: SenetlerVeritabaniServisi: Pool connection established successfully.
+flutter: Mevcut Cari Hareketler Tablo Durumu: relkind=p
+flutter: ✅ Cari Hareketler tablosu zaten Partitioned yapıda.
+flutter: Cari Hesaplar veritabanı bağlantısı başarılı (Havuz)
+flutter: 🚀 Cari Hesaplar İndeksleri Hazır.
+flutter: Giderler veritabanı bağlantısı başarılı (Havuz): patisyo_lotpos
+flutter: PersonelIslemleriVeritabaniServisi: Pool bağlantısı başarılı.
+flutter: Mevcut Tablo Durumu: relkind=p (r=regular, p=partitioned)
+flutter: ✅ Tablo zaten Partitioned yapıda. Migration gerekmiyor.
+flutter: Siparisler veritabanı bağlantısı başarılı (Havuz)
+flutter: Mevcut Teklifler Tablo Durumu: relkind=p (r=regular, p=partitioned)
+flutter: ✅ Teklifler tablosu zaten Partitioned yapıda.
+flutter: Teklifler veritabanı bağlantısı başarılı (Havuz)
+flutter: 🔄 Sayfa Senkronizasyonu Tetiklendi: cari
+
+══╡ EXCEPTION CAUGHT BY WIDGETS LIBRARY ╞═══════════════════════════════════════════════════════════
+The following assertion was thrown building PrintPreviewScreen(dirty, dependencies: [MediaQuery],
+state: _PrintPreviewScreenState#73ab1):
+There should be exactly one item with [DropdownButton]'s value: PdfPageFormat
+226.7716535433071x566.9291338582677 margins:0.0, 0.0, 0.0, 0.0.
+Either zero or 2 or more [DropdownMenuItem]s were detected with the same value
+'package:flutter/src/material/dropdown.dart':
+Failed assertion: line 1025 pos 10: 'items == null ||
+             items.isEmpty ||
+             value == null ||
+             items.where((DropdownMenuItem<T> item) {
+                   return item.value == value;
+                 }).length ==
+                 1'
+
+The relevant error-causing widget was:
+  PrintPreviewScreen
+  PrintPreviewScreen:file:///Users/nasip/Desktop/lotpos/lib/sayfalar/alimsatimislemleri/satis_sonrasi_yazdir_sayfasi.dart:30
+  5:33
+
+When the exception was thrown, this was the stack:
+#2      new DropdownButton (package:flutter/src/material/dropdown.dart:1025:10)
+#3      _PrintPreviewScreenState._buildDropdownRow (package:patisyov10/sayfalar/ortak/print_preview_screen.dart:1850:22)
+#4      _PrintPreviewScreenState.build (package:patisyov10/sayfalar/ortak/print_preview_screen.dart:745:27)
+#5      StatefulElement.build (package:flutter/src/widgets/framework.dart:5931:27)
+#6      ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5817:15)
+#7      StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
+#8      Element.rebuild (package:flutter/src/widgets/framework.dart:5529:7)
+#9      BuildScope._tryRebuild (package:flutter/src/widgets/framework.dart:2750:15)
+#10     BuildScope._flushDirtyElements (package:flutter/src/widgets/framework.dart:2807:11)
+#11     BuildOwner.buildScope (package:flutter/src/widgets/framework.dart:3111:18)
+#12     WidgetsBinding.drawFrame (package:flutter/src/widgets/binding.dart:1302:21)
+#13     RendererBinding._handlePersistentFrameCallback (package:flutter/src/rendering/binding.dart:495:5)
+#14     SchedulerBinding._invokeFrameCallback (package:flutter/src/scheduler/binding.dart:1430:15)
+#15     SchedulerBinding.handleDrawFrame (package:flutter/src/scheduler/binding.dart:1345:9)
+#16     SchedulerBinding._handleDrawFrame (package:flutter/src/scheduler/binding.dart:1198:5)
+#17     _invoke (dart:ui/hooks.dart:356:13)
+#18     PlatformDispatcher._drawFrame (dart:ui/platform_dispatcher.dart:444:5)
+#19     _drawFrame (dart:ui/hooks.dart:328:31)
+(elided 2 frames from class _AssertionError)
+
+════════════════════════════════════════════════════════════════════════════════════════════════════
+
+flutter: Lisans Servisi: Durum güncelleniyor: Online
+flutter: Lisans Servisi: Durum güncelleniyor: Online

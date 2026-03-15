@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -77,6 +78,11 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
       !kIsWeb && (Platform.isAndroid || Platform.isIOS);
   bool get _useDesktopRelayPrinter =>
       YazdirmaErisimKontrolu.mobilYerelAgMasaustuYazdirmaAktif;
+  static const double _previewPadding = 16.0;
+  static const double _previewLogicalDpi = 96.0;
+  static const double _desktopPreviewMinDpi = 220.0;
+  static const double _desktopPreviewMaxDpi = 320.0;
+  static const double _desktopPreviewDpiBoost = 1.75;
 
   // Print Settings
   PdfPageFormat _pageFormat = PdfPageFormat.a4;
@@ -299,6 +305,89 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
     }
   }
 
+  List<DropdownMenuItem<PdfPageFormat>> _buildPaperSizeItems() {
+    final items = <DropdownMenuItem<PdfPageFormat>>[
+      DropdownMenuItem(
+        value: PdfPageFormat.a4,
+        child: Text(tr('print.paper_size.a4')),
+      ),
+      DropdownMenuItem(
+        value: PdfPageFormat.a5,
+        child: Text(tr('print.paper_size.a5')),
+      ),
+      DropdownMenuItem(
+        value: PdfPageFormat.letter,
+        child: Text(tr('print.paper_size.letter')),
+      ),
+    ];
+
+    final hasSelectedFormat = items.any((item) => item.value == _pageFormat);
+    if (!hasSelectedFormat) {
+      items.insert(
+        0,
+        DropdownMenuItem(
+          value: _pageFormat,
+          child: Text(_customPaperSizeLabel(_pageFormat)),
+        ),
+      );
+    }
+
+    return items;
+  }
+
+  String _customPaperSizeLabel(PdfPageFormat format) {
+    final widthMm = (format.width / PdfPageFormat.mm).toStringAsFixed(1);
+    final heightMm = (format.height / PdfPageFormat.mm).toStringAsFixed(1);
+    return '${tr('print.paper.custom')} ($widthMm x $heightMm mm)';
+  }
+
+  ({double width, double height}) _calculateDesktopPreviewSize({
+    required BoxConstraints constraints,
+    required PdfPageFormat format,
+  }) {
+    final availableWidth = math.max(
+      0,
+      constraints.maxWidth - (_previewPadding * 2),
+    );
+    final availableHeight = math.max(
+      0,
+      constraints.maxHeight - (_previewPadding * 2),
+    );
+    final pixelsPerMm = _previewLogicalDpi / 25.4;
+
+    final naturalWidth = (format.width / PdfPageFormat.mm) * pixelsPerMm;
+    final naturalHeight = (format.height / PdfPageFormat.mm) * pixelsPerMm;
+
+    final shrinkRatio = <double>[
+      1.0,
+      if (naturalWidth > 0) availableWidth / naturalWidth,
+      if (naturalHeight > 0) availableHeight / naturalHeight,
+    ].reduce(math.min);
+
+    final resolvedScale = shrinkRatio.clamp(0.0, 1.0);
+    return (
+      width: naturalWidth * resolvedScale,
+      height: naturalHeight * resolvedScale,
+    );
+  }
+
+  double _calculateDesktopPreviewDpi({
+    required PdfPageFormat format,
+    required double previewWidth,
+    required double devicePixelRatio,
+  }) {
+    final pageWidthInches = format.width / PdfPageFormat.inch;
+    if (pageWidthInches <= 0) {
+      return _desktopPreviewMinDpi;
+    }
+
+    final baseDpi = (previewWidth * devicePixelRatio) / pageWidthInches;
+    return (baseDpi * _desktopPreviewDpiBoost).clamp(
+      _desktopPreviewMinDpi,
+      _desktopPreviewMaxDpi,
+    );
+  }
+
   Future<void> _saveAsExcel() async {
     // Create a new Excel document.
     final xlsio.Workbook workbook = xlsio.Workbook();
@@ -392,13 +481,6 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
       return _buildCompactView();
     }
 
-    final screenW = MediaQuery.of(context).size.width;
-    final screenH = MediaQuery.of(context).size.height;
-
-    // Sidebar width is fixed 350
-    final availW = screenW - 350 - 32; // 16 padding each side
-    final availH = screenH - 32;
-
     if (_pdfBytes == null) {
       return const Scaffold(
         backgroundColor: Color(0xFF525659),
@@ -420,25 +502,28 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
                       final effectiveFormat = _isLandscape
                           ? _pageFormat.landscape
                           : _pageFormat.portrait;
-                      final pageAspectRatio =
-                          effectiveFormat.width / effectiveFormat.height;
+                      final previewSize = _calculateDesktopPreviewSize(
+                        constraints: constraints,
+                        format: effectiveFormat,
+                      );
+                      final actualPageW = previewSize.width;
+                      final actualPageH = previewSize.height;
+                      final previewDpi = _calculateDesktopPreviewDpi(
+                        format: effectiveFormat,
+                        previewWidth: actualPageW,
+                        devicePixelRatio: MediaQuery.of(
+                          context,
+                        ).devicePixelRatio,
+                      );
 
-                      double actualPageW;
-                      double actualPageH;
-
-                      if (availW / availH > pageAspectRatio) {
-                        actualPageH = availH;
-                        actualPageW = actualPageH * pageAspectRatio;
-                      } else {
-                        actualPageW = availW;
-                        actualPageH = actualPageW / pageAspectRatio;
-                      }
-
-                      double left = (availW - actualPageW) / 2 + 16;
-                      double top = (availH - actualPageH) / 2 + 16;
-                      // Center alignment logic check
-                      if (left < 16) left = 16;
-                      if (top < 16) top = 16;
+                      final left = math.max(
+                        _previewPadding,
+                        (constraints.maxWidth - actualPageW) / 2,
+                      );
+                      final top = math.max(
+                        _previewPadding,
+                        (constraints.maxHeight - actualPageH) / 2,
+                      );
 
                       final pageRect = Rect.fromLTWH(
                         left,
@@ -474,6 +559,7 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
                                 ),
                                 child: PdfPreview(
                                   build: (format) => _pdfBytes!,
+                                  dpi: previewDpi,
                                   useActions: false,
                                   padding: EdgeInsets.zero,
                                   previewPageMargin: EdgeInsets.zero,
@@ -745,20 +831,7 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
                           _buildDropdownRow<PdfPageFormat>(
                             label: tr('print.paper_size'),
                             value: _pageFormat,
-                            items: [
-                              DropdownMenuItem(
-                                value: PdfPageFormat.a4,
-                                child: Text(tr('print.paper_size.a4')),
-                              ),
-                              DropdownMenuItem(
-                                value: PdfPageFormat.a5,
-                                child: Text(tr('print.paper_size.a5')),
-                              ),
-                              DropdownMenuItem(
-                                value: PdfPageFormat.letter,
-                                child: Text(tr('print.paper_size.letter')),
-                              ),
-                            ],
+                            items: _buildPaperSizeItems(),
                             onChanged: widget.lockPaperSize
                                 ? null
                                 : (val) {
@@ -1305,20 +1378,7 @@ class _PrintPreviewScreenState extends State<PrintPreviewScreen> {
             _buildDropdownRow<PdfPageFormat>(
               label: tr('print.paper_size'),
               value: _pageFormat,
-              items: [
-                DropdownMenuItem(
-                  value: PdfPageFormat.a4,
-                  child: Text(tr('print.paper_size.a4')),
-                ),
-                DropdownMenuItem(
-                  value: PdfPageFormat.a5,
-                  child: Text(tr('print.paper_size.a5')),
-                ),
-                DropdownMenuItem(
-                  value: PdfPageFormat.letter,
-                  child: Text(tr('print.paper_size.letter')),
-                ),
-              ],
+              items: _buildPaperSizeItems(),
               onChanged: widget.lockPaperSize
                   ? null
                   : (val) {

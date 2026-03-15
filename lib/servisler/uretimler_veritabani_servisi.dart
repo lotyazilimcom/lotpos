@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../sayfalar/urunler_ve_depolar/uretimler/modeller/uretim_model.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'depolar_veritabani_servisi.dart';
@@ -1232,11 +1233,12 @@ class UretimlerVeritabaniServisi {
       } catch (_) {}
     }
 
-    const String movementSearchMembership = '''
+    final String movementSearchMembership =
+        '''
       productions.id IN (
         SELECT DISTINCT psm.production_id
         FROM production_stock_movements psm
-        WHERE psm.search_tags ILIKE @search
+        WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('psm.search_tags')}
       )
     ''';
 
@@ -1249,7 +1251,7 @@ class UretimlerVeritabaniServisi {
           '''
           , (CASE 
               WHEN (
-                (search_tags ILIKE @search) OR
+                (${AramaSqlYardimcisi.buildSearchTagsClause('search_tags')}) OR
                 $movementSearchMembership
               )
               AND NOT (
@@ -1271,10 +1273,11 @@ class UretimlerVeritabaniServisi {
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
       whereConditions.add('''
         (
-            (search_tags ILIKE @search) OR
+            (${AramaSqlYardimcisi.buildSearchTagsClause('search_tags')}) OR
             $movementSearchMembership
         )
       ''');
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
     }
 
@@ -1463,11 +1466,12 @@ class UretimlerVeritabaniServisi {
 
     Map<String, dynamic> params = {};
     List<String> whereConditions = [];
-    const String movementSearchMembership = '''
+    final String movementSearchMembership =
+        '''
       productions.id IN (
         SELECT DISTINCT psm.production_id
         FROM production_stock_movements psm
-        WHERE psm.search_tags ILIKE @search
+        WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('psm.search_tags')}
       )
     ''';
 
@@ -1493,10 +1497,11 @@ class UretimlerVeritabaniServisi {
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
       whereConditions.add('''
         (
-          (search_tags ILIKE @search) OR
+          (${AramaSqlYardimcisi.buildSearchTagsClause('search_tags')}) OR
           $movementSearchMembership
         )
       ''');
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
     }
 
@@ -1704,8 +1709,10 @@ class UretimlerVeritabaniServisi {
     }) {
       final String? trimmedQ = q?.trim();
       if (trimmedQ != null && trimmedQ.isNotEmpty) {
-        conds.add('productions.search_tags ILIKE @search');
-        params['search'] = '%${trimmedQ.toLowerCase()}%';
+        conds.add(
+          AramaSqlYardimcisi.buildSearchTagsClause('productions.search_tags'),
+        );
+        AramaSqlYardimcisi.bindSearchParams(params, trimmedQ);
       }
 
       if (aktif != null) {
@@ -1966,7 +1973,9 @@ class UretimlerVeritabaniServisi {
     }
     final String? trimmedWarehouseUser = kullanici?.trim();
     if (trimmedWarehouseUser != null && trimmedWarehouseUser.isNotEmpty) {
-      warehouseMovementConds.add("COALESCE(psm.created_by, '') = @movementUser");
+      warehouseMovementConds.add(
+        "COALESCE(psm.created_by, '') = @movementUser",
+      );
       warehouseParams['movementUser'] = trimmedWarehouseUser;
     }
     final String? trimmedWarehouseType = islemTuru?.trim();

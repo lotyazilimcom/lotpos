@@ -19,6 +19,7 @@ import 'taksit_veritabani_servisi.dart';
 import 'ayarlar_veritabani_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'lite_kisitlari.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
 import '../yardimcilar/format_yardimcisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
@@ -1617,12 +1618,13 @@ class CariHesaplarVeritabaniServisi {
 
     if (deepSearchActive) {
       if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-        selectClause += '''
+        selectClause +=
+            '''
             , (CASE 
 	                WHEN id IN (
 	                  SELECT cat.current_account_id
 	                  FROM current_account_transactions cat
-	                  WHERE cat.search_tags LIKE @search
+	                  WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('cat.search_tags')}
 	                  GROUP BY cat.current_account_id
 	                )
                 THEN true 
@@ -1644,18 +1646,20 @@ class CariHesaplarVeritabaniServisi {
       whereConditions.add('''
 	        (
 	          (
-	            search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('search_tags')}
 	          )
 	          OR id IN (
 	            SELECT cat.current_account_id
 	            FROM current_account_transactions cat
-	            WHERE cat.search_tags LIKE @search
+	            WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('cat.search_tags')}
 	            GROUP BY cat.current_account_id
 	          )
 	        )
 	      ''');
-      // [2026 FIX] Normalize search term with ASCII-Mapping
-      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
 
     if (aktifMi != null) {
@@ -1867,17 +1871,20 @@ class CariHesaplarVeritabaniServisi {
       whereConditions.add('''
 	        (
 	          (
-	            search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('search_tags')}
 	          )
 	          OR id IN (
 	            SELECT cat.current_account_id
 	            FROM current_account_transactions cat
-	            WHERE cat.search_tags LIKE @search
+	            WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('cat.search_tags')}
 	            GROUP BY cat.current_account_id
 	          )
 	        )
 	      ''');
-      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
     if (aktifMi != null) {
       whereConditions.add('aktif_mi = @aktifMi');
@@ -2010,17 +2017,20 @@ class CariHesaplarVeritabaniServisi {
       baseConditions.add('''
 	        (
 	          (
-	            search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('search_tags')}
 	          )
 	          OR id IN (
 	            SELECT cat.current_account_id
 	            FROM current_account_transactions cat
-	            WHERE cat.search_tags LIKE @search
+	            WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('cat.search_tags')}
 	            GROUP BY cat.current_account_id
 	          )
 	        )
 	      ''');
-      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
 
     if (baslangicTarihi != null && bitisTarihi != null) {
@@ -2142,9 +2152,9 @@ class CariHesaplarVeritabaniServisi {
     List<String> islemAccountConds = [];
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
       islemAccountConds.add('''(
-            (ca.search_tags LIKE @search)
+            (${AramaSqlYardimcisi.buildSearchTagsClause('ca.search_tags')})
             OR
-            (cat.search_tags LIKE @search)
+            (${AramaSqlYardimcisi.buildSearchTagsClause('cat.search_tags')})
           )''');
     }
     if (aktifMi != null) islemAccountConds.add('ca.aktif_mi = @aktifMi');
@@ -2184,9 +2194,9 @@ class CariHesaplarVeritabaniServisi {
     List<String> kullaniciAccountConds = [];
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
       kullaniciAccountConds.add('''(
-            (ca.search_tags LIKE @search)
+            (${AramaSqlYardimcisi.buildSearchTagsClause('ca.search_tags')})
             OR
-            (cat.search_tags LIKE @search)
+            (${AramaSqlYardimcisi.buildSearchTagsClause('cat.search_tags')})
           )''');
     }
     if (aktifMi != null) {
@@ -2302,19 +2312,21 @@ class CariHesaplarVeritabaniServisi {
     List<String> baseConditions = ['cat.current_account_id = @cariId'];
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      // İşlem detaylarında arama (tüm alanlar)
-      baseConditions.add('''
-        (
-          cat.description ILIKE @search OR 
-          cat.source_type ILIKE @search OR 
-          cat.source_name ILIKE @search OR 
-          cat.source_code ILIKE @search OR
-          cat.belge ILIKE @search OR
-          cat.fatura_no ILIKE @search OR
-          cat.irsaliye_no ILIKE @search
-        )
-      ''');
-      baseParams['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      final normalizedSearch = _normalizeTurkish(aramaTerimi);
+      if (AramaSqlYardimcisi.bindSearchParams(
+        baseParams,
+        normalizedSearch,
+        prefix: 'cat_detail_list_',
+        minTokenLength: 1,
+        maxTokens: 8,
+      )) {
+        baseConditions.add(
+          AramaSqlYardimcisi.buildSearchTagsClause(
+            'cat.search_tags',
+            prefix: 'cat_detail_list_',
+          ),
+        );
+      }
     }
 
     if (baslangicTarihi != null) {
@@ -3800,9 +3812,13 @@ class CariHesaplarVeritabaniServisi {
     Map<String, dynamic> params = {};
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add('search_tags ILIKE @search');
-      final normalized = _normalizeTurkish(aramaTerimi);
-      params['search'] = '%$normalized%';
+      whereConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
     if (aktifMi != null) {
       whereConditions.add('aktif_mi = @aktifMi');
@@ -4486,26 +4502,27 @@ class CariHesaplarVeritabaniServisi {
 
     Map<String, dynamic> params = {'id': cariId};
 
-    // Multi-term deep search (AND semantics) on trigger-maintained search_tags.
-    final List<String> searchConds = [];
+    String? searchClause;
     if (aramaTerimi != null && aramaTerimi.trim().isNotEmpty) {
       final normalized = _normalizeTurkish(aramaTerimi);
-      final parts = normalized
-          .split(RegExp(r'\s+'))
-          .where((p) => p.isNotEmpty)
-          .toList();
-
-      for (int i = 0; i < parts.length; i++) {
-        final key = 's$i';
-        params[key] = '%${parts[i]}%';
-        searchConds.add('cat.search_tags LIKE @$key');
+      if (AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalized,
+        prefix: 'cat_history_',
+        minTokenLength: 1,
+        maxTokens: 8,
+      )) {
+        searchClause = AramaSqlYardimcisi.buildSearchTagsClause(
+          'cat.search_tags',
+          prefix: 'cat_history_',
+        );
       }
     }
 
-    if (searchConds.isNotEmpty) {
+    if (searchClause != null) {
       selectClause +=
           ''',
-        CASE WHEN ${searchConds.join(' AND ')} THEN true ELSE false END as matched_in_hidden
+        CASE WHEN $searchClause THEN true ELSE false END as matched_in_hidden
       ''';
     } else {
       selectClause += ', false as matched_in_hidden';
@@ -4555,10 +4572,10 @@ class CariHesaplarVeritabaniServisi {
       params['kullanici'] = kullanici.trim();
     }
 
-    if (searchConds.isNotEmpty) {
+    if (searchClause != null) {
       // [PERF 2026] Use precomputed search_tags (GIN gin_trgm_ops) instead of many OR predicates.
       // Keeps the same search surface (all columns + manual joker words) via trigger-maintained tags.
-      whereClause += ' AND ${searchConds.join(' AND ')}';
+      whereClause += ' AND $searchClause';
     }
 
     // Cursor pagination for deep history without hard LIMIT.

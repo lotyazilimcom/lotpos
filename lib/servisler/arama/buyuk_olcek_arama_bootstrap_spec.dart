@@ -2,11 +2,13 @@
 ///
 /// Omurga:
 /// - `pg_trgm` + `search_tags` GIN trigram
+/// - `search_tags` için gerçek `tsvector` GIN
 /// - Büyük tarih akışları için BRIN
 /// - Keyset/cursor sıraları için temel composite index'ler
 class BuyukOlcekAramaBootstrapSpec {
   static const List<String> searchTables = <String>[
     'products',
+    'product_devices',
     'stock_movements',
     'banks',
     'bank_transactions',
@@ -445,4 +447,44 @@ class BuyukOlcekAramaBootstrapSpec {
           expressions: <String>['date DESC', 'id DESC'],
         ),
       ];
+
+  static const Map<String, String> _searchTrgmIndexNames = <String, String>{
+    'products': 'idx_products_search_tags_gin',
+    'product_devices': 'idx_pd_search_tags_gin',
+    'stock_movements': 'idx_sm_search_tags_gin',
+    'banks': 'idx_banks_search_tags_gin',
+    'bank_transactions': 'idx_bt_search_tags_gin',
+    'cash_registers': 'idx_cash_registers_search_tags_gin',
+    'cash_register_transactions': 'idx_crt_search_tags_gin',
+    'credit_cards': 'idx_credit_cards_search_tags_gin',
+    'credit_card_transactions': 'idx_cct_search_tags_gin',
+    'current_accounts': 'idx_accounts_search_tags_gin',
+    'current_account_transactions': 'idx_cat_search_tags_gin',
+    'cheques': 'idx_cheques_search_tags_gin',
+    'cheque_transactions': 'idx_cheque_transactions_search_tags_gin',
+    'promissory_notes': 'idx_notes_search_tags_gin',
+    'note_transactions': 'idx_note_transactions_search_tags_gin',
+    'depots': 'idx_depots_search_tags_gin',
+    'shipments': 'idx_shipments_search_tags_gin',
+    'expenses': 'idx_expenses_search_tags_gin',
+    'expense_items': 'idx_expense_items_search_tags_gin',
+    'orders': 'idx_orders_search_tags_gin',
+    'order_items': 'idx_order_items_search_tags_gin',
+    'quotes': 'idx_quotes_search_tags_gin',
+    'quote_items': 'idx_quote_items_search_tags_gin',
+    'productions': 'idx_productions_search_tags_gin',
+    'production_stock_movements': 'idx_psm_search_tags_gin',
+  };
+
+  static String searchTrgmIndexNameForTable(String table) {
+    final normalized = table.trim();
+    return _searchTrgmIndexNames[normalized] ??
+        'idx_${normalized}_search_tags_gin';
+  }
+
+  static String searchFtsIndexNameForTable(String table) {
+    return searchTrgmIndexNameForTable(
+      table,
+    ).replaceFirst('_search_tags_gin', '_search_tags_fts_gin');
+  }
 }

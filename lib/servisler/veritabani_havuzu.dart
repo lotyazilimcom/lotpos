@@ -96,16 +96,25 @@ class VeritabaniHavuzu {
 
     final canUseDirectCloud =
         cfg.isCloudMode && VeritabaniYapilandirma.cloudCredentialsReady;
+    final canUseCloudApi =
+        cfg.isCloudMode &&
+        allowApiFallback &&
+        VeritabaniYapilandirma.cloudApiCredentialsReady;
 
     final bool useApi;
     if (cfg.isCloudMode) {
-      if (!canUseDirectCloud) {
+      if (!preferDirectSocket && canUseCloudApi) {
+        useApi = true;
+      } else if (canUseDirectCloud) {
+        useApi = false;
+      } else if (canUseCloudApi) {
+        useApi = true;
+      } else {
         throw StateError(
-          'Bulut modunda yalnız direct PostgreSQL bağlantısı destekleniyor. '
-          'Cloud DB host/user/password ayarlarını tamamlayın.',
+          'Bulut modunda direct PostgreSQL veya API kimlikleri gerekli. '
+          'Cloud DB host/user/password ya da API URL/token ayarlarını tamamlayın.',
         );
       }
-      useApi = false;
     } else if (preferDirectSocket) {
       useApi = false;
     } else {

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../sayfalar/urunler_ve_depolar/urunler/modeller/urun_model.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'depolar_veritabani_servisi.dart';
@@ -1511,17 +1512,18 @@ class UrunlerVeritabaniServisi {
       // Logic: Eğer 'search_tags' (Tüm Veri) eşleşiyor AMA
       // Görünen ana alanlar (Kod, Ad, Barkod) eşleşmiyorsa -> Bu bir "Gizli/Detay" eşleşmesidir.
       // Bu sayede satır otomatik genişler.
-      selectClause += '''
+      selectClause +=
+          '''
           , (CASE 
               WHEN (
 	                (
 	                  (
-	                    products.search_tags ILIKE @search
+	                    ${AramaSqlYardimcisi.buildSearchTagsClause('products.search_tags')}
 	                  )
 	                  OR products.id IN (
 	                    SELECT sm.product_id
 	                    FROM stock_movements sm
-	                    WHERE sm.search_tags ILIKE @search
+	                    WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('sm.search_tags')}
 	                    GROUP BY sm.product_id
 	                  )
 	                )
@@ -1558,16 +1560,17 @@ class UrunlerVeritabaniServisi {
       whereConditions.add('''
 	        (
 	          (
-	            products.search_tags ILIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('products.search_tags')}
 	          )
 	          OR products.id IN (
 	            SELECT sm.product_id
 	            FROM stock_movements sm
-	            WHERE sm.search_tags ILIKE @search
+	            WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('sm.search_tags')}
 	            GROUP BY sm.product_id
 	          )
 	        )
 	      '''); // Optimized for GIN
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
     }
 
@@ -1852,17 +1855,17 @@ class UrunlerVeritabaniServisi {
       whereConditions.add('''
 	        (
 	          (
-	            products.search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('products.search_tags')}
 	          )
 	          OR products.id IN (
 	            SELECT sm.product_id
 	            FROM stock_movements sm
-	            WHERE sm.search_tags LIKE @search
+	            WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('sm.search_tags')}
 	            GROUP BY sm.product_id
 	          )
 	        )
 	      ''');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
     }
 
     if (aktifMi != null) {
@@ -2077,17 +2080,17 @@ class UrunlerVeritabaniServisi {
         conds.add('''
 	          (
 	            (
-	              products.search_tags ILIKE @search
+	              ${AramaSqlYardimcisi.buildSearchTagsClause('products.search_tags')}
 	            )
 	            OR products.id IN (
 	              SELECT sm_search.product_id
 	              FROM stock_movements sm_search
-	              WHERE sm_search.search_tags ILIKE @search
+	              WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('sm_search.search_tags')}
 	              GROUP BY sm_search.product_id
 	            )
 	          )
 	        ''');
-        params['search'] = '%${trimmedQ.toLowerCase()}%';
+        AramaSqlYardimcisi.bindSearchParams(params, trimmedQ);
       }
 
       if (aktif != null) {
@@ -2563,8 +2566,10 @@ class UrunlerVeritabaniServisi {
     Map<String, dynamic> params = {};
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add('search_tags LIKE @search');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      whereConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
     }
 
     if (aktifMi != null) {
@@ -3860,8 +3865,11 @@ class UrunlerVeritabaniServisi {
 
     final trimmedSearch = (aramaTerimi ?? '').trim();
     if (trimmedSearch.isNotEmpty) {
-      conds.add('pd.search_tags LIKE @search');
-      params['search'] = '%${normalizeTurkish(trimmedSearch)}%';
+      conds.add(AramaSqlYardimcisi.buildSearchTagsClause('pd.search_tags'));
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalizeTurkish(trimmedSearch),
+      );
     }
 
     if (baslangicTarihi != null || bitisTarihi != null) {

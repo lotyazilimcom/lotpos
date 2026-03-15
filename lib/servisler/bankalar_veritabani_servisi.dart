@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
 import 'package:intl/intl.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
 import 'cari_hesaplar_veritabani_servisi.dart';
 import 'kasalar_veritabani_servisi.dart';
@@ -56,17 +57,23 @@ class BankalarVeritabaniServisi {
   }) async {
     if (normalizedSearch.trim().length < 3) return const <int>[];
     try {
+      final params = <String, dynamic>{'companyId': _companyId};
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalizedSearch,
+        prefix: 'bank_tx_',
+      );
       final rows = await executor.execute(
         Sql.named('''
           SELECT DISTINCT bt.bank_id
           FROM bank_transactions bt
           WHERE bt.bank_id IS NOT NULL
             AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-            AND bt.search_tags LIKE @search
+            AND ${AramaSqlYardimcisi.buildSearchTagsClause('bt.search_tags', prefix: 'bank_tx_')}
           ORDER BY bt.bank_id ASC
           LIMIT 2048
         '''),
-        parameters: {'companyId': _companyId, 'search': '%$normalizedSearch%'},
+        parameters: params,
       );
       return rows
           .map((row) => int.tryParse(row[0]?.toString() ?? ''))
@@ -83,10 +90,13 @@ class BankalarVeritabaniServisi {
     required String idParam,
     required bool hasTxMatches,
   }) {
+    final searchClause = AramaSqlYardimcisi.buildSearchTagsClause(
+      '$alias.search_tags',
+    );
     if (!hasTxMatches) {
-      return '$alias.search_tags LIKE @search';
+      return searchClause;
     }
-    return '($alias.search_tags LIKE @search OR $alias.id = ANY(@$idParam))';
+    return '($searchClause OR $alias.id = ANY(@$idParam))';
   }
 
   String _bankaHiddenTxKosulu({
@@ -1157,6 +1167,7 @@ class BankalarVeritabaniServisi {
           hasTxMatches: matchedTransactionBankIds.isNotEmpty,
         ),
       );
+      AramaSqlYardimcisi.bindSearchParams(params, normalizedSearch);
       params['search'] = '%$normalizedSearch%';
       if (matchedTransactionBankIds.isNotEmpty) {
         params['txMatchedBankIds'] = matchedTransactionBankIds;
@@ -1399,6 +1410,7 @@ class BankalarVeritabaniServisi {
           hasTxMatches: matchedTransactionBankIds.isNotEmpty,
         ),
       );
+      AramaSqlYardimcisi.bindSearchParams(params, normalizedSearch);
       params['search'] = '%$normalizedSearch%';
       if (matchedTransactionBankIds.isNotEmpty) {
         params['txMatchedBankIds'] = matchedTransactionBankIds;
@@ -1544,6 +1556,7 @@ class BankalarVeritabaniServisi {
           hasTxMatches: matchedTransactionBankIds.isNotEmpty,
         ),
       );
+      AramaSqlYardimcisi.bindSearchParams(params, normalizedSearch);
       params['search'] = '%$normalizedSearch%';
       if (matchedTransactionBankIds.isNotEmpty) {
         params['txMatchedBankIds'] = matchedTransactionBankIds;
@@ -1924,14 +1937,12 @@ class BankalarVeritabaniServisi {
 
     final trimmedSearch = aramaTerimi?.trim() ?? '';
     if (trimmedSearch.isNotEmpty) {
-      final parts = _normalizeTurkish(
-        trimmedSearch,
-      ).split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(8).toList();
-
-      for (int i = 0; i < parts.length; i++) {
-        query += ' AND t.search_tags LIKE @search$i';
-        params['search$i'] = '%${parts[i]}%';
-      }
+      query +=
+          ' AND ${AramaSqlYardimcisi.buildSearchTagsClause('t.search_tags')}';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(trimmedSearch),
+      );
     }
 
     if (islemTuru != null && islemTuru.isNotEmpty) {

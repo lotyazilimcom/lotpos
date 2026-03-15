@@ -27,3 +27,9 @@ abstract class SyncStore {
   Future<void> purgeSyncedData({required DateTime syncedBefore});
 }
 
+abstract class ScopedSyncStore {
+  Future<void> purgeRowsOutsideScope({
+    required String tableName,
+    required OfflineSyncTableScope scope,
+  });
+}

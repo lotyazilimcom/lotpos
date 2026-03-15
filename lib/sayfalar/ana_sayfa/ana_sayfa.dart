@@ -34,26 +34,50 @@ class _AnaSayfaState extends State<AnaSayfa> {
   @override
   void initState() {
     super.initState();
-    _verileriYukle();
+    final servis = AnaSayfaServisi();
+    final cacheliOzet = servis.cacheliDashboardVerisiniGetir(
+      tarihFiltresi: _tarihFiltresi,
+    );
+    final cacheZamani = servis.cacheZamaniniGetir(
+      tarihFiltresi: _tarihFiltresi,
+    );
+
+    if (cacheliOzet != null) {
+      _ozet = cacheliOzet;
+      _yukleniyor = false;
+      _sonYenilenme = cacheZamani ?? _sonYenilenme;
+    }
+
+    _verileriYukle(arkaPlanda: cacheliOzet != null);
   }
 
-  Future<void> _verileriYukle() async {
+  Future<void> _verileriYukle({bool arkaPlanda = false}) async {
     if (!mounted) return;
-    setState(() => _yukleniyor = true);
+    final servis = AnaSayfaServisi();
+    final talepEdilenFiltre = _tarihFiltresi;
+    final bloklayiciYukleme = !arkaPlanda && _ozet == null;
+
+    if (bloklayiciYukleme) {
+      setState(() => _yukleniyor = true);
+    }
 
     try {
-      final ozet = await AnaSayfaServisi().dashboardVerileriniGetir(
-        tarihFiltresi: _tarihFiltresi,
+      final ozet = await servis.dashboardVerileriniGetir(
+        tarihFiltresi: talepEdilenFiltre,
       );
-      if (!mounted) return;
+      if (!mounted || talepEdilenFiltre != _tarihFiltresi) return;
       setState(() {
         _ozet = ozet;
         _yukleniyor = false;
-        _sonYenilenme = DateTime.now();
+        _sonYenilenme =
+            servis.cacheZamaniniGetir(tarihFiltresi: talepEdilenFiltre) ??
+            DateTime.now();
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _yukleniyor = false);
+      if (_ozet == null) {
+        setState(() => _yukleniyor = false);
+      }
     }
   }
 
@@ -87,8 +111,8 @@ class _AnaSayfaState extends State<AnaSayfa> {
         final crossCount = width >= 1200
             ? 4
             : width >= 800
-                ? 2
-                : 1;
+            ? 2
+            : 1;
         final isWide = width >= 800;
 
         return SingleChildScrollView(
@@ -98,16 +122,34 @@ class _AnaSayfaState extends State<AnaSayfa> {
             children: [
               // ─── 1. Durum Şeridi ───
               DashboardDurumSeridi(
-                sirketAdi:
-                    OturumServisi().aktifSirket?.ad ?? 'Lot Pos V1.0',
+                sirketAdi: OturumServisi().aktifSirket?.ad ?? 'Lot Pos V1.0',
                 baglantiModu: VeritabaniYapilandirma.connectionMode,
                 sonYenilenme: _sonYenilenme,
                 seciliFiltre: _tarihFiltresi,
                 onFiltreSecildi: (filtre) {
-                  setState(() => _tarihFiltresi = filtre);
-                  _verileriYukle();
+                  final servis = AnaSayfaServisi();
+                  final cacheliOzet = servis.cacheliDashboardVerisiniGetir(
+                    tarihFiltresi: filtre,
+                  );
+                  final cacheZamani = servis.cacheZamaniniGetir(
+                    tarihFiltresi: filtre,
+                  );
+
+                  setState(() {
+                    _tarihFiltresi = filtre;
+                    if (cacheliOzet != null) {
+                      _ozet = cacheliOzet;
+                      _yukleniyor = false;
+                      _sonYenilenme = cacheZamani ?? _sonYenilenme;
+                    } else {
+                      _ozet = null;
+                      _yukleniyor = true;
+                    }
+                  });
+
+                  _verileriYukle(arkaPlanda: cacheliOzet != null);
                 },
-                onYenile: _verileriYukle,
+                onYenile: () => _verileriYukle(arkaPlanda: _ozet != null),
               ),
               const SizedBox(height: 20),
 
@@ -220,13 +262,7 @@ class _AnaSayfaState extends State<AnaSayfa> {
       );
     }
 
-    return Column(
-      children: [
-        grafik,
-        const SizedBox(height: 16),
-        uyari,
-      ],
-    );
+    return Column(children: [grafik, const SizedBox(height: 16), uyari]);
   }
 
   /// Orta Bant Finansal Kartlar Grid
@@ -234,21 +270,24 @@ class _AnaSayfaState extends State<AnaSayfa> {
     final kartlar = [
       DashboardFinansKarti(
         baslik: 'Kredi Kartı Bakiyesi',
-        deger: '${FormatYardimcisi.sayiFormatlaOndalikli(ozet.krediKartiBakiyesi)} ₺',
+        deger:
+            '${FormatYardimcisi.sayiFormatlaOndalikli(ozet.krediKartiBakiyesi)} ₺',
         ikon: Icons.credit_card_rounded,
         renk: const Color(0xFFE91E63),
         onTap: () => _tabAc(16),
       ),
       DashboardFinansKarti(
         baslik: 'Bekleyen Çekler',
-        deger: '${FormatYardimcisi.sayiFormatlaOndalikli(ozet.bekleyenCekler)} ₺',
+        deger:
+            '${FormatYardimcisi.sayiFormatlaOndalikli(ozet.bekleyenCekler)} ₺',
         ikon: Icons.description_outlined,
         renk: const Color(0xFF2196F3),
         onTap: () => _tabAc(14),
       ),
       DashboardFinansKarti(
         baslik: 'Bekleyen Senetler',
-        deger: '${FormatYardimcisi.sayiFormatlaOndalikli(ozet.bekleyenSenetler)} ₺',
+        deger:
+            '${FormatYardimcisi.sayiFormatlaOndalikli(ozet.bekleyenSenetler)} ₺',
         ikon: Icons.article_outlined,
         renk: const Color(0xFFFF9800),
         onTap: () => _tabAc(17),
@@ -271,7 +310,8 @@ class _AnaSayfaState extends State<AnaSayfa> {
       ),
       DashboardFinansKarti(
         baslik: 'Bu Ayki Giderler',
-        deger: '${FormatYardimcisi.sayiFormatlaOndalikli(ozet.buAykiGiderler)} ₺',
+        deger:
+            '${FormatYardimcisi.sayiFormatlaOndalikli(ozet.buAykiGiderler)} ₺',
         ikon: Icons.receipt_rounded,
         renk: AppPalette.red,
         onTap: () => _tabAc(100),

@@ -609,48 +609,46 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
           ? null
           : prevCursorRaw.trim();
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<UrunModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'products',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) => UrunlerVeritabaniServisi().urunleriGetir(
-          sayfa: 1,
-          sayfaBasinaKayit: ids.length,
-          // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-          aramaTerimi: _searchQuery,
-          sortBy: null,
-          sortAscending: true,
-          aktifMi: aktifMi,
-          grup: _selectedGroup,
-          birim: _selectedUnit,
-          kdvOrani: _selectedVat,
-          baslangicTarihi: _startDate,
-          bitisTarihi: _endDate,
-          depoIds: depoIds,
-          islemTuru: _selectedTransactionType,
-          kullanici: _selectedUser,
-          sadeceIdler: ids,
-          lastId: null,
-        ),
-        idOf: (u) => u.id,
-        setMatchedInHidden: (u, matched) =>
-            u.copyWith(matchedInHidden: matched),
-      );
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<UrunModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'products',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) => UrunlerVeritabaniServisi().urunleriGetir(
+            sayfa: 1,
+            sayfaBasinaKayit: ids.length,
+            // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+            aramaTerimi: _searchQuery,
+            sortBy: null,
+            sortAscending: true,
+            aktifMi: aktifMi,
+            grup: _selectedGroup,
+            birim: _selectedUnit,
+            kdvOrani: _selectedVat,
+            baslangicTarihi: _startDate,
+            bitisTarihi: _endDate,
+            depoIds: depoIds,
+            islemTuru: _selectedTransactionType,
+            kullanici: _selectedUser,
+            sadeceIdler: ids,
+            lastId: null,
+          ),
+          idOf: (u) => u.id,
+          setMatchedInHidden: (u, matched) =>
+              u.copyWith(matchedInHidden: matched),
+        );
         urunler = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
-      }
-
-      // Fallback: DB deep-search (mevcut davranış).
-      if (!primary.indexEnabled) {
+      } else {
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {
@@ -715,7 +713,7 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
           _hasNextPage = hasMore;
           _totalRecords = 0;
           _pageCursors.remove(_currentPage);
-          if (primary.indexEnabled) {
+          if (usePrimarySearch) {
             if (nextCursor != null && nextCursor.trim().isNotEmpty) {
               _pageCursors[_currentPage] = nextCursor.trim();
             }

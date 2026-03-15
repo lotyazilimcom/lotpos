@@ -321,45 +321,44 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
       List<BankaModel> depolar = [];
       bool hasMore = false;
       String? nextCursor;
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<BankaModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'banks',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) => BankalarVeritabaniServisi().bankalariGetir(
-          sayfa: 1,
-          sayfaBasinaKayit: ids.length,
-          // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-          aramaKelimesi: _searchQuery,
-          siralama: null,
-          artanSiralama: true,
-          aktifMi: aktifMi,
-          varsayilan: _selectedDefault,
-          kullanici: _selectedUser,
-          baslangicTarihi: _startDate,
-          bitisTarihi: _endDate,
-          islemTuru: _selectedTransactionType,
-          bankaId: _selectedWarehouse?.id,
-          sadeceIdler: ids,
-          lastId: null,
-        ),
-        idOf: (b) => b.id,
-        setMatchedInHidden: (b, matched) =>
-            b.copyWith(matchedInHidden: matched),
-      );
-
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<BankaModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'banks',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) => BankalarVeritabaniServisi().bankalariGetir(
+            sayfa: 1,
+            sayfaBasinaKayit: ids.length,
+            // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+            aramaKelimesi: _searchQuery,
+            siralama: null,
+            artanSiralama: true,
+            aktifMi: aktifMi,
+            varsayilan: _selectedDefault,
+            kullanici: _selectedUser,
+            baslangicTarihi: _startDate,
+            bitisTarihi: _endDate,
+            islemTuru: _selectedTransactionType,
+            bankaId: _selectedWarehouse?.id,
+            sadeceIdler: ids,
+            lastId: null,
+          ),
+          idOf: (b) => b.id,
+          setMatchedInHidden: (b, matched) =>
+              b.copyWith(matchedInHidden: matched),
+        );
         depolar = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
       } else {
-        // Fallback: DB deep-search (mevcut davranış).
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {

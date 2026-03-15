@@ -416,13 +416,19 @@ Future<void> _bootstrapCompanyDb(Connection conn) async {
       table: table,
       indexName: _trgmIndexName(table),
     );
+    await PgEklentiler.ensureSearchTagsFtsIndex(
+      conn,
+      table: table,
+      indexName: _ftsIndexName(table),
+    );
     final updated = await _backfillSearchTags(conn, table);
     searchBackfillRows += updated;
     if (updated > 0) {
       searchDirtyTables.add('$table:$updated');
     }
     final hasTrgm = await _hasAnyIndex(conn, <String>[_trgmIndexName(table)]);
-    if (hasTrgm) {
+    final hasFts = await _hasAnyIndex(conn, <String>[_ftsIndexName(table)]);
+    if (hasTrgm && hasFts) {
       searchOk++;
     }
   }
@@ -504,12 +510,20 @@ Future<void> _bootstrapSettingsDb(Connection conn) async {
       table: table,
       indexName: _settingsTrgmIndexName(table),
     );
+    await PgEklentiler.ensureSearchTagsFtsIndex(
+      conn,
+      table: table,
+      indexName: _settingsFtsIndexName(table),
+    );
     backfillRows += await _backfillSearchTags(conn, table);
 
     final hasTrgm = await _hasAnyIndex(conn, <String>[
       _settingsTrgmIndexName(table),
     ]);
-    if (hasTrgm) {
+    final hasFts = await _hasAnyIndex(conn, <String>[
+      _settingsFtsIndexName(table),
+    ]);
+    if (hasTrgm && hasFts) {
       searchOk++;
     }
   }
@@ -687,14 +701,11 @@ Future<bool> _hasAnyIndex(Session executor, List<String> names) async {
 }
 
 String _trgmIndexName(String table) {
-  switch (table) {
-    case 'current_accounts':
-      return 'idx_accounts_search_tags_gin';
-    case 'stock_movements':
-      return 'idx_sm_search_tags_gin';
-    default:
-      return 'idx_${table}_search_tags_gin';
-  }
+  return BuyukOlcekAramaBootstrapSpec.searchTrgmIndexNameForTable(table);
+}
+
+String _ftsIndexName(String table) {
+  return BuyukOlcekAramaBootstrapSpec.searchFtsIndexNameForTable(table);
 }
 
 String _settingsTrgmIndexName(String table) {
@@ -709,6 +720,21 @@ String _settingsTrgmIndexName(String table) {
       return 'idx_settings_company_search_tags_gin';
     default:
       return 'idx_settings_${table}_search_tags_gin';
+  }
+}
+
+String _settingsFtsIndexName(String table) {
+  switch (table) {
+    case 'users':
+      return 'idx_settings_users_search_tags_fts_gin';
+    case 'user_transactions':
+      return 'idx_settings_user_tx_search_tags_fts_gin';
+    case 'roles':
+      return 'idx_settings_roles_search_tags_fts_gin';
+    case 'company_settings':
+      return 'idx_settings_company_search_tags_fts_gin';
+    default:
+      return 'idx_settings_${table}_search_tags_fts_gin';
   }
 }
 

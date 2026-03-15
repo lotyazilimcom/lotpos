@@ -3,6 +3,7 @@ import 'package:postgres/postgres.dart';
 import '../sayfalar/kredikartlari/modeller/kredi_karti_model.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
 import 'cari_hesaplar_veritabani_servisi.dart';
 import 'kasalar_veritabani_servisi.dart';
@@ -56,17 +57,23 @@ class KrediKartlariVeritabaniServisi {
   }) async {
     if (normalizedSearch.trim().length < 3) return const <int>[];
     try {
+      final params = <String, dynamic>{'companyId': _companyId};
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalizedSearch,
+        prefix: 'card_tx_',
+      );
       final rows = await executor.execute(
         Sql.named('''
           SELECT DISTINCT cct.credit_card_id
           FROM credit_card_transactions cct
           WHERE cct.credit_card_id IS NOT NULL
             AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-            AND cct.search_tags LIKE @search
+            AND ${AramaSqlYardimcisi.buildSearchTagsClause('cct.search_tags', prefix: 'card_tx_')}
           ORDER BY cct.credit_card_id ASC
           LIMIT 2048
         '''),
-        parameters: {'companyId': _companyId, 'search': '%$normalizedSearch%'},
+        parameters: params,
       );
       return rows
           .map((row) => int.tryParse(row[0]?.toString() ?? ''))
@@ -83,10 +90,13 @@ class KrediKartlariVeritabaniServisi {
     required String idParam,
     required bool hasTxMatches,
   }) {
+    final searchClause = AramaSqlYardimcisi.buildSearchTagsClause(
+      '$alias.search_tags',
+    );
     if (!hasTxMatches) {
-      return '$alias.search_tags LIKE @search';
+      return searchClause;
     }
-    return '($alias.search_tags LIKE @search OR $alias.id = ANY(@$idParam))';
+    return '($searchClause OR $alias.id = ANY(@$idParam))';
   }
 
   String _krediKartiHiddenTxKosulu({
@@ -1193,6 +1203,7 @@ class KrediKartlariVeritabaniServisi {
           hasTxMatches: matchedTransactionCreditCardIds.isNotEmpty,
         ),
       );
+      AramaSqlYardimcisi.bindSearchParams(params, normalizedSearch);
       params['search'] = '%$normalizedSearch%';
       if (matchedTransactionCreditCardIds.isNotEmpty) {
         params['txMatchedCreditCardIds'] = matchedTransactionCreditCardIds;
@@ -1437,6 +1448,7 @@ class KrediKartlariVeritabaniServisi {
           hasTxMatches: matchedTransactionCreditCardIds.isNotEmpty,
         ),
       );
+      AramaSqlYardimcisi.bindSearchParams(params, normalizedSearch);
       params['search'] = '%$normalizedSearch%';
       if (matchedTransactionCreditCardIds.isNotEmpty) {
         params['txMatchedCreditCardIds'] = matchedTransactionCreditCardIds;
@@ -1582,6 +1594,7 @@ class KrediKartlariVeritabaniServisi {
           hasTxMatches: matchedTransactionCreditCardIds.isNotEmpty,
         ),
       );
+      AramaSqlYardimcisi.bindSearchParams(params, normalizedSearch);
       params['search'] = '%$normalizedSearch%';
       if (matchedTransactionCreditCardIds.isNotEmpty) {
         params['txMatchedCreditCardIds'] = matchedTransactionCreditCardIds;
@@ -1965,8 +1978,12 @@ class KrediKartlariVeritabaniServisi {
     final trimmedSearch = aramaTerimi?.trim() ?? '';
     if (trimmedSearch.isNotEmpty) {
       // [PERF] Arama: transaction-level search_tags (gin_trgm_ops) kullan.
-      query += " AND t.search_tags LIKE @search";
-      params['search'] = '%${_normalizeTurkish(trimmedSearch)}%';
+      query +=
+          ' AND ${AramaSqlYardimcisi.buildSearchTagsClause('t.search_tags')}';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(trimmedSearch),
+      );
     }
 
     if (islemTuru != null && islemTuru.isNotEmpty) {

@@ -307,46 +307,45 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
       List<KrediKartiModel> krediKartlari = [];
       bool hasMore = false;
       String? nextCursor;
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<KrediKartiModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'credit_cards',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) =>
-            KrediKartlariVeritabaniServisi().krediKartlariniGetir(
-              sayfa: 1,
-              sayfaBasinaKayit: ids.length,
-              // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-              aramaKelimesi: _searchQuery,
-              siralama: null,
-              artanSiralama: true,
-              aktifMi: aktifMi,
-              varsayilan: _selectedDefault,
-              kullanici: _selectedUser,
-              baslangicTarihi: _startDate,
-              bitisTarihi: _endDate,
-              islemTuru: _selectedTransactionType,
-              krediKartiId: _selectedWarehouse?.id,
-              sadeceIdler: ids,
-              lastId: null,
-            ),
-        idOf: (k) => k.id,
-        setMatchedInHidden: (k, matched) =>
-            k.copyWith(matchedInHidden: matched),
-      );
-
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<KrediKartiModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'credit_cards',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) =>
+              KrediKartlariVeritabaniServisi().krediKartlariniGetir(
+                sayfa: 1,
+                sayfaBasinaKayit: ids.length,
+                // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+                aramaKelimesi: _searchQuery,
+                siralama: null,
+                artanSiralama: true,
+                aktifMi: aktifMi,
+                varsayilan: _selectedDefault,
+                kullanici: _selectedUser,
+                baslangicTarihi: _startDate,
+                bitisTarihi: _endDate,
+                islemTuru: _selectedTransactionType,
+                krediKartiId: _selectedWarehouse?.id,
+                sadeceIdler: ids,
+                lastId: null,
+              ),
+          idOf: (k) => k.id,
+          setMatchedInHidden: (k, matched) =>
+              k.copyWith(matchedInHidden: matched),
+        );
         krediKartlari = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
       } else {
-        // Fallback: DB deep-search (mevcut davranış).
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {

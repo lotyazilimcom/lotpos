@@ -3,6 +3,7 @@
 import 'dart:io';
 
 import 'package:postgres/postgres.dart';
+import 'package:patisyov10/servisler/postgresql_tuning_profili.dart';
 
 const String _settingsDb = 'patisyosettings';
 const String _defaultDb = 'patisyo2025';
@@ -100,6 +101,8 @@ Future<void> _finalizeDb({
     print(
       'postgres=${version.text} num=${version.num} ${version.num >= _minimumPgVersionNum ? 'OK' : 'MIN_18_3_GEREKLI'}',
     );
+
+    await _reportTuningProfile(conn);
 
     await _bestEffort(conn, 'CREATE EXTENSION IF NOT EXISTS pg_trgm');
     await _ensureNormalizeText(conn);
@@ -639,22 +642,22 @@ Future<void> _runBenchmarks(Connection conn, {required String database}) async {
     {
       'table': 'products',
       'sql':
-          'SELECT id FROM products WHERE search_tags LIKE @search ORDER BY id DESC LIMIT 25',
+          "SELECT id FROM products WHERE (to_tsvector('simple'::regconfig, COALESCE(search_tags, '')) @@ plainto_tsquery('simple'::regconfig, @fts) OR COALESCE(search_tags, '') % @trgm) ORDER BY id DESC LIMIT 25",
     },
     {
       'table': 'current_accounts',
       'sql':
-          'SELECT id FROM current_accounts WHERE search_tags LIKE @search ORDER BY id DESC LIMIT 25',
+          "SELECT id FROM current_accounts WHERE (to_tsvector('simple'::regconfig, COALESCE(search_tags, '')) @@ plainto_tsquery('simple'::regconfig, @fts) OR COALESCE(search_tags, '') % @trgm) ORDER BY id DESC LIMIT 25",
     },
     {
       'table': 'banks',
       'sql':
-          'SELECT id FROM banks WHERE search_tags LIKE @search ORDER BY id DESC LIMIT 25',
+          "SELECT id FROM banks WHERE (to_tsvector('simple'::regconfig, COALESCE(search_tags, '')) @@ plainto_tsquery('simple'::regconfig, @fts) OR COALESCE(search_tags, '') % @trgm) ORDER BY id DESC LIMIT 25",
     },
     {
       'table': 'depots',
       'sql':
-          'SELECT id FROM depots WHERE search_tags LIKE @search ORDER BY id DESC LIMIT 25',
+          "SELECT id FROM depots WHERE (to_tsvector('simple'::regconfig, COALESCE(search_tags, '')) @@ plainto_tsquery('simple'::regconfig, @fts) OR COALESCE(search_tags, '') % @trgm) ORDER BY id DESC LIMIT 25",
     },
   ];
 
@@ -670,7 +673,7 @@ Future<void> _runBenchmarks(Connection conn, {required String database}) async {
     try {
       final result = await conn.execute(
         Sql.named('EXPLAIN (ANALYZE, BUFFERS) ${bench['sql']}'),
-        parameters: {'search': '%$token%'},
+        parameters: {'fts': token, 'trgm': token},
       );
       final lines = result.map((row) => row[0].toString()).toList();
       final summary = lines.take(3).join(' | ');
@@ -682,6 +685,27 @@ Future<void> _runBenchmarks(Connection conn, {required String database}) async {
   }
 
   print('benchmark_db=$database done');
+}
+
+Future<void> _reportTuningProfile(Connection conn) async {
+  final profile = await PostgresTuningProfile.detect(
+    maxConnections: _targetMaxConnections(),
+  );
+  print(
+    'tuning_profile memory_mb=${profile.totalMemoryMb} cpu=${profile.cpuCount} max_conn=${profile.maxConnections}',
+  );
+  for (final setting in profile.settings) {
+    final current = await _showSettingBestEffort(conn, setting.key);
+    final status = current == null
+        ? 'UNREADABLE'
+        : _normalizeSetting(current) == _normalizeSetting(setting.value)
+        ? 'OK'
+        : 'DIFF';
+    final currentLabel = current ?? '?';
+    print(
+      '  ${setting.key}: current=$currentLabel target=${setting.value} status=$status',
+    );
+  }
 }
 
 Future<String?> _sampleSearchToken(Connection conn, String table) async {
@@ -873,6 +897,25 @@ Future<_VersionInfo> _serverVersion(Session executor) async {
   final text = rows.first[0]?.toString() ?? 'unknown';
   final num = int.tryParse(rows.first[1]?.toString() ?? '') ?? 0;
   return _VersionInfo(text: text, num: num);
+}
+
+Future<String?> _showSettingBestEffort(Session executor, String key) async {
+  try {
+    final rows = await executor.execute('SHOW $key');
+    if (rows.isEmpty) return null;
+    return rows.first[0]?.toString().trim();
+  } catch (_) {
+    return null;
+  }
+}
+
+String _normalizeSetting(String value) {
+  return value.trim().toLowerCase().replaceAll(' ', '');
+}
+
+int _targetMaxConnections() {
+  final raw = (Platform.environment['PATISYO_DB_MAX_CONNECTIONS'] ?? '').trim();
+  return int.tryParse(raw) ?? 20;
 }
 
 Future<void> _bestEffort(Session executor, String sql) async {

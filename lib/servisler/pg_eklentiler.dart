@@ -3,6 +3,8 @@ import 'package:postgres/postgres.dart';
 import 'veritabani_yapilandirma.dart';
 
 class PgEklentiler {
+  static const String searchTextConfig = 'simple';
+
   static const String _ensurePgTrgmSql = '''
 DO \$\$
 BEGIN
@@ -304,6 +306,25 @@ END;
     );
   }
 
+  /// `search_tags` için gerçek FTS (`tsvector`) GIN indeksini garanti eder.
+  static Future<void> ensureSearchTagsFtsIndex(
+    Session executor, {
+    required String table,
+    required String indexName,
+    String column = 'search_tags',
+  }) async {
+    final t = table.trim();
+    final i = indexName.trim();
+    final c = column.trim();
+    if (t.isEmpty || i.isEmpty || c.isEmpty) return;
+
+    await executor.execute('''
+      CREATE INDEX IF NOT EXISTS ${_qi(i)}
+      ON ${_qt(t)}
+      USING GIN (to_tsvector('$searchTextConfig'::regconfig, COALESCE(${_qi(c)}, '')))
+      ''');
+  }
+
   static Future<bool> hasTrgmIndexForTableColumn(
     Session executor, {
     required String table,
@@ -321,6 +342,34 @@ END;
             AND tablename = @t
             AND indexdef ILIKE @colPattern
             AND indexdef ILIKE '%gin_trgm_ops%'
+          LIMIT 1
+        '''),
+        parameters: {'t': t, 'colPattern': '%$c%'},
+      );
+      return res.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> hasFtsIndexForTableColumn(
+    Session executor, {
+    required String table,
+    String column = 'search_tags',
+  }) async {
+    final t = table.trim();
+    final c = column.trim();
+    if (t.isEmpty || c.isEmpty) return false;
+    try {
+      final res = await executor.execute(
+        Sql.named(r'''
+          SELECT 1
+          FROM pg_indexes
+          WHERE schemaname = 'public'
+            AND tablename = @t
+            AND indexdef ILIKE '%using gin%'
+            AND indexdef ILIKE '%to_tsvector%'
+            AND indexdef ILIKE @colPattern
           LIMIT 1
         '''),
         parameters: {'t': t, 'colPattern': '%$c%'},
@@ -364,5 +413,4 @@ END;
       'CREATE INDEX IF NOT EXISTS ${_qi(i)} ON ${_qt(t)} USING BRIN (${_qi(c)}) WITH (pages_per_range = $pagesPerRange)',
     );
   }
-
 }

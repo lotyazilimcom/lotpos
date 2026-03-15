@@ -303,44 +303,43 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
       List<SenetModel> depolar = [];
       bool hasMore = false;
       String? nextCursor;
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<SenetModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'promissory_notes',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) => SenetlerVeritabaniServisi().senetleriGetir(
-          sayfa: 1,
-          sayfaBasinaKayit: ids.length,
-          // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-          aramaKelimesi: _searchQuery,
-          siralama: null,
-          artanSiralama: true,
-          aktifMi: null,
-          banka: _selectedBank,
-          kullanici: _selectedUser,
-          baslangicTarihi: _startDate,
-          bitisTarihi: _endDate,
-          islemTuru: _selectedTransactionType,
-          sadeceIdler: ids,
-          lastId: null,
-        ),
-        idOf: (s) => s.id,
-        setMatchedInHidden: (s, matched) =>
-            s.copyWith(matchedInHidden: matched),
-      );
-
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<SenetModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'promissory_notes',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) => SenetlerVeritabaniServisi().senetleriGetir(
+            sayfa: 1,
+            sayfaBasinaKayit: ids.length,
+            // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+            aramaKelimesi: _searchQuery,
+            siralama: null,
+            artanSiralama: true,
+            aktifMi: null,
+            banka: _selectedBank,
+            kullanici: _selectedUser,
+            baslangicTarihi: _startDate,
+            bitisTarihi: _endDate,
+            islemTuru: _selectedTransactionType,
+            sadeceIdler: ids,
+            lastId: null,
+          ),
+          idOf: (s) => s.id,
+          setMatchedInHidden: (s, matched) =>
+              s.copyWith(matchedInHidden: matched),
+        );
         depolar = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
       } else {
-        // Fallback: DB deep-search (mevcut davranış).
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {
@@ -383,7 +382,7 @@ class _SenetlerSayfasiState extends State<SenetlerSayfasi> {
 
       if (mounted) {
         _pageCursors.remove(_currentPage);
-        if (primary.indexEnabled) {
+        if (usePrimarySearch) {
           if (nextCursor != null && nextCursor.trim().isNotEmpty) {
             _pageCursors[_currentPage] = nextCursor.trim();
           }

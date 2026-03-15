@@ -17,6 +17,7 @@ class OfflineFirstSyncConfig {
   final int maxRetryCount;
   final Duration inAppSyncInterval;
   final Map<String, String> deltaPullRpcsByTable;
+  final Map<String, OfflineSyncTableScope> tableScopes;
 
   const OfflineFirstSyncConfig({
     required this.tenantId,
@@ -29,6 +30,7 @@ class OfflineFirstSyncConfig {
     this.localRetentionDays = 14,
     this.maxRetryCount = 3,
     this.inAppSyncInterval = const Duration(minutes: 15),
+    this.tableScopes = const <String, OfflineSyncTableScope>{},
   });
 }
 
@@ -233,6 +235,12 @@ class SyncManager extends ChangeNotifier {
   }) async {
     int pulled = 0;
     for (final entry in config.deltaPullRpcsByTable.entries) {
+      final scope = config.tableScopes[entry.key];
+      await _purgeRowsOutsideScopeIfSupported(
+        store: store,
+        tableName: entry.key,
+        scope: scope,
+      );
       pulled += await _pullTable(
         client: client,
         store: store,
@@ -253,6 +261,7 @@ class SyncManager extends ChangeNotifier {
   }) async {
     int pulled = 0;
     var cursor = await store.getCursor(table);
+    final scope = config.tableScopes[table];
     final effectiveSinceFloor = DateTime.now().toUtc().subtract(
       Duration(days: config.maxLocalHistoryDays),
     );
@@ -265,21 +274,31 @@ class SyncManager extends ChangeNotifier {
       final effectiveSince = cursor.lastPulledAt.isBefore(effectiveSinceFloor)
           ? effectiveSinceFloor
           : cursor.lastPulledAt;
-      final res = await client.rpc(
-        rpcName,
-        params: <String, dynamic>{
-          'p_tenant_id': config.tenantId,
-          'p_since': effectiveSince.toUtc().toIso8601String(),
-          'p_after_id': cursor.lastPulledId,
-          'p_limit': effectiveLimit,
-        },
-      );
+      final params = <String, dynamic>{
+        'p_tenant_id': config.tenantId,
+        'p_since': effectiveSince.toUtc().toIso8601String(),
+        'p_after_id': cursor.lastPulledId,
+        'p_limit': effectiveLimit,
+      };
+      if (scope != null) {
+        if (scope.attachScopeToRpc) {
+          final payload = scope.toRpcScopePayload();
+          if (payload.isNotEmpty) {
+            params[scope.scopeParamName] = payload;
+          }
+        }
+        params.addAll(scope.rpcParams);
+      }
+      final res = await client.rpc(rpcName, params: params);
 
       final rows = _parseRows(res);
       if (rows.isEmpty) break;
 
-      await store.upsertPulledRows(table, rows);
-      pulled += rows.length;
+      final filteredRows = scope?.filterRows(rows) ?? rows;
+      if (filteredRows.isNotEmpty) {
+        await store.upsertPulledRows(table, filteredRows);
+        pulled += filteredRows.length;
+      }
 
       final last = rows.last;
       final lastUpdatedRaw = last['updated_at'];
@@ -298,6 +317,17 @@ class SyncManager extends ChangeNotifier {
     }
 
     return pulled;
+  }
+
+  Future<void> _purgeRowsOutsideScopeIfSupported({
+    required SyncStore store,
+    required String tableName,
+    required OfflineSyncTableScope? scope,
+  }) async {
+    if (scope == null || !scope.hasLocalFilter) return;
+    if (store is! ScopedSyncStore) return;
+    final scopedStore = store as ScopedSyncStore;
+    await scopedStore.purgeRowsOutsideScope(tableName: tableName, scope: scope);
   }
 
   List<Map<String, dynamic>> _parseRows(Object? res) {

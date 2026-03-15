@@ -297,11 +297,11 @@ Future<void> _runExplains(
 
   if (isSettingsDb) {
     final explainUsers = hasQ
-        ? Sql.named(r'''
+        ? Sql.named('''
           EXPLAIN (ANALYZE, BUFFERS)
           SELECT u.id
           FROM users u
-          WHERE u.search_tags LIKE @search
+          WHERE ${_ftsMatch('u.search_tags')}
           ORDER BY u.hire_date_sort DESC NULLS LAST, u.id DESC
           LIMIT 26
         ''')
@@ -323,11 +323,11 @@ Future<void> _runExplains(
     ''');
 
     final explainCompany = hasQ
-        ? Sql.named(r'''
+        ? Sql.named('''
           EXPLAIN (ANALYZE, BUFFERS)
           SELECT cs.id
           FROM company_settings cs
-          WHERE cs.search_tags LIKE @search
+          WHERE ${_ftsMatch('cs.search_tags')}
           ORDER BY cs.kod ASC, cs.id ASC
           LIMIT 26
         ''')
@@ -339,7 +339,10 @@ Future<void> _runExplains(
           LIMIT 26
         ''');
 
-    final paramsSearch = <String, dynamic>{if (hasQ) 'search': '%$trimmedQ%'};
+    final paramsSearch = <String, dynamic>{
+      if (hasQ) 'ftsQuery': trimmedQ,
+      if (hasQ) 'trgmQuery': trimmedQ,
+    };
     final paramsCompany = <String, dynamic>{'companyId': companyId};
 
     await _printExplain(conn, '1) users_list', explainUsers, paramsSearch);
@@ -359,14 +362,14 @@ Future<void> _runExplains(
   }
 
   final explain1 = hasQ
-      ? Sql.named(r'''
+      ? Sql.named('''
         EXPLAIN (ANALYZE, BUFFERS)
         SELECT sm.id
         FROM stock_movements sm
         INNER JOIN products p ON p.id = sm.product_id
         WHERE (
-          sm.search_tags LIKE @search
-          OR p.search_tags LIKE @search
+          ${_ftsMatch('sm.search_tags')}
+          OR ${_ftsMatch('p.search_tags')}
         )
         ORDER BY sm.movement_date DESC, sm.id DESC
         LIMIT 26
@@ -380,22 +383,31 @@ Future<void> _runExplains(
       ''');
 
   final explain2 = hasQ
-      ? Sql.named(r'''
+      ? Sql.named('''
         EXPLAIN (ANALYZE, BUFFERS)
         WITH m AS (
-          SELECT date AS tarih, id::text AS gid, search_tags FROM current_account_transactions
+          SELECT date AS tarih, id::text AS gid
+          FROM current_account_transactions
+          WHERE ${_ftsMatch('search_tags')}
           UNION ALL
-          SELECT date AS tarih, id::text AS gid, search_tags FROM bank_transactions
+          SELECT date AS tarih, id::text AS gid
+          FROM bank_transactions
+          WHERE ${_ftsMatch('search_tags')}
           UNION ALL
-          SELECT date AS tarih, id::text AS gid, search_tags FROM cash_register_transactions
+          SELECT date AS tarih, id::text AS gid
+          FROM cash_register_transactions
+          WHERE ${_ftsMatch('search_tags')}
           UNION ALL
-          SELECT date AS tarih, id::text AS gid, search_tags FROM credit_card_transactions
+          SELECT date AS tarih, id::text AS gid
+          FROM credit_card_transactions
+          WHERE ${_ftsMatch('search_tags')}
           UNION ALL
-          SELECT movement_date AS tarih, id::text AS gid, search_tags FROM stock_movements
+          SELECT movement_date AS tarih, id::text AS gid
+          FROM stock_movements
+          WHERE ${_ftsMatch('search_tags')}
         )
         SELECT gid, tarih
         FROM m
-        WHERE search_tags LIKE @search
         ORDER BY tarih DESC, gid DESC
         LIMIT 26
       ''')
@@ -419,11 +431,11 @@ Future<void> _runExplains(
       ''');
 
   final explain3 = hasQ
-      ? Sql.named(r'''
+      ? Sql.named('''
         EXPLAIN (ANALYZE, BUFFERS)
         SELECT s.id
         FROM shipments s
-        WHERE s.search_tags LIKE @search
+        WHERE ${_ftsMatch('s.search_tags')}
         ORDER BY s.date DESC, s.id DESC
         LIMIT 26
       ''')
@@ -435,7 +447,10 @@ Future<void> _runExplains(
         LIMIT 26
       ''');
 
-  final paramsSearch = <String, dynamic>{if (hasQ) 'search': '%$trimmedQ%'};
+  final paramsSearch = <String, dynamic>{
+    if (hasQ) 'ftsQuery': trimmedQ,
+    if (hasQ) 'trgmQuery': trimmedQ,
+  };
 
   await _printExplain(conn, '1) product_movements', explain1, paramsSearch);
   await _printExplain(conn, '2) all_movements', explain2, paramsSearch);
@@ -481,6 +496,15 @@ List<_IndexSpec> _companyIndexSpecs() {
             'ON ${_qi(table)} USING GIN (search_tags gin_trgm_ops)',
       ),
     );
+    specs.add(
+      _IndexSpec(
+        table: table,
+        acceptedNames: <String>[_ftsIndexName(table)],
+        createSql:
+            'CREATE INDEX IF NOT EXISTS ${_ftsIndexName(table)} '
+            "ON ${_qi(table)} USING GIN (to_tsvector('${PgEklentiler.searchTextConfig}'::regconfig, COALESCE(search_tags, '')))",
+      ),
+    );
   }
 
   for (final spec in BuyukOlcekAramaBootstrapSpec.brinSpecs) {
@@ -520,11 +544,25 @@ List<_IndexSpec> _settingsIndexSpecs() {
           'ON users USING GIN (search_tags gin_trgm_ops)',
     ),
     _IndexSpec(
+      table: 'users',
+      acceptedNames: const <String>['idx_settings_users_search_tags_fts_gin'],
+      createSql:
+          "CREATE INDEX IF NOT EXISTS idx_settings_users_search_tags_fts_gin "
+          "ON users USING GIN (to_tsvector('${PgEklentiler.searchTextConfig}'::regconfig, COALESCE(search_tags, '')))",
+    ),
+    _IndexSpec(
       table: 'user_transactions',
       acceptedNames: const <String>['idx_settings_user_tx_search_tags_gin'],
       createSql:
           'CREATE INDEX IF NOT EXISTS idx_settings_user_tx_search_tags_gin '
           'ON user_transactions USING GIN (search_tags gin_trgm_ops)',
+    ),
+    _IndexSpec(
+      table: 'user_transactions',
+      acceptedNames: const <String>['idx_settings_user_tx_search_tags_fts_gin'],
+      createSql:
+          "CREATE INDEX IF NOT EXISTS idx_settings_user_tx_search_tags_fts_gin "
+          "ON user_transactions USING GIN (to_tsvector('${PgEklentiler.searchTextConfig}'::regconfig, COALESCE(search_tags, '')))",
     ),
     _IndexSpec(
       table: 'roles',
@@ -534,11 +572,25 @@ List<_IndexSpec> _settingsIndexSpecs() {
           'ON roles USING GIN (search_tags gin_trgm_ops)',
     ),
     _IndexSpec(
+      table: 'roles',
+      acceptedNames: const <String>['idx_settings_roles_search_tags_fts_gin'],
+      createSql:
+          "CREATE INDEX IF NOT EXISTS idx_settings_roles_search_tags_fts_gin "
+          "ON roles USING GIN (to_tsvector('${PgEklentiler.searchTextConfig}'::regconfig, COALESCE(search_tags, '')))",
+    ),
+    _IndexSpec(
       table: 'company_settings',
       acceptedNames: const <String>['idx_settings_company_search_tags_gin'],
       createSql:
           'CREATE INDEX IF NOT EXISTS idx_settings_company_search_tags_gin '
           'ON company_settings USING GIN (search_tags gin_trgm_ops)',
+    ),
+    _IndexSpec(
+      table: 'company_settings',
+      acceptedNames: const <String>['idx_settings_company_search_tags_fts_gin'],
+      createSql:
+          "CREATE INDEX IF NOT EXISTS idx_settings_company_search_tags_fts_gin "
+          "ON company_settings USING GIN (to_tsvector('${PgEklentiler.searchTextConfig}'::regconfig, COALESCE(search_tags, '')))",
     ),
     _IndexSpec(
       table: 'users',
@@ -617,14 +669,21 @@ Future<bool> _hasAnyIndex(Session executor, List<String> names) async {
 }
 
 String _trgmIndexName(String table) {
-  switch (table) {
-    case 'current_accounts':
-      return 'idx_accounts_search_tags_gin';
-    case 'stock_movements':
-      return 'idx_sm_search_tags_gin';
-    default:
-      return 'idx_${table}_search_tags_gin';
-  }
+  return BuyukOlcekAramaBootstrapSpec.searchTrgmIndexNameForTable(table);
+}
+
+String _ftsIndexName(String table) {
+  return BuyukOlcekAramaBootstrapSpec.searchFtsIndexNameForTable(table);
+}
+
+String _ftsMatch(String expression) {
+  return '''
+    (
+      to_tsvector('${PgEklentiler.searchTextConfig}'::regconfig, COALESCE($expression, ''))
+      @@ plainto_tsquery('${PgEklentiler.searchTextConfig}'::regconfig, @ftsQuery)
+      OR COALESCE($expression, '') % @trgmQuery
+    )
+  ''';
 }
 
 Future<void> _bestEffortExecute(Connection conn, String sql) async {

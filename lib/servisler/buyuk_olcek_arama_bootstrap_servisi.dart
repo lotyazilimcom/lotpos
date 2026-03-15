@@ -6,7 +6,6 @@ import 'package:postgres/postgres.dart';
 import 'arama/buyuk_olcek_arama_bootstrap_spec.dart';
 import 'pg_eklentiler.dart';
 import 'veritabani_havuzu.dart';
-import 'veritabani_yapilandirma.dart';
 
 /// [2026] Harici search ve Citus olmadan saf PostgreSQL performans bootstrap'i.
 ///
@@ -77,14 +76,8 @@ class BuyukOlcekAramaBootstrapServisi {
   }
 
   Future<void> _hazirlaInternal(String db) async {
-    final cfg = VeritabaniYapilandirma();
-    if (!cfg.allowBackgroundDbMaintenance) return;
-
     final pool = await VeritabaniHavuzu().havuzAl(database: db);
-    await _ensureCoreIndexes(
-      pool: pool,
-      includeHeavyIndexes: cfg.allowBackgroundHeavyMaintenance,
-    );
+    await _ensureCoreIndexes(pool: pool, includeHeavyIndexes: true);
     _completedByDb.add(db);
   }
 
@@ -110,7 +103,16 @@ class BuyukOlcekAramaBootstrapServisi {
         await PgEklentiler.ensureSearchTagsTrgmIndex(
           pool,
           table: table,
-          indexName: 'idx_${table}_search_tags_gin',
+          indexName: BuyukOlcekAramaBootstrapSpec.searchTrgmIndexNameForTable(
+            table,
+          ),
+        );
+        await PgEklentiler.ensureSearchTagsFtsIndex(
+          pool,
+          table: table,
+          indexName: BuyukOlcekAramaBootstrapSpec.searchFtsIndexNameForTable(
+            table,
+          ),
         );
       } catch (e) {
         if (kDebugMode) {

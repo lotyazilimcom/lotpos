@@ -8,6 +8,7 @@ import '../sayfalar/urunler_ve_depolar/depolar/modeller/depo_model.dart';
 import '../sayfalar/urunler_ve_depolar/depolar/sevkiyat_olustur_sayfasi.dart';
 
 import 'alisyap_veritabani_servisleri.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'perakende_satis_veritabani_servisleri.dart';
@@ -51,6 +52,12 @@ class DepolarVeritabaniServisi {
   }) async {
     if (normalizedSearch.trim().length < 3) return const <int>[];
     try {
+      final params = <String, dynamic>{};
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalizedSearch,
+        prefix: 'shipment_',
+      );
       final rows = await executor.execute(
         Sql.named('''
           SELECT DISTINCT depot_id
@@ -58,18 +65,18 @@ class DepolarVeritabaniServisi {
             SELECT s.source_warehouse_id AS depot_id
             FROM shipments s
             WHERE s.source_warehouse_id IS NOT NULL
-              AND s.search_tags LIKE @search
+              AND ${AramaSqlYardimcisi.buildSearchTagsClause('s.search_tags', prefix: 'shipment_')}
             UNION
             SELECT s.dest_warehouse_id AS depot_id
             FROM shipments s
             WHERE s.dest_warehouse_id IS NOT NULL
-              AND s.search_tags LIKE @search
+              AND ${AramaSqlYardimcisi.buildSearchTagsClause('s.search_tags', prefix: 'shipment_')}
           ) matched
           WHERE depot_id IS NOT NULL
           ORDER BY depot_id ASC
           LIMIT 4096
         '''),
-        parameters: {'search': '%$normalizedSearch%'},
+        parameters: params,
       );
       return rows
           .map((row) => int.tryParse(row[0]?.toString() ?? ''))
@@ -86,10 +93,13 @@ class DepolarVeritabaniServisi {
     required String idParam,
     required bool hasShipmentMatches,
   }) {
+    final searchClause = AramaSqlYardimcisi.buildSearchTagsClause(
+      '$alias.search_tags',
+    );
     if (!hasShipmentMatches) {
-      return '$alias.search_tags LIKE @search';
+      return searchClause;
     }
-    return '($alias.search_tags LIKE @search OR $alias.id = ANY(@$idParam))';
+    return '($searchClause OR $alias.id = ANY(@$idParam))';
   }
 
   String _depoHiddenTxKosulu({
@@ -1520,6 +1530,7 @@ class DepolarVeritabaniServisi {
       whereConditions.add('''
         ${_depoAramaKosulu(alias: 'depots', idParam: 'matchedShipmentDepotIds', hasShipmentMatches: matchedShipmentDepotIds.isNotEmpty)}
 		      ''');
+      AramaSqlYardimcisi.bindSearchParams(params, normalizedSearch);
       params['search'] = '%$normalizedSearch%';
       if (matchedShipmentDepotIds.isNotEmpty) {
         params['matchedShipmentDepotIds'] = matchedShipmentDepotIds;
@@ -1775,6 +1786,7 @@ class DepolarVeritabaniServisi {
           hasShipmentMatches: matchedShipmentDepotIds.isNotEmpty,
         ),
       );
+      AramaSqlYardimcisi.bindSearchParams(params, normalizedSearch);
       params['search'] = '%$normalizedSearch%';
       if (matchedShipmentDepotIds.isNotEmpty) {
         params['matchedShipmentDepotIds'] = matchedShipmentDepotIds;
@@ -1945,6 +1957,7 @@ class DepolarVeritabaniServisi {
             hasShipmentMatches: matchedShipmentDepotIds.isNotEmpty,
           ),
         );
+        AramaSqlYardimcisi.bindSearchParams(params, normalizedSearch);
         params['search'] = '%$normalizedSearch%';
         if (matchedShipmentDepotIds.isNotEmpty) {
           params['matchedShipmentDepotIds'] = matchedShipmentDepotIds;
@@ -2125,8 +2138,8 @@ class DepolarVeritabaniServisi {
     final userConds = <String>[];
     final String? trimmedSearch = aramaTerimi?.trim();
     if (trimmedSearch != null && trimmedSearch.isNotEmpty) {
-      userConds.add("d.search_tags LIKE @search");
-      userParams['search'] = '%${trimmedSearch.toLowerCase()}%';
+      userConds.add(AramaSqlYardimcisi.buildSearchTagsClause('d.search_tags'));
+      AramaSqlYardimcisi.bindSearchParams(userParams, trimmedSearch);
     }
     if (aktifMi != null) {
       userConds.add('d.aktif_mi = @aktifMi');
@@ -2253,9 +2266,17 @@ class DepolarVeritabaniServisi {
     Map<String, dynamic> params = {};
 
     if (aramaTerimi.isNotEmpty) {
-      query +=
-          ' WHERE kod ILIKE @search OR ad ILIKE @search OR adres ILIKE @search OR sorumlu ILIKE @search';
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      final normalizedSearch = AramaSqlYardimcisi.normalizeQuery(aramaTerimi);
+      if (AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalizedSearch,
+        prefix: 'depot_search_',
+        minTokenLength: 1,
+        maxTokens: 8,
+      )) {
+        query +=
+            ' WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('search_tags', prefix: 'depot_search_')}';
+      }
     }
 
     query += ' ORDER BY ad ASC LIMIT @limit';
@@ -3314,8 +3335,9 @@ class DepolarVeritabaniServisi {
     if (trimmedSearch.isNotEmpty) {
       // [PERF] Shipments için search_tags (trigger + gin_trgm_ops) kullan.
       // Böylece jsonb_array_elements/ILIKE taraması yerine indeksli arama yapılır.
-      query += " AND s.search_tags LIKE @search";
-      params['search'] = '%${trimmedSearch.toLowerCase()}%';
+      query +=
+          ' AND ${AramaSqlYardimcisi.buildSearchTagsClause('s.search_tags')}';
+      AramaSqlYardimcisi.bindSearchParams(params, trimmedSearch);
     }
 
     // Cursor pagination (date + id) for deep history without skip-based paging.
@@ -3752,8 +3774,12 @@ class DepolarVeritabaniServisi {
     // [2026] Deep search: precomputed (trigger-maintained) shipments.search_tags (GIN trgm).
     // Bu ekranlarda in-memory filtre yerine DB araması kullanılır (5 yıllık geçmiş dahil).
     if (aramaTerimi != null && aramaTerimi.trim().isNotEmpty) {
-      query += " AND s.search_tags LIKE @search";
-      params['search'] = '%${normalizeTurkish(aramaTerimi.trim())}%';
+      query +=
+          ' AND ${AramaSqlYardimcisi.buildSearchTagsClause('s.search_tags')}';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalizeTurkish(aramaTerimi.trim()),
+      );
     }
 
     // [2026 CURSOR PAGINATION] Stable ordering with (date, id) tie-breaker.
@@ -4287,11 +4313,20 @@ class DepolarVeritabaniServisi {
     final result = await _pool!.execute(
       Sql.named('''
         SELECT kod, ad, birim FROM products 
-        WHERE LOWER(kod) LIKE @search 
-           OR LOWER(ad) LIKE @search
+        WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('search_tags', prefix: 'product_picker_')}
         LIMIT 20
       '''),
-      parameters: {'search': '%${query.toLowerCase()}%'},
+      parameters: () {
+        final params = <String, dynamic>{};
+        AramaSqlYardimcisi.bindSearchParams(
+          params,
+          AramaSqlYardimcisi.normalizeQuery(query),
+          prefix: 'product_picker_',
+          minTokenLength: 1,
+          maxTokens: 8,
+        );
+        return params;
+      }(),
     );
 
     return result.map((row) {
@@ -4746,9 +4781,16 @@ class DepolarVeritabaniServisi {
       final Map<String, dynamic> params = {'depoId': depoId};
 
       if (aramaTerimi != null && aramaTerimi.trim().isNotEmpty) {
-        whereClause +=
-            ' AND (LOWER(p.ad) LIKE @arama OR LOWER(p.kod) LIKE @arama)';
-        params['arama'] = '%${aramaTerimi.toLowerCase()}%';
+        if (AramaSqlYardimcisi.bindSearchParams(
+          params,
+          AramaSqlYardimcisi.normalizeQuery(aramaTerimi),
+          prefix: 'warehouse_stock_',
+          minTokenLength: 1,
+          maxTokens: 8,
+        )) {
+          whereClause +=
+              ' AND ${AramaSqlYardimcisi.buildSearchTagsClause('p.search_tags', prefix: 'warehouse_stock_')}';
+        }
       }
 
       final result = await _pool!.execute(

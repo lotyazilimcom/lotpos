@@ -17,7 +17,7 @@ class BootstrapSayfasi extends StatefulWidget {
 
 class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
   final DateTime _acilisAni = DateTime.now();
-  static const Duration _minimumSplashSuresi = Duration(milliseconds: 900);
+  static const Duration _minimumSplashSuresi = Duration(milliseconds: 350);
   bool _yonlendirmeBasladi = false;
   bool _yereleGeciliyor = false;
 
@@ -231,285 +231,330 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
     final masaustuMu = !kIsWeb && !mobileMi;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF2C3E50), // Proje ana rengi
-      body: Center(
-        child: _yereleGeciliyor
-            ? Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: const Icon(
-                      Icons.swap_horiz_rounded,
-                      size: 48,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  const SizedBox(
-                    width: 36,
-                    height: 36,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 3,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    tr('bootstrap.local_fallback.switching'),
-                    style: const TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              )
-            : hataDurumu
-            ? Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // İkon
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color:
-                            (bulutHatasi
-                                    ? Colors.orangeAccent
-                                    : Colors.redAccent)
-                                .withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(20),
+      body: Stack(
+        children: [
+          Container(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [Color(0xFF95A5A6), Color(0xFF7F8C8D)],
+              ),
+            ),
+          ),
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF95A5A6).withValues(alpha: 0.16),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -50,
+            left: -50,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF2C3E50).withValues(alpha: 0.12),
+              ),
+            ),
+          ),
+          Center(
+            child: _yereleGeciliyor
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: const Icon(
+                          Icons.swap_horiz_rounded,
+                          size: 48,
+                          color: Colors.white,
+                        ),
                       ),
-                      child: Icon(
-                        bulutHatasi
-                            ? Icons.cloud_off_rounded
-                            : Icons.error_outline_rounded,
-                        size: 48,
-                        color: Colors.white,
+                      const SizedBox(height: 24),
+                      const SizedBox(
+                        width: 36,
+                        height: 36,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 3,
+                        ),
                       ),
-                    ),
-                    const SizedBox(height: 18),
-
-                    // Başlık
-                    Text(
-                      bulutHatasi
-                          ? tr('bootstrap.error.cloud_unreachable')
-                          : tr('bootstrap.error.connection'),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 20,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-
-                    // Hata detayı
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 12,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        hataMesaji,
-                        textAlign: TextAlign.center,
+                      const SizedBox(height: 18),
+                      Text(
+                        tr('bootstrap.local_fallback.switching'),
                         style: const TextStyle(
                           color: Colors.white70,
-                          fontSize: 13,
-                          height: 1.5,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
-
-                    // Cluster ID uyumsuzluğu detayları
-                    if (yonetici.clusterUyumsuz) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 14,
-                          vertical: 10,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.08),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.14),
+                    ],
+                  )
+                : hataDurumu
+                ? Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // İkon
+                        Container(
+                          padding: const EdgeInsets.all(18),
+                          decoration: BoxDecoration(
+                            color:
+                                (bulutHatasi
+                                        ? Colors.orangeAccent
+                                        : Colors.redAccent)
+                                    .withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Icon(
+                            bulutHatasi
+                                ? Icons.cloud_off_rounded
+                                : Icons.error_outline_rounded,
+                            size: 48,
+                            color: Colors.white,
                           ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Beklenen: ${yonetici.beklenenClusterId ?? '-'}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                                height: 1.4,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Bulunan: ${yonetici.aktifClusterId ?? '-'}',
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 12,
-                                height: 1.4,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
+                        const SizedBox(height: 18),
 
-                    // Cloud hatası bilgi notu
-                    if (bulutHatasi) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        tr('bootstrap.error.cloud_hint'),
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: Colors.amber.shade200,
-                          fontSize: 12,
-                          height: 1.4,
+                        // Başlık
+                        Text(
+                          bulutHatasi
+                              ? tr('bootstrap.error.cloud_unreachable')
+                              : tr('bootstrap.error.connection'),
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
-                      ),
-                    ],
-                    const SizedBox(height: 28),
+                        const SizedBox(height: 10),
 
-                    // Butonlar
-                    SizedBox(
-                      width: 260,
-                      child: ElevatedButton.icon(
-                        onPressed: () {
-                          _yonlendirmeBasladi = false;
-                          BaglantiYoneticisi().sistemiBaslat();
-                        },
-                        icon: const Icon(Icons.refresh_rounded, size: 18),
-                        label: Text(tr('bootstrap.retry')),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF2C3E50),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(
+                        // Hata detayı
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
                           ),
-                        ),
-                      ),
-                    ),
-
-                    // Cluster mismatch: kullanıcı bilinçli olarak bu veri setini kabul edebilir.
-                    if (yonetici.clusterUyumsuz) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: 260,
-                        child: OutlinedButton.icon(
-                          onPressed: () => unawaited(
-                            BaglantiYoneticisi().clusterKimliginiKabulEt(),
-                          ),
-                          icon: const Icon(Icons.verified_rounded, size: 18),
-                          label: Text(tr('bootstrap.accept_dataset')),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.4),
+                          child: Text(
+                            hataMesaji,
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              color: Colors.white70,
+                              fontSize: 13,
+                              height: 1.5,
                             ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
+                          ),
+                        ),
+
+                        // Cluster ID uyumsuzluğu detayları
+                        if (yonetici.clusterUyumsuz) ...[
+                          const SizedBox(height: 10),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 10,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.08),
                               borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: Colors.white.withValues(alpha: 0.14),
+                              ),
+                            ),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Beklenen: ${yonetici.beklenenClusterId ?? '-'}',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'Bulunan: ${yonetici.aktifClusterId ?? '-'}',
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 12,
+                                    height: 1.4,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+
+                        // Cloud hatası bilgi notu
+                        if (bulutHatasi) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            tr('bootstrap.error.cloud_hint'),
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              color: Colors.amber.shade200,
+                              fontSize: 12,
+                              height: 1.4,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 28),
+
+                        // Butonlar
+                        SizedBox(
+                          width: 260,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              _yonlendirmeBasladi = false;
+                              BaglantiYoneticisi().sistemiBaslat();
+                            },
+                            icon: const Icon(Icons.refresh_rounded, size: 18),
+                            label: Text(tr('bootstrap.retry')),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.white,
+                              foregroundColor: const Color(0xFF2C3E50),
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(12),
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    ],
 
-                    // Masaüstünde ve bulutu hatası varsa: Yerele Geç butonu
-                    if (bulutHatasi && masaustuMu) ...[
-                      const SizedBox(height: 12),
-                      SizedBox(
-                        width: 260,
-                        child: OutlinedButton.icon(
-                          onPressed: _yereleGecOnay,
-                          icon: const Icon(Icons.home_rounded, size: 18),
-                          label: Text(tr('bootstrap.local_fallback.button')),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: BorderSide(
-                              color: Colors.white.withValues(alpha: 0.4),
-                            ),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12),
+                        // Cluster mismatch: kullanıcı bilinçli olarak bu veri setini kabul edebilir.
+                        if (yonetici.clusterUyumsuz) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: 260,
+                            child: OutlinedButton.icon(
+                              onPressed: () => unawaited(
+                                BaglantiYoneticisi().clusterKimliginiKabulEt(),
+                              ),
+                              icon: const Icon(
+                                Icons.verified_rounded,
+                                size: 18,
+                              ),
+                              label: Text(tr('bootstrap.accept_dataset')),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
-                    ],
+                        ],
 
-                    // Mobilede kurulum ekranına dönüş
-                    if (mobileMi) ...[
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: () =>
-                            _yonlendir(const MobilKurulumSayfasi()),
-                        child: Text(
-                          tr('bootstrap.open_setup'),
-                          style: TextStyle(color: Colors.white70),
+                        // Masaüstünde ve bulutu hatası varsa: Yerele Geç butonu
+                        if (bulutHatasi && masaustuMu) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: 260,
+                            child: OutlinedButton.icon(
+                              onPressed: _yereleGecOnay,
+                              icon: const Icon(Icons.home_rounded, size: 18),
+                              label: Text(
+                                tr('bootstrap.local_fallback.button'),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        // Mobilede kurulum ekranına dönüş
+                        if (mobileMi) ...[
+                          const SizedBox(height: 10),
+                          TextButton(
+                            onPressed: () =>
+                                _yonlendir(const MobilKurulumSayfasi()),
+                            child: Text(
+                              tr('bootstrap.open_setup'),
+                              style: TextStyle(color: Colors.white70),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Logo Alanı
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(32),
+                        ),
+                        child: const Icon(
+                          Icons.inventory_2_rounded,
+                          size: 80,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 32),
+                      // Yükleme Göstergesi
+                      const SizedBox(
+                        width: 40,
+                        height: 40,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 3,
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      // Bilgi Metni
+                      Text(
+                        tr('bootstrap.loading'),
+                        style: TextStyle(
+                          color: Colors.white70,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                          letterSpacing: 0.5,
                         ),
                       ),
                     ],
-                  ],
-                ),
-              )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Logo Alanı
-                  Container(
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(32),
-                    ),
-                    child: const Icon(
-                      Icons.inventory_2_rounded,
-                      size: 80,
-                      color: Colors.white,
-                    ),
                   ),
-                  const SizedBox(height: 32),
-                  // Yükleme Göstergesi
-                  const SizedBox(
-                    width: 40,
-                    height: 40,
-                    child: CircularProgressIndicator(
-                      color: Colors.white,
-                      strokeWidth: 3,
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-                  // Bilgi Metni
-                  Text(
-                    tr('bootstrap.loading'),
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w500,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                ],
-              ),
+          ),
+        ],
       ),
     );
   }

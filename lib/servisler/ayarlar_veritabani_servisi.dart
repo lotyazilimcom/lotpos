@@ -12,9 +12,11 @@ import '../sayfalar/ayarlar/roller_ve_izinler/modeller/rol_model.dart';
 import '../sayfalar/ayarlar/sirketayarlari/modeller/sirket_ayarlari_model.dart';
 import '../sayfalar/ayarlar/yazdirma_ayarlari/sablonlar/varsayilan_sablonlar.dart';
 import '../ayarlar/menu_ayarlari.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'pg_eklentiler.dart';
+import 'postgresql_tuning_profili.dart';
 import 'veritabani_yapilandirma.dart';
 import 'veritabani_havuzu.dart';
 
@@ -620,6 +622,16 @@ class AyarlarVeritabaniServisi {
       if (!await conf.exists()) return;
 
       const marker = '# patisyov10 auto-config';
+      final profile = await PostgresTuningProfile.detect(
+        maxConnections: _config.maxConnections,
+      );
+      final managedLines = <String>[
+        '# detected_memory_mb = ${profile.totalMemoryMb}',
+        '# detected_cpu_count = ${profile.cpuCount}',
+        "listen_addresses = '127.0.0.1'",
+        'port = ${_config.port}',
+        ...profile.settings.map((setting) => setting.confLine),
+      ];
 
       final content = await conf.readAsString();
       final lines = content.split(RegExp(r'\r?\n')).toList();
@@ -629,8 +641,7 @@ class AyarlarVeritabaniServisi {
         lines
           ..add('')
           ..add(marker)
-          ..add("listen_addresses = '127.0.0.1'")
-          ..add('port = ${_config.port}');
+          ..addAll(managedLines);
       } else {
         var end = markerIndex + 1;
         while (end < lines.length && lines[end].trim().isNotEmpty) {
@@ -638,8 +649,7 @@ class AyarlarVeritabaniServisi {
         }
 
         lines.removeRange(markerIndex + 1, end);
-        lines.insert(markerIndex + 1, "listen_addresses = '127.0.0.1'");
-        lines.insert(markerIndex + 2, 'port = ${_config.port}');
+        lines.insertAll(markerIndex + 1, managedLines);
       }
 
       await conf.writeAsString(lines.join('\n'), flush: true);
@@ -1588,12 +1598,17 @@ class AyarlarVeritabaniServisi {
     String normalizedQuery,
     Map<String, dynamic> params,
   ) {
-    params['${paramPrefix}search'] = '%$normalizedQuery%';
-    return '''
-      (
-        $expression LIKE @${paramPrefix}search
-      )
-    ''';
+    AramaSqlYardimcisi.bindSearchParams(
+      params,
+      normalizedQuery,
+      prefix: paramPrefix,
+      minTokenLength: 1,
+      maxTokens: 8,
+    );
+    return AramaSqlYardimcisi.buildSearchTagsClause(
+      expression,
+      prefix: paramPrefix,
+    );
   }
 
   String _whereClause(List<String> conditions) {
@@ -1771,20 +1786,40 @@ class AyarlarVeritabaniServisi {
         table: 'users',
         indexName: 'idx_settings_users_search_tags_gin',
       );
+      await PgEklentiler.ensureSearchTagsFtsIndex(
+        _pool!,
+        table: 'users',
+        indexName: 'idx_settings_users_search_tags_fts_gin',
+      );
       await PgEklentiler.ensureSearchTagsTrgmIndex(
         _pool!,
         table: 'user_transactions',
         indexName: 'idx_settings_user_tx_search_tags_gin',
+      );
+      await PgEklentiler.ensureSearchTagsFtsIndex(
+        _pool!,
+        table: 'user_transactions',
+        indexName: 'idx_settings_user_tx_search_tags_fts_gin',
       );
       await PgEklentiler.ensureSearchTagsTrgmIndex(
         _pool!,
         table: 'roles',
         indexName: 'idx_settings_roles_search_tags_gin',
       );
+      await PgEklentiler.ensureSearchTagsFtsIndex(
+        _pool!,
+        table: 'roles',
+        indexName: 'idx_settings_roles_search_tags_fts_gin',
+      );
       await PgEklentiler.ensureSearchTagsTrgmIndex(
         _pool!,
         table: 'company_settings',
         indexName: 'idx_settings_company_search_tags_gin',
+      );
+      await PgEklentiler.ensureSearchTagsFtsIndex(
+        _pool!,
+        table: 'company_settings',
+        indexName: 'idx_settings_company_search_tags_fts_gin',
       );
 
       try {
@@ -2749,12 +2784,13 @@ class AyarlarVeritabaniServisi {
 
     // Şirket Kontrolü - Güncellenmiş Mantık
     try {
-      final int companiesCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
-        _pool!,
-        fromClause: 'company_settings',
-        unfilteredTable: 'company_settings',
-        exactThreshold: 1,
-      );
+      final int companiesCount =
+          await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+            _pool!,
+            fromClause: 'company_settings',
+            unfilteredTable: 'company_settings',
+            exactThreshold: 1,
+          );
       final bulut = _bulutModundaMi();
       final varsayilanSirketKodu = bulut ? _config.database : 'patisyo2025';
 
@@ -3161,8 +3197,18 @@ class AyarlarVeritabaniServisi {
     final params = {'category': category};
 
     if (query != null && query.isNotEmpty) {
-      sql += ' AND LOWER(content) LIKE @query';
-      params['query'] = '%${query.toLowerCase()}%';
+      final normalizedQuery = _normalizeSearchInput(query);
+      if (normalizedQuery.isNotEmpty) {
+        AramaSqlYardimcisi.bindSearchParams(
+          params,
+          normalizedQuery,
+          prefix: 'saved_desc_',
+          minTokenLength: 1,
+          maxTokens: 8,
+        );
+        sql +=
+            ' AND ${AramaSqlYardimcisi.buildSearchTagsClause('content', prefix: 'saved_desc_')}';
+      }
     }
 
     // En çok kullanılanlar ve son kullanılanlar önce gelsin

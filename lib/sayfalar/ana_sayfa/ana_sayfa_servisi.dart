@@ -23,6 +23,20 @@ class AnaSayfaServisi {
   AnaSayfaServisi._internal();
 
   static const String _defaultCompanyId = 'patisyo2025';
+  static final Map<String, Future<void>> _hazirlikFutureleri =
+      <String, Future<void>>{};
+  static final Map<String, _DashboardCacheKaydi> _dashboardCache =
+      <String, _DashboardCacheKaydi>{};
+
+  DashboardOzet? cacheliDashboardVerisiniGetir({
+    String tarihFiltresi = 'bugun',
+  }) {
+    return _dashboardCache[_aktifCacheAnahtari(tarihFiltresi)]?.ozet;
+  }
+
+  DateTime? cacheZamaniniGetir({String tarihFiltresi = 'bugun'}) {
+    return _dashboardCache[_aktifCacheAnahtari(tarihFiltresi)]?.yuklenmeAni;
+  }
 
   Future<DashboardOzet> dashboardVerileriniGetir({
     String tarihFiltresi = 'bugun',
@@ -52,8 +66,7 @@ class AnaSayfaServisi {
       bitis: _gunBaslangici(now).add(const Duration(days: 1)),
     );
 
-    final Future<_DashboardMetrik> kasaFuture =
-        _guvenliGetir<_DashboardMetrik>(
+    final Future<_DashboardMetrik> kasaFuture = _guvenliGetir<_DashboardMetrik>(
       etiket: 'kasa metrikleri',
       fallback: const _DashboardMetrik(),
       islem: () => _kasaMetrikleriniGetir(
@@ -66,18 +79,17 @@ class AnaSayfaServisi {
 
     final Future<_DashboardMetrik> bankaFuture =
         _guvenliGetir<_DashboardMetrik>(
-      etiket: 'banka metrikleri',
-      fallback: const _DashboardMetrik(),
-      islem: () => _bankaMetrikleriniGetir(
-        pool: pool,
-        companyId: companyId,
-        seciliPeriyot: seciliPeriyot,
-        sparklinePeriyodu: sparklinePeriyodu,
-      ),
-    );
+          etiket: 'banka metrikleri',
+          fallback: const _DashboardMetrik(),
+          islem: () => _bankaMetrikleriniGetir(
+            pool: pool,
+            companyId: companyId,
+            seciliPeriyot: seciliPeriyot,
+            sparklinePeriyodu: sparklinePeriyodu,
+          ),
+        );
 
-    final Future<_DashboardMetrik> stokFuture =
-        _guvenliGetir<_DashboardMetrik>(
+    final Future<_DashboardMetrik> stokFuture = _guvenliGetir<_DashboardMetrik>(
       etiket: 'stok metrikleri',
       fallback: const _DashboardMetrik(),
       islem: () => _stokMetrikleriniGetir(
@@ -87,8 +99,7 @@ class AnaSayfaServisi {
       ),
     );
 
-    final Future<_DashboardMetrik> cariFuture =
-        _guvenliGetir<_DashboardMetrik>(
+    final Future<_DashboardMetrik> cariFuture = _guvenliGetir<_DashboardMetrik>(
       etiket: 'cari metrikleri',
       fallback: const _DashboardMetrik(),
       islem: () => _cariMetrikleriniGetir(
@@ -100,50 +111,42 @@ class AnaSayfaServisi {
 
     final Future<_DashboardMetrik> satisFuture =
         _guvenliGetir<_DashboardMetrik>(
-      etiket: 'satis metrikleri',
-      fallback: const _DashboardMetrik(),
-      islem: () => _satisMetrikleriniGetir(
-        pool: pool,
-        seciliPeriyot: seciliPeriyot,
-        oncekiPeriyot: oncekiPeriyot,
-        sparklinePeriyodu: sparklinePeriyodu,
-      ),
-    );
+          etiket: 'satis metrikleri',
+          fallback: const _DashboardMetrik(),
+          islem: () => _satisMetrikleriniGetir(
+            pool: pool,
+            seciliPeriyot: seciliPeriyot,
+            oncekiPeriyot: oncekiPeriyot,
+            sparklinePeriyodu: sparklinePeriyodu,
+          ),
+        );
 
     final Future<_GrafikVerisi> grafikFuture = _guvenliGetir<_GrafikVerisi>(
       etiket: 'grafik verileri',
       fallback: const _GrafikVerisi(),
-      islem: () => _grafikVerileriniGetir(
-        pool: pool,
-        grafikPeriyodu: grafikPeriyodu,
-      ),
+      islem: () =>
+          _grafikVerileriniGetir(pool: pool, grafikPeriyodu: grafikPeriyodu),
     );
 
     final Future<_RiskVerisi> riskFuture = _guvenliGetir<_RiskVerisi>(
       etiket: 'risk verileri',
       fallback: const _RiskVerisi(),
-      islem: () => _riskVerileriniGetir(
-        pool: pool,
-        companyId: companyId,
-      ),
+      islem: () => _riskVerileriniGetir(pool: pool, companyId: companyId),
     );
 
     final Future<_FinansOzet> finansFuture = _guvenliGetir<_FinansOzet>(
       etiket: 'finans ozeti',
       fallback: const _FinansOzet(),
-      islem: () => _finansOzetiniGetir(
-        pool: pool,
-        companyId: companyId,
-        now: now,
-      ),
+      islem: () =>
+          _finansOzetiniGetir(pool: pool, companyId: companyId, now: now),
     );
 
     final Future<List<SonIslem>> sonIslemlerFuture =
         _guvenliGetir<List<SonIslem>>(
-      etiket: 'son islemler',
-      fallback: const <SonIslem>[],
-      islem: () => _sonIslemleriGetir(pool: pool),
-    );
+          etiket: 'son islemler',
+          fallback: const <SonIslem>[],
+          islem: () => _sonIslemleriGetir(pool: pool),
+        );
 
     final List<dynamic> sonuc = await Future.wait<dynamic>([
       kasaFuture,
@@ -167,7 +170,7 @@ class AnaSayfaServisi {
     final _FinansOzet finans = sonuc[7] as _FinansOzet;
     final List<SonIslem> sonIslemler = sonuc[8] as List<SonIslem>;
 
-    return DashboardOzet(
+    final DashboardOzet ozet = DashboardOzet(
       toplamKasa: kasa.mevcutDeger,
       toplamBanka: banka.mevcutDeger,
       toplamStokDegeri: stok.mevcutDeger,
@@ -212,10 +215,20 @@ class AnaSayfaServisi {
       buAykiGiderler: finans.buAykiGiderler,
       sonIslemler: sonIslemler,
     );
+
+    _dashboardCache[_cacheAnahtari(aktifVeritabani, tarihFiltresi)] =
+        _DashboardCacheKaydi(ozet: ozet, yuklenmeAni: DateTime.now());
+
+    return ozet;
   }
 
   Future<void> _hazirliklariYap() async {
-    await Future.wait<void>([
+    final aktifVeritabani = OturumServisi().aktifVeritabaniAdi.trim();
+    final hazirlikAnahtari = aktifVeritabani.isEmpty
+        ? _defaultCompanyId
+        : aktifVeritabani;
+
+    await (_hazirlikFutureleri[hazirlikAnahtari] ??= Future.wait<void>([
       _baslatGuvenli('kasalar', () => KasalarVeritabaniServisi().baslat()),
       _baslatGuvenli('bankalar', () => BankalarVeritabaniServisi().baslat()),
       _baslatGuvenli(
@@ -233,12 +246,20 @@ class AnaSayfaServisi {
         'siparisler',
         () => SiparislerVeritabaniServisi().baslat(),
       ),
-      _baslatGuvenli(
-        'teklifler',
-        () => TekliflerVeritabaniServisi().baslat(),
-      ),
+      _baslatGuvenli('teklifler', () => TekliflerVeritabaniServisi().baslat()),
       _baslatGuvenli('giderler', () => GiderlerVeritabaniServisi().baslat()),
-    ]);
+    ]));
+  }
+
+  String _aktifCacheAnahtari(String tarihFiltresi) {
+    return _cacheAnahtari(OturumServisi().aktifVeritabaniAdi, tarihFiltresi);
+  }
+
+  String _cacheAnahtari(String aktifVeritabani, String tarihFiltresi) {
+    final String veritabaniKimligi = aktifVeritabani.trim().isEmpty
+        ? _defaultCompanyId
+        : aktifVeritabani.trim();
+    return '$veritabaniKimligi::$tarihFiltresi';
   }
 
   Future<void> _baslatGuvenli(
@@ -412,17 +433,14 @@ class AnaSayfaServisi {
     required _PeriyotPenceresi seciliPeriyot,
     required _PeriyotPenceresi sparklinePeriyodu,
   }) async {
-    final double mevcutToplam = await _tekDegerGetir(
-      pool,
-      '''
+    final double mevcutToplam = await _tekDegerGetir(pool, '''
         SELECT COALESCE(
           SUM(COALESCE(stok, 0) * COALESCE(alis_fiyati, 0)),
           0
         )
         FROM products
         WHERE COALESCE(aktif_mi, 1) = 1
-      ''',
-    );
+      ''');
 
     final double seciliNet = await _tekDegerGetir(
       pool,
@@ -438,10 +456,7 @@ class AnaSayfaServisi {
         WHERE movement_date >= @start
           AND movement_date < @end
       ''',
-      {
-        'start': _ts(seciliPeriyot.baslangic),
-        'end': _ts(seciliPeriyot.bitis),
-      },
+      {'start': _ts(seciliPeriyot.baslangic), 'end': _ts(seciliPeriyot.bitis)},
     );
 
     final Map<DateTime, double> gunlukNetler = await _gunlukToplamHaritasi(
@@ -479,17 +494,14 @@ class AnaSayfaServisi {
     required _PeriyotPenceresi seciliPeriyot,
     required _PeriyotPenceresi sparklinePeriyodu,
   }) async {
-    final double mevcutToplam = await _tekDegerGetir(
-      pool,
-      '''
+    final double mevcutToplam = await _tekDegerGetir(pool, '''
         SELECT COALESCE(
           SUM(COALESCE(bakiye_alacak, 0) - COALESCE(bakiye_borc, 0)),
           0
         )
         FROM current_accounts
         WHERE COALESCE(aktif_mi, 1) = 1
-      ''',
-    );
+      ''');
 
     final double seciliNet = await _tekDegerGetir(
       pool,
@@ -505,10 +517,7 @@ class AnaSayfaServisi {
         WHERE date >= @start
           AND date < @end
       ''',
-      {
-        'start': _ts(seciliPeriyot.baslangic),
-        'end': _ts(seciliPeriyot.bitis),
-      },
+      {'start': _ts(seciliPeriyot.baslangic), 'end': _ts(seciliPeriyot.bitis)},
     );
 
     final Map<DateTime, double> gunlukNetler = await _gunlukToplamHaritasi(
@@ -566,10 +575,7 @@ class AnaSayfaServisi {
             )
           )
       ''',
-      {
-        'start': _ts(seciliPeriyot.baslangic),
-        'end': _ts(seciliPeriyot.bitis),
-      },
+      {'start': _ts(seciliPeriyot.baslangic), 'end': _ts(seciliPeriyot.bitis)},
     );
 
     final double oncekiToplam = await _tekDegerGetir(
@@ -591,10 +597,7 @@ class AnaSayfaServisi {
             )
           )
       ''',
-      {
-        'start': _ts(oncekiPeriyot.baslangic),
-        'end': _ts(oncekiPeriyot.bitis),
-      },
+      {'start': _ts(oncekiPeriyot.baslangic), 'end': _ts(oncekiPeriyot.bitis)},
     );
 
     final Map<DateTime, double> gunlukToplamlar = await _gunlukToplamHaritasi(
@@ -624,9 +627,9 @@ class AnaSayfaServisi {
       },
     );
 
-    final List<double> sparkline = _gunAraligi(sparklinePeriyodu)
-        .map((gun) => gunlukToplamlar[gun] ?? 0)
-        .toList();
+    final List<double> sparkline = _gunAraligi(
+      sparklinePeriyodu,
+    ).map((gun) => gunlukToplamlar[gun] ?? 0).toList();
 
     return _DashboardMetrik(
       mevcutDeger: mevcutToplam,
@@ -640,8 +643,7 @@ class AnaSayfaServisi {
     required _PeriyotPenceresi grafikPeriyodu,
   }) async {
     final List<List<dynamic>> rows = await pool.execute(
-      Sql.named(
-        '''
+      Sql.named('''
           SELECT
             DATE(date) AS gun,
             COALESCE(SUM(
@@ -679,8 +681,7 @@ class AnaSayfaServisi {
           WHERE date >= @start
             AND date < @end
           GROUP BY DATE(date)
-        ''',
-      ),
+        '''),
       parameters: {
         'start': _ts(grafikPeriyodu.baslangic),
         'end': _ts(grafikPeriyodu.bitis),
@@ -701,21 +702,13 @@ class AnaSayfaServisi {
     final List<DateTime> gunler = _gunAraligi(grafikPeriyodu);
 
     for (final DateTime gun in gunler) {
-      satis30Gun.add(
-        GunlukTutar(
-          tarih: gun,
-          tutar: satisHaritasi[gun] ?? 0,
-        ),
-      );
-      alis30Gun.add(
-        GunlukTutar(
-          tarih: gun,
-          tutar: alisHaritasi[gun] ?? 0,
-        ),
-      );
+      satis30Gun.add(GunlukTutar(tarih: gun, tutar: satisHaritasi[gun] ?? 0));
+      alis30Gun.add(GunlukTutar(tarih: gun, tutar: alisHaritasi[gun] ?? 0));
     }
 
-    final int sparklineBaslangicIndex = gunler.length > 7 ? gunler.length - 7 : 0;
+    final int sparklineBaslangicIndex = gunler.length > 7
+        ? gunler.length - 7
+        : 0;
     final List<double> satisSparkline = gunler
         .sublist(sparklineBaslangicIndex)
         .map((gun) => satisHaritasi[gun] ?? 0)
@@ -733,16 +726,14 @@ class AnaSayfaServisi {
     required String companyId,
   }) async {
     final List<List<dynamic>> stokRows = await pool.execute(
-      Sql.named(
-        '''
+      Sql.named('''
           SELECT id, ad, COALESCE(stok, 0), COALESCE(birim, 'Adet')
           FROM products
           WHERE COALESCE(aktif_mi, 1) = 1
             AND COALESCE(stok, 0) <= 5
           ORDER BY COALESCE(stok, 0) ASC, ad ASC
           LIMIT 8
-        ''',
-      ),
+        '''),
     );
 
     final List<KritikStokItem> kritikStoklar = stokRows
@@ -762,8 +753,7 @@ class AnaSayfaServisi {
     final DateTime otuzGunSonra = bugun.add(const Duration(days: 31));
 
     final List<List<dynamic>> vadeRows = await pool.execute(
-      Sql.named(
-        '''
+      Sql.named('''
           SELECT *
           FROM (
             SELECT
@@ -812,8 +802,7 @@ class AnaSayfaServisi {
           ) AS vadeler
           ORDER BY due_date ASC, id ASC
           LIMIT 8
-        ''',
-      ),
+        '''),
       parameters: {
         'companyId': companyId,
         'start': _ts(bugun),
@@ -897,23 +886,17 @@ class AnaSayfaServisi {
       {'companyId': companyId},
     );
 
-    final Future<int> siparisFuture = _tekSayiGetir(
-      pool,
-      '''
+    final Future<int> siparisFuture = _tekSayiGetir(pool, '''
         SELECT COALESCE(COUNT(*), 0)
         FROM orders
         WHERE COALESCE(durum, 'Beklemede') IN ('Beklemede', 'Onaylandı')
-      ''',
-    );
+      ''');
 
-    final Future<int> teklifFuture = _tekSayiGetir(
-      pool,
-      '''
+    final Future<int> teklifFuture = _tekSayiGetir(pool, '''
         SELECT COALESCE(COUNT(*), 0)
         FROM quotes
         WHERE COALESCE(durum, 'Beklemede') IN ('Beklemede', 'Onaylandı')
-      ''',
-    );
+      ''');
 
     final Future<double> giderFuture = _tekDegerGetir(
       pool,
@@ -924,10 +907,7 @@ class AnaSayfaServisi {
           AND tarih >= @start
           AND tarih < @end
       ''',
-      {
-        'start': _ts(ayBaslangici),
-        'end': _ts(sonrakiAyBaslangici),
-      },
+      {'start': _ts(ayBaslangici), 'end': _ts(sonrakiAyBaslangici)},
     );
 
     final List<dynamic> sonuc = await Future.wait<dynamic>([
@@ -949,12 +929,9 @@ class AnaSayfaServisi {
     );
   }
 
-  Future<List<SonIslem>> _sonIslemleriGetir({
-    required Pool pool,
-  }) async {
+  Future<List<SonIslem>> _sonIslemleriGetir({required Pool pool}) async {
     final List<List<dynamic>> rows = await pool.execute(
-      Sql.named(
-        '''
+      Sql.named('''
           SELECT
             id,
             COALESCE(date, created_at) AS tarih,
@@ -997,8 +974,7 @@ class AnaSayfaServisi {
           FROM current_account_transactions
           ORDER BY COALESCE(date, created_at) DESC, id DESC
           LIMIT 15
-        ''',
-      ),
+        '''),
     );
 
     return rows
@@ -1089,10 +1065,7 @@ class AnaSayfaServisi {
     );
   }
 
-  double _degisimYuzdesi({
-    required double mevcut,
-    required double onceki,
-  }) {
+  double _degisimYuzdesi({required double mevcut, required double onceki}) {
     if (mevcut == 0 && onceki == 0) return 0;
     if (onceki.abs() < 0.000001) {
       return mevcut == 0 ? 0 : 100;
@@ -1177,10 +1150,7 @@ class _PeriyotPenceresi {
   final DateTime baslangic;
   final DateTime bitis;
 
-  const _PeriyotPenceresi({
-    required this.baslangic,
-    required this.bitis,
-  });
+  const _PeriyotPenceresi({required this.baslangic, required this.bitis});
 }
 
 class _DashboardMetrik {
@@ -1233,4 +1203,11 @@ class _FinansOzet {
     this.aktifTeklifler = 0,
     this.buAykiGiderler = 0,
   });
+}
+
+class _DashboardCacheKaydi {
+  final DashboardOzet ozet;
+  final DateTime yuklenmeAni;
+
+  const _DashboardCacheKaydi({required this.ozet, required this.yuklenmeAni});
 }

@@ -383,45 +383,44 @@ class _CariHesaplarSayfasiState extends State<CariHesaplarSayfasi> {
       List<CariHesapModel> cariHesaplar = [];
       bool hasMore = false;
       String? nextCursor;
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<CariHesapModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'current_accounts',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) => CariHesaplarVeritabaniServisi().cariHesaplariGetir(
-          sayfa: 1,
-          sayfaBasinaKayit: ids.length,
-          // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-          aramaTerimi: _searchQuery,
-          sortBy: null,
-          sortAscending: true,
-          aktifMi: aktifMi,
-          hesapTuru: _selectedAccountType,
-          sehir: _selectedCity,
-          islemTuru: _selectedTransactionType,
-          kullanici: _selectedUser,
-          baslangicTarihi: _startDate,
-          bitisTarihi: _endDate,
-          sadeceIdler: ids,
-          lastId: null,
-        ),
-        idOf: (c) => c.id,
-        setMatchedInHidden: (c, matched) =>
-            c.copyWith(matchedInHidden: matched),
-      );
-
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<CariHesapModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'current_accounts',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) => CariHesaplarVeritabaniServisi().cariHesaplariGetir(
+            sayfa: 1,
+            sayfaBasinaKayit: ids.length,
+            // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+            aramaTerimi: _searchQuery,
+            sortBy: null,
+            sortAscending: true,
+            aktifMi: aktifMi,
+            hesapTuru: _selectedAccountType,
+            sehir: _selectedCity,
+            islemTuru: _selectedTransactionType,
+            kullanici: _selectedUser,
+            baslangicTarihi: _startDate,
+            bitisTarihi: _endDate,
+            sadeceIdler: ids,
+            lastId: null,
+          ),
+          idOf: (c) => c.id,
+          setMatchedInHidden: (c, matched) =>
+              c.copyWith(matchedInHidden: matched),
+        );
         cariHesaplar = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
       } else {
-        // Fallback: DB deep-search (mevcut davranış).
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {

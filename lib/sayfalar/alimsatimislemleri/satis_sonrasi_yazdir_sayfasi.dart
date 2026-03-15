@@ -91,18 +91,25 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
   GenelAyarlarModel _genelAyarlar = GenelAyarlarModel();
 
   List<YazdirmaSablonuModel> get _secilebilirSablonlar => _sablonlar
-      .where((sablon) {
-        final allowedDocTypes = widget.allowedDocTypes;
-        if (allowedDocTypes == null || allowedDocTypes.isEmpty) {
-          return sablon.effectiveDocType != 'voucher';
-        }
-
-        return allowedDocTypes.contains(sablon.effectiveDocType);
-      })
+      .where(_sablonBelgeYazdirdaGosterilsinMi)
       .toList(growable: false);
 
   bool get _isVoucherTemplateSelected =>
       _secilenSablon?.effectiveDocType == 'voucher';
+
+  bool _sablonBelgeYazdirdaGosterilsinMi(YazdirmaSablonuModel sablon) {
+    if (sablon.effectiveDocType == 'barcode' ||
+        sablon.barcodePaperConfig != null) {
+      return false;
+    }
+
+    final allowedDocTypes = widget.allowedDocTypes;
+    if (allowedDocTypes == null || allowedDocTypes.isEmpty) {
+      return sablon.effectiveDocType != 'voucher';
+    }
+
+    return allowedDocTypes.contains(sablon.effectiveDocType);
+  }
 
   @override
   void initState() {
@@ -173,6 +180,10 @@ class _SatisSonrasiYazdirSayfasiState extends State<SatisSonrasiYazdirSayfasi> {
       }
       setState(() {
         _sablonlar = sablonlar;
+        if (_secilenSablon != null &&
+            !_sablonBelgeYazdirdaGosterilsinMi(_secilenSablon!)) {
+          _secilenSablon = null;
+        }
         _genelAyarlar = genelAyarlar;
         _yukleniyor = false;
       });

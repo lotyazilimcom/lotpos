@@ -117,26 +117,25 @@ class VeritabaniYapilandirma {
       cloudCredentialsReady || cloudApiCredentialsReady;
 
   /// Ağır arka plan DB bakım işleri çalışsın mı?
-  /// - Mobil + Bulut: Kullanıcı işlemlerini bloklamaması için kapalı.
-  /// - Diğer platformlar: açık.
+  /// 2026 arama omurgasında search altyapısı her platformda proaktif hazır olmalı.
   bool get allowBackgroundDbMaintenance {
-    if (kIsWeb) return true;
-    if (isMobilePlatform && isCloudMode) return false;
     return true;
   }
 
   /// [100B SAFE DEFAULT]
   /// Çok büyük veri kümelerinde (1B+ / 100B) uygulama açılışında veya arka planda
   /// `UPDATE ... SET search_tags=...` gibi backfill döngülerini çalıştırmak WAL/I/O'yu
-  /// patlatır. Bu nedenle default kapalıdır.
+  /// patlatabilir. 2026 arama omurgasında default açık; gerekirse env ile kapatılır.
   ///
-  /// Açmak için env:
-  /// `PATISYO_ALLOW_HEAVY_MAINTENANCE=true`
+  /// Kapatmak için env:
+  /// `PATISYO_ALLOW_HEAVY_MAINTENANCE=false`
   bool get allowBackgroundHeavyMaintenance {
     if (kIsWeb) return false;
     final v = (Platform.environment[_allowHeavyMaintenanceKey] ?? '')
         .trim()
         .toLowerCase();
+    if (v.isEmpty) return true;
+    if (v == '0' || v == 'false' || v == 'no' || v == 'off') return false;
     return v == '1' || v == 'true' || v == 'yes' || v == 'on';
   }
 
@@ -626,13 +625,9 @@ class VeritabaniYapilandirma {
         ? (int.tryParse(connStr.trim()) ?? defaultRequested)
         : defaultRequested;
 
-    // Mobilde (ve özellikle Cloud DB'lerde) bağlantı limitleri düşük olabildiği için
-    // havuz boyutunu agresif kısıtla.
+    // Mobilde havuzu küçük tut ama arama/listede paralel okuma boğulmasın.
     if (Platform.isAndroid || Platform.isIOS) {
-      // Cloud DB (Supabase vb.) bağlantı limitleri daha düşük olabildiği için
-      // mobilde havuz boyutunu daha agresif kısıtla.
-      // Not: 1 bağlantı bazı senaryolarda (transaction + paralel okuma) TimeoutException'a sebep olabilir.
-      final int mobileCap = _connectionMode == 'cloud' ? 2 : 2;
+      final int mobileCap = _connectionMode == 'cloud' ? 4 : 6;
       if (requested < 1) return 1;
       return requested > mobileCap ? mobileCap : requested;
     }

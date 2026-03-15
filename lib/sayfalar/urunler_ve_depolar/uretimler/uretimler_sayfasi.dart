@@ -347,47 +347,48 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
       List<UretimModel> urunler = [];
       bool hasMore = false;
       String? nextCursor;
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<UretimModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'productions',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) => UretimlerVeritabaniServisi().uretimleriGetir(
-          sayfa: 1,
-          sayfaBasinaKayit: ids.length,
-          // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-          aramaTerimi: _searchQuery,
-          sortBy: null,
-          sortAscending: true,
-          aktifMi: aktifMi,
-          grup: _selectedGroup,
-          birim: _selectedUnit,
-          kdvOrani: _selectedVat,
-          baslangicTarihi: _startDate,
-          bitisTarihi: _endDate,
-          depoIds: _selectedWarehouse != null ? [_selectedWarehouse!.id] : null,
-          islemTuru: _selectedTransactionType,
-          kullanici: _selectedUser,
-          sadeceIdler: ids,
-          lastId: null,
-        ),
-        idOf: (u) => u.id,
-        setMatchedInHidden: (u, matched) =>
-            u.copyWith(matchedInHidden: matched),
-      );
-
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<UretimModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'productions',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) => UretimlerVeritabaniServisi().uretimleriGetir(
+            sayfa: 1,
+            sayfaBasinaKayit: ids.length,
+            // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+            aramaTerimi: _searchQuery,
+            sortBy: null,
+            sortAscending: true,
+            aktifMi: aktifMi,
+            grup: _selectedGroup,
+            birim: _selectedUnit,
+            kdvOrani: _selectedVat,
+            baslangicTarihi: _startDate,
+            bitisTarihi: _endDate,
+            depoIds: _selectedWarehouse != null
+                ? [_selectedWarehouse!.id]
+                : null,
+            islemTuru: _selectedTransactionType,
+            kullanici: _selectedUser,
+            sadeceIdler: ids,
+            lastId: null,
+          ),
+          idOf: (u) => u.id,
+          setMatchedInHidden: (u, matched) =>
+              u.copyWith(matchedInHidden: matched),
+        );
         urunler = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
       } else {
-        // Fallback: DB deep-search (mevcut davranış).
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {
@@ -467,7 +468,7 @@ class _UretimlerSayfasiState extends State<UretimlerSayfasi> {
           _totalRecords = 0;
 
           _pageCursors.remove(_currentPage);
-          if (primary.indexEnabled) {
+          if (usePrimarySearch) {
             if (nextCursor != null && nextCursor.trim().isNotEmpty) {
               _pageCursors[_currentPage] = nextCursor.trim();
             }

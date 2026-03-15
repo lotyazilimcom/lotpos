@@ -3,9 +3,11 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
 
+import '../buyuk_olcek_arama_bootstrap_servisi.dart';
 import '../oturum_servisi.dart';
 import '../pg_eklentiler.dart';
 import '../veritabani_havuzu.dart';
+import 'buyuk_olcek_arama_bootstrap_spec.dart';
 
 class AramaPrimaryPathResult<T> {
   final bool indexEnabled;
@@ -146,6 +148,7 @@ class _CandidatePage {
 
 class AramaPrimaryPath {
   static final RegExp _safeIdent = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');
+  static final RegExp _tokenSplitter = RegExp(r'[^a-z0-9]+');
   static const String _defaultCompanyId = 'patisyo2025';
 
   static final Map<String, bool> _indexReadyCache = <String, bool>{};
@@ -182,15 +185,16 @@ class AramaPrimaryPath {
       _normalizeTurkish(query).trim();
 
   static String _searchTrgmIndexNameForTable(String table) =>
-      'idx_${table.trim()}_search_tags_gin';
+      BuyukOlcekAramaBootstrapSpec.searchTrgmIndexNameForTable(table);
+
+  static String _searchFtsIndexNameForTable(String table) =>
+      BuyukOlcekAramaBootstrapSpec.searchFtsIndexNameForTable(table);
 
   static Future<Pool<void>?> _poolBestEffort() async {
     try {
       final dbName = OturumServisi().aktifVeritabaniAdi;
       return await VeritabaniHavuzu().havuzAl(
         database: dbName,
-        preferDirectSocket: true,
-        allowApiFallback: false,
         maxConnectionsOverride: 12,
       );
     } catch (_) {
@@ -206,19 +210,32 @@ class AramaPrimaryPath {
       for (final raw in tables) {
         final table = raw.trim();
         if (table.isEmpty || !_isSafeIdent(table)) return false;
-        final indexName = _searchTrgmIndexNameForTable(table);
-        final ok =
-            await PgEklentiler.hasIndex(executor, indexName) ||
+        final trgmIndexName = _searchTrgmIndexNameForTable(table);
+        final ftsIndexName = _searchFtsIndexNameForTable(table);
+        final hasTrgm =
+            await PgEklentiler.hasIndex(executor, trgmIndexName) ||
             await PgEklentiler.hasTrgmIndexForTableColumn(
               executor,
               table: table,
             );
-        if (!ok) return false;
+        final hasFts =
+            await PgEklentiler.hasIndex(executor, ftsIndexName) ||
+            await PgEklentiler.hasFtsIndexForTableColumn(
+              executor,
+              table: table,
+            );
+        if (!hasTrgm || !hasFts) return false;
       }
       return true;
     } catch (_) {
       return false;
     }
+  }
+
+  static void _cacheIndexReady(String databaseName, List<String> tables) {
+    final sorted = tables.toSet().toList()..sort();
+    final cacheKey = '${databaseName.trim()}|${sorted.join(',')}';
+    _indexReadyCache[cacheKey] = true;
   }
 
   static Future<bool> _isIndexReadyCached(
@@ -424,12 +441,83 @@ class AramaPrimaryPath {
     required String normalizedQuery,
     required Map<String, dynamic> params,
   }) {
-    params['${paramPrefix}search'] = '%$normalizedQuery%';
-    return '''
-      (
-        $expression LIKE @${paramPrefix}search
-      )
-    ''';
+    final tokens = _tokenizeSearchQuery(normalizedQuery);
+    final coalescedExpression = "COALESCE($expression, '')";
+    final parts = <String>[];
+
+    if (tokens.isNotEmpty) {
+      params['${paramPrefix}fts_query'] = _ftsQueryText(tokens);
+      parts.add(
+        "${_searchVectorExpr(coalescedExpression)} @@ plainto_tsquery('${PgEklentiler.searchTextConfig}'::regconfig, @${paramPrefix}fts_query)",
+      );
+    }
+
+    if (_canUseTrgmFallback(normalizedQuery, tokens)) {
+      params['${paramPrefix}trgm_query'] = normalizedQuery;
+      parts.add('$coalescedExpression % @${paramPrefix}trgm_query');
+    }
+
+    if (parts.isEmpty) {
+      params['${paramPrefix}fts_query'] = normalizedQuery;
+      parts.add(
+        "${_searchVectorExpr(coalescedExpression)} @@ plainto_tsquery('${PgEklentiler.searchTextConfig}'::regconfig, @${paramPrefix}fts_query)",
+      );
+    }
+
+    return "(${parts.join(' OR ')})";
+  }
+
+  static List<String> _tokenizeSearchQuery(String query) {
+    final normalized = _normalizeQuery(query);
+    if (normalized.isEmpty) return const <String>[];
+    final tokens = normalized
+        .split(_tokenSplitter)
+        .map((e) => e.trim())
+        .where((e) => e.length >= 2)
+        .toList(growable: false);
+    if (tokens.length <= 8) return tokens;
+    return tokens.take(8).toList(growable: false);
+  }
+
+  static String _ftsQueryText(List<String> tokens) => tokens.join(' ');
+
+  static bool _canUseTrgmFallback(String normalizedQuery, List<String> tokens) {
+    if (normalizedQuery.length >= 3) return true;
+    for (final token in tokens) {
+      if (token.length >= 3) return true;
+    }
+    return false;
+  }
+
+  static String _searchVectorExpr(String expression) =>
+      "to_tsvector('${PgEklentiler.searchTextConfig}'::regconfig, $expression)";
+
+  static Future<void> _ensureSearchIndexesReady(
+    Session executor, {
+    required String databaseName,
+    required List<String> tables,
+  }) async {
+    final sorted = tables.toSet().toList()..sort();
+    final ready = await _isIndexReadyCached(
+      executor,
+      databaseName: databaseName,
+      tables: sorted,
+    );
+    if (ready) return;
+
+    await BuyukOlcekAramaBootstrapServisi().hazirlaTablolarZorunlu(
+      databaseName: databaseName,
+      tables: sorted,
+    );
+
+    final readyAfterBootstrap = await _isIndexReadyForTables(executor, sorted);
+    if (!readyAfterBootstrap) {
+      throw StateError(
+        'Arama indeksleri hazir degil: ${sorted.join(', ')} (db=$databaseName)',
+      );
+    }
+
+    _cacheIndexReady(databaseName, sorted);
   }
 
   static void _addDateRangeCondition(
@@ -2015,28 +2103,11 @@ class AramaPrimaryPath {
 
     final pool = await _poolBestEffort();
     if (pool == null) {
-      return AramaIndexPrimaryPathResult<T>(
-        indexEnabled: false,
-        rows: <T>[],
-        hasNextPage: false,
-        nextCursor: null,
-      );
+      throw StateError('Arama havuzu acilamadi.');
     }
 
     final dbName = OturumServisi().aktifVeritabaniAdi;
-    final indexReady = await _isIndexReadyCached(
-      pool,
-      databaseName: dbName,
-      tables: tables,
-    );
-    if (!indexReady) {
-      return AramaIndexPrimaryPathResult<T>(
-        indexEnabled: false,
-        rows: <T>[],
-        hasNextPage: false,
-        nextCursor: null,
-      );
-    }
+    await _ensureSearchIndexesReady(pool, databaseName: dbName, tables: tables);
 
     final parsedFilters = _parseExtraFilter(extraFilter);
     final mergedFilters = _ParsedFilters(
@@ -2158,13 +2229,8 @@ class AramaPrimaryPath {
         }
       }
     } catch (e) {
-      debugPrint('AramaPrimaryPath: index-first failed, fallback to DB: $e');
-      return AramaIndexPrimaryPathResult<T>(
-        indexEnabled: false,
-        rows: <T>[],
-        hasNextPage: false,
-        nextCursor: null,
-      );
+      debugPrint('AramaPrimaryPath: index-first failed: $e');
+      rethrow;
     }
 
     final hasNext = collected.length > safePageSize;
@@ -2213,18 +2279,11 @@ class AramaPrimaryPath {
 
     final pool = await _poolBestEffort();
     if (pool == null) {
-      return AramaPrimaryPathResult<T>(indexEnabled: false, rows: <T>[]);
+      throw StateError('Arama havuzu acilamadi.');
     }
 
     final dbName = OturumServisi().aktifVeritabaniAdi;
-    final indexReady = await _isIndexReadyCached(
-      pool,
-      databaseName: dbName,
-      tables: tables,
-    );
-    if (!indexReady) {
-      return AramaPrimaryPathResult<T>(indexEnabled: false, rows: <T>[]);
-    }
+    await _ensureSearchIndexesReady(pool, databaseName: dbName, tables: tables);
 
     final parsedFilters = _ParsedFilters(
       rootId: null,
@@ -2322,7 +2381,7 @@ class AramaPrimaryPath {
       }
     } catch (e) {
       debugPrint('AramaPrimaryPath: root-id path failed: $e');
-      return AramaPrimaryPathResult<T>(indexEnabled: false, rows: <T>[]);
+      rethrow;
     }
 
     if (candidates.isEmpty) {

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'cari_hesaplar_veritabani_servisi.dart';
 import 'kasalar_veritabani_servisi.dart';
 import 'bankalar_veritabani_servisi.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'lite_kisitlari.dart';
@@ -614,8 +615,8 @@ class CeklerVeritabaniServisi {
 
     if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
       // Eşleşme detaydaysa yakala
-	      selectClause +=
-	          '''
+      selectClause +=
+          '''
           , (CASE 
               WHEN (
                 normalize_text(COALESCE(cheques.customer_code, '')) LIKE @search OR
@@ -625,7 +626,7 @@ class CeklerVeritabaniServisi {
 	                cheques.id IN (
 	                  SELECT ct.cheque_id
 	                  FROM cheque_transactions ct
-	                  WHERE ct.search_tags LIKE @search
+	                  WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('ct.search_tags')}
 	                    AND COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId
 	                  GROUP BY ct.cheque_id
 	                )
@@ -649,17 +650,21 @@ class CeklerVeritabaniServisi {
       conditions.add('''
 	        (
 	          (
-	            cheques.search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('cheques.search_tags')}
 	          )
 	          OR cheques.id IN (
 	            SELECT ct.cheque_id
 	            FROM cheque_transactions ct
 	            WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId
-	            AND ct.search_tags LIKE @search
+	            AND ${AramaSqlYardimcisi.buildSearchTagsClause('ct.search_tags')}
 	            GROUP BY ct.cheque_id
 	          )
 	        )
 	      ''');
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaKelimesi),
+      );
       params['search'] = '%${_normalizeTurkish(aramaKelimesi)}%';
     }
 
@@ -844,18 +849,21 @@ class CeklerVeritabaniServisi {
       conditions.add('''
 	        (
 	          (
-	            cheques.search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('cheques.search_tags')}
 	          )
 	          OR cheques.id IN (
 	            SELECT ct.cheque_id
 	            FROM cheque_transactions ct
 	            WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId
-	            AND ct.search_tags LIKE @search
+	            AND ${AramaSqlYardimcisi.buildSearchTagsClause('ct.search_tags')}
 	            GROUP BY ct.cheque_id
 	          )
 	        )
 	      ''');
-      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
 
     if (aktifMi != null) {
@@ -943,18 +951,21 @@ class CeklerVeritabaniServisi {
       baseConditions.add('''
 	        (
 	          (
-	            cheques.search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('cheques.search_tags')}
 	          )
 	          OR cheques.id IN (
 	            SELECT ct.cheque_id
 	            FROM cheque_transactions ct
 	            WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId
-	            AND ct.search_tags LIKE @search
+	            AND ${AramaSqlYardimcisi.buildSearchTagsClause('ct.search_tags')}
 	            GROUP BY ct.cheque_id
 	          )
 	        )
 	      ''');
-      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
 
     // Transaction conditions used across facets (always includes company filter)
@@ -1186,8 +1197,12 @@ class CeklerVeritabaniServisi {
     }
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      query += ' AND t.search_tags LIKE @search';
-      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      query +=
+          ' AND ${AramaSqlYardimcisi.buildSearchTagsClause('t.search_tags')}';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
 
     // İşlem türü filtresi

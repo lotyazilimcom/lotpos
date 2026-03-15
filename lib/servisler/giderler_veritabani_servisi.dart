@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../sayfalar/giderler/modeller/gider_model.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'pg_eklentiler.dart';
@@ -1075,8 +1076,10 @@ class GiderlerVeritabaniServisi {
     final params = <String, dynamic>{};
 
     if (aramaTerimi != null && aramaTerimi.trim().isNotEmpty) {
-      whereConditions.add('search_tags ILIKE @search');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      whereConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
     }
 
     if (aktifMi != null) {
@@ -1170,10 +1173,13 @@ class GiderlerVeritabaniServisi {
     String selectClause = 'SELECT expenses.*';
     final String? trimmedQ = aramaTerimi?.trim();
     if (trimmedQ != null && trimmedQ.isNotEmpty) {
-	      selectClause += '''
+      AramaSqlYardimcisi.bindSearchParams(params, trimmedQ);
+      params['search'] = '%${trimmedQ.toLowerCase()}%';
+      selectClause +=
+          '''
 	        , (CASE 
 	            WHEN (
-	              search_tags ILIKE @search
+	              ${AramaSqlYardimcisi.buildSearchTagsClause('search_tags')}
 	            )
 	              AND NOT (
 	                kod ILIKE @search OR
@@ -1327,8 +1333,10 @@ class GiderlerVeritabaniServisi {
     final params = <String, dynamic>{};
 
     if (aramaTerimi != null && aramaTerimi.trim().isNotEmpty) {
-      whereConditions.add('search_tags ILIKE @search');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      whereConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
     }
 
     if (aktifMi != null) {
@@ -1404,8 +1412,8 @@ class GiderlerVeritabaniServisi {
     }) {
       final String? trimmedQ = q?.trim();
       if (trimmedQ != null && trimmedQ.isNotEmpty) {
-        conds.add('search_tags ILIKE @search');
-        params['search'] = '%${trimmedQ.toLowerCase()}%';
+        conds.add(AramaSqlYardimcisi.buildSearchTagsClause('search_tags'));
+        AramaSqlYardimcisi.bindSearchParams(params, trimmedQ);
       }
 
       if (aktif != null) {

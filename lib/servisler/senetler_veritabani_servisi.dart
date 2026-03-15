@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'cari_hesaplar_veritabani_servisi.dart';
 import 'kasalar_veritabani_servisi.dart';
 import 'bankalar_veritabani_servisi.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'pg_eklentiler.dart';
@@ -623,7 +624,7 @@ class SenetlerVeritabaniServisi {
 	                promissory_notes.id IN (
 	                  SELECT nt.note_id
 	                  FROM note_transactions nt
-	                  WHERE nt.search_tags LIKE @search
+	                  WHERE ${AramaSqlYardimcisi.buildSearchTagsClause('nt.search_tags')}
 	                    AND COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId
 	                  GROUP BY nt.note_id
 	                )
@@ -647,17 +648,21 @@ class SenetlerVeritabaniServisi {
       conditions.add('''
 	        (
 	          (
-	            promissory_notes.search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('promissory_notes.search_tags')}
 	          )
 	          OR promissory_notes.id IN (
 	            SELECT nt.note_id
 	            FROM note_transactions nt
 	            WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId
-	            AND nt.search_tags LIKE @search
+	            AND ${AramaSqlYardimcisi.buildSearchTagsClause('nt.search_tags')}
 	            GROUP BY nt.note_id
 	          )
 	        )
 	      ''');
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaKelimesi),
+      );
       params['search'] = '%${_normalizeTurkish(aramaKelimesi)}%';
     }
 
@@ -844,18 +849,21 @@ class SenetlerVeritabaniServisi {
       conditions.add('''
 	        (
 	          (
-	            promissory_notes.search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('promissory_notes.search_tags')}
 	          )
 	          OR promissory_notes.id IN (
 	            SELECT nt.note_id
 	            FROM note_transactions nt
 	            WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId
-	            AND nt.search_tags LIKE @search
+	            AND ${AramaSqlYardimcisi.buildSearchTagsClause('nt.search_tags')}
 	            GROUP BY nt.note_id
 	          )
 	        )
 	      ''');
-      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
 
     if (aktifMi != null) {
@@ -943,18 +951,21 @@ class SenetlerVeritabaniServisi {
       baseConditions.add('''
 	        (
 	          (
-	            promissory_notes.search_tags LIKE @search
+	            ${AramaSqlYardimcisi.buildSearchTagsClause('promissory_notes.search_tags')}
 	          )
 	          OR promissory_notes.id IN (
 	            SELECT nt.note_id
 	            FROM note_transactions nt
 	            WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId
-	            AND nt.search_tags LIKE @search
+	            AND ${AramaSqlYardimcisi.buildSearchTagsClause('nt.search_tags')}
 	            GROUP BY nt.note_id
 	          )
 	        )
 	      ''');
-      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
 
     // Transaction conditions used across facets (always includes company filter)
@@ -1198,8 +1209,12 @@ class SenetlerVeritabaniServisi {
 
     // Arama filtresi
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      query += ' AND t.search_tags LIKE @search';
-      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+      query +=
+          ' AND ${AramaSqlYardimcisi.buildSearchTagsClause('t.search_tags')}';
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        _normalizeTurkish(aramaTerimi),
+      );
     }
 
     // İşlem türü filtresi

@@ -26,6 +26,7 @@ import '../yardimcilar/format_yardimcisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
 import '../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'ayarlar_veritabani_servisi.dart';
 import 'bankalar_veritabani_servisi.dart';
 import 'cari_hesaplar_veritabani_servisi.dart';
@@ -925,8 +926,8 @@ class RaporlarServisi {
 
     final pool = await _havuzAl();
     final params = <String, dynamic>{'limit': limit.clamp(1, 50)};
-    _bindSearchTokenParams(params, tokens);
-    final where = _tokenLikeClause('ca.search_tags', tokens.length);
+    _bindSearchParams(params, aramaTerimi);
+    final where = _searchClauseForExpression('ca.search_tags', tokens.length);
 
     final rows = await _queryMaps(pool, '''
       SELECT ca.id, ca.kod_no, ca.adi
@@ -974,8 +975,8 @@ class RaporlarServisi {
 
     final pool = await _havuzAl();
     final params = <String, dynamic>{'limit': limit.clamp(1, 50)};
-    _bindSearchTokenParams(params, tokens);
-    final where = _tokenLikeClause('p.search_tags', tokens.length);
+    _bindSearchParams(params, aramaTerimi);
+    final where = _searchClauseForExpression('p.search_tags', tokens.length);
 
     final rows = await _queryMaps(pool, '''
       SELECT p.kod, p.ad, p.grubu
@@ -1969,27 +1970,17 @@ class RaporlarServisi {
   ) {
     final tokens = _searchTokens(arama);
     if (tokens.isEmpty) return;
-    _bindSearchTokenParams(params, tokens);
-    conditions.add(_tokenLikeClause(expression, tokens.length));
+    _bindSearchParams(params, arama);
+    conditions.add(_searchClauseForExpression(expression, tokens.length));
   }
 
-  /// [2026 PERF] Raporlar araması tamamen index-dostu (GIN+trgm) LIKE üzerinden akar.
-  ///
-  /// - `to_tsvector(...)` OR koşulu büyük tablolarda planı bozup seq-scan'a iter.
-  /// - Bunun yerine token'ları AND'leyerek FTS benzeri davranışı koruruz:
-  ///   `col LIKE %t1% AND col LIKE %t2% ...`
-  /// - Tokenlar en az 2 karakter olmalı (1 harf araması 100B'de patlar).
+  /// [2026 PERF] Rapor araması FTS+trgm omurgasında çalışır.
   List<String> _searchTokens(String arama) {
-    final normalized = _normalizeArama(arama);
-    if (normalized.isEmpty) return const <String>[];
-    final raw = normalized
-        .split(RegExp(r'\s+'))
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty && e.length >= 2)
-        .toList(growable: false);
-    if (raw.isEmpty) return const <String>[];
-    // Güvenlik üst sınırı: çok uzun sorgu AND zinciri üretmesin.
-    return raw.length <= 8 ? raw : raw.take(8).toList(growable: false);
+    return AramaSqlYardimcisi.tokenizeQuery(
+      arama,
+      minTokenLength: 1,
+      maxTokens: 8,
+    );
   }
 
   /// Rapor aramasında sayısal değerler formatlı görünebilir (örn: `2.500,32`)
@@ -2015,21 +2006,20 @@ class RaporlarServisi {
     return '$intPart $fracPart';
   }
 
-  void _bindSearchTokenParams(
-    Map<String, dynamic> params,
-    List<String> tokens,
-  ) {
-    for (var i = 0; i < tokens.length; i++) {
-      params['search$i'] = '%${tokens[i]}%';
-    }
+  void _bindSearchParams(Map<String, dynamic> params, String arama) {
+    AramaSqlYardimcisi.bindSearchParams(
+      params,
+      arama,
+      minTokenLength: 1,
+      maxTokens: 8,
+    );
   }
 
-  String _tokenLikeClause(String expression, int tokenCount) {
-    final parts = <String>[];
-    for (var i = 0; i < tokenCount; i++) {
-      parts.add('$expression LIKE @search$i');
-    }
-    return '(${parts.join(' AND ')})';
+  bool _isSearchTagsExpression(String expression) =>
+      expression.toLowerCase().contains('search_tags');
+
+  String _searchClauseForExpression(String expression, int tokenCount) {
+    return AramaSqlYardimcisi.buildSearchTagsClause(expression);
   }
 
   void _addSearchConditionAny(
@@ -2040,15 +2030,15 @@ class RaporlarServisi {
   ) {
     final tokens = _searchTokens(arama);
     if (tokens.isEmpty) return;
-    _bindSearchTokenParams(params, tokens);
+    _bindSearchParams(params, arama);
     final preferredExpressions = expressions
-        .where((expr) => expr.toLowerCase().contains('search_tags'))
+        .where(_isSearchTagsExpression)
         .toList(growable: false);
     final sourceExpressions = preferredExpressions.isNotEmpty
         ? preferredExpressions
         : expressions;
     final fallbackParts = sourceExpressions
-        .map((expr) => _tokenLikeClause(expr, tokens.length))
+        .map((expr) => _searchClauseForExpression(expr, tokens.length))
         .toList(growable: false);
     if (fallbackParts.isEmpty) return;
     conditions.add('(${fallbackParts.join(' OR ')})');
@@ -2189,9 +2179,19 @@ class RaporlarServisi {
       whereBase.add("COALESCE(t.durum, '') = @durum");
     }
     if (_emptyToNull(filtreler.belgeNo) != null) {
-      paramsBase['belgeNo'] = '%${_normalizeArama(filtreler.belgeNo!)}%';
+      final normalizedBelgeNo = _normalizeArama(filtreler.belgeNo!);
+      AramaSqlYardimcisi.bindSearchParams(
+        paramsBase,
+        normalizedBelgeNo,
+        prefix: 'belge_no_',
+        minTokenLength: 1,
+        maxTokens: 8,
+      );
       whereBase.add(
-        "LOWER(COALESCE(t.$docCol, COALESCE(t.integration_ref, ''))) LIKE @belgeNo",
+        AramaSqlYardimcisi.buildSearchTagsClause(
+          "LOWER(COALESCE(t.$docCol, COALESCE(t.integration_ref, '')))",
+          prefix: 'belge_no_',
+        ),
       );
     }
     if (filtreler.minTutar != null) {
@@ -2517,17 +2517,36 @@ class RaporlarServisi {
       } else if (norm == 'pasif') {
         where.add('t.is_active = 0');
       } else {
-        params['durumSearch'] = '%$norm%';
+        AramaSqlYardimcisi.bindSearchParams(
+          params,
+          norm,
+          prefix: 'collection_status_',
+          minTokenLength: 1,
+          maxTokens: 8,
+        );
         where.add(
-          "normalize_text(COALESCE(t.collection_status, '')) LIKE @durumSearch",
+          AramaSqlYardimcisi.buildSearchTagsClause(
+            "normalize_text(COALESCE(t.collection_status, ''))",
+            prefix: 'collection_status_',
+          ),
         );
       }
     }
 
     if (_emptyToNull(filtreler.belgeNo) != null) {
-      params['belgeNo'] = '%${_normalizeArama(filtreler.belgeNo!)}%';
+      final normalizedBelgeNo = _normalizeArama(filtreler.belgeNo!);
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalizedBelgeNo,
+        prefix: 'collection_doc_',
+        minTokenLength: 1,
+        maxTokens: 8,
+      );
       where.add(
-        "normalize_text(COALESCE(t.$docCol, COALESCE(t.integration_ref, ''))) LIKE @belgeNo",
+        AramaSqlYardimcisi.buildSearchTagsClause(
+          "normalize_text(COALESCE(t.$docCol, COALESCE(t.integration_ref, '')))",
+          prefix: 'collection_doc_',
+        ),
       );
     }
 
@@ -7362,14 +7381,18 @@ class RaporlarServisi {
 
     final normalizedSearch = _normalizeArama(arama);
     if (normalizedSearch.isNotEmpty) {
-      params['search'] = '%$normalizedSearch%';
+      _bindSearchParams(params, normalizedSearch);
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalizedSearch,
+        prefix: 'user_profile_',
+        minTokenLength: 1,
+        maxTokens: 8,
+      );
       where.add('''
         (
-          normalize_text(COALESCE(ut.description, '')) LIKE @search
-          OR normalize_text(COALESCE(ut.type, '')) LIKE @search
-          OR normalize_text(COALESCE(ut.id, '')) LIKE @search
-          OR normalize_text(COALESCE(u.username, '')) LIKE @search
-          OR normalize_text(COALESCE(u.role, '')) LIKE @search
+          ${AramaSqlYardimcisi.buildSearchTagsClause('ut.search_tags')}
+          OR ${AramaSqlYardimcisi.buildSearchTagsClause('u.search_tags', prefix: 'user_profile_')}
         )
       ''');
     }
@@ -7688,9 +7711,19 @@ class RaporlarServisi {
       where.add("COALESCE(cat.user_name, '') = @kullanici");
     }
     if (_emptyToNull(filtreler.belgeNo) != null) {
-      params['belgeNo'] = '%${_normalizeArama(filtreler.belgeNo!)}%';
+      final normalizedBelgeNo = _normalizeArama(filtreler.belgeNo!);
+      AramaSqlYardimcisi.bindSearchParams(
+        params,
+        normalizedBelgeNo,
+        prefix: 'cari_doc_',
+        minTokenLength: 1,
+        maxTokens: 8,
+      );
       where.add(
-        "LOWER(COALESCE(cat.fatura_no, COALESCE(cat.irsaliye_no, COALESCE(cat.belge, COALESCE(cat.integration_ref, ''))))) LIKE @belgeNo",
+        AramaSqlYardimcisi.buildSearchTagsClause(
+          "LOWER(COALESCE(cat.fatura_no, COALESCE(cat.irsaliye_no, COALESCE(cat.belge, COALESCE(cat.integration_ref, '')))))",
+          prefix: 'cari_doc_',
+        ),
       );
     }
     if (filtreler.minTutar != null) {

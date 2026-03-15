@@ -312,46 +312,45 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
       final List<String> indexTables = needsItemTables
           ? const <String>['quotes', 'quote_items']
           : const <String>['quotes'];
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<TeklifModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'quotes',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) => servis.teklifleriGetir(
-          sayfa: 1,
-          sayfaBasinaKayit: ids.length,
-          // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-          aramaTerimi: _searchQuery,
-          sortBy: null,
-          sortAscending: true,
-          durum: _selectedStatus,
-          tur: _selectedType,
-          baslangicTarihi: _startDate,
-          bitisTarihi: _endDate,
-          depoId: _selectedWarehouse?.id,
-          birim: _selectedUnit,
-          ilgiliHesapAdi: _selectedAccount,
-          kullanici: _selectedUser,
-          sadeceIdler: ids,
-          lastId: null,
-        ),
-        idOf: (t) => t.id,
-        setMatchedInHidden: (t, matched) =>
-            t.copyWith(matchedInHidden: matched),
-      );
-
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<TeklifModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'quotes',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) => servis.teklifleriGetir(
+            sayfa: 1,
+            sayfaBasinaKayit: ids.length,
+            // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+            aramaTerimi: _searchQuery,
+            sortBy: null,
+            sortAscending: true,
+            durum: _selectedStatus,
+            tur: _selectedType,
+            baslangicTarihi: _startDate,
+            bitisTarihi: _endDate,
+            depoId: _selectedWarehouse?.id,
+            birim: _selectedUnit,
+            ilgiliHesapAdi: _selectedAccount,
+            kullanici: _selectedUser,
+            sadeceIdler: ids,
+            lastId: null,
+          ),
+          idOf: (t) => t.id,
+          setMatchedInHidden: (t, matched) =>
+              t.copyWith(matchedInHidden: matched),
+        );
         results = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
       } else {
-        // Fallback: DB deep-search (mevcut davranış).
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {
@@ -400,7 +399,7 @@ class _TekliflerSayfasiState extends State<TekliflerSayfasi> {
           _autoExpandedIndices.clear();
           _autoExpandedIndices.addAll(newAutoExpandedIndices);
           _pageCursors.remove(_currentPage);
-          if (primary.indexEnabled) {
+          if (usePrimarySearch) {
             if (nextCursor != null && nextCursor.trim().isNotEmpty) {
               _pageCursors[_currentPage] = nextCursor.trim();
             }

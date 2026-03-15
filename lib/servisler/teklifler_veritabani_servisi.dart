@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../sayfalar/siparisler_teklifler/modeller/teklif_model.dart';
 import '../yardimcilar/format_yardimcisi.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'pg_eklentiler.dart';
@@ -253,7 +254,9 @@ class TekliflerVeritabaniServisi {
   }
 
   Future<Pool> _poolOlustur() async {
-    return VeritabaniHavuzu().havuzAl(database: OturumServisi().aktifVeritabaniAdi);
+    return VeritabaniHavuzu().havuzAl(
+      database: OturumServisi().aktifVeritabaniAdi,
+    );
   }
 
   Future<Connection?> _yoneticiBaglantisiAl() async {
@@ -836,8 +839,10 @@ class TekliflerVeritabaniServisi {
       );
     } catch (_) {}
 
-    _quoteItemsHasSearchTags =
-        await _columnExists(table: 'quote_items', column: 'search_tags');
+    _quoteItemsHasSearchTags = await _columnExists(
+      table: 'quote_items',
+      column: 'search_tags',
+    );
 
     if (_quoteItemsHasSearchTags &&
         _yapilandirma.allowBackgroundDbMaintenance &&
@@ -854,10 +859,9 @@ class TekliflerVeritabaniServisi {
     final kdvOrani = (u['kdvOrani'] as num?)?.toDouble() ?? 0;
 
     final kdvDurumu = (u['kdvDurumu'] ?? '').toString();
-    final kdvLabel =
-        (kdvDurumu == 'included' || kdvDurumu == 'dahil')
-            ? 'kdv dahil dahil'
-            : 'kdv hariç hariç';
+    final kdvLabel = (kdvDurumu == 'included' || kdvDurumu == 'dahil')
+        ? 'kdv dahil dahil'
+        : 'kdv hariç hariç';
 
     final parts = <String>[
       (u['urunId'] ?? '').toString(),
@@ -1174,7 +1178,8 @@ class TekliflerVeritabaniServisi {
     String? birim,
     String? ilgiliHesapAdi,
     String? kullanici,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId,
   }) async {
     if (!_isInitialized) await baslat();
@@ -1218,11 +1223,15 @@ class TekliflerVeritabaniServisi {
     String selectCols = 'quotes.*';
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add('search_tags ILIKE @search');
+      whereConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      selectCols += ''', (CASE 
+      selectCols +=
+          ''', (CASE 
           WHEN (
-                 search_tags ILIKE @search
+                 ${AramaSqlYardimcisi.buildSearchTagsClause('search_tags')}
                )
                AND NOT (
                  COALESCE(id::text, '') ILIKE @search OR
@@ -1292,7 +1301,8 @@ class TekliflerVeritabaniServisi {
 
     // [ITEM FILTER] Depo + Birim aynı satırda (intersection)
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         params['depoId'] = depoId;
@@ -1456,8 +1466,10 @@ class TekliflerVeritabaniServisi {
     Map<String, dynamic> params = {};
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add('search_tags ILIKE @search');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      whereConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
     }
 
     if (durum != null) {
@@ -1500,7 +1512,8 @@ class TekliflerVeritabaniServisi {
 
     // [ITEM FILTER] Depo + Birim aynı satırda (intersection)
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         params['depoId'] = depoId;
@@ -1590,8 +1603,10 @@ class TekliflerVeritabaniServisi {
     List<String> baseConditions = [];
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      baseConditions.add('search_tags ILIKE @search');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      baseConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
     }
 
     // NOTE: "tur" seçimi facet olduğu için base koşullara eklenmiyor.
@@ -1638,7 +1653,8 @@ class TekliflerVeritabaniServisi {
       statusParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         statusParams['depoId'] = depoId;
@@ -1667,7 +1683,8 @@ class TekliflerVeritabaniServisi {
       typeParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         typeParams['depoId'] = depoId;
@@ -1742,7 +1759,8 @@ class TekliflerVeritabaniServisi {
       accountParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         accountParams['depoId'] = depoId;
@@ -1771,7 +1789,8 @@ class TekliflerVeritabaniServisi {
       userParams['ilgiliHesapAdi'] = ilgiliHesapAdi.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         userParams['depoId'] = depoId;
@@ -1804,7 +1823,8 @@ class TekliflerVeritabaniServisi {
       totalParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         totalParams['depoId'] = depoId;
@@ -2070,63 +2090,62 @@ class TekliflerVeritabaniServisi {
 
     try {
       return await _pool!.runTx((ctx) async {
-	        // [STOCK RESERVATION] Güncellemeden önce eğer rezerve edilmişse çöz
-	        final checkStatus = await ctx.execute(
-	          Sql.named(
-	            'SELECT stok_rezerve_mi, integration_ref, quote_no FROM quotes WHERE id = @id',
-	          ),
-	          parameters: {'id': id},
-	        );
-	        final existingIntegrationRef =
-	            checkStatus.isNotEmpty
-	                ? (checkStatus.first[1]?.toString() ?? '').trim()
-	                : '';
-	        final existingQuoteNo =
-	            checkStatus.isNotEmpty
-	                ? (checkStatus.first[2]?.toString() ?? '').trim()
-	                : '';
-	        if (checkStatus.isNotEmpty && checkStatus.first[0] == true) {
-	          await _teklifStokRezervasyonunuYonet(
-	            ctx: ctx,
-	            quoteId: id,
+        // [STOCK RESERVATION] Güncellemeden önce eğer rezerve edilmişse çöz
+        final checkStatus = await ctx.execute(
+          Sql.named(
+            'SELECT stok_rezerve_mi, integration_ref, quote_no FROM quotes WHERE id = @id',
+          ),
+          parameters: {'id': id},
+        );
+        final existingIntegrationRef = checkStatus.isNotEmpty
+            ? (checkStatus.first[1]?.toString() ?? '').trim()
+            : '';
+        final existingQuoteNo = checkStatus.isNotEmpty
+            ? (checkStatus.first[2]?.toString() ?? '').trim()
+            : '';
+        if (checkStatus.isNotEmpty && checkStatus.first[0] == true) {
+          await _teklifStokRezervasyonunuYonet(
+            ctx: ctx,
+            quoteId: id,
             isArtis: false,
           );
         }
 
-	        final String professionalTur = IslemTuruRenkleri.getProfessionalLabel(
-	          tur,
-	          context: 'cari',
-	        );
+        final String professionalTur = IslemTuruRenkleri.getProfessionalLabel(
+          tur,
+          context: 'cari',
+        );
 
-	        final itemTags =
-	            urunler.map((u) => _buildQuoteItemSearchTags(u)).join(' ');
+        final itemTags = urunler
+            .map((u) => _buildQuoteItemSearchTags(u))
+            .join(' ');
 
-	        final searchTags = [
-	          id.toString(),
-	          existingIntegrationRef,
-	          existingQuoteNo,
-	          professionalTur,
-	          tur,
-	          durum,
-	          DateFormat('dd.MM.yyyy HH:mm').format(tarih),
-	          cariId?.toString() ?? '',
-	          cariKod ?? '',
-	          cariAdi ?? '',
-	          ilgiliHesapAdi,
-	          tutar.toString(),
+        final searchTags = [
+          id.toString(),
+          existingIntegrationRef,
+          existingQuoteNo,
+          professionalTur,
+          tur,
+          durum,
+          DateFormat('dd.MM.yyyy HH:mm').format(tarih),
+          cariId?.toString() ?? '',
+          cariKod ?? '',
+          cariAdi ?? '',
+          ilgiliHesapAdi,
+          tutar.toString(),
           FormatYardimcisi.sayiFormatlaOndalikli(tutar),
           kur.toString(),
           FormatYardimcisi.sayiFormatlaOndalikli(kur),
           aciklama ?? '',
           aciklama2 ?? '',
-	          gecerlilikTarihi != null
-	              ? DateFormat('dd.MM.yyyy').format(gecerlilikTarihi)
-	              : '',
-	          paraBirimi,
-	          kullanici,
-	          '|v6|',
-	          itemTags,
-	        ].join(' ').toLowerCase();
+          gecerlilikTarihi != null
+              ? DateFormat('dd.MM.yyyy').format(gecerlilikTarihi)
+              : '',
+          paraBirimi,
+          kullanici,
+          '|v6|',
+          itemTags,
+        ].join(' ').toLowerCase();
 
         await ctx.execute(
           Sql.named('''
@@ -2163,13 +2182,13 @@ class TekliflerVeritabaniServisi {
           parameters: {'id': id},
         );
 
-	        if (urunler.isNotEmpty) {
-	          for (var urun in urunler) {
-	            final itemSearchTags = _buildQuoteItemSearchTags(urun);
+        if (urunler.isNotEmpty) {
+          for (var urun in urunler) {
+            final itemSearchTags = _buildQuoteItemSearchTags(urun);
 
-	            if (_quoteItemsHasSearchTags) {
-	              await ctx.execute(
-	                Sql.named('''
+            if (_quoteItemsHasSearchTags) {
+              await ctx.execute(
+                Sql.named('''
 	                  INSERT INTO quote_items (
 	                    quote_id, urun_id, urun_kodu, urun_adi, barkod, depo_id, depo_adi,
 	                    kdv_orani, miktar, birim, birim_fiyati, para_birimi, kdv_durumu,
@@ -2180,28 +2199,28 @@ class TekliflerVeritabaniServisi {
 	                    @iskonto, @toplamFiyati, @searchTags
 	                  )
 	                '''),
-	                parameters: {
-	                  'quoteId': id,
-	                  'urunId': urun['urunId'],
-	                  'urunKodu': urun['urunKodu'] ?? '',
-	                  'urunAdi': urun['urunAdi'] ?? '',
-	                  'barkod': urun['barkod'] ?? '',
-	                  'depoId': urun['depoId'],
-	                  'depoAdi': urun['depoAdi'] ?? '',
-	                  'kdvOrani': urun['kdvOrani'] ?? 0,
-	                  'miktar': urun['miktar'] ?? 0,
-	                  'birim': urun['birim'] ?? 'Adet',
-	                  'birimFiyati': urun['birimFiyati'] ?? 0,
-	                  'paraBirimi': urun['paraBirimi'] ?? 'TRY',
-	                  'kdvDurumu': urun['kdvDurumu'] ?? 'excluded',
-	                  'iskonto': urun['iskonto'] ?? 0,
-	                  'toplamFiyati': urun['toplamFiyati'] ?? 0,
-	                  'searchTags': itemSearchTags,
-	                },
-	              );
-	            } else {
-	              await ctx.execute(
-	                Sql.named('''
+                parameters: {
+                  'quoteId': id,
+                  'urunId': urun['urunId'],
+                  'urunKodu': urun['urunKodu'] ?? '',
+                  'urunAdi': urun['urunAdi'] ?? '',
+                  'barkod': urun['barkod'] ?? '',
+                  'depoId': urun['depoId'],
+                  'depoAdi': urun['depoAdi'] ?? '',
+                  'kdvOrani': urun['kdvOrani'] ?? 0,
+                  'miktar': urun['miktar'] ?? 0,
+                  'birim': urun['birim'] ?? 'Adet',
+                  'birimFiyati': urun['birimFiyati'] ?? 0,
+                  'paraBirimi': urun['paraBirimi'] ?? 'TRY',
+                  'kdvDurumu': urun['kdvDurumu'] ?? 'excluded',
+                  'iskonto': urun['iskonto'] ?? 0,
+                  'toplamFiyati': urun['toplamFiyati'] ?? 0,
+                  'searchTags': itemSearchTags,
+                },
+              );
+            } else {
+              await ctx.execute(
+                Sql.named('''
 	                  INSERT INTO quote_items (
 	                    quote_id, urun_id, urun_kodu, urun_adi, barkod, depo_id, depo_adi,
 	                    kdv_orani, miktar, birim, birim_fiyati, para_birimi, kdv_durumu,
@@ -2212,27 +2231,27 @@ class TekliflerVeritabaniServisi {
 	                    @iskonto, @toplamFiyati
 	                  )
 	                '''),
-	                parameters: {
-	                  'quoteId': id,
-	                  'urunId': urun['urunId'],
-	                  'urunKodu': urun['urunKodu'] ?? '',
-	                  'urunAdi': urun['urunAdi'] ?? '',
-	                  'barkod': urun['barkod'] ?? '',
-	                  'depoId': urun['depoId'],
-	                  'depoAdi': urun['depoAdi'] ?? '',
-	                  'kdvOrani': urun['kdvOrani'] ?? 0,
-	                  'miktar': urun['miktar'] ?? 0,
-	                  'birim': urun['birim'] ?? 'Adet',
-	                  'birimFiyati': urun['birimFiyati'] ?? 0,
-	                  'paraBirimi': urun['paraBirimi'] ?? 'TRY',
-	                  'kdvDurumu': urun['kdvDurumu'] ?? 'excluded',
-	                  'iskonto': urun['iskonto'] ?? 0,
-	                  'toplamFiyati': urun['toplamFiyati'] ?? 0,
-	                },
-	              );
-	            }
-	          }
-	        }
+                parameters: {
+                  'quoteId': id,
+                  'urunId': urun['urunId'],
+                  'urunKodu': urun['urunKodu'] ?? '',
+                  'urunAdi': urun['urunAdi'] ?? '',
+                  'barkod': urun['barkod'] ?? '',
+                  'depoId': urun['depoId'],
+                  'depoAdi': urun['depoAdi'] ?? '',
+                  'kdvOrani': urun['kdvOrani'] ?? 0,
+                  'miktar': urun['miktar'] ?? 0,
+                  'birim': urun['birim'] ?? 'Adet',
+                  'birimFiyati': urun['birimFiyati'] ?? 0,
+                  'paraBirimi': urun['paraBirimi'] ?? 'TRY',
+                  'kdvDurumu': urun['kdvDurumu'] ?? 'excluded',
+                  'iskonto': urun['iskonto'] ?? 0,
+                  'toplamFiyati': urun['toplamFiyati'] ?? 0,
+                },
+              );
+            }
+          }
+        }
 
         // [STOCK RESERVATION] Eğer durum 'Onaylandı' ise stokları rezerve et
         if (durum == 'Onaylandı') {

@@ -9,6 +9,7 @@ import '../sayfalar/siparisler_teklifler/modeller/siparis_model.dart';
 import '../yardimcilar/format_yardimcisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
 import 'arama/hizli_sayim_yardimcisi.dart';
+import 'arama/arama_sql_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'pg_eklentiler.dart';
@@ -1229,13 +1230,17 @@ class SiparislerVeritabaniServisi {
     String selectCols = 'orders.*';
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add('search_tags ILIKE @search');
+      whereConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
 
       // matched_in_hidden mantığı
-      selectCols += ''', (CASE 
+      selectCols +=
+          ''', (CASE 
 	          WHEN (
-	                 search_tags ILIKE @search
+	                 ${AramaSqlYardimcisi.buildSearchTagsClause('search_tags')}
 	               )
 	               AND NOT (
 	                 COALESCE(id::text, '') ILIKE @search OR
@@ -1307,7 +1312,8 @@ class SiparislerVeritabaniServisi {
 
     // [ITEM FILTER] Depo + Birim aynı satırda (intersection)
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         params['depoId'] = depoId;
@@ -1458,8 +1464,10 @@ class SiparislerVeritabaniServisi {
     Map<String, dynamic> params = {};
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add('search_tags ILIKE @search');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      whereConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
     }
 
     if (durum != null) {
@@ -1502,7 +1510,8 @@ class SiparislerVeritabaniServisi {
 
     // [ITEM FILTER] Depo + Birim aynı satırda (intersection)
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         params['depoId'] = depoId;
@@ -1548,8 +1557,10 @@ class SiparislerVeritabaniServisi {
     List<String> baseConditions = [];
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      baseConditions.add('search_tags ILIKE @search');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
+      baseConditions.add(
+        AramaSqlYardimcisi.buildSearchTagsClause('search_tags'),
+      );
+      AramaSqlYardimcisi.bindSearchParams(params, aramaTerimi);
     }
 
     // NOTE: "tur" seçimi facet olduğu için base koşullara eklenmiyor.
@@ -1596,7 +1607,8 @@ class SiparislerVeritabaniServisi {
       statusParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         statusParams['depoId'] = depoId;
@@ -1625,7 +1637,8 @@ class SiparislerVeritabaniServisi {
       typeParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         typeParams['depoId'] = depoId;
@@ -1701,7 +1714,8 @@ class SiparislerVeritabaniServisi {
       accountParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         accountParams['depoId'] = depoId;
@@ -1730,7 +1744,8 @@ class SiparislerVeritabaniServisi {
       userParams['ilgiliHesapAdi'] = ilgiliHesapAdi.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         userParams['depoId'] = depoId;
@@ -1763,7 +1778,8 @@ class SiparislerVeritabaniServisi {
       totalParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
+      String existsQuery =
+          'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         totalParams['depoId'] = depoId;

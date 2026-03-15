@@ -45,16 +45,101 @@ class SyncCursor {
   final DateTime lastPulledAt;
   final String? lastPulledId;
 
-  const SyncCursor({
-    required this.lastPulledAt,
-    required this.lastPulledId,
-  });
+  const SyncCursor({required this.lastPulledAt, required this.lastPulledId});
 
   static SyncCursor initial() {
     return SyncCursor(
       lastPulledAt: DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
       lastPulledId: null,
     );
+  }
+}
+
+class OfflineSyncFieldScope {
+  final List<String> fields;
+  final Set<String> allowedValues;
+
+  OfflineSyncFieldScope({
+    required this.fields,
+    required Iterable<Object?> allowedValues,
+  }) : allowedValues = _normalizeValues(allowedValues);
+
+  bool matchesRow(Map<String, dynamic> row) {
+    if (allowedValues.isEmpty) return true;
+    for (final field in fields) {
+      final value = _normalizeValue(row[field]);
+      if (value.isNotEmpty && allowedValues.contains(value)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'fields': fields,
+      'allowed_values': allowedValues.toList(growable: false),
+    };
+  }
+
+  static Set<String> _normalizeValues(Iterable<Object?> values) {
+    return values
+        .map(_normalizeValue)
+        .where((value) => value.isNotEmpty)
+        .toSet();
+  }
+}
+
+class OfflineSyncTableScope {
+  final String? label;
+  final Set<String> allowedRowIds;
+  final List<OfflineSyncFieldScope> fieldScopes;
+  final Map<String, Object?> rpcParams;
+  final bool attachScopeToRpc;
+  final String scopeParamName;
+
+  OfflineSyncTableScope({
+    this.label,
+    Iterable<Object?> allowedRowIds = const <Object?>[],
+    this.fieldScopes = const <OfflineSyncFieldScope>[],
+    this.rpcParams = const <String, Object?>{},
+    this.attachScopeToRpc = false,
+    this.scopeParamName = 'p_scope',
+  }) : allowedRowIds = allowedRowIds
+           .map(_normalizeValue)
+           .where((value) => value.isNotEmpty)
+           .toSet();
+
+  bool get hasLocalFilter => allowedRowIds.isNotEmpty || fieldScopes.isNotEmpty;
+
+  bool matchesRow(Map<String, dynamic> row) {
+    if (allowedRowIds.isNotEmpty) {
+      final rowId = _normalizeValue(row['id']);
+      if (rowId.isEmpty || !allowedRowIds.contains(rowId)) {
+        return false;
+      }
+    }
+    for (final scope in fieldScopes) {
+      if (!scope.matchesRow(row)) return false;
+    }
+    return true;
+  }
+
+  List<Map<String, dynamic>> filterRows(List<Map<String, dynamic>> rows) {
+    if (!hasLocalFilter) return rows;
+    return rows.where(matchesRow).toList(growable: false);
+  }
+
+  Map<String, dynamic> toRpcScopePayload() {
+    return <String, dynamic>{
+      if (label != null && label!.trim().isNotEmpty) 'label': label!.trim(),
+      if (allowedRowIds.isNotEmpty)
+        'allowed_row_ids': allowedRowIds.toList(growable: false),
+      if (fieldScopes.isNotEmpty)
+        'field_scopes': fieldScopes
+            .map((scope) => scope.toJson())
+            .toList(growable: false),
+    };
   }
 }
 
@@ -116,6 +201,11 @@ class SyncReport {
   });
 }
 
+String _normalizeValue(Object? value) {
+  if (value == null) return '';
+  return value.toString().trim().toLowerCase();
+}
+
 class UuidV4 {
   static final Random _rng = Random.secure();
 
@@ -129,4 +219,3 @@ class UuidV4 {
     return '${h.substring(0, 8)}-${h.substring(8, 12)}-${h.substring(12, 16)}-${h.substring(16, 20)}-${h.substring(20)}';
   }
 }
-

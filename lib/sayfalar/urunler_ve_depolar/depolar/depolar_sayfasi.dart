@@ -333,44 +333,43 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       List<DepoModel> depolar = [];
       bool hasMore = false;
       String? nextCursor;
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<DepoModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'depots',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) => DepolarVeritabaniServisi().depolariGetir(
-          sayfa: 1,
-          sayfaBasinaKayit: ids.length,
-          // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-          aramaKelimesi: _searchQuery,
-          siralama: null,
-          artanSiralama: true,
-          aktifMi: aktifMi,
-          baslangicTarihi: _startDate,
-          bitisTarihi: _endDate,
-          islemTuru: _selectedTransactionType,
-          kullanici: _selectedUser,
-          depoId: _selectedWarehouse?.id,
-          sadeceIdler: ids,
-          lastId: null,
-        ),
-        idOf: (d) => d.id,
-        setMatchedInHidden: (d, matched) =>
-            d.copyWith(matchedInHidden: matched),
-      );
-
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<DepoModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'depots',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) => DepolarVeritabaniServisi().depolariGetir(
+            sayfa: 1,
+            sayfaBasinaKayit: ids.length,
+            // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+            aramaKelimesi: _searchQuery,
+            siralama: null,
+            artanSiralama: true,
+            aktifMi: aktifMi,
+            baslangicTarihi: _startDate,
+            bitisTarihi: _endDate,
+            islemTuru: _selectedTransactionType,
+            kullanici: _selectedUser,
+            depoId: _selectedWarehouse?.id,
+            sadeceIdler: ids,
+            lastId: null,
+          ),
+          idOf: (d) => d.id,
+          setMatchedInHidden: (d, matched) =>
+              d.copyWith(matchedInHidden: matched),
+        );
         depolar = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
       } else {
-        // Fallback: DB deep-search (mevcut davranış).
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {
@@ -405,7 +404,7 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
 
       if (mounted) {
         _pageCursors.remove(_currentPage);
-        if (primary.indexEnabled) {
+        if (usePrimarySearch) {
           if (nextCursor != null && nextCursor.trim().isNotEmpty) {
             _pageCursors[_currentPage] = nextCursor.trim();
           }

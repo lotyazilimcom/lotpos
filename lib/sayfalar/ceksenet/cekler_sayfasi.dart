@@ -299,45 +299,44 @@ class _CeklerSayfasiState extends State<CeklerSayfasi> {
       List<CekModel> depolar = [];
       bool hasMore = false;
       String? nextCursor;
+      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
 
-      final primary = await AramaPrimaryPath.fetchPageIndexFirst<CekModel>(
-        query: _searchQuery,
-        tablolar: indexTables,
-        rootTable: 'cheques',
-        pageSize: _rowsPerPage,
-        cursor: indexCursor,
-        sortBy: indexSortBy,
-        extraFilter: indexExtraFilter,
-        startDate: _startDate,
-        endDate: _endDate,
-        dbFetchByIds: (ids) => CeklerVeritabaniServisi().cekleriGetir(
-          sayfa: 1,
-          sayfaBasinaKayit: ids.length,
-          // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
-          aramaKelimesi: _searchQuery,
-          siralama: null,
-          artanSiralama: true,
-          aktifMi: null,
-          banka: _selectedBank,
-          kullanici: _selectedUser,
-          baslangicTarihi: _startDate,
-          bitisTarihi: _endDate,
-          islemTuru: _selectedTransactionType,
-          cekId: null,
-          sadeceIdler: ids,
-          lastId: null,
-        ),
-        idOf: (c) => c.id,
-        setMatchedInHidden: (c, matched) =>
-            c.copyWith(matchedInHidden: matched),
-      );
-
-      if (primary.indexEnabled) {
+      if (usePrimarySearch) {
+        final primary = await AramaPrimaryPath.fetchPageIndexFirst<CekModel>(
+          query: _searchQuery,
+          tablolar: indexTables,
+          rootTable: 'cheques',
+          pageSize: _rowsPerPage,
+          cursor: indexCursor,
+          sortBy: indexSortBy,
+          extraFilter: indexExtraFilter,
+          startDate: _startDate,
+          endDate: _endDate,
+          dbFetchByIds: (ids) => CeklerVeritabaniServisi().cekleriGetir(
+            sayfa: 1,
+            sayfaBasinaKayit: ids.length,
+            // [100B] Index-first: küçük ID setinde DB doğrulaması (matchedInHidden korunur)
+            aramaKelimesi: _searchQuery,
+            siralama: null,
+            artanSiralama: true,
+            aktifMi: null,
+            banka: _selectedBank,
+            kullanici: _selectedUser,
+            baslangicTarihi: _startDate,
+            bitisTarihi: _endDate,
+            islemTuru: _selectedTransactionType,
+            cekId: null,
+            sadeceIdler: ids,
+            lastId: null,
+          ),
+          idOf: (c) => c.id,
+          setMatchedInHidden: (c, matched) =>
+              c.copyWith(matchedInHidden: matched),
+        );
         depolar = primary.rows;
         hasMore = primary.hasNextPage;
         nextCursor = primary.nextCursor;
       } else {
-        // Fallback: DB deep-search (mevcut davranış).
         int? lastId;
         final prev = prevCursorRaw ?? '';
         if (prev.startsWith('id:')) {
@@ -380,7 +379,7 @@ class _CeklerSayfasiState extends State<CeklerSayfasi> {
 
       if (mounted) {
         _pageCursors.remove(_currentPage);
-        if (primary.indexEnabled) {
+        if (usePrimarySearch) {
           if (nextCursor != null && nextCursor.trim().isNotEmpty) {
             _pageCursors[_currentPage] = nextCursor.trim();
           }
