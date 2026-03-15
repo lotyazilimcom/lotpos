@@ -11,6 +11,9 @@ class OfflineFirstSyncConfig {
   final String deviceId;
   final int batchSize;
   final int deltaPageSize;
+  final int maxDeviceDeltaPageSize;
+  final int maxLocalHistoryDays;
+  final int localRetentionDays;
   final int maxRetryCount;
   final Duration inAppSyncInterval;
   final Map<String, String> deltaPullRpcsByTable;
@@ -20,7 +23,10 @@ class OfflineFirstSyncConfig {
     required this.deviceId,
     required this.deltaPullRpcsByTable,
     this.batchSize = 50,
-    this.deltaPageSize = 1000,
+    this.deltaPageSize = 250,
+    this.maxDeviceDeltaPageSize = 250,
+    this.maxLocalHistoryDays = 14,
+    this.localRetentionDays = 14,
     this.maxRetryCount = 3,
     this.inAppSyncInterval = const Duration(minutes: 15),
   });
@@ -145,7 +151,9 @@ class SyncManager extends ChangeNotifier {
     if (res is Map) {
       return SchemaGateResult.fromJson(res.cast<String, dynamic>());
     }
-    throw StateError('Unexpected schema gate response type: ${res.runtimeType}');
+    throw StateError(
+      'Unexpected schema gate response type: ${res.runtimeType}',
+    );
   }
 
   Future<int> _pushOnce({
@@ -201,7 +209,9 @@ class SyncManager extends ChangeNotifier {
     if (res is Map) {
       return ApplyBatchResult.fromJson(res.cast<String, dynamic>());
     }
-    throw StateError('Unexpected apply batch response type: ${res.runtimeType}');
+    throw StateError(
+      'Unexpected apply batch response type: ${res.runtimeType}',
+    );
   }
 
   bool _isRetryableSyncError(Object error) {
@@ -243,15 +253,25 @@ class SyncManager extends ChangeNotifier {
   }) async {
     int pulled = 0;
     var cursor = await store.getCursor(table);
+    final effectiveSinceFloor = DateTime.now().toUtc().subtract(
+      Duration(days: config.maxLocalHistoryDays),
+    );
+    final effectiveLimit = config.deltaPageSize.clamp(
+      1,
+      config.maxDeviceDeltaPageSize,
+    );
 
-    for (var page = 0; page < 50; page++) {
+    for (var page = 0; page < 12; page++) {
+      final effectiveSince = cursor.lastPulledAt.isBefore(effectiveSinceFloor)
+          ? effectiveSinceFloor
+          : cursor.lastPulledAt;
       final res = await client.rpc(
         rpcName,
         params: <String, dynamic>{
           'p_tenant_id': config.tenantId,
-          'p_since': cursor.lastPulledAt.toUtc().toIso8601String(),
+          'p_since': effectiveSince.toUtc().toIso8601String(),
           'p_after_id': cursor.lastPulledId,
-          'p_limit': config.deltaPageSize,
+          'p_limit': effectiveLimit,
         },
       );
 
@@ -274,7 +294,7 @@ class SyncManager extends ChangeNotifier {
         break;
       }
 
-      if (rows.length < config.deltaPageSize) break;
+      if (rows.length < effectiveLimit) break;
     }
 
     return pulled;
@@ -291,8 +311,10 @@ class SyncManager extends ChangeNotifier {
   }
 
   Future<void> _purgeLocal(SyncStore store) async {
-    final cutoff = DateTime.now().toUtc().subtract(const Duration(days: 90));
+    final retentionDays = _config?.localRetentionDays ?? 30;
+    final cutoff = DateTime.now().toUtc().subtract(
+      Duration(days: retentionDays),
+    );
     await store.purgeSyncedData(syncedBefore: cutoff);
   }
 }
-

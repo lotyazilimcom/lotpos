@@ -1,5 +1,7 @@
 import 'package:postgres/postgres.dart';
 
+import 'veritabani_yapilandirma.dart';
+
 class PgEklentiler {
   static const String _ensurePgTrgmSql = '''
 DO \$\$
@@ -26,30 +28,9 @@ END;
     await session.execute(_ensurePgTrgmSql);
   }
 
-  static const String _ensurePgSearchSql = '''
-DO \$\$
-BEGIN
-  -- ParadeDB / pg_search (BM25) extension
-  CREATE EXTENSION IF NOT EXISTS pg_search;
-EXCEPTION
-  WHEN duplicate_object THEN
-    NULL;
-  WHEN unique_violation THEN
-    NULL;
-  WHEN insufficient_privilege THEN
-    NULL;
-  WHEN undefined_file THEN
-    NULL;
-  WHEN feature_not_supported THEN
-    NULL;
-  WHEN others THEN
-    NULL;
-END;
-\$\$;
-''';
-
   static Future<void> ensurePgSearch(Session session) async {
-    await session.execute(_ensurePgSearchSql);
+    // Saf PostgreSQL sıcak yolunda pg_search/BM25 devre dışı tutulur.
+    return;
   }
 
   static const String _ensureCitusSql = '''
@@ -74,6 +55,7 @@ END;
 ''';
 
   static Future<void> ensureCitus(Session session) async {
+    if (!VeritabaniYapilandirma().allowCitusExtension) return;
     await session.execute(_ensureCitusSql);
   }
 
@@ -108,8 +90,7 @@ END;
     if (i.isEmpty) return false;
     try {
       final res = await executor.execute(
-        Sql.named(
-          r'''
+        Sql.named(r'''
           SELECT 1
           FROM pg_class c
           JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -117,8 +98,7 @@ END;
             AND c.relkind IN ('i', 'I')
             AND c.relname = @i
           LIMIT 1
-        ''',
-        ),
+        '''),
         parameters: {'i': i},
       );
       return res.isNotEmpty;
@@ -127,7 +107,10 @@ END;
     }
   }
 
-  static Future<bool> hasBm25IndexForTable(Session executor, String table) async {
+  static Future<bool> hasBm25IndexForTable(
+    Session executor,
+    String table,
+  ) async {
     final t = table.trim();
     if (t.isEmpty) return false;
     try {
@@ -153,14 +136,12 @@ END;
     if (t.isEmpty) return false;
     try {
       final res = await executor.execute(
-        Sql.named(
-          r'''
+        Sql.named(r'''
           SELECT 1
           FROM pg_dist_partition
           WHERE logicalrelid = to_regclass(@t)
           LIMIT 1
-        ''',
-        ),
+        '''),
         parameters: {'t': 'public.$t'},
       );
       return res.isNotEmpty;
@@ -283,7 +264,9 @@ END;
 
       if (moved.isEmpty) break;
       final c = moved.first[0];
-      final movedCount = (c is int) ? c : int.tryParse(c?.toString() ?? '') ?? 0;
+      final movedCount = (c is int)
+          ? c
+          : int.tryParse(c?.toString() ?? '') ?? 0;
       if (movedCount <= 0) break;
       totalMoved += movedCount;
     }
@@ -353,6 +336,113 @@ END;
     );
   }
 
+  /// `search_tags` için trigram GIN indeksini garanti eder.
+  static Future<void> ensureSearchTagsTrgmIndex(
+    Session executor, {
+    required String table,
+    required String indexName,
+    String column = 'search_tags',
+  }) async {
+    final t = table.trim();
+    final i = indexName.trim();
+    final c = column.trim();
+    if (t.isEmpty || i.isEmpty || c.isEmpty) return;
+
+    await ensurePgTrgm(executor);
+    await executor.execute(
+      'CREATE INDEX IF NOT EXISTS ${_qi(i)} ON ${_qt(t)} USING GIN (${_qi(c)} gin_trgm_ops)',
+    );
+  }
+
+  static Future<bool> hasTrgmIndexForTableColumn(
+    Session executor, {
+    required String table,
+    String column = 'search_tags',
+  }) async {
+    final t = table.trim();
+    final c = column.trim();
+    if (t.isEmpty || c.isEmpty) return false;
+    try {
+      final res = await executor.execute(
+        Sql.named(r'''
+          SELECT 1
+          FROM pg_indexes
+          WHERE schemaname = 'public'
+            AND tablename = @t
+            AND indexdef ILIKE @colPattern
+            AND indexdef ILIKE '%gin_trgm_ops%'
+          LIMIT 1
+        '''),
+        parameters: {'t': t, 'colPattern': '%$c%'},
+      );
+      return res.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<bool> hasFtsIndexForTableColumn(
+    Session executor, {
+    required String table,
+    String column = 'search_tags',
+  }) async {
+    final t = table.trim();
+    final c = column.trim();
+    if (t.isEmpty || c.isEmpty) return false;
+    try {
+      final res = await executor.execute(
+        Sql.named(r'''
+          SELECT 1
+          FROM pg_indexes
+          WHERE schemaname = 'public'
+            AND tablename = @t
+            AND indexdef ILIKE '%USING GIN%'
+            AND indexdef ILIKE '%to_tsvector%'
+            AND indexdef ILIKE @colPattern
+          LIMIT 1
+        '''),
+        parameters: {'t': t, 'colPattern': '%$c%'},
+      );
+      return res.isNotEmpty;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  static Future<void> ensureCompositeIndex(
+    Session executor, {
+    required String table,
+    required String indexName,
+    required List<String> expressions,
+  }) async {
+    final t = table.trim();
+    final i = indexName.trim();
+    final exprs = expressions
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList(growable: false);
+    if (t.isEmpty || i.isEmpty || exprs.isEmpty) return;
+    await executor.execute(
+      'CREATE INDEX IF NOT EXISTS ${_qi(i)} ON ${_qt(t)} (${exprs.join(', ')})',
+    );
+  }
+
+  static Future<void> ensureBrinIndex(
+    Session executor, {
+    required String table,
+    required String indexName,
+    required String column,
+    int pagesPerRange = 128,
+  }) async {
+    final t = table.trim();
+    final i = indexName.trim();
+    final c = column.trim();
+    if (t.isEmpty || i.isEmpty || c.isEmpty) return;
+    await executor.execute(
+      'CREATE INDEX IF NOT EXISTS ${_qi(i)} ON ${_qt(t)} USING BRIN (${_qi(c)}) WITH (pages_per_range = $pagesPerRange)',
+    );
+  }
+
   /// ParadeDB / pg_search BM25 indexini garanti eder.
   ///
   /// Notlar:
@@ -368,6 +458,7 @@ END;
     int ngramMin = 2,
     int ngramMax = 3,
   }) async {
+    if (!VeritabaniYapilandirma().allowPgSearchExtension) return;
     final t = table.trim();
     final i = indexName.trim();
     final key = keyField.trim();

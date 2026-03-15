@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:intl/intl.dart';
@@ -9,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../sayfalar/siparisler_teklifler/modeller/siparis_model.dart';
 import '../yardimcilar/format_yardimcisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'pg_eklentiler.dart';
@@ -260,7 +260,9 @@ class SiparislerVeritabaniServisi {
   }
 
   Future<Pool> _poolOlustur() async {
-    return VeritabaniHavuzu().havuzAl(database: OturumServisi().aktifVeritabaniAdi);
+    return VeritabaniHavuzu().havuzAl(
+      database: OturumServisi().aktifVeritabaniAdi,
+    );
   }
 
   Future<Connection?> _yoneticiBaglantisiAl() async {
@@ -906,8 +908,10 @@ class SiparislerVeritabaniServisi {
       );
     } catch (_) {}
 
-    _orderItemsHasSearchTags =
-        await _columnExists(table: 'order_items', column: 'search_tags');
+    _orderItemsHasSearchTags = await _columnExists(
+      table: 'order_items',
+      column: 'search_tags',
+    );
 
     if (_orderItemsHasSearchTags &&
         _yapilandirma.allowBackgroundDbMaintenance &&
@@ -924,10 +928,9 @@ class SiparislerVeritabaniServisi {
     final kdvOrani = (u['kdvOrani'] as num?)?.toDouble() ?? 0;
 
     final kdvDurumu = (u['kdvDurumu'] ?? '').toString();
-    final kdvLabel =
-        (kdvDurumu == 'included' || kdvDurumu == 'dahil')
-            ? 'kdv dahil dahil'
-            : 'kdv hariç hariç';
+    final kdvLabel = (kdvDurumu == 'included' || kdvDurumu == 'dahil')
+        ? 'kdv dahil dahil'
+        : 'kdv hariç hariç';
 
     final parts = <String>[
       (u['urunId'] ?? '').toString(),
@@ -1243,7 +1246,8 @@ class SiparislerVeritabaniServisi {
     String? birim,
     String? ilgiliHesapAdi,
     String? kullanici,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId, // [2025 HYBRID PAGINATION]
   }) async {
     if (!_isInitialized) await baslat();
@@ -1287,18 +1291,14 @@ class SiparislerVeritabaniServisi {
     // Select Clause
     String selectCols = 'orders.*';
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      whereConditions.add(
-	        "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-	      );
-	      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-	      params['fts'] = aramaTerimi.toLowerCase();
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      whereConditions.add('search_tags ILIKE @search');
+      params['search'] = '%${aramaTerimi.toLowerCase()}%';
 
-	      // matched_in_hidden mantığı
-	      selectCols += ''', (CASE 
+      // matched_in_hidden mantığı
+      selectCols += ''', (CASE 
 	          WHEN (
 	                 search_tags ILIKE @search
-	                 OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts)
 	               )
 	               AND NOT (
 	                 COALESCE(id::text, '') ILIKE @search OR
@@ -1370,8 +1370,7 @@ class SiparislerVeritabaniServisi {
 
     // [ITEM FILTER] Depo + Birim aynı satırda (intersection)
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id';
+      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         params['depoId'] = depoId;
@@ -1380,7 +1379,7 @@ class SiparislerVeritabaniServisi {
         existsQuery += ' AND oi.birim = @birim';
         params['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY oi.order_id)';
       whereConditions.add(existsQuery);
     }
 
@@ -1522,11 +1521,8 @@ class SiparislerVeritabaniServisi {
     Map<String, dynamic> params = {};
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add(
-        "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      whereConditions.add('search_tags ILIKE @search');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
     }
 
     if (durum != null) {
@@ -1569,8 +1565,7 @@ class SiparislerVeritabaniServisi {
 
     // [ITEM FILTER] Depo + Birim aynı satırda (intersection)
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id';
+      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         params['depoId'] = depoId;
@@ -1579,59 +1574,17 @@ class SiparislerVeritabaniServisi {
         existsQuery += ' AND oi.birim = @birim';
         params['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY oi.order_id)';
       whereConditions.add(existsQuery);
     }
 
-    final String whereClause = whereConditions.isEmpty
-        ? ''
-        : 'WHERE ${whereConditions.join(' AND ')}';
-
-    // [2026] Unfiltered: use reltuples estimate to avoid COUNT(*) on huge tables.
-    if (whereConditions.isEmpty) {
-      try {
-        final approx = await _pool!.execute(
-          "SELECT reltuples::BIGINT FROM pg_class WHERE relname = 'orders'",
-        );
-        if (approx.isNotEmpty && approx.first[0] != null) {
-          final v = approx.first[0] as int;
-          if (v > 0) return v;
-        }
-      } catch (e) {
-        debugPrint('orders reltuples estimate failed: $e');
-      }
-    }
-
-    // [2026] Filtered: use planner estimate first (fast), fallback to exact COUNT(*).
-    try {
-      final planResult = await _pool!.execute(
-        Sql.named("EXPLAIN (FORMAT JSON) SELECT 1 FROM orders $whereClause"),
-        parameters: params,
-      );
-      final planJson = planResult[0][0];
-
-      dynamic decoded;
-      if (planJson is String) {
-        decoded = jsonDecode(planJson);
-      } else {
-        decoded = planJson;
-      }
-
-      if (decoded is List && decoded.isNotEmpty) {
-        final planRows =
-            num.tryParse(decoded[0]['Plan']['Plan Rows']?.toString() ?? '') ??
-            0;
-        if (planRows > 0) return planRows.toInt();
-      }
-    } catch (e) {
-      debugPrint('orders count estimate failed: $e');
-    }
-
-    final result = await _pool!.execute(
-      Sql.named('SELECT COUNT(*) FROM orders $whereClause'),
-      parameters: params,
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'orders',
+      whereConditions: whereConditions,
+      params: params,
+      unfilteredTable: 'orders',
     );
-    return _toInt(result.first[0]) ?? 0;
   }
 
   /// [2026 HYPER-SPEED] Dinamik filtre seçeneklerini ve sayıları getirir.
@@ -1658,11 +1611,8 @@ class SiparislerVeritabaniServisi {
     List<String> baseConditions = [];
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      baseConditions.add(
-        "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      baseConditions.add('search_tags ILIKE @search');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
     }
 
     // NOTE: "tur" seçimi facet olduğu için base koşullara eklenmiyor.
@@ -1709,8 +1659,7 @@ class SiparislerVeritabaniServisi {
       statusParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id';
+      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         statusParams['depoId'] = depoId;
@@ -1719,7 +1668,7 @@ class SiparislerVeritabaniServisi {
         existsQuery += ' AND oi.birim = @birim';
         statusParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY oi.order_id)';
       statusConds.add(existsQuery);
     }
 
@@ -1739,8 +1688,7 @@ class SiparislerVeritabaniServisi {
       typeParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id';
+      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         typeParams['depoId'] = depoId;
@@ -1749,7 +1697,7 @@ class SiparislerVeritabaniServisi {
         existsQuery += ' AND oi.birim = @birim';
         typeParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY oi.order_id)';
       typeConds.add(existsQuery);
     }
 
@@ -1816,8 +1764,7 @@ class SiparislerVeritabaniServisi {
       accountParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id';
+      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         accountParams['depoId'] = depoId;
@@ -1826,7 +1773,7 @@ class SiparislerVeritabaniServisi {
         existsQuery += ' AND oi.birim = @birim';
         accountParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY oi.order_id)';
       accountConds.add(existsQuery);
     }
 
@@ -1846,8 +1793,7 @@ class SiparislerVeritabaniServisi {
       userParams['ilgiliHesapAdi'] = ilgiliHesapAdi.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id';
+      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         userParams['depoId'] = depoId;
@@ -1856,7 +1802,7 @@ class SiparislerVeritabaniServisi {
         existsQuery += ' AND oi.birim = @birim';
         userParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY oi.order_id)';
       userConds.add(existsQuery);
     }
 
@@ -1880,8 +1826,7 @@ class SiparislerVeritabaniServisi {
       totalParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM order_items oi WHERE oi.order_id = orders.id';
+      String existsQuery = 'id IN (SELECT oi.order_id FROM order_items oi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND oi.depo_id = @depoId';
         totalParams['depoId'] = depoId;
@@ -1890,13 +1835,16 @@ class SiparislerVeritabaniServisi {
         existsQuery += ' AND oi.birim = @birim';
         totalParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY oi.order_id)';
       totalConds.add(existsQuery);
     }
-    final totalWhere = totalConds.isEmpty
-        ? ''
-        : 'WHERE ${totalConds.join(' AND ')}';
-    final totalQuery = 'SELECT COUNT(*) FROM orders $totalWhere';
+    final totalCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'orders',
+      whereConditions: totalConds,
+      params: totalParams,
+      unfilteredTable: 'orders',
+    );
 
     final depotQuery =
         '''
@@ -1923,7 +1871,6 @@ class SiparislerVeritabaniServisi {
     ''';
 
     final results = await Future.wait([
-      _pool!.execute(Sql.named(totalQuery), parameters: totalParams),
       _pool!.execute(
         Sql.named(buildOrderCappedGroupQuery('durum, COUNT(*)', statusConds)),
         parameters: statusParams,
@@ -1950,7 +1897,7 @@ class SiparislerVeritabaniServisi {
     ]);
 
     Map<String, Map<String, int>> stats = {
-      'ozet': {'toplam': _toInt(results[0][0][0]) ?? 0},
+      'ozet': {'toplam': totalCount},
       'durumlar': {},
       'turler': {},
       'depolar': {},
@@ -1959,41 +1906,41 @@ class SiparislerVeritabaniServisi {
       'kullanicilar': {},
     };
 
-    for (final row in results[1]) {
+    for (final row in results[0]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['durumlar']![key] = row[1] as int;
       }
     }
 
-    for (final row in results[2]) {
+    for (final row in results[1]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['turler']![key] = row[1] as int;
       }
     }
 
-    for (final row in results[3]) {
+    for (final row in results[2]) {
       if (row[0] != null) {
         stats['depolar']![row[0].toString()] = row[1] as int;
       }
     }
 
-    for (final row in results[4]) {
+    for (final row in results[3]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['birimler']![key] = row[1] as int;
       }
     }
 
-    for (final row in results[5]) {
+    for (final row in results[4]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['hesaplar']![key] = row[1] as int;
       }
     }
 
-    for (final row in results[6]) {
+    for (final row in results[5]) {
       final key = row[0]?.toString();
       if (key != null && key.isNotEmpty) {
         stats['kullanicilar']![key] = row[1] as int;
@@ -2086,26 +2033,28 @@ class SiparislerVeritabaniServisi {
 
     final kullanici = await _getCurrentUser();
 
-	    await _pool!.runTx((ctx) async {
-	      // [STOCK RESERVATION] Ürünleri silmeden önce eğer rezerve edilmişse çöz
-	      final check = await ctx.execute(
-	        Sql.named(
-	          'SELECT stok_rezerve_mi, integration_ref, order_no FROM orders WHERE id = @orderId',
-	        ),
-	        parameters: {'orderId': orderId},
-	      );
-	      final existingIntegrationRef =
-	          check.isNotEmpty ? (check.first[1]?.toString() ?? '').trim() : '';
-	      final existingOrderNo =
-	          check.isNotEmpty ? (check.first[2]?.toString() ?? '').trim() : '';
+    await _pool!.runTx((ctx) async {
+      // [STOCK RESERVATION] Ürünleri silmeden önce eğer rezerve edilmişse çöz
+      final check = await ctx.execute(
+        Sql.named(
+          'SELECT stok_rezerve_mi, integration_ref, order_no FROM orders WHERE id = @orderId',
+        ),
+        parameters: {'orderId': orderId},
+      );
+      final existingIntegrationRef = check.isNotEmpty
+          ? (check.first[1]?.toString() ?? '').trim()
+          : '';
+      final existingOrderNo = check.isNotEmpty
+          ? (check.first[2]?.toString() ?? '').trim()
+          : '';
 
-	      if (check.isNotEmpty && check.first[0] == true) {
-	        await _stokRezervasyonunuYonet(
-	          ctx: ctx,
-	          orderId: orderId,
-	          isArtis: false,
-	        );
-	      }
+      if (check.isNotEmpty && check.first[0] == true) {
+        await _stokRezervasyonunuYonet(
+          ctx: ctx,
+          orderId: orderId,
+          isArtis: false,
+        );
+      }
 
       // Önce ürünleri sil (Atomic update stratejisi)
       await ctx.execute(
@@ -2114,38 +2063,38 @@ class SiparislerVeritabaniServisi {
       );
 
       // Ana siparişi güncelle
-	      final itemTags = urunler
-	          .map((u) => _buildOrderItemSearchTags(u))
-	          .join(' ');
+      final itemTags = urunler
+          .map((u) => _buildOrderItemSearchTags(u))
+          .join(' ');
 
-	      final professionalTur = IslemTuruRenkleri.getProfessionalLabel(
-	        tur,
-	        context: 'cari',
-	      );
-	      final searchTags = [
-	        orderId.toString(),
-	        existingIntegrationRef,
-	        existingOrderNo,
-	        professionalTur,
-	        durum,
-	        DateFormat('dd.MM.yyyy HH:mm').format(tarih),
-	        cariKod ?? '',
-	        cariAdi ?? '',
-	        ilgiliHesapAdi,
-	        tutar.toString(),
-	        FormatYardimcisi.sayiFormatlaOndalikli(tutar),
-	        kur.toString(),
-	        FormatYardimcisi.sayiFormatlaOndalikli(kur),
-	        aciklama ?? '',
-	        aciklama2 ?? '',
-	        gecerlilikTarihi != null
-	            ? DateFormat('dd.MM.yyyy').format(gecerlilikTarihi)
-	            : '',
-	        paraBirimi,
-	        kullanici,
-	        '|v2026|',
-	        itemTags,
-	      ].join(' ').toLowerCase();
+      final professionalTur = IslemTuruRenkleri.getProfessionalLabel(
+        tur,
+        context: 'cari',
+      );
+      final searchTags = [
+        orderId.toString(),
+        existingIntegrationRef,
+        existingOrderNo,
+        professionalTur,
+        durum,
+        DateFormat('dd.MM.yyyy HH:mm').format(tarih),
+        cariKod ?? '',
+        cariAdi ?? '',
+        ilgiliHesapAdi,
+        tutar.toString(),
+        FormatYardimcisi.sayiFormatlaOndalikli(tutar),
+        kur.toString(),
+        FormatYardimcisi.sayiFormatlaOndalikli(kur),
+        aciklama ?? '',
+        aciklama2 ?? '',
+        gecerlilikTarihi != null
+            ? DateFormat('dd.MM.yyyy').format(gecerlilikTarihi)
+            : '',
+        paraBirimi,
+        kullanici,
+        '|v2026|',
+        itemTags,
+      ].join(' ').toLowerCase();
 
       await ctx.execute(
         Sql.named('''
@@ -2187,13 +2136,13 @@ class SiparislerVeritabaniServisi {
       );
 
       // Yeni ürünleri ekle
-	      if (urunler.isNotEmpty) {
-	        for (final urun in urunler) {
-	          final itemSearchTags = _buildOrderItemSearchTags(urun);
+      if (urunler.isNotEmpty) {
+        for (final urun in urunler) {
+          final itemSearchTags = _buildOrderItemSearchTags(urun);
 
-	          if (_orderItemsHasSearchTags) {
-	            await ctx.execute(
-	              Sql.named('''
+          if (_orderItemsHasSearchTags) {
+            await ctx.execute(
+              Sql.named('''
 	                INSERT INTO order_items (
 	                  order_id, urun_id, urun_kodu, urun_adi, barkod, depo_id, depo_adi,
 	                  kdv_orani, miktar, birim, birim_fiyati, para_birimi, kdv_durumu,
@@ -2204,28 +2153,28 @@ class SiparislerVeritabaniServisi {
 	                  @iskonto, @toplamFiyati, @searchTags
 	                )
 	              '''),
-	              parameters: {
-	                'orderId': orderId,
-	                'urunId': urun['urunId'],
-	                'urunKodu': urun['urunKodu'] ?? '',
-	                'urunAdi': urun['urunAdi'] ?? '',
-	                'barkod': urun['barkod'] ?? '',
-	                'depoId': urun['depoId'],
-	                'depoAdi': urun['depoAdi'] ?? '',
-	                'kdvOrani': urun['kdvOrani'] ?? 0,
-	                'miktar': urun['miktar'] ?? 0,
-	                'birim': urun['birim'] ?? 'Adet',
-	                'birimFiyati': urun['birimFiyati'] ?? 0,
-	                'paraBirimi': urun['paraBirimi'] ?? 'TRY',
-	                'kdvDurumu': urun['kdvDurumu'] ?? 'excluded',
-	                'iskonto': urun['iskonto'] ?? 0,
-	                'toplamFiyati': urun['toplamFiyati'] ?? 0,
-	                'searchTags': itemSearchTags,
-	              },
-	            );
-	          } else {
-	            await ctx.execute(
-	              Sql.named('''
+              parameters: {
+                'orderId': orderId,
+                'urunId': urun['urunId'],
+                'urunKodu': urun['urunKodu'] ?? '',
+                'urunAdi': urun['urunAdi'] ?? '',
+                'barkod': urun['barkod'] ?? '',
+                'depoId': urun['depoId'],
+                'depoAdi': urun['depoAdi'] ?? '',
+                'kdvOrani': urun['kdvOrani'] ?? 0,
+                'miktar': urun['miktar'] ?? 0,
+                'birim': urun['birim'] ?? 'Adet',
+                'birimFiyati': urun['birimFiyati'] ?? 0,
+                'paraBirimi': urun['paraBirimi'] ?? 'TRY',
+                'kdvDurumu': urun['kdvDurumu'] ?? 'excluded',
+                'iskonto': urun['iskonto'] ?? 0,
+                'toplamFiyati': urun['toplamFiyati'] ?? 0,
+                'searchTags': itemSearchTags,
+              },
+            );
+          } else {
+            await ctx.execute(
+              Sql.named('''
 	                INSERT INTO order_items (
 	                  order_id, urun_id, urun_kodu, urun_adi, barkod, depo_id, depo_adi,
 	                  kdv_orani, miktar, birim, birim_fiyati, para_birimi, kdv_durumu,
@@ -2236,27 +2185,27 @@ class SiparislerVeritabaniServisi {
 	                  @iskonto, @toplamFiyati
 	                )
 	              '''),
-	              parameters: {
-	                'orderId': orderId,
-	                'urunId': urun['urunId'],
-	                'urunKodu': urun['urunKodu'] ?? '',
-	                'urunAdi': urun['urunAdi'] ?? '',
-	                'barkod': urun['barkod'] ?? '',
-	                'depoId': urun['depoId'],
-	                'depoAdi': urun['depoAdi'] ?? '',
-	                'kdvOrani': urun['kdvOrani'] ?? 0,
-	                'miktar': urun['miktar'] ?? 0,
-	                'birim': urun['birim'] ?? 'Adet',
-	                'birimFiyati': urun['birimFiyati'] ?? 0,
-	                'paraBirimi': urun['paraBirimi'] ?? 'TRY',
-	                'kdvDurumu': urun['kdvDurumu'] ?? 'excluded',
-	                'iskonto': urun['iskonto'] ?? 0,
-	                'toplamFiyati': urun['toplamFiyati'] ?? 0,
-	              },
-	            );
-	          }
-	        }
-	      }
+              parameters: {
+                'orderId': orderId,
+                'urunId': urun['urunId'],
+                'urunKodu': urun['urunKodu'] ?? '',
+                'urunAdi': urun['urunAdi'] ?? '',
+                'barkod': urun['barkod'] ?? '',
+                'depoId': urun['depoId'],
+                'depoAdi': urun['depoAdi'] ?? '',
+                'kdvOrani': urun['kdvOrani'] ?? 0,
+                'miktar': urun['miktar'] ?? 0,
+                'birim': urun['birim'] ?? 'Adet',
+                'birimFiyati': urun['birimFiyati'] ?? 0,
+                'paraBirimi': urun['paraBirimi'] ?? 'TRY',
+                'kdvDurumu': urun['kdvDurumu'] ?? 'excluded',
+                'iskonto': urun['iskonto'] ?? 0,
+                'toplamFiyati': urun['toplamFiyati'] ?? 0,
+              },
+            );
+          }
+        }
+      }
 
       // [STOCK RESERVATION] Eğer durum 'Onaylandı' ise yeni stokları rezerve et
       if (durum == 'Onaylandı') {

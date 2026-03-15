@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
 import 'package:intl/intl.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'cari_hesaplar_veritabani_servisi.dart';
 import 'kasalar_veritabani_servisi.dart';
 import 'kredi_kartlari_veritabani_servisi.dart';
@@ -47,6 +48,54 @@ class BankalarVeritabaniServisi {
         .replaceAll('ş', 's')
         .replaceAll('ü', 'u')
         .replaceAll('i̇', 'i');
+  }
+
+  Future<List<int>> _eslesenBankaIslemIdleriniGetir({
+    required Session executor,
+    required String normalizedSearch,
+  }) async {
+    if (normalizedSearch.trim().length < 3) return const <int>[];
+    try {
+      final rows = await executor.execute(
+        Sql.named('''
+          SELECT DISTINCT bt.bank_id
+          FROM bank_transactions bt
+          WHERE bt.bank_id IS NOT NULL
+            AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
+            AND bt.search_tags LIKE @search
+          ORDER BY bt.bank_id ASC
+          LIMIT 2048
+        '''),
+        parameters: {'companyId': _companyId, 'search': '%$normalizedSearch%'},
+      );
+      return rows
+          .map((row) => int.tryParse(row[0]?.toString() ?? ''))
+          .whereType<int>()
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('Banka arama ID fetch error: $e');
+      return const <int>[];
+    }
+  }
+
+  String _bankaAramaKosulu({
+    required String alias,
+    required String idParam,
+    required bool hasTxMatches,
+  }) {
+    if (!hasTxMatches) {
+      return '$alias.search_tags LIKE @search';
+    }
+    return '($alias.search_tags LIKE @search OR $alias.id = ANY(@$idParam))';
+  }
+
+  String _bankaHiddenTxKosulu({
+    required String alias,
+    required String idParam,
+    required bool hasTxMatches,
+  }) {
+    if (!hasTxMatches) return 'FALSE';
+    return '$alias.id = ANY(@$idParam)';
   }
 
   // Merkezi yapılandırma
@@ -102,7 +151,8 @@ class BankalarVeritabaniServisi {
             "SELECT relkind::text FROM pg_class WHERE relname = 'bank_transactions' LIMIT 1",
           );
           if (rel.isNotEmpty) {
-            final String relkind = (rel.first[0]?.toString() ?? '').toLowerCase();
+            final String relkind = (rel.first[0]?.toString() ?? '')
+                .toLowerCase();
             debugPrint('bank_transactions relkind=$relkind (p=partitioned)');
           }
         } catch (_) {}
@@ -112,7 +162,9 @@ class BankalarVeritabaniServisi {
         try {
           await _createBankPartitions(DateTime.now());
         } catch (e) {
-          debugPrint('BankalarVeritabaniServisi: Partition bootstrap uyarısı: $e');
+          debugPrint(
+            'BankalarVeritabaniServisi: Partition bootstrap uyarısı: $e',
+          );
         }
       }
       if (initToken != _initToken) {
@@ -456,7 +508,9 @@ class BankalarVeritabaniServisi {
               if (isPartitioned) {
                 for (int i = -24; i <= 60; i++) {
                   if (i == 0) continue;
-                  await _createBankPartitions(DateTime(now.year, now.month + i, 1));
+                  await _createBankPartitions(
+                    DateTime(now.year, now.month + i, 1),
+                  );
                 }
 
                 // DEFAULT partition
@@ -826,6 +880,62 @@ class BankalarVeritabaniServisi {
               if (!_isConcurrentTupleUpdateError(e)) rethrow;
             }
           }
+
+          await _pool!.execute('''
+            CREATE TABLE IF NOT EXISTS bank_metadata (
+              type TEXT NOT NULL,
+              value TEXT NOT NULL,
+              frequency BIGINT DEFAULT 1,
+              PRIMARY KEY (type, value)
+            )
+          ''');
+          await _pool!.execute('''
+            CREATE OR REPLACE FUNCTION update_bank_metadata() RETURNS TRIGGER AS \$\$
+            BEGIN
+              IF TG_OP = 'INSERT' THEN
+                IF COALESCE(NEW.currency, '') != '' THEN
+                  INSERT INTO bank_metadata (type, value, frequency)
+                  VALUES ('currency', NEW.currency, 1)
+                  ON CONFLICT (type, value)
+                  DO UPDATE SET frequency = bank_metadata.frequency + 1;
+                END IF;
+              ELSIF TG_OP = 'UPDATE' THEN
+                IF COALESCE(OLD.currency, '') != COALESCE(NEW.currency, '') THEN
+                  IF COALESCE(OLD.currency, '') != '' THEN
+                    UPDATE bank_metadata
+                    SET frequency = frequency - 1
+                    WHERE type = 'currency' AND value = OLD.currency;
+                  END IF;
+                  IF COALESCE(NEW.currency, '') != '' THEN
+                    INSERT INTO bank_metadata (type, value, frequency)
+                    VALUES ('currency', NEW.currency, 1)
+                    ON CONFLICT (type, value)
+                    DO UPDATE SET frequency = bank_metadata.frequency + 1;
+                  END IF;
+                END IF;
+              ELSIF TG_OP = 'DELETE' THEN
+                IF COALESCE(OLD.currency, '') != '' THEN
+                  UPDATE bank_metadata
+                  SET frequency = frequency - 1
+                  WHERE type = 'currency' AND value = OLD.currency;
+                END IF;
+              END IF;
+
+              DELETE FROM bank_metadata WHERE frequency <= 0;
+              RETURN NULL;
+            END;
+            \$\$ LANGUAGE plpgsql;
+          ''');
+          final bankMetaTriggerExists = await _pool!.execute(
+            "SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_bank_metadata'",
+          );
+          if (bankMetaTriggerExists.isEmpty) {
+            await _pool!.execute('''
+              CREATE TRIGGER trg_update_bank_metadata
+              AFTER INSERT OR UPDATE OR DELETE ON banks
+              FOR EACH ROW EXECUTE FUNCTION update_bank_metadata();
+            ''');
+          }
         } catch (e) {
           if (e is LisansYazmaEngelliHatasi) return;
           if (_isConcurrentTupleUpdateError(e)) return;
@@ -890,7 +1000,9 @@ class BankalarVeritabaniServisi {
   }
 
   bool _isConcurrentTupleUpdateError(Object error) {
-    return error.toString().toLowerCase().contains('tuple concurrently updated');
+    return error.toString().toLowerCase().contains(
+      'tuple concurrently updated',
+    );
   }
 
   /// Tüm bankalar için search_tags indekslemesi yapar (Batch Processing)
@@ -1015,7 +1127,8 @@ class BankalarVeritabaniServisi {
     DateTime? bitisTarihi,
     String? islemTuru,
     int? bankaId,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId, // [2026 KEYSET] Cursor pagination
     Session? session,
   }) async {
@@ -1025,6 +1138,15 @@ class BankalarVeritabaniServisi {
     }
 
     final executor = session ?? _pool!;
+    final normalizedSearch = aramaKelimesi == null
+        ? ''
+        : _normalizeTurkish(aramaKelimesi).trim();
+    final matchedTransactionBankIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenBankaIslemIdleriniGetir(
+            executor: executor,
+            normalizedSearch: normalizedSearch,
+          );
 
     // Deep Search: SELECT with matched_in_hidden
     String selectClause = 'SELECT b.*';
@@ -1041,21 +1163,10 @@ class BankalarVeritabaniServisi {
             normalize_text(COALESCE(b.iban, '')) LIKE @search OR
             normalize_text(COALESCE(b.info1, '')) LIKE @search OR
             normalize_text(COALESCE(b.info2, '')) LIKE @search OR
-            -- Expanded timeline (ALL transactions, indexed)
-	            EXISTS (
-	              SELECT 1
-	              FROM bank_transactions bt
-	              WHERE bt.bank_id = b.id
-	                AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-	                AND (
-	                  bt.search_tags LIKE @search
-	                  OR to_tsvector('simple', bt.search_tags) @@ plainto_tsquery('simple', @fts)
-	                )
-	              LIMIT 1
-	            )
-	          ) THEN true
-	          ELSE false
-	        END) as matched_in_hidden
+            ${_bankaHiddenTxKosulu(alias: 'b', idParam: 'txMatchedBankIds', hasTxMatches: matchedTransactionBankIds.isNotEmpty)}
+          ) THEN true
+          ELSE false
+        END) as matched_in_hidden
       ''';
     } else {
       selectClause += ', false as matched_in_hidden';
@@ -1067,28 +1178,18 @@ class BankalarVeritabaniServisi {
     conditions.add("COALESCE(company_id, '$_defaultCompanyId') = @companyId");
 
     if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
-      // Deep Search (indexed): v2 normalize_text + trigram (search_tags)
-	      conditions.add('''
-	        (
-	          (
-	            b.search_tags LIKE @search
-	            OR to_tsvector('simple', b.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM bank_transactions bt
-	            WHERE bt.bank_id = b.id
-	              AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-	              AND (
-	                bt.search_tags LIKE @search
-	                OR to_tsvector('simple', bt.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaKelimesi)}%';
-	      params['fts'] = _normalizeTurkish(aramaKelimesi);
-	    }
+      conditions.add(
+        _bankaAramaKosulu(
+          alias: 'b',
+          idParam: 'txMatchedBankIds',
+          hasTxMatches: matchedTransactionBankIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedTransactionBankIds.isNotEmpty) {
+        params['txMatchedBankIds'] = matchedTransactionBankIds;
+      }
+    }
 
     if (aktifMi != null) {
       conditions.add('is_active = @isActive');
@@ -1279,6 +1380,15 @@ class BankalarVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
+    final normalizedSearch = aramaTerimi == null
+        ? ''
+        : _normalizeTurkish(aramaTerimi).trim();
+    final matchedTransactionBankIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenBankaIslemIdleriniGetir(
+            executor: _pool!,
+            normalizedSearch: normalizedSearch,
+          );
 
     // 🚀 10 Milyar Kayıt Optimizasyonu: Filtresiz sorgular için yaklaşık sayım
     if (aramaTerimi == null &&
@@ -1304,35 +1414,24 @@ class BankalarVeritabaniServisi {
       }
     }
 
-    String query = 'SELECT COUNT(*) FROM banks b';
     List<String> conditions = [];
     Map<String, dynamic> params = {'companyId': _companyId};
 
     conditions.add("COALESCE(b.company_id, '$_defaultCompanyId') = @companyId");
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      // Deep Search (indexed): v2 normalize_text + trigram (search_tags)
-	      conditions.add('''
-	        (
-	          (
-	            b.search_tags LIKE @search
-	            OR to_tsvector('simple', b.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM bank_transactions bt
-	            WHERE bt.bank_id = b.id
-	              AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-	              AND (
-	                bt.search_tags LIKE @search
-	                OR to_tsvector('simple', bt.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      conditions.add(
+        _bankaAramaKosulu(
+          alias: 'b',
+          idParam: 'txMatchedBankIds',
+          hasTxMatches: matchedTransactionBankIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedTransactionBankIds.isNotEmpty) {
+        params['txMatchedBankIds'] = matchedTransactionBankIds;
+      }
+    }
 
     if (aktifMi != null) {
       conditions.add('is_active = @isActive');
@@ -1427,12 +1526,13 @@ class BankalarVeritabaniServisi {
       conditions.add(existsQuery);
     }
 
-    if (conditions.isNotEmpty) {
-      query += ' WHERE ${conditions.join(' AND ')}';
-    }
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'banks b',
+      whereConditions: conditions,
+      params: params,
+      unfilteredTable: 'banks',
+    );
   }
 
   /// [2026 HYPER-SPEED] Dinamik filtre seçeneklerini ve sayıları getirir.
@@ -1448,6 +1548,15 @@ class BankalarVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return {};
+    final normalizedSearch = aramaTerimi == null
+        ? ''
+        : _normalizeTurkish(aramaTerimi).trim();
+    final matchedTransactionBankIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenBankaIslemIdleriniGetir(
+            executor: _pool!,
+            normalizedSearch: normalizedSearch,
+          );
 
     Map<String, dynamic> params = {'companyId': _companyId};
     List<String> baseConditions = [];
@@ -1455,28 +1564,19 @@ class BankalarVeritabaniServisi {
       "COALESCE(banks.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      baseConditions.add('''
-	        (
-	          (
-	            banks.search_tags LIKE @search
-	            OR to_tsvector('simple', banks.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM bank_transactions bt
-	            WHERE bt.bank_id = banks.id
-	              AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-	              AND (
-	                bt.search_tags LIKE @search
-	                OR to_tsvector('simple', bt.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      baseConditions.add(
+        _bankaAramaKosulu(
+          alias: 'banks',
+          idParam: 'txMatchedBankIds',
+          hasTxMatches: matchedTransactionBankIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedTransactionBankIds.isNotEmpty) {
+        params['txMatchedBankIds'] = matchedTransactionBankIds;
+      }
+    }
 
     // Transaction conditions used across facets (always includes company filter)
     String transactionFilters =
@@ -1808,8 +1908,7 @@ class BankalarVeritabaniServisi {
     params['limit'] = limit.clamp(1, 5000);
 
     final result = await _pool!.execute(
-      Sql.named(
-        '''
+      Sql.named('''
         SELECT t.*, b.code as banka_kodu, b.name as banka_adi, b.currency as para_birimi
         FROM bank_transactions t
         LEFT JOIN banks b ON t.bank_id = b.id
@@ -1817,8 +1916,7 @@ class BankalarVeritabaniServisi {
         $keyset
         ORDER BY t.created_at DESC, t.id DESC
         LIMIT @limit
-        ''',
-      ),
+        '''),
       parameters: params,
     );
 
@@ -1854,11 +1952,9 @@ class BankalarVeritabaniServisi {
 
     final trimmedSearch = aramaTerimi?.trim() ?? '';
     if (trimmedSearch.isNotEmpty) {
-      final parts = _normalizeTurkish(trimmedSearch)
-          .split(RegExp(r'\s+'))
-          .where((p) => p.isNotEmpty)
-          .take(8)
-          .toList();
+      final parts = _normalizeTurkish(
+        trimmedSearch,
+      ).split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(8).toList();
 
       for (int i = 0; i < parts.length; i++) {
         query += ' AND t.search_tags LIKE @search$i';

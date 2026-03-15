@@ -3,6 +3,7 @@ import 'package:postgres/postgres.dart';
 import '../sayfalar/kredikartlari/modeller/kredi_karti_model.dart';
 import 'dart:async';
 import 'package:intl/intl.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'cari_hesaplar_veritabani_servisi.dart';
 import 'kasalar_veritabani_servisi.dart';
 import 'bankalar_veritabani_servisi.dart';
@@ -47,6 +48,54 @@ class KrediKartlariVeritabaniServisi {
         .replaceAll('ş', 's')
         .replaceAll('ü', 'u')
         .replaceAll('i̇', 'i');
+  }
+
+  Future<List<int>> _eslesenKrediKartiIslemIdleriniGetir({
+    required Session executor,
+    required String normalizedSearch,
+  }) async {
+    if (normalizedSearch.trim().length < 3) return const <int>[];
+    try {
+      final rows = await executor.execute(
+        Sql.named('''
+          SELECT DISTINCT cct.credit_card_id
+          FROM credit_card_transactions cct
+          WHERE cct.credit_card_id IS NOT NULL
+            AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
+            AND cct.search_tags LIKE @search
+          ORDER BY cct.credit_card_id ASC
+          LIMIT 2048
+        '''),
+        parameters: {'companyId': _companyId, 'search': '%$normalizedSearch%'},
+      );
+      return rows
+          .map((row) => int.tryParse(row[0]?.toString() ?? ''))
+          .whereType<int>()
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('Kredi karti arama ID fetch error: $e');
+      return const <int>[];
+    }
+  }
+
+  String _krediKartiAramaKosulu({
+    required String alias,
+    required String idParam,
+    required bool hasTxMatches,
+  }) {
+    if (!hasTxMatches) {
+      return '$alias.search_tags LIKE @search';
+    }
+    return '($alias.search_tags LIKE @search OR $alias.id = ANY(@$idParam))';
+  }
+
+  String _krediKartiHiddenTxKosulu({
+    required String alias,
+    required String idParam,
+    required bool hasTxMatches,
+  }) {
+    if (!hasTxMatches) return 'FALSE';
+    return '$alias.id = ANY(@$idParam)';
   }
 
   // Merkezi yapılandırma
@@ -1114,7 +1163,8 @@ class KrediKartlariVeritabaniServisi {
     DateTime? bitisTarihi,
     String? islemTuru,
     int? krediKartiId,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId, // [2026 KEYSET] Cursor pagination
     Session? session,
   }) async {
@@ -1124,6 +1174,15 @@ class KrediKartlariVeritabaniServisi {
     }
 
     final executor = session ?? _pool!;
+    final normalizedSearch = aramaKelimesi == null
+        ? ''
+        : _normalizeTurkish(aramaKelimesi).trim();
+    final matchedTransactionCreditCardIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenKrediKartiIslemIdleriniGetir(
+            executor: executor,
+            normalizedSearch: normalizedSearch,
+          );
 
     // Deep Search: SELECT with matched_in_hidden
     String selectClause = 'SELECT cc.*';
@@ -1140,21 +1199,10 @@ class KrediKartlariVeritabaniServisi {
             normalize_text(COALESCE(cc.iban, '')) LIKE @search OR
             normalize_text(COALESCE(cc.info1, '')) LIKE @search OR
             normalize_text(COALESCE(cc.info2, '')) LIKE @search OR
-            -- Expanded timeline (ALL transactions, indexed)
-	            EXISTS (
-	              SELECT 1
-	              FROM credit_card_transactions cct
-	              WHERE cct.credit_card_id = cc.id
-	                AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-	                AND (
-	                  cct.search_tags LIKE @search
-	                  OR to_tsvector('simple', cct.search_tags) @@ plainto_tsquery('simple', @fts)
-	                )
-	              LIMIT 1
-	            )
-	          ) THEN true
-	          ELSE false
-	        END) as matched_in_hidden
+            ${_krediKartiHiddenTxKosulu(alias: 'cc', idParam: 'txMatchedCreditCardIds', hasTxMatches: matchedTransactionCreditCardIds.isNotEmpty)}
+          ) THEN true
+          ELSE false
+        END) as matched_in_hidden
       ''';
     } else {
       selectClause += ', false as matched_in_hidden';
@@ -1166,28 +1214,18 @@ class KrediKartlariVeritabaniServisi {
     conditions.add("COALESCE(company_id, '$_defaultCompanyId') = @companyId");
 
     if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
-      // Deep Search (indexed): v2 normalize_text + trigram (search_tags)
-	      conditions.add('''
-	        (
-	          (
-	            cc.search_tags LIKE @search
-	            OR to_tsvector('simple', cc.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM credit_card_transactions cct
-	            WHERE cct.credit_card_id = cc.id
-	              AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-	              AND (
-	                cct.search_tags LIKE @search
-	                OR to_tsvector('simple', cct.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaKelimesi)}%';
-	      params['fts'] = _normalizeTurkish(aramaKelimesi);
-	    }
+      conditions.add(
+        _krediKartiAramaKosulu(
+          alias: 'cc',
+          idParam: 'txMatchedCreditCardIds',
+          hasTxMatches: matchedTransactionCreditCardIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedTransactionCreditCardIds.isNotEmpty) {
+        params['txMatchedCreditCardIds'] = matchedTransactionCreditCardIds;
+      }
+    }
 
     if (aktifMi != null) {
       conditions.add('is_active = @isActive');
@@ -1378,6 +1416,15 @@ class KrediKartlariVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
+    final normalizedSearch = aramaTerimi == null
+        ? ''
+        : _normalizeTurkish(aramaTerimi).trim();
+    final matchedTransactionCreditCardIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenKrediKartiIslemIdleriniGetir(
+            executor: _pool!,
+            normalizedSearch: normalizedSearch,
+          );
 
     // 🚀 10 Milyar Kayıt Optimizasyonu: Filtresiz sorgular için yaklaşık sayım
     if (aramaTerimi == null &&
@@ -1403,7 +1450,6 @@ class KrediKartlariVeritabaniServisi {
       }
     }
 
-    String query = 'SELECT COUNT(*) FROM credit_cards cc';
     List<String> conditions = [];
     Map<String, dynamic> params = {'companyId': _companyId};
 
@@ -1411,29 +1457,19 @@ class KrediKartlariVeritabaniServisi {
       "COALESCE(cc.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      // Deep Search (indexed): v2 normalize_text + trigram (search_tags)
-	      conditions.add('''
-	        (
-	          (
-	            cc.search_tags LIKE @search
-	            OR to_tsvector('simple', cc.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM credit_card_transactions cct
-	            WHERE cct.credit_card_id = cc.id
-	              AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-	              AND (
-	                cct.search_tags LIKE @search
-	                OR to_tsvector('simple', cct.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      conditions.add(
+        _krediKartiAramaKosulu(
+          alias: 'cc',
+          idParam: 'txMatchedCreditCardIds',
+          hasTxMatches: matchedTransactionCreditCardIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedTransactionCreditCardIds.isNotEmpty) {
+        params['txMatchedCreditCardIds'] = matchedTransactionCreditCardIds;
+      }
+    }
 
     if (aktifMi != null) {
       conditions.add('is_active = @isActive');
@@ -1528,12 +1564,13 @@ class KrediKartlariVeritabaniServisi {
       conditions.add(existsQuery);
     }
 
-    if (conditions.isNotEmpty) {
-      query += ' WHERE ${conditions.join(' AND ')}';
-    }
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'credit_cards cc',
+      whereConditions: conditions,
+      params: params,
+      unfilteredTable: 'credit_cards',
+    );
   }
 
   /// [2026 HYPER-SPEED] Dinamik filtre seçeneklerini ve sayıları getirir.
@@ -1549,6 +1586,15 @@ class KrediKartlariVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return {};
+    final normalizedSearch = aramaTerimi == null
+        ? ''
+        : _normalizeTurkish(aramaTerimi).trim();
+    final matchedTransactionCreditCardIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenKrediKartiIslemIdleriniGetir(
+            executor: _pool!,
+            normalizedSearch: normalizedSearch,
+          );
 
     Map<String, dynamic> params = {'companyId': _companyId};
     List<String> baseConditions = [];
@@ -1556,28 +1602,19 @@ class KrediKartlariVeritabaniServisi {
       "COALESCE(credit_cards.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      baseConditions.add('''
-	        (
-	          (
-	            credit_cards.search_tags LIKE @search
-	            OR to_tsvector('simple', credit_cards.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM credit_card_transactions cct
-	            WHERE cct.credit_card_id = credit_cards.id
-	              AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-	              AND (
-	                cct.search_tags LIKE @search
-	                OR to_tsvector('simple', cct.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      baseConditions.add(
+        _krediKartiAramaKosulu(
+          alias: 'credit_cards',
+          idParam: 'txMatchedCreditCardIds',
+          hasTxMatches: matchedTransactionCreditCardIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedTransactionCreditCardIds.isNotEmpty) {
+        params['txMatchedCreditCardIds'] = matchedTransactionCreditCardIds;
+      }
+    }
 
     // Transaction conditions used across facets (always includes company filter)
     String transactionFilters =
@@ -1909,8 +1946,7 @@ class KrediKartlariVeritabaniServisi {
     params['limit'] = limit.clamp(1, 5000);
 
     final result = await _pool!.execute(
-      Sql.named(
-        '''
+      Sql.named('''
         SELECT t.*, c.code as kredi_karti_kodu, c.name as kredi_karti_adi, c.currency as para_birimi
         FROM credit_card_transactions t
         LEFT JOIN credit_cards c ON t.credit_card_id = c.id
@@ -1918,8 +1954,7 @@ class KrediKartlariVeritabaniServisi {
         $keyset
         ORDER BY t.created_at DESC, t.id DESC
         LIMIT @limit
-        ''',
-      ),
+        '''),
       parameters: params,
     );
 
@@ -1954,14 +1989,12 @@ class KrediKartlariVeritabaniServisi {
       params['lastId'] = lastId;
     }
 
-	    final trimmedSearch = aramaTerimi?.trim() ?? '';
-	    if (trimmedSearch.isNotEmpty) {
-	      // [PERF] Arama: transaction-level search_tags (gin_trgm_ops) kullan.
-	      query +=
-	          " AND (t.search_tags LIKE @search OR to_tsvector('simple', t.search_tags) @@ plainto_tsquery('simple', @fts))";
-	      params['search'] = '%${_normalizeTurkish(trimmedSearch)}%';
-	      params['fts'] = _normalizeTurkish(trimmedSearch);
-	    }
+    final trimmedSearch = aramaTerimi?.trim() ?? '';
+    if (trimmedSearch.isNotEmpty) {
+      // [PERF] Arama: transaction-level search_tags (gin_trgm_ops) kullan.
+      query += " AND t.search_tags LIKE @search";
+      params['search'] = '%${_normalizeTurkish(trimmedSearch)}%';
+    }
 
     if (islemTuru != null && islemTuru.isNotEmpty) {
       final normalizedType = islemTuru.trim();
@@ -2298,10 +2331,10 @@ class KrediKartlariVeritabaniServisi {
             errorStr.contains('42P01') ||
             errorStr.toLowerCase().contains('does not exist');
 
-          if (isMissingTable || _isPartitionError(e)) {
-            debugPrint(
-              '⚠️ Kredi Kartı Tablo/Partition hatası (Self-Healing)... Ay: ${tarih.year}-${tarih.month.toString().padLeft(2, '0')}',
-            );
+        if (isMissingTable || _isPartitionError(e)) {
+          debugPrint(
+            '⚠️ Kredi Kartı Tablo/Partition hatası (Self-Healing)... Ay: ${tarih.year}-${tarih.month.toString().padLeft(2, '0')}',
+          );
 
           if (isMissingTable) {
             debugPrint(
@@ -2834,7 +2867,10 @@ class KrediKartlariVeritabaniServisi {
   }
 
   /// Ensures that a partition exists for the given year.
-  Future<void> _createCreditCardPartitions(DateTime date, {Session? session}) async {
+  Future<void> _createCreditCardPartitions(
+    DateTime date, {
+    Session? session,
+  }) async {
     if (_pool == null && session == null) return;
     final executor = session ?? _pool!;
 
@@ -2988,7 +3024,9 @@ class KrediKartlariVeritabaniServisi {
     }
   }
 
-  Future<void> _backfillCreditCardTransactionsDefault({Session? session}) async {
+  Future<void> _backfillCreditCardTransactionsDefault({
+    Session? session,
+  }) async {
     if (_pool == null && session == null) return;
     final executor = session ?? _pool!;
 

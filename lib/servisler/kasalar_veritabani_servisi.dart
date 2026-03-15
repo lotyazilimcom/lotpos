@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
 import '../sayfalar/kasalar/modeller/kasa_model.dart';
 import 'package:intl/intl.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'cari_hesaplar_veritabani_servisi.dart';
 import 'bankalar_veritabani_servisi.dart';
 import 'kredi_kartlari_veritabani_servisi.dart';
@@ -46,6 +47,54 @@ class KasalarVeritabaniServisi {
         .replaceAll('ş', 's')
         .replaceAll('ü', 'u')
         .replaceAll('i̇', 'i');
+  }
+
+  Future<List<int>> _eslesenKasaIslemIdleriniGetir({
+    required Session executor,
+    required String normalizedSearch,
+  }) async {
+    if (normalizedSearch.trim().length < 3) return const <int>[];
+    try {
+      final rows = await executor.execute(
+        Sql.named('''
+          SELECT DISTINCT crt.cash_register_id
+          FROM cash_register_transactions crt
+          WHERE crt.cash_register_id IS NOT NULL
+            AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
+            AND crt.search_tags LIKE @search
+          ORDER BY crt.cash_register_id ASC
+          LIMIT 2048
+        '''),
+        parameters: {'companyId': _companyId, 'search': '%$normalizedSearch%'},
+      );
+      return rows
+          .map((row) => int.tryParse(row[0]?.toString() ?? ''))
+          .whereType<int>()
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('Kasa arama ID fetch error: $e');
+      return const <int>[];
+    }
+  }
+
+  String _kasaAramaKosulu({
+    required String alias,
+    required String idParam,
+    required bool hasTxMatches,
+  }) {
+    if (!hasTxMatches) {
+      return '$alias.search_tags LIKE @search';
+    }
+    return '($alias.search_tags LIKE @search OR $alias.id = ANY(@$idParam))';
+  }
+
+  String _kasaHiddenTxKosulu({
+    required String alias,
+    required String idParam,
+    required bool hasTxMatches,
+  }) {
+    if (!hasTxMatches) return 'FALSE';
+    return '$alias.id = ANY(@$idParam)';
   }
 
   // Merkezi yapılandırma
@@ -136,12 +185,33 @@ class KasalarVeritabaniServisi {
     final pool = _pool;
     if (pool == null) return;
 
-    const defaults = <({String code, String name, String currency, bool makeDefault})>[
-      (code: 'KS-001', name: 'TRY KASA', currency: 'TRY', makeDefault: true),
-      (code: 'KS-002', name: 'EUR KASA', currency: 'EUR', makeDefault: false),
-      (code: 'KS-003', name: 'USD KASA', currency: 'USD', makeDefault: false),
-      (code: 'KS-004', name: 'GBP KASA', currency: 'GBP', makeDefault: false),
-    ];
+    const defaults =
+        <({String code, String name, String currency, bool makeDefault})>[
+          (
+            code: 'KS-001',
+            name: 'TRY KASA',
+            currency: 'TRY',
+            makeDefault: true,
+          ),
+          (
+            code: 'KS-002',
+            name: 'EUR KASA',
+            currency: 'EUR',
+            makeDefault: false,
+          ),
+          (
+            code: 'KS-003',
+            name: 'USD KASA',
+            currency: 'USD',
+            makeDefault: false,
+          ),
+          (
+            code: 'KS-004',
+            name: 'GBP KASA',
+            currency: 'GBP',
+            makeDefault: false,
+          ),
+        ];
 
     final codes = defaults.map((e) => e.code).toList(growable: false);
 
@@ -301,7 +371,9 @@ class KasalarVeritabaniServisi {
       );
     } catch (e) {
       if (e is LisansYazmaEngelliHatasi) return;
-      debugPrint('KasalarVeritabaniServisi: Varsayilan kasa olusturma hatasi: $e');
+      debugPrint(
+        'KasalarVeritabaniServisi: Varsayilan kasa olusturma hatasi: $e',
+      );
     }
   }
 
@@ -1109,7 +1181,8 @@ class KasalarVeritabaniServisi {
     DateTime? bitisTarihi,
     String? islemTuru,
     int? kasaId,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId, // [2026 KEYSET] Cursor pagination
     Session? session,
   }) async {
@@ -1119,6 +1192,15 @@ class KasalarVeritabaniServisi {
     }
 
     final executor = session ?? _pool!;
+    final normalizedSearch = aramaKelimesi == null
+        ? ''
+        : _normalizeTurkish(aramaKelimesi).trim();
+    final matchedTransactionCashRegisterIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenKasaIslemIdleriniGetir(
+            executor: executor,
+            normalizedSearch: normalizedSearch,
+          );
 
     // 1 Milyar Kayıt Optimizasyonu: Deep Search
     // search_tags alanı tüm ilişkili verileri içerir (işlem geçmişi dahil)
@@ -1133,21 +1215,10 @@ class KasalarVeritabaniServisi {
             -- Expanded/detail-only fields
             normalize_text(COALESCE(cr.info1, '')) LIKE @search OR
             normalize_text(COALESCE(cr.info2, '')) LIKE @search OR
-            -- Expanded timeline (ALL transactions, indexed)
-	            EXISTS (
-	              SELECT 1
-	              FROM cash_register_transactions crt
-	              WHERE crt.cash_register_id = cr.id
-	                AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-	                AND (
-	                  crt.search_tags LIKE @search
-	                  OR to_tsvector('simple', crt.search_tags) @@ plainto_tsquery('simple', @fts)
-	                )
-	              LIMIT 1
-	            )
-	          ) THEN true
-	          ELSE false
-	        END) as matched_in_hidden
+            ${_kasaHiddenTxKosulu(alias: 'cr', idParam: 'txMatchedCashRegisterIds', hasTxMatches: matchedTransactionCashRegisterIds.isNotEmpty)}
+          ) THEN true
+          ELSE false
+        END) as matched_in_hidden
       ''';
     } else {
       selectClause += ', false as matched_in_hidden';
@@ -1159,28 +1230,18 @@ class KasalarVeritabaniServisi {
     conditions.add("COALESCE(company_id, '$_defaultCompanyId') = @companyId");
 
     if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
-      // Deep Search (indexed): v2 normalize_text + trigram (search_tags)
-	      conditions.add('''
-	        (
-	          (
-	            cr.search_tags LIKE @search
-	            OR to_tsvector('simple', cr.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM cash_register_transactions crt
-	            WHERE crt.cash_register_id = cr.id
-	              AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-	              AND (
-	                crt.search_tags LIKE @search
-	                OR to_tsvector('simple', crt.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaKelimesi)}%';
-	      params['fts'] = _normalizeTurkish(aramaKelimesi);
-	    }
+      conditions.add(
+        _kasaAramaKosulu(
+          alias: 'cr',
+          idParam: 'txMatchedCashRegisterIds',
+          hasTxMatches: matchedTransactionCashRegisterIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedTransactionCashRegisterIds.isNotEmpty) {
+        params['txMatchedCashRegisterIds'] = matchedTransactionCashRegisterIds;
+      }
+    }
 
     if (aktifMi != null) {
       conditions.add('is_active = @isActive');
@@ -1380,6 +1441,15 @@ class KasalarVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
+    final normalizedSearch = aramaTerimi == null
+        ? ''
+        : _normalizeTurkish(aramaTerimi).trim();
+    final matchedTransactionCashRegisterIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenKasaIslemIdleriniGetir(
+            executor: _pool!,
+            normalizedSearch: normalizedSearch,
+          );
 
     // 🚀 10 Milyar Kayıt Optimizasyonu: Filtresiz sorgular için yaklaşık sayım
     if (aramaTerimi == null &&
@@ -1405,35 +1475,24 @@ class KasalarVeritabaniServisi {
       }
     }
 
-    String query = 'SELECT COUNT(*) FROM cash_registers cr';
     List<String> conditions = [];
     Map<String, dynamic> params = {'companyId': _companyId};
 
     conditions.add("COALESCE(company_id, '$_defaultCompanyId') = @companyId");
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      // Deep Search (indexed): v2 normalize_text + trigram (search_tags)
-	      conditions.add('''
-	        (
-	          (
-	            cr.search_tags LIKE @search
-	            OR to_tsvector('simple', cr.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM cash_register_transactions crt
-	            WHERE crt.cash_register_id = cr.id
-	              AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-	              AND (
-	                crt.search_tags LIKE @search
-	                OR to_tsvector('simple', crt.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      conditions.add(
+        _kasaAramaKosulu(
+          alias: 'cr',
+          idParam: 'txMatchedCashRegisterIds',
+          hasTxMatches: matchedTransactionCashRegisterIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedTransactionCashRegisterIds.isNotEmpty) {
+        params['txMatchedCashRegisterIds'] = matchedTransactionCashRegisterIds;
+      }
+    }
 
     if (aktifMi != null) {
       conditions.add('is_active = @isActive');
@@ -1528,12 +1587,13 @@ class KasalarVeritabaniServisi {
       conditions.add(existsQuery);
     }
 
-    if (conditions.isNotEmpty) {
-      query += ' WHERE ${conditions.join(' AND ')}';
-    }
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'cash_registers cr',
+      whereConditions: conditions,
+      params: params,
+      unfilteredTable: 'cash_registers',
+    );
   }
 
   /// [2026 HYPER-SPEED] Dinamik filtre seçeneklerini ve sayılarını getirir.
@@ -1549,6 +1609,15 @@ class KasalarVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return {};
+    final normalizedSearch = aramaTerimi == null
+        ? ''
+        : _normalizeTurkish(aramaTerimi).trim();
+    final matchedTransactionCashRegisterIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenKasaIslemIdleriniGetir(
+            executor: _pool!,
+            normalizedSearch: normalizedSearch,
+          );
 
     Map<String, dynamic> params = {'companyId': _companyId};
     List<String> baseConditions = [];
@@ -1556,28 +1625,19 @@ class KasalarVeritabaniServisi {
       "COALESCE(cash_registers.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      baseConditions.add('''
-	        (
-	          (
-	            cash_registers.search_tags LIKE @search
-	            OR to_tsvector('simple', cash_registers.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM cash_register_transactions crt
-	            WHERE crt.cash_register_id = cash_registers.id
-	              AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-	              AND (
-	                crt.search_tags LIKE @search
-	                OR to_tsvector('simple', crt.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      baseConditions.add(
+        _kasaAramaKosulu(
+          alias: 'cash_registers',
+          idParam: 'txMatchedCashRegisterIds',
+          hasTxMatches: matchedTransactionCashRegisterIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedTransactionCashRegisterIds.isNotEmpty) {
+        params['txMatchedCashRegisterIds'] = matchedTransactionCashRegisterIds;
+      }
+    }
 
     // Transaction conditions used across facets (always includes company filter)
     String transactionFilters =
@@ -1917,8 +1977,7 @@ class KasalarVeritabaniServisi {
     params['limit'] = limit.clamp(1, 5000);
 
     final result = await _pool!.execute(
-      Sql.named(
-        '''
+      Sql.named('''
         SELECT t.*, cr.code as kasa_kodu, cr.name as kasa_adi
         FROM cash_register_transactions t
         LEFT JOIN cash_registers cr ON t.cash_register_id = cr.id
@@ -1926,8 +1985,7 @@ class KasalarVeritabaniServisi {
         $keyset
         ORDER BY t.created_at DESC, t.id DESC
         LIMIT @limit
-        ''',
-      ),
+        '''),
       parameters: params,
     );
 
@@ -1970,11 +2028,9 @@ class KasalarVeritabaniServisi {
 
     final trimmedSearch = aramaTerimi?.trim() ?? '';
     if (trimmedSearch.isNotEmpty) {
-      final parts = _normalizeTurkish(trimmedSearch)
-          .split(RegExp(r'\s+'))
-          .where((p) => p.isNotEmpty)
-          .take(8)
-          .toList();
+      final parts = _normalizeTurkish(
+        trimmedSearch,
+      ).split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(8).toList();
 
       for (int i = 0; i < parts.length; i++) {
         query += ' AND t.search_tags LIKE @search$i';
@@ -2129,7 +2185,8 @@ class KasalarVeritabaniServisi {
         ),
         parameters: {'id': id, 'companyId': _companyId},
       );
-      final int isProtected = int.tryParse(
+      final int isProtected =
+          int.tryParse(
             (protectedRes.isNotEmpty ? protectedRes.first.first : 0).toString(),
           ) ??
           0;
@@ -2387,7 +2444,10 @@ class KasalarVeritabaniServisi {
   static int _monthKey(DateTime date) => date.year * 100 + date.month;
 
   /// Ensures that a partition exists for the given month.
-  Future<void> _ensurePartitionExists(DateTime date, {TxSession? session}) async {
+  Future<void> _ensurePartitionExists(
+    DateTime date, {
+    TxSession? session,
+  }) async {
     if (_pool == null && session == null) return;
     final int key = _monthKey(date);
     if (_checkedPartitions.contains(key) && _checkedDefaultPartition) return;
@@ -2615,7 +2675,9 @@ class KasalarVeritabaniServisi {
     }
   }
 
-  Future<void> _backfillCashRegisterTransactionsDefault({TxSession? session}) async {
+  Future<void> _backfillCashRegisterTransactionsDefault({
+    TxSession? session,
+  }) async {
     if (_pool == null && session == null) return;
     final executor = session ?? _pool!;
 

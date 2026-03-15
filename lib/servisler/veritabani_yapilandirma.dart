@@ -60,8 +60,10 @@ class VeritabaniYapilandirma {
   static const String _maxConnectionsKey = 'PATISYO_DB_MAX_CONNECTIONS';
   static const String _poolerHostKey = 'PATISYO_DB_POOLER_HOST';
   static const String _poolerPortKey = 'PATISYO_DB_POOLER_PORT';
-  static const String _poolerModeKey = 'PATISYO_DB_POOLER_MODE'; // session | transaction
-  static const String _queryModeKey = 'PATISYO_DB_QUERY_MODE'; // extended | simple
+  static const String _poolerModeKey =
+      'PATISYO_DB_POOLER_MODE'; // session | transaction
+  static const String _queryModeKey =
+      'PATISYO_DB_QUERY_MODE'; // extended | simple
   static const String _batchSizeKey = 'PATISYO_BATCH_SIZE';
   static const String _apiBaseUrlKey = 'PATISYO_API_BASE_URL';
   static const String _apiReadBaseUrlKey = 'PATISYO_API_READ_BASE_URL';
@@ -69,6 +71,7 @@ class VeritabaniYapilandirma {
   static const String _apiTokenKey = 'PATISYO_API_TOKEN';
   static const String _allowHeavyMaintenanceKey =
       'PATISYO_ALLOW_HEAVY_MAINTENANCE';
+  static const String _allowCitusExtensionKey = 'PATISYO_ALLOW_CITUS_EXTENSION';
 
   // Varsayılan değerler
   static const String _defaultHost = '127.0.0.1';
@@ -132,6 +135,22 @@ class VeritabaniYapilandirma {
   bool get allowBackgroundHeavyMaintenance {
     if (kIsWeb) return false;
     final v = (Platform.environment[_allowHeavyMaintenanceKey] ?? '')
+        .trim()
+        .toLowerCase();
+    return v == '1' || v == 'true' || v == 'yes' || v == 'on';
+  }
+
+  /// pg_search gibi opsiyonel PostgreSQL extension'ları sadece açık izin varsa kur.
+  /// Varsayılan kapalıdır; saf PostgreSQL (B-Tree/GIN/BRIN/partition/keyset) akışı esastır.
+  bool get allowPgSearchExtension {
+    return false;
+  }
+
+  /// Citus yalnızca explicit satış/kurulum senaryosunda opt-in olmalıdır.
+  /// Varsayılan kapalıdır.
+  bool get allowCitusExtension {
+    if (kIsWeb) return false;
+    final v = (Platform.environment[_allowCitusExtensionKey] ?? '')
         .trim()
         .toLowerCase();
     return v == '1' || v == 'true' || v == 'yes' || v == 'on';
@@ -336,17 +355,18 @@ class VeritabaniYapilandirma {
   /// Bulut API (master/write) base URL.
   /// - Öncelik: prefs -> env -> cloudApiBaseUrl
   static String? get cloudApiWriteBaseUrl {
-    final v = (_cloudApiWriteBaseUrl ??
-            Platform.environment[_apiWriteBaseUrlKey] ??
-            '')
-        .trim();
+    final v =
+        (_cloudApiWriteBaseUrl ??
+                Platform.environment[_apiWriteBaseUrlKey] ??
+                '')
+            .trim();
     if (v.isNotEmpty) return v;
     return cloudApiBaseUrl;
   }
 
   static String? get cloudApiToken {
-    final v =
-        (_cloudApiToken ?? Platform.environment[_apiTokenKey] ?? '').trim();
+    final v = (_cloudApiToken ?? Platform.environment[_apiTokenKey] ?? '')
+        .trim();
     return v.isEmpty ? null : v;
   }
 
@@ -581,8 +601,9 @@ class VeritabaniYapilandirma {
   QueryMode get queryMode {
     if (kIsWeb) return QueryMode.extended;
 
-    final envQueryMode =
-        (Platform.environment[_queryModeKey] ?? '').trim().toLowerCase();
+    final envQueryMode = (Platform.environment[_queryModeKey] ?? '')
+        .trim()
+        .toLowerCase();
     if (envQueryMode == 'simple') return QueryMode.simple;
     if (envQueryMode == 'extended') return QueryMode.extended;
 
@@ -604,12 +625,12 @@ class VeritabaniYapilandirma {
   int get maxConnections {
     if (kIsWeb) return _defaultMaxConnections;
     final connStr = Platform.environment[_maxConnectionsKey];
-    final int defaultRequested =
-        _connectionMode == 'cloud' ? _defaultMaxConnectionsCloud : _defaultMaxConnections;
-    final int requested =
-        (connStr != null && connStr.trim().isNotEmpty)
-            ? (int.tryParse(connStr.trim()) ?? defaultRequested)
-            : defaultRequested;
+    final int defaultRequested = _connectionMode == 'cloud'
+        ? _defaultMaxConnectionsCloud
+        : _defaultMaxConnections;
+    final int requested = (connStr != null && connStr.trim().isNotEmpty)
+        ? (int.tryParse(connStr.trim()) ?? defaultRequested)
+        : defaultRequested;
 
     // Mobilde (ve özellikle Cloud DB'lerde) bağlantı limitleri düşük olabildiği için
     // havuz boyutunu agresif kısıtla.
@@ -849,23 +870,20 @@ class VeritabaniYapilandirma {
     // (\restrict, \unrestrict, \connect, \encoding vb.)
     // Bu komutlar sadece psql CLI'da çalışır, SQL motorunda syntax error verir.
     final rawContent = await file.readAsString();
-    final cleanedLines = rawContent
-        .split('\n')
-        .where((line) {
-          final trimmedLeft = line.trimLeft();
+    final cleanedLines = rawContent.split('\n').where((line) {
+      final trimmedLeft = line.trimLeft();
 
-          // psql meta-komutları (SQL motorunda syntax error verir)
-          if (trimmedLeft.startsWith('\\')) return false;
+      // psql meta-komutları (SQL motorunda syntax error verir)
+      if (trimmedLeft.startsWith('\\')) return false;
 
-          // PostgreSQL 17+ pg_dump çıktısı: `SET transaction_timeout = 0;`
-          // Managed DB'lerde (Supabase/Neon) farklı sürümde syntax hatası
-          // verebildiği için kaldırıyoruz.
-          final lowered = trimmedLeft.toLowerCase();
-          if (lowered.startsWith('set transaction_timeout')) return false;
+      // PostgreSQL 17+ pg_dump çıktısı: `SET transaction_timeout = 0;`
+      // Managed DB'lerde (Supabase/Neon) farklı sürümde syntax hatası
+      // verebildiği için kaldırıyoruz.
+      final lowered = trimmedLeft.toLowerCase();
+      if (lowered.startsWith('set transaction_timeout')) return false;
 
-          return true;
-        })
-        .toList();
+      return true;
+    }).toList();
 
     final wrappedContent = _wrapSchemaDumpInTransactionIfMissing(
       cleanedLines.join('\n'),

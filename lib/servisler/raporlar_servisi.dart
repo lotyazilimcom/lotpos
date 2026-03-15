@@ -25,6 +25,7 @@ import '../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
 import '../yardimcilar/format_yardimcisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
 import '../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'ayarlar_veritabani_servisi.dart';
 import 'bankalar_veritabani_servisi.dart';
 import 'cari_hesaplar_veritabani_servisi.dart';
@@ -1846,6 +1847,28 @@ class RaporlarServisi {
     return (rows.first.values.first as num?)?.toInt() ?? 0;
   }
 
+  Future<int> _queryEstimatedOrExactCount(
+    Session executor, {
+    required String fromClause,
+    List<String> whereConditions = const <String>[],
+    Map<String, dynamic> params = const <String, dynamic>{},
+    String? unfilteredTable,
+    int exactThreshold = 50000,
+  }) async {
+    final String whereClause = whereConditions.isEmpty
+        ? ''
+        : ' WHERE ${whereConditions.join(' AND ')}';
+    final String probeQuery = 'SELECT 1 FROM $fromClause$whereClause';
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      executor,
+      fromClause: fromClause,
+      whereConditions: whereConditions,
+      params: _filteredSqlParams(probeQuery, params),
+      unfilteredTable: unfilteredTable,
+      exactThreshold: exactThreshold,
+    );
+  }
+
   Future<
     ({List<Map<String, dynamic>> rows, bool hasNextPage, String? nextCursor})
   >
@@ -2018,13 +2041,11 @@ class RaporlarServisi {
     final tokens = _searchTokens(arama);
     if (tokens.isEmpty) return;
     _bindSearchTokenParams(params, tokens);
-    final tokenCount = tokens.length;
-
-    final parts = expressions
-        .map((expr) => _tokenLikeClause(expr, tokenCount))
+    final fallbackParts = expressions
+        .map((expr) => _tokenLikeClause(expr, tokens.length))
         .toList(growable: false);
-    if (parts.isEmpty) return;
-    conditions.add('(${parts.join(' OR ')})');
+    if (fallbackParts.isEmpty) return;
+    conditions.add('(${fallbackParts.join(' OR ')})');
   }
 
   String _normalizeArama(String text) {
@@ -3847,16 +3868,17 @@ class RaporlarServisi {
     final summary = await _getOrComputeSummaryCards(
       cacheKey: summaryKey,
       loader: () async {
-        final rows = await _queryMaps(pool, '''
-          SELECT COUNT(*) AS kayit
-          FROM shipments s
-          LEFT JOIN depots d1 ON s.source_warehouse_id = d1.id
-          LEFT JOIN depots d2 ON s.dest_warehouse_id = d2.id
-          $whereSql
-          ''', params);
-        final int kayit = rows.isEmpty
-            ? 0
-            : (rows.first['kayit'] as num?)?.toInt() ?? 0;
+        final int kayit = await _queryEstimatedOrExactCount(
+          pool,
+          fromClause: '''
+            shipments s
+            LEFT JOIN depots d1 ON s.source_warehouse_id = d1.id
+            LEFT JOIN depots d2 ON s.dest_warehouse_id = d2.id
+          ''',
+          whereConditions: where,
+          params: params,
+          unfilteredTable: where.isEmpty ? 'shipments' : null,
+        );
         return [
           RaporOzetKarti(
             labelKey: 'reports.summary.shipment_count',
@@ -4006,14 +4028,13 @@ class RaporlarServisi {
     final summary = await _getOrComputeSummaryCards(
       cacheKey: summaryKey,
       loader: () async {
-        final rows = await _queryMaps(pool, '''
-          SELECT COUNT(*) AS kayit
-          FROM products p
-          $whereSql
-          ''', params);
-        final int kayit = rows.isEmpty
-            ? 0
-            : (rows.first['kayit'] as num?)?.toInt() ?? 0;
+        final int kayit = await _queryEstimatedOrExactCount(
+          pool,
+          fromClause: 'products p',
+          whereConditions: where,
+          params: params,
+          unfilteredTable: where.isEmpty ? 'products' : null,
+        );
         return [
           RaporOzetKarti(
             labelKey: 'reports.summary.critical_count',
@@ -4222,14 +4243,13 @@ class RaporlarServisi {
     final summary = await _getOrComputeSummaryCards(
       cacheKey: summaryKey,
       loader: () async {
-        final rows = await _queryMaps(
+        final int kayit = await _queryEstimatedOrExactCount(
           pool,
-          'SELECT COUNT(*) AS kayit FROM products p $whereSql',
-          params,
+          fromClause: 'products p',
+          whereConditions: where,
+          params: params,
+          unfilteredTable: where.isEmpty ? 'products' : null,
         );
-        final int kayit = rows.isEmpty
-            ? 0
-            : (rows.first['kayit'] as num?)?.toInt() ?? 0;
         return [
           RaporOzetKarti(
             labelKey: 'reports.summary.total_products',
@@ -6636,13 +6656,14 @@ class RaporlarServisi {
     final summary = await _getOrComputeSummaryCards(
       cacheKey: summaryKey,
       loader: () async {
-        final String query = hasSearchTokens
-            ? 'SELECT COUNT(*) AS kayit FROM ($baseSelect) base'
-            : 'SELECT COUNT(*) AS kayit FROM current_accounts ca';
-        final rows = await _queryMaps(pool, query, params);
-        final int kayit = rows.isEmpty
-            ? 0
-            : (rows.first['kayit'] as num?)?.toInt() ?? 0;
+        final int kayit = await _queryEstimatedOrExactCount(
+          pool,
+          fromClause: hasSearchTokens
+              ? '($baseSelect) base'
+              : 'current_accounts ca',
+          params: params,
+          unfilteredTable: hasSearchTokens ? null : 'current_accounts',
+        );
         return [
           RaporOzetKarti(
             labelKey: 'reports.summary.record',
@@ -7370,9 +7391,6 @@ class RaporlarServisi {
       paramsPaging['lastId'] = lastId;
     }
 
-    final String whereSqlBase = whereBase.isEmpty
-        ? ''
-        : 'WHERE ${whereBase.join(' AND ')}';
     final String whereSqlPaging = wherePaging.isEmpty
         ? ''
         : 'WHERE ${wherePaging.join(' AND ')}';
@@ -7468,15 +7486,14 @@ class RaporlarServisi {
     final summary = await _getOrComputeSummaryCards(
       cacheKey: summaryKey,
       loader: () async {
-        final countRows = await _queryMaps(pool, '''
-          SELECT COUNT(*) AS kayit
-          FROM user_transactions ut
-          LEFT JOIN users u ON u.id = ut.user_id
-          $whereSqlBase
-          ''', paramsBase);
-        final int kayit = countRows.isEmpty
-            ? 0
-            : (countRows.first['kayit'] as num?)?.toInt() ?? 0;
+        final int kayit = await _queryEstimatedOrExactCount(
+          pool,
+          fromClause:
+              'user_transactions ut LEFT JOIN users u ON u.id = ut.user_id',
+          whereConditions: whereBase,
+          params: paramsBase,
+          unfilteredTable: whereBase.length == 1 ? 'user_transactions' : null,
+        );
         return [
           RaporOzetKarti(
             labelKey: 'reports.summary.record',
@@ -9661,10 +9678,10 @@ class RaporlarServisi {
     final summaryCardsFuture = _getOrComputeSummaryCards(
       cacheKey: summaryKey,
       loader: () async {
-        final totalCount = await _queryCount(
+        final totalCount = await _queryEstimatedOrExactCount(
           pool,
-          'SELECT COUNT(*) FROM ($baseQuery) sayim',
-          params,
+          fromClause: '($baseQuery) sayim',
+          params: params,
         );
         return <RaporOzetKarti>[
           RaporOzetKarti(
@@ -12089,23 +12106,49 @@ class RaporlarServisi {
   }
 
   Future<List<UrunModel>> _filteredProducts(RaporFiltreleri filtreler) async {
-    final products = await _urunServisi.urunleriGetir(sayfaBasinaKayit: 5000);
-    return products.where((urun) {
-      final bool urunOk =
-          filtreler.urunKodu == null ||
-          filtreler.urunKodu!.isEmpty ||
-          urun.kod == filtreler.urunKodu;
-      final bool grupOk =
-          filtreler.urunGrubu == null ||
-          filtreler.urunGrubu!.isEmpty ||
-          urun.grubu == filtreler.urunGrubu;
-      final bool durumOk =
-          filtreler.durum == null ||
-          filtreler.durum == tr('common.all') ||
-          (filtreler.durum == tr('common.active') && urun.aktifMi) ||
-          (filtreler.durum == tr('common.passive') && !urun.aktifMi);
-      return urunOk && grupOk && durumOk;
-    }).toList();
+    final pool = await _havuzAl();
+    final conditions = <String>[];
+    final params = <String, dynamic>{'limit': 10000};
+
+    if (filtreler.urunKodu != null && filtreler.urunKodu!.trim().isNotEmpty) {
+      conditions.add('p.kod = @urunKodu');
+      params['urunKodu'] = filtreler.urunKodu!.trim();
+    }
+    if (filtreler.urunGrubu != null && filtreler.urunGrubu!.trim().isNotEmpty) {
+      conditions.add('p.grubu = @urunGrubu');
+      params['urunGrubu'] = filtreler.urunGrubu!.trim();
+    }
+    if (filtreler.durum != null && filtreler.durum != tr('common.all')) {
+      if (filtreler.durum == tr('common.active')) {
+        conditions.add('p.aktif_mi = 1');
+      } else if (filtreler.durum == tr('common.passive')) {
+        conditions.add('p.aktif_mi = 0');
+      }
+    }
+
+    final rows = await _queryMaps(pool, '''
+        SELECT p.id
+        FROM products p
+        ${conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}'}
+        ORDER BY p.id ASC
+        LIMIT @limit
+      ''', params);
+    final ids = rows
+        .map((row) => _toInt(row['id']) ?? 0)
+        .where((id) => id > 0)
+        .toList(growable: false);
+    if (ids.isEmpty) return <UrunModel>[];
+
+    return _urunServisi.urunleriGetir(
+      sayfaBasinaKayit: ids.length,
+      sadeceIdler: ids,
+      aktifMi: filtreler.durum == tr('common.active')
+          ? true
+          : filtreler.durum == tr('common.passive')
+          ? false
+          : null,
+      grup: _emptyToNull(filtreler.urunGrubu),
+    );
   }
 
   Future<List<DepoModel>> _filteredDepolar(RaporFiltreleri filtreler) async {
@@ -12137,151 +12180,450 @@ class RaporlarServisi {
   }
 
   Future<List<KullaniciModel>> _filteredUsers(RaporFiltreleri filtreler) async {
-    final list = await _ayarlarServisi.kullanicilariGetir(
-      sayfaBasinaKayit: 2000,
-    );
-    if (filtreler.kullaniciId == null) return list;
-    return list.where((e) => e.id == filtreler.kullaniciId).toList();
+    final pool = await _havuzAl();
+    final conditions = <String>[];
+    final params = <String, dynamic>{'limit': 5000};
+    if (filtreler.kullaniciId != null &&
+        filtreler.kullaniciId!.trim().isNotEmpty) {
+      conditions.add('u.id = @userId');
+      params['userId'] = filtreler.kullaniciId!.trim();
+    }
+    final rows = await _queryMaps(pool, '''
+        SELECT u.*
+        FROM users u
+        ${conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}'}
+        ORDER BY u.id ASC
+        LIMIT @limit
+      ''', params);
+    return rows.map(KullaniciModel.fromMap).toList(growable: false);
   }
 
   Future<List<Map<String, dynamic>>> _tumCariIslemleriniGetir(
     RaporFiltreleri filtreler,
   ) async {
-    final cariler = await _filteredAccounts(filtreler);
-    return _collectInBatches<CariHesapModel, Map<String, dynamic>>(cariler, (
-      cari,
-    ) async {
-      final txs = await _cariServisi.cariIslemleriniGetir(
-        cari.id,
-        baslangicTarihi: filtreler.baslangicTarihi,
-        bitisTarihi: filtreler.bitisTarihi,
-        islemTuru: _normalizedSelection(filtreler.islemTuru),
-        kullanici: _emptyToNull(filtreler.kullaniciId),
-        limit: 1000,
+    final pool = await _havuzAl();
+    final conditions = <String>[];
+    final params = <String, dynamic>{};
+
+    if (filtreler.cariId != null) {
+      conditions.add('ca.id = @cariId');
+      params['cariId'] = filtreler.cariId!;
+    }
+    if (filtreler.baslangicTarihi != null) {
+      conditions.add('cat.date >= @startDate');
+      params['startDate'] = DateTime(
+        filtreler.baslangicTarihi!.year,
+        filtreler.baslangicTarihi!.month,
+        filtreler.baslangicTarihi!.day,
       );
-      return txs
-          .where((tx) {
-            final bool tutarOk = _matchesDoubleRange(
-              _toDouble(tx['tutar']),
-              min: filtreler.minTutar,
-              max: filtreler.maxTutar,
-            );
-            return tutarOk;
-          })
-          .map((tx) => {...tx, '__cari': cari})
-          .toList();
-    });
+    }
+    if (filtreler.bitisTarihi != null) {
+      conditions.add('cat.date < @endDate');
+      params['endDate'] = DateTime(
+        filtreler.bitisTarihi!.year,
+        filtreler.bitisTarihi!.month,
+        filtreler.bitisTarihi!.day,
+      ).add(const Duration(days: 1));
+    }
+    final islemTuru = _normalizedSelection(filtreler.islemTuru);
+    if (islemTuru.isNotEmpty) {
+      conditions.add('cat.source_type = @islemTuru');
+      params['islemTuru'] = islemTuru;
+    }
+    final kullanici = _emptyToNull(filtreler.kullaniciId);
+    if (kullanici != null) {
+      conditions.add("COALESCE(cat.user_name, '') = @kullanici");
+      params['kullanici'] = kullanici;
+    }
+    if (filtreler.minTutar != null) {
+      conditions.add('cat.amount >= @minTutar');
+      params['minTutar'] = filtreler.minTutar!;
+    }
+    if (filtreler.maxTutar != null) {
+      conditions.add('cat.amount <= @maxTutar');
+      params['maxTutar'] = filtreler.maxTutar!;
+    }
+
+    final rows = await _queryMaps(pool, '''
+        SELECT
+          cat.id,
+          cat.current_account_id,
+          cat.date AS tarih,
+          cat.description AS aciklama,
+          cat.amount AS tutar,
+          cat.type AS yon,
+          cat.source_type AS islem_turu,
+          cat.source_name AS kaynak_adi,
+          cat.source_code AS kaynak_kodu,
+          cat.user_name AS kullanici,
+          cat.integration_ref,
+          cat.irsaliye_no,
+          cat.fatura_no,
+          cat.vade_tarihi,
+          cat.bakiye_borc,
+          cat.bakiye_alacak,
+          cat.aciklama2,
+          cat.kur,
+          (
+            SELECT json_agg(items)
+            FROM shipments s
+            WHERE s.integration_ref = cat.integration_ref
+          ) AS hareket_detaylari,
+          ca.id AS cari_id,
+          ca.kod_no AS cari_kod_no,
+          ca.adi AS cari_adi,
+          ca.para_birimi AS cari_para_birimi,
+          ca.hesap_turu AS cari_hesap_turu,
+          ca.bakiye_borc AS cari_model_bakiye_borc,
+          ca.bakiye_alacak AS cari_model_bakiye_alacak,
+          ca.bakiye_durumu AS cari_bakiye_durumu,
+          ca.aktif_mi AS cari_aktif_mi
+        FROM current_account_transactions cat
+        INNER JOIN current_accounts ca ON ca.id = cat.current_account_id
+        ${conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}'}
+        ORDER BY cat.date DESC, cat.id DESC
+      ''', params);
+
+    return rows
+        .map((row) {
+          final cari = CariHesapModel.fromMap({
+            'id': row['cari_id'],
+            'kod_no': row['cari_kod_no'],
+            'adi': row['cari_adi'],
+            'hesap_turu': row['cari_hesap_turu'],
+            'para_birimi': row['cari_para_birimi'],
+            'bakiye_borc': row['cari_model_bakiye_borc'],
+            'bakiye_alacak': row['cari_model_bakiye_alacak'],
+            'bakiye_durumu': row['cari_bakiye_durumu'],
+            'aktif_mi': row['cari_aktif_mi'],
+          });
+          return {
+            ...row,
+            '__cari': cari,
+            'running_balance':
+                _toDouble(row['bakiye_borc']) - _toDouble(row['bakiye_alacak']),
+          };
+        })
+        .toList(growable: false);
   }
 
   Future<List<Map<String, dynamic>>> _tumKasaIslemleriniGetir(
     RaporFiltreleri filtreler,
   ) async {
-    final kasalar = await _filteredCashes(filtreler);
-    return _collectInBatches<KasaModel, Map<String, dynamic>>(kasalar, (
-      kasa,
-    ) async {
-      final txs = await _kasaServisi.kasaIslemleriniGetir(
-        kasa.id,
-        baslangicTarihi: filtreler.baslangicTarihi,
-        bitisTarihi: filtreler.bitisTarihi,
-        islemTuru: _normalizedSelection(filtreler.islemTuru),
-        kullanici: _emptyToNull(filtreler.kullaniciId),
-        limit: 1000,
+    final pool = await _havuzAl();
+    final conditions = <String>[];
+    final params = <String, dynamic>{};
+    if (filtreler.kasaId != null) {
+      conditions.add('cr.id = @kasaId');
+      params['kasaId'] = filtreler.kasaId!;
+    }
+    if (filtreler.baslangicTarihi != null) {
+      conditions.add('crt.date >= @startDate');
+      params['startDate'] = DateTime(
+        filtreler.baslangicTarihi!.year,
+        filtreler.baslangicTarihi!.month,
+        filtreler.baslangicTarihi!.day,
       );
-      return txs
-          .where(
-            (tx) => _matchesDoubleRange(
-              _toDouble(tx['tutar']),
-              min: filtreler.minTutar,
-              max: filtreler.maxTutar,
-            ),
-          )
-          .map((tx) => {...tx, '__kasa': kasa})
-          .toList();
-    });
+    }
+    if (filtreler.bitisTarihi != null) {
+      conditions.add('crt.date < @endDate');
+      params['endDate'] = DateTime(
+        filtreler.bitisTarihi!.year,
+        filtreler.bitisTarihi!.month,
+        filtreler.bitisTarihi!.day,
+      ).add(const Duration(days: 1));
+    }
+    final kullanici = _emptyToNull(filtreler.kullaniciId);
+    if (kullanici != null) {
+      conditions.add("COALESCE(crt.user_name, '') = @kullanici");
+      params['kullanici'] = kullanici;
+    }
+    final islemTuru = _normalizedSelection(filtreler.islemTuru);
+    if (islemTuru.isNotEmpty) {
+      if (islemTuru == 'Satış Yapıldı' || islemTuru == 'Satis Yapildi') {
+        conditions.add(
+          "(COALESCE(crt.integration_ref, '') LIKE 'SALE-%' OR COALESCE(crt.integration_ref, '') LIKE 'RETAIL-%')",
+        );
+      } else if (islemTuru == 'Alış Yapıldı' || islemTuru == 'Alis Yapildi') {
+        conditions.add("COALESCE(crt.integration_ref, '') LIKE 'PURCHASE-%'");
+      } else {
+        conditions.add('crt.type = @islemTuru');
+        params['islemTuru'] = islemTuru;
+      }
+    }
+    if (filtreler.minTutar != null) {
+      conditions.add('crt.amount >= @minTutar');
+      params['minTutar'] = filtreler.minTutar!;
+    }
+    if (filtreler.maxTutar != null) {
+      conditions.add('crt.amount <= @maxTutar');
+      params['maxTutar'] = filtreler.maxTutar!;
+    }
+
+    final rows = await _queryMaps(pool, '''
+        SELECT
+          crt.id,
+          crt.date AS tarih,
+          crt.amount AS tutar,
+          crt.type AS islem_turu,
+          crt.description AS aciklama,
+          crt.integration_ref,
+          crt.location AS yer,
+          crt.location_code AS yerKodu,
+          crt.location_name AS yerAdi,
+          crt.user_name AS kullanici,
+          cr.code AS kasaKodu,
+          cr.name AS kasaAdi
+        FROM cash_register_transactions crt
+        INNER JOIN cash_registers cr ON cr.id = crt.cash_register_id
+        ${conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}'}
+        ORDER BY crt.date DESC, crt.id DESC
+      ''', params);
+
+    return rows
+        .map((row) {
+          final lowType = (row['islem_turu']?.toString() ?? '').toLowerCase();
+          final bool incoming =
+              _isIncomingFinanceType(lowType) ||
+              (!_isOutgoingFinanceType(lowType) &&
+                  _isCurrentAccountFinanceLocation(
+                    row['yer']?.toString() ?? '',
+                  ));
+          return {...row, 'isIncoming': incoming};
+        })
+        .toList(growable: false);
   }
 
   Future<List<Map<String, dynamic>>> _tumBankaIslemleriniGetir(
     RaporFiltreleri filtreler,
   ) async {
-    final bankalar = await _filteredBanks(filtreler);
-    return _collectInBatches<BankaModel, Map<String, dynamic>>(bankalar, (
-      banka,
-    ) async {
-      final txs = await _bankaServisi.bankaIslemleriniGetir(
-        banka.id,
-        baslangicTarihi: filtreler.baslangicTarihi,
-        bitisTarihi: filtreler.bitisTarihi,
-        islemTuru: _normalizedSelection(filtreler.islemTuru),
-        kullanici: _emptyToNull(filtreler.kullaniciId),
-        limit: 1000,
+    final pool = await _havuzAl();
+    final conditions = <String>[];
+    final params = <String, dynamic>{};
+    if (filtreler.bankaId != null) {
+      conditions.add('b.id = @bankaId');
+      params['bankaId'] = filtreler.bankaId!;
+    }
+    if (filtreler.baslangicTarihi != null) {
+      conditions.add('bt.date >= @startDate');
+      params['startDate'] = DateTime(
+        filtreler.baslangicTarihi!.year,
+        filtreler.baslangicTarihi!.month,
+        filtreler.baslangicTarihi!.day,
       );
-      return txs
-          .where(
-            (tx) => _matchesDoubleRange(
-              _toDouble(tx['tutar']),
-              min: filtreler.minTutar,
-              max: filtreler.maxTutar,
-            ),
-          )
-          .map((tx) => {...tx, '__banka': banka})
-          .toList();
-    });
+    }
+    if (filtreler.bitisTarihi != null) {
+      conditions.add('bt.date < @endDate');
+      params['endDate'] = DateTime(
+        filtreler.bitisTarihi!.year,
+        filtreler.bitisTarihi!.month,
+        filtreler.bitisTarihi!.day,
+      ).add(const Duration(days: 1));
+    }
+    final kullanici = _emptyToNull(filtreler.kullaniciId);
+    if (kullanici != null) {
+      conditions.add("COALESCE(bt.user_name, '') = @kullanici");
+      params['kullanici'] = kullanici;
+    }
+    final islemTuru = _normalizedSelection(filtreler.islemTuru);
+    if (islemTuru.isNotEmpty) {
+      if (islemTuru == 'Satış Yapıldı' || islemTuru == 'Satis Yapildi') {
+        conditions.add(
+          "(COALESCE(bt.integration_ref, '') LIKE 'SALE-%' OR COALESCE(bt.integration_ref, '') LIKE 'RETAIL-%')",
+        );
+      } else if (islemTuru == 'Alış Yapıldı' || islemTuru == 'Alis Yapildi') {
+        conditions.add("COALESCE(bt.integration_ref, '') LIKE 'PURCHASE-%'");
+      } else {
+        conditions.add('bt.type = @islemTuru');
+        params['islemTuru'] = islemTuru;
+      }
+    }
+    if (filtreler.minTutar != null) {
+      conditions.add('bt.amount >= @minTutar');
+      params['minTutar'] = filtreler.minTutar!;
+    }
+    if (filtreler.maxTutar != null) {
+      conditions.add('bt.amount <= @maxTutar');
+      params['maxTutar'] = filtreler.maxTutar!;
+    }
+
+    final rows = await _queryMaps(pool, '''
+        SELECT
+          bt.id,
+          bt.date AS tarih,
+          bt.amount AS tutar,
+          bt.type AS islem_turu,
+          bt.description AS aciklama,
+          bt.integration_ref,
+          bt.location AS yer,
+          bt.location_code AS yerKodu,
+          bt.location_name AS yerAdi,
+          bt.user_name AS kullanici,
+          b.code AS bankaKodu,
+          b.name AS bankaAdi
+        FROM bank_transactions bt
+        INNER JOIN banks b ON b.id = bt.bank_id
+        ${conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}'}
+        ORDER BY bt.date DESC, bt.id DESC
+      ''', params);
+
+    return rows
+        .map((row) {
+          final lowType = (row['islem_turu']?.toString() ?? '').toLowerCase();
+          final bool incoming = _isIncomingFinanceType(lowType);
+          return {...row, 'isIncoming': incoming};
+        })
+        .toList(growable: false);
   }
 
   Future<List<Map<String, dynamic>>> _tumKrediKartiIslemleriniGetir(
     RaporFiltreleri filtreler,
   ) async {
-    final kartlar = await _filteredCards(filtreler);
-    return _collectInBatches<KrediKartiModel, Map<String, dynamic>>(kartlar, (
-      kart,
-    ) async {
-      final txs = await _krediKartiServisi.krediKartiIslemleriniGetir(
-        kart.id,
-        baslangicTarihi: filtreler.baslangicTarihi,
-        bitisTarihi: filtreler.bitisTarihi,
-        islemTuru: _normalizedSelection(filtreler.islemTuru),
-        kullanici: _emptyToNull(filtreler.kullaniciId),
-        limit: 1000,
+    final pool = await _havuzAl();
+    final conditions = <String>[];
+    final params = <String, dynamic>{};
+    if (filtreler.krediKartiId != null) {
+      conditions.add('cc.id = @kartId');
+      params['kartId'] = filtreler.krediKartiId!;
+    }
+    if (filtreler.baslangicTarihi != null) {
+      conditions.add('cct.date >= @startDate');
+      params['startDate'] = DateTime(
+        filtreler.baslangicTarihi!.year,
+        filtreler.baslangicTarihi!.month,
+        filtreler.baslangicTarihi!.day,
       );
-      return txs
-          .where(
-            (tx) => _matchesDoubleRange(
-              _toDouble(tx['tutar']),
-              min: filtreler.minTutar,
-              max: filtreler.maxTutar,
-            ),
-          )
-          .map((tx) => {...tx, '__kart': kart})
-          .toList();
-    });
+    }
+    if (filtreler.bitisTarihi != null) {
+      conditions.add('cct.date < @endDate');
+      params['endDate'] = DateTime(
+        filtreler.bitisTarihi!.year,
+        filtreler.bitisTarihi!.month,
+        filtreler.bitisTarihi!.day,
+      ).add(const Duration(days: 1));
+    }
+    final kullanici = _emptyToNull(filtreler.kullaniciId);
+    if (kullanici != null) {
+      conditions.add("COALESCE(cct.user_name, '') = @kullanici");
+      params['kullanici'] = kullanici;
+    }
+    final islemTuru = _normalizedSelection(filtreler.islemTuru);
+    if (islemTuru.isNotEmpty) {
+      if (islemTuru == 'Satış Yapıldı' || islemTuru == 'Satis Yapildi') {
+        conditions.add(
+          "(COALESCE(cct.integration_ref, '') LIKE 'SALE-%' OR COALESCE(cct.integration_ref, '') LIKE 'RETAIL-%')",
+        );
+      } else if (islemTuru == 'Alış Yapıldı' || islemTuru == 'Alis Yapildi') {
+        conditions.add("COALESCE(cct.integration_ref, '') LIKE 'PURCHASE-%'");
+      } else {
+        conditions.add('cct.type = @islemTuru');
+        params['islemTuru'] = islemTuru;
+      }
+    }
+    if (filtreler.minTutar != null) {
+      conditions.add('cct.amount >= @minTutar');
+      params['minTutar'] = filtreler.minTutar!;
+    }
+    if (filtreler.maxTutar != null) {
+      conditions.add('cct.amount <= @maxTutar');
+      params['maxTutar'] = filtreler.maxTutar!;
+    }
+
+    final rows = await _queryMaps(pool, '''
+        SELECT
+          cct.id,
+          cct.date AS tarih,
+          cct.amount AS tutar,
+          cct.type AS islem_turu,
+          cct.description AS aciklama,
+          cct.integration_ref,
+          cct.location AS yer,
+          cct.location_code AS yerKodu,
+          cct.location_name AS yerAdi,
+          cct.user_name AS kullanici,
+          cc.code AS krediKartiKodu,
+          cc.name AS krediKartiAdi
+        FROM credit_card_transactions cct
+        INNER JOIN credit_cards cc ON cc.id = cct.credit_card_id
+        ${conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}'}
+        ORDER BY cct.date DESC, cct.id DESC
+      ''', params);
+
+    return rows
+        .map((row) {
+          final lowType = (row['islem_turu']?.toString() ?? '').toLowerCase();
+          final bool incoming = _isIncomingFinanceType(lowType);
+          return {...row, 'isIncoming': incoming};
+        })
+        .toList(growable: false);
   }
 
   Future<List<Map<String, dynamic>>> _tumDepoIslemleriniGetir(
     RaporFiltreleri filtreler,
   ) async {
-    final depolar = await _filteredDepolar(filtreler);
-    final List<Map<String, dynamic>> all =
-        await _collectInBatches<DepoModel, Map<String, dynamic>>(depolar, (
-          depo,
-        ) async {
-          final txs = await _depoServisi.depoIslemleriniGetir(
-            depo.id,
-            baslangicTarihi: filtreler.baslangicTarihi,
-            bitisTarihi: filtreler.bitisTarihi,
-            kullanici: _emptyToNull(filtreler.kullaniciId),
-            limit: 1000,
-          );
-          return txs.map((tx) => {...tx, '__depo': depo}).toList();
-        });
-
-    final Map<int, Map<String, dynamic>> byId = <int, Map<String, dynamic>>{};
-    for (final item in all) {
-      final int id = (item['id'] as int?) ?? -1;
-      if (id == -1 || byId.containsKey(id)) continue;
-      byId[id] = item;
+    final pool = await _havuzAl();
+    final conditions = <String>[];
+    final params = <String, dynamic>{};
+    if (filtreler.depoId != null) {
+      conditions.add(
+        '(s.source_warehouse_id = @depoId OR s.dest_warehouse_id = @depoId)',
+      );
+      params['depoId'] = filtreler.depoId!;
     }
-    return byId.values.toList();
+    if (filtreler.baslangicTarihi != null) {
+      conditions.add('s.date >= @startDate');
+      params['startDate'] = DateTime(
+        filtreler.baslangicTarihi!.year,
+        filtreler.baslangicTarihi!.month,
+        filtreler.baslangicTarihi!.day,
+      );
+    }
+    if (filtreler.bitisTarihi != null) {
+      conditions.add('s.date < @endDate');
+      params['endDate'] = DateTime(
+        filtreler.bitisTarihi!.year,
+        filtreler.bitisTarihi!.month,
+        filtreler.bitisTarihi!.day,
+      ).add(const Duration(days: 1));
+    }
+    final kullanici = _emptyToNull(filtreler.kullaniciId);
+    if (kullanici != null) {
+      conditions.add("COALESCE(s.created_by, '') = @kullanici");
+      params['kullanici'] = kullanici;
+    }
+
+    return _queryMaps(pool, '''
+        SELECT DISTINCT
+          s.id,
+          s.date,
+          s.description,
+          s.items,
+          s.created_by,
+          s.source_warehouse_id,
+          s.dest_warehouse_id,
+          s.integration_ref,
+          d1.ad AS source_name,
+          d2.ad AS dest_name,
+          (
+            SELECT ca.adi
+            FROM current_account_transactions cat
+            JOIN current_accounts ca ON ca.id = cat.current_account_id
+            WHERE cat.integration_ref = s.integration_ref
+            LIMIT 1
+          ) AS related_party_name,
+          (
+            SELECT ca.kod_no
+            FROM current_account_transactions cat
+            JOIN current_accounts ca ON ca.id = cat.current_account_id
+            WHERE cat.integration_ref = s.integration_ref
+            LIMIT 1
+          ) AS related_party_code
+        FROM shipments s
+        LEFT JOIN depots d1 ON d1.id = s.source_warehouse_id
+        LEFT JOIN depots d2 ON d2.id = s.dest_warehouse_id
+        ${conditions.isEmpty ? '' : 'WHERE ${conditions.join(' AND ')}'}
+        ORDER BY s.date DESC, s.id DESC
+      ''', params);
   }
 
   Future<List<TOut>> _collectInBatches<TIn, TOut>(

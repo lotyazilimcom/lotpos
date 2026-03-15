@@ -12,11 +12,14 @@ import '../sayfalar/ayarlar/roller_ve_izinler/modeller/rol_model.dart';
 import '../sayfalar/ayarlar/sirketayarlari/modeller/sirket_ayarlari_model.dart';
 import '../sayfalar/ayarlar/yazdirma_ayarlari/sablonlar/varsayilan_sablonlar.dart';
 import '../ayarlar/menu_ayarlari.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
+import 'pg_eklentiler.dart';
 import 'veritabani_yapilandirma.dart';
 import 'veritabani_havuzu.dart';
 
 class AyarlarVeritabaniServisi {
+  static const String _searchTagsVersionPrefix = 'v2026_settings_1';
   static final AyarlarVeritabaniServisi _instance =
       AyarlarVeritabaniServisi._internal();
   factory AyarlarVeritabaniServisi() => _instance;
@@ -132,6 +135,7 @@ class AyarlarVeritabaniServisi {
           'AyarlarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
         );
       }
+      await _ayarlarAramaAltyapisiniHazirla();
       _isInitialized = true;
 
       // Varsayılan verileri ekle (Bu da önemli ama tablolar hazırsa uygulama açılabilir)
@@ -1152,7 +1156,11 @@ class AyarlarVeritabaniServisi {
         salary_currency TEXT,
         address TEXT,
         info1 TEXT,
-        info2 TEXT
+        info2 TEXT,
+        balance_debt REAL DEFAULT 0,
+        balance_credit REAL DEFAULT 0,
+        hire_date_sort DATE,
+        search_tags TEXT NOT NULL DEFAULT ''
       )
     ''');
 
@@ -1185,6 +1193,12 @@ class AyarlarVeritabaniServisi {
       await _pool!.execute(
         'ALTER TABLE users ADD COLUMN IF NOT EXISTS balance_credit REAL DEFAULT 0',
       );
+      await _pool!.execute(
+        'ALTER TABLE users ADD COLUMN IF NOT EXISTS hire_date_sort DATE',
+      );
+      await _pool!.execute(
+        "ALTER TABLE users ADD COLUMN IF NOT EXISTS search_tags TEXT NOT NULL DEFAULT ''",
+      );
     } catch (e) {
       debugPrint(
         'Users tablosu migration hatası (muhtemelen sütunlar zaten mevcut): $e',
@@ -1204,6 +1218,7 @@ class AyarlarVeritabaniServisi {
         debt NUMERIC(15, 2) DEFAULT 0,
         credit NUMERIC(15, 2) DEFAULT 0,
         type TEXT,
+        search_tags TEXT NOT NULL DEFAULT '',
         PRIMARY KEY (id, date)
       ) PARTITION BY RANGE (date)
     ''');
@@ -1212,6 +1227,9 @@ class AyarlarVeritabaniServisi {
     try {
       await _pool!.execute(
         'ALTER TABLE user_transactions ADD COLUMN IF NOT EXISTS company_id TEXT',
+      );
+      await _pool!.execute(
+        "ALTER TABLE user_transactions ADD COLUMN IF NOT EXISTS search_tags TEXT NOT NULL DEFAULT ''",
       );
     } catch (_) {}
 
@@ -1229,9 +1247,16 @@ class AyarlarVeritabaniServisi {
         name TEXT,
         permissions TEXT,
         is_system INTEGER,
-        is_active INTEGER
+        is_active INTEGER,
+        search_tags TEXT NOT NULL DEFAULT ''
       )
     ''');
+
+    try {
+      await _pool!.execute(
+        "ALTER TABLE roles ADD COLUMN IF NOT EXISTS search_tags TEXT NOT NULL DEFAULT ''",
+      );
+    } catch (_) {}
 
     await _pool!.execute('''
       CREATE TABLE IF NOT EXISTS company_settings (
@@ -1250,7 +1275,8 @@ class AyarlarVeritabaniServisi {
         varsayilan_mi INTEGER,
         duzenlenebilir_mi INTEGER,
         ust_bilgi_logosu TEXT,
-        ust_bilgi_satirlari TEXT
+        ust_bilgi_satirlari TEXT,
+        search_tags TEXT NOT NULL DEFAULT ''
       )
     ''');
 
@@ -1273,6 +1299,9 @@ class AyarlarVeritabaniServisi {
       );
       await _pool!.execute(
         'ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS web_adresi TEXT',
+      );
+      await _pool!.execute(
+        "ALTER TABLE company_settings ADD COLUMN IF NOT EXISTS search_tags TEXT NOT NULL DEFAULT ''",
       );
     } catch (_) {}
 
@@ -1539,6 +1568,555 @@ class AyarlarVeritabaniServisi {
     });
   }
 
+  String _normalizeSearchInput(String text) {
+    if (text.isEmpty) return '';
+    return text
+        .toLowerCase()
+        .replaceAll('ç', 'c')
+        .replaceAll('ğ', 'g')
+        .replaceAll('ı', 'i')
+        .replaceAll('ö', 'o')
+        .replaceAll('ş', 's')
+        .replaceAll('ü', 'u')
+        .replaceAll('i̇', 'i')
+        .trim();
+  }
+
+  String _searchClause(
+    String expression,
+    String paramPrefix,
+    String normalizedQuery,
+    Map<String, dynamic> params,
+  ) {
+    params['${paramPrefix}search'] = '%$normalizedQuery%';
+    return '''
+      (
+        $expression LIKE @${paramPrefix}search
+      )
+    ''';
+  }
+
+  String _whereClause(List<String> conditions) {
+    if (conditions.isEmpty) return '';
+    return ' WHERE ${conditions.join(' AND ')}';
+  }
+
+  Future<void> _ayarlarAramaAltyapisiniHazirla() async {
+    if (_pool == null) return;
+    try {
+      try {
+        await PgEklentiler.ensurePgTrgm(_pool!);
+      } catch (_) {}
+
+      try {
+        await _pool!.execute('''
+        CREATE OR REPLACE FUNCTION settings_normalize_text(val TEXT) RETURNS TEXT AS \$\$
+        BEGIN
+          IF val IS NULL THEN
+            RETURN '';
+          END IF;
+          val := REPLACE(val, 'i̇', 'i');
+          RETURN LOWER(
+            TRANSLATE(
+              val,
+              'ÇĞİÖŞÜIçğıöşü',
+              'cgiosuicgiosu'
+            )
+          );
+        END;
+        \$\$ LANGUAGE plpgsql IMMUTABLE;
+      ''');
+      } catch (_) {}
+
+      await _pool!.execute('''
+      CREATE OR REPLACE FUNCTION update_settings_user_search_tags()
+      RETURNS TRIGGER AS \$\$
+      BEGIN
+        NEW.hire_date_sort := CASE
+          WHEN COALESCE(NEW.hire_date, '') ~ '^[0-9]{2}\\.[0-9]{2}\\.[0-9]{4}\$'
+            THEN TO_DATE(NEW.hire_date, 'DD.MM.YYYY')
+          ELSE NULL
+        END;
+        NEW.search_tags := settings_normalize_text(
+          '$_searchTagsVersionPrefix ' ||
+          COALESCE(NEW.id, '') || ' ' ||
+          COALESCE(NEW.username, '') || ' ' ||
+          COALESCE(NEW.name, '') || ' ' ||
+          COALESCE(NEW.surname, '') || ' ' ||
+          COALESCE(NEW.email, '') || ' ' ||
+          COALESCE(NEW.phone, '') || ' ' ||
+          COALESCE(NEW.role, '') || ' ' ||
+          COALESCE(NEW.position, '') || ' ' ||
+          COALESCE(NEW.address, '') || ' ' ||
+          COALESCE(NEW.info1, '') || ' ' ||
+          COALESCE(NEW.info2, '') || ' ' ||
+          COALESCE(NEW.hire_date, '') || ' ' ||
+          COALESCE(NEW.salary_currency, '') || ' ' ||
+          COALESCE(CAST(NEW.salary AS TEXT), '') || ' ' ||
+          COALESCE(CAST(NEW.balance_debt AS TEXT), '') || ' ' ||
+          COALESCE(CAST(NEW.balance_credit AS TEXT), '') || ' ' ||
+          CASE WHEN COALESCE(NEW.is_active, 0) = 1 THEN 'aktif active' ELSE 'pasif passive' END
+        );
+        RETURN NEW;
+      END;
+      \$\$ LANGUAGE plpgsql;
+    ''');
+
+      await _pool!.execute('''
+      CREATE OR REPLACE FUNCTION update_settings_user_transaction_search_tags()
+      RETURNS TRIGGER AS \$\$
+      BEGIN
+        NEW.search_tags := settings_normalize_text(
+          '$_searchTagsVersionPrefix ' ||
+          COALESCE(NEW.id, '') || ' ' ||
+          COALESCE(NEW.user_id, '') || ' ' ||
+          COALESCE(TO_CHAR(NEW.date, 'DD.MM.YYYY HH24:MI'), '') || ' ' ||
+          COALESCE(NEW.description, '') || ' ' ||
+          COALESCE(NEW.type, '') || ' ' ||
+          COALESCE(CAST(NEW.debt AS TEXT), '') || ' ' ||
+          COALESCE(CAST(NEW.credit AS TEXT), '') || ' ' ||
+          CASE
+            WHEN COALESCE(NEW.credit, 0) > COALESCE(NEW.debt, 0) THEN 'alacak credit tahsilat giris'
+            WHEN COALESCE(NEW.debt, 0) > 0 THEN 'borc debit odeme cikis'
+            ELSE ''
+          END
+        );
+        RETURN NEW;
+      END;
+      \$\$ LANGUAGE plpgsql;
+    ''');
+
+      await _pool!.execute('''
+      CREATE OR REPLACE FUNCTION update_settings_role_search_tags()
+      RETURNS TRIGGER AS \$\$
+      BEGIN
+        NEW.search_tags := settings_normalize_text(
+          '$_searchTagsVersionPrefix ' ||
+          COALESCE(NEW.id, '') || ' ' ||
+          COALESCE(NEW.name, '') || ' ' ||
+          COALESCE(NEW.permissions, '') || ' ' ||
+          CASE WHEN COALESCE(NEW.is_system, 0) = 1 THEN 'sistem system' ELSE 'kullanici user' END || ' ' ||
+          CASE WHEN COALESCE(NEW.is_active, 0) = 1 THEN 'aktif active' ELSE 'pasif passive' END
+        );
+        RETURN NEW;
+      END;
+      \$\$ LANGUAGE plpgsql;
+    ''');
+
+      await _pool!.execute('''
+      CREATE OR REPLACE FUNCTION update_settings_company_search_tags()
+      RETURNS TRIGGER AS \$\$
+      BEGIN
+        NEW.search_tags := settings_normalize_text(
+          '$_searchTagsVersionPrefix ' ||
+          COALESCE(CAST(NEW.id AS TEXT), '') || ' ' ||
+          COALESCE(NEW.kod, '') || ' ' ||
+          COALESCE(NEW.ad, '') || ' ' ||
+          COALESCE(NEW.adres, '') || ' ' ||
+          COALESCE(NEW.vergi_dairesi, '') || ' ' ||
+          COALESCE(NEW.vergi_no, '') || ' ' ||
+          COALESCE(NEW.telefon, '') || ' ' ||
+          COALESCE(NEW.eposta, '') || ' ' ||
+          COALESCE(NEW.web_adresi, '') || ' ' ||
+          CASE WHEN COALESCE(NEW.aktif_mi, 0) = 1 THEN 'aktif active' ELSE 'pasif passive' END || ' ' ||
+          CASE WHEN COALESCE(NEW.varsayilan_mi, 0) = 1 THEN 'varsayilan default' ELSE '' END
+        );
+        RETURN NEW;
+      END;
+      \$\$ LANGUAGE plpgsql;
+    ''');
+
+      await _pool!.execute(
+        'DROP TRIGGER IF EXISTS trg_update_settings_user_search_tags ON users',
+      );
+      await _pool!.execute('''
+      CREATE TRIGGER trg_update_settings_user_search_tags
+      BEFORE INSERT OR UPDATE ON users
+      FOR EACH ROW
+      EXECUTE FUNCTION update_settings_user_search_tags()
+    ''');
+
+      await _pool!.execute(
+        'DROP TRIGGER IF EXISTS trg_update_settings_user_tx_search_tags ON user_transactions',
+      );
+      await _pool!.execute('''
+      CREATE TRIGGER trg_update_settings_user_tx_search_tags
+      BEFORE INSERT OR UPDATE ON user_transactions
+      FOR EACH ROW
+      EXECUTE FUNCTION update_settings_user_transaction_search_tags()
+    ''');
+
+      await _pool!.execute(
+        'DROP TRIGGER IF EXISTS trg_update_settings_role_search_tags ON roles',
+      );
+      await _pool!.execute('''
+      CREATE TRIGGER trg_update_settings_role_search_tags
+      BEFORE INSERT OR UPDATE ON roles
+      FOR EACH ROW
+      EXECUTE FUNCTION update_settings_role_search_tags()
+    ''');
+
+      await _pool!.execute(
+        'DROP TRIGGER IF EXISTS trg_update_settings_company_search_tags ON company_settings',
+      );
+      await _pool!.execute('''
+      CREATE TRIGGER trg_update_settings_company_search_tags
+      BEFORE INSERT OR UPDATE ON company_settings
+      FOR EACH ROW
+      EXECUTE FUNCTION update_settings_company_search_tags()
+    ''');
+
+      await PgEklentiler.ensureSearchTagsTrgmIndex(
+        _pool!,
+        table: 'users',
+        indexName: 'idx_settings_users_search_tags_gin',
+      );
+      await PgEklentiler.ensureSearchTagsTrgmIndex(
+        _pool!,
+        table: 'user_transactions',
+        indexName: 'idx_settings_user_tx_search_tags_gin',
+      );
+      await PgEklentiler.ensureSearchTagsTrgmIndex(
+        _pool!,
+        table: 'roles',
+        indexName: 'idx_settings_roles_search_tags_gin',
+      );
+      await PgEklentiler.ensureSearchTagsTrgmIndex(
+        _pool!,
+        table: 'company_settings',
+        indexName: 'idx_settings_company_search_tags_gin',
+      );
+
+      try {
+        await _pool!.execute(
+          'CREATE INDEX IF NOT EXISTS idx_settings_users_hire_date_sort ON users (hire_date_sort, id)',
+        );
+        await _pool!.execute(
+          'CREATE INDEX IF NOT EXISTS idx_settings_users_role_active_id ON users (role, is_active, id)',
+        );
+        await _pool!.execute(
+          'CREATE INDEX IF NOT EXISTS idx_settings_roles_name_id ON roles (name, id)',
+        );
+        await _pool!.execute(
+          'CREATE INDEX IF NOT EXISTS idx_settings_company_kod_id ON company_settings (kod, id)',
+        );
+        await _pool!.execute(
+          'CREATE INDEX IF NOT EXISTS idx_settings_company_ad_id ON company_settings (ad, id)',
+        );
+      } catch (_) {}
+
+      await _backfillUsersSearchTags();
+      await _backfillRolesSearchTags();
+      await _backfillCompanySearchTags();
+      await _backfillUserTransactionSearchTags(
+        maxBatches: _config.allowBackgroundHeavyMaintenance ? 500 : 8,
+      );
+    } catch (e) {
+      debugPrint('Ayarlar arama altyapısı kurulum hatası: $e');
+    }
+  }
+
+  Future<void> _backfillUsersSearchTags({
+    int batchSize = 500,
+    int maxBatches = 100,
+  }) async {
+    if (_pool == null) return;
+    for (int i = 0; i < maxBatches; i++) {
+      final updated = await _pool!.execute(
+        Sql.named('''
+          WITH todo AS (
+            SELECT id
+            FROM users
+            WHERE search_tags IS NULL
+              OR search_tags = ''
+              OR search_tags NOT LIKE '$_searchTagsVersionPrefix%'
+              OR (hire_date IS NOT NULL AND hire_date <> '' AND hire_date_sort IS NULL)
+            LIMIT @batchSize
+          )
+          UPDATE users u
+          SET
+            hire_date_sort = CASE
+              WHEN COALESCE(u.hire_date, '') ~ '^[0-9]{2}\\.[0-9]{2}\\.[0-9]{4}\$'
+                THEN TO_DATE(u.hire_date, 'DD.MM.YYYY')
+              ELSE NULL
+            END,
+            search_tags = settings_normalize_text(
+              '$_searchTagsVersionPrefix ' ||
+              COALESCE(u.id, '') || ' ' ||
+              COALESCE(u.username, '') || ' ' ||
+              COALESCE(u.name, '') || ' ' ||
+              COALESCE(u.surname, '') || ' ' ||
+              COALESCE(u.email, '') || ' ' ||
+              COALESCE(u.phone, '') || ' ' ||
+              COALESCE(u.role, '') || ' ' ||
+              COALESCE(u.position, '') || ' ' ||
+              COALESCE(u.address, '') || ' ' ||
+              COALESCE(u.info1, '') || ' ' ||
+              COALESCE(u.info2, '') || ' ' ||
+              COALESCE(u.hire_date, '') || ' ' ||
+              COALESCE(u.salary_currency, '') || ' ' ||
+              COALESCE(CAST(u.salary AS TEXT), '') || ' ' ||
+              COALESCE(CAST(u.balance_debt AS TEXT), '') || ' ' ||
+              COALESCE(CAST(u.balance_credit AS TEXT), '') || ' ' ||
+              CASE WHEN COALESCE(u.is_active, 0) = 1 THEN 'aktif active' ELSE 'pasif passive' END
+            )
+          FROM todo
+          WHERE u.id = todo.id
+          RETURNING 1
+        '''),
+        parameters: {'batchSize': batchSize},
+      );
+      if (updated.isEmpty) break;
+    }
+  }
+
+  Future<void> _backfillUserTransactionSearchTags({
+    int batchSize = 1000,
+    int maxBatches = 50,
+  }) async {
+    if (_pool == null) return;
+    for (int i = 0; i < maxBatches; i++) {
+      final updated = await _pool!.execute(
+        Sql.named('''
+          WITH todo AS (
+            SELECT id, date
+            FROM user_transactions
+            WHERE search_tags IS NULL
+              OR search_tags = ''
+              OR search_tags NOT LIKE '$_searchTagsVersionPrefix%'
+            LIMIT @batchSize
+          )
+          UPDATE user_transactions ut
+          SET search_tags = settings_normalize_text(
+            '$_searchTagsVersionPrefix ' ||
+            COALESCE(ut.id, '') || ' ' ||
+            COALESCE(ut.user_id, '') || ' ' ||
+            COALESCE(TO_CHAR(ut.date, 'DD.MM.YYYY HH24:MI'), '') || ' ' ||
+            COALESCE(ut.description, '') || ' ' ||
+            COALESCE(ut.type, '') || ' ' ||
+            COALESCE(CAST(ut.debt AS TEXT), '') || ' ' ||
+            COALESCE(CAST(ut.credit AS TEXT), '') || ' ' ||
+            CASE
+              WHEN COALESCE(ut.credit, 0) > COALESCE(ut.debt, 0) THEN 'alacak credit tahsilat giris'
+              WHEN COALESCE(ut.debt, 0) > 0 THEN 'borc debit odeme cikis'
+              ELSE ''
+            END
+          )
+          FROM todo
+          WHERE ut.id = todo.id
+            AND ut.date = todo.date
+          RETURNING 1
+        '''),
+        parameters: {'batchSize': batchSize},
+      );
+      if (updated.isEmpty) break;
+    }
+  }
+
+  Future<void> _backfillRolesSearchTags({
+    int batchSize = 200,
+    int maxBatches = 100,
+  }) async {
+    if (_pool == null) return;
+    for (int i = 0; i < maxBatches; i++) {
+      final updated = await _pool!.execute(
+        Sql.named('''
+          WITH todo AS (
+            SELECT id
+            FROM roles
+            WHERE search_tags IS NULL
+              OR search_tags = ''
+              OR search_tags NOT LIKE '$_searchTagsVersionPrefix%'
+            LIMIT @batchSize
+          )
+          UPDATE roles r
+          SET search_tags = settings_normalize_text(
+            '$_searchTagsVersionPrefix ' ||
+            COALESCE(r.id, '') || ' ' ||
+            COALESCE(r.name, '') || ' ' ||
+            COALESCE(r.permissions, '') || ' ' ||
+            CASE WHEN COALESCE(r.is_system, 0) = 1 THEN 'sistem system' ELSE 'kullanici user' END || ' ' ||
+            CASE WHEN COALESCE(r.is_active, 0) = 1 THEN 'aktif active' ELSE 'pasif passive' END
+          )
+          FROM todo
+          WHERE r.id = todo.id
+          RETURNING 1
+        '''),
+        parameters: {'batchSize': batchSize},
+      );
+      if (updated.isEmpty) break;
+    }
+  }
+
+  Future<void> _backfillCompanySearchTags({
+    int batchSize = 200,
+    int maxBatches = 100,
+  }) async {
+    if (_pool == null) return;
+    for (int i = 0; i < maxBatches; i++) {
+      final updated = await _pool!.execute(
+        Sql.named('''
+          WITH todo AS (
+            SELECT id
+            FROM company_settings
+            WHERE search_tags IS NULL
+              OR search_tags = ''
+              OR search_tags NOT LIKE '$_searchTagsVersionPrefix%'
+            LIMIT @batchSize
+          )
+          UPDATE company_settings cs
+          SET search_tags = settings_normalize_text(
+            '$_searchTagsVersionPrefix ' ||
+            COALESCE(CAST(cs.id AS TEXT), '') || ' ' ||
+            COALESCE(cs.kod, '') || ' ' ||
+            COALESCE(cs.ad, '') || ' ' ||
+            COALESCE(cs.adres, '') || ' ' ||
+            COALESCE(cs.vergi_dairesi, '') || ' ' ||
+            COALESCE(cs.vergi_no, '') || ' ' ||
+            COALESCE(cs.telefon, '') || ' ' ||
+            COALESCE(cs.eposta, '') || ' ' ||
+            COALESCE(cs.web_adresi, '') || ' ' ||
+            CASE WHEN COALESCE(cs.aktif_mi, 0) = 1 THEN 'aktif active' ELSE 'pasif passive' END || ' ' ||
+            CASE WHEN COALESCE(cs.varsayilan_mi, 0) = 1 THEN 'varsayilan default' ELSE '' END
+          )
+          FROM todo
+          WHERE cs.id = todo.id
+          RETURNING 1
+        '''),
+        parameters: {'batchSize': batchSize},
+      );
+      if (updated.isEmpty) break;
+    }
+  }
+
+  ({String selectClause, List<String> conditions, Map<String, dynamic> params})
+  _buildUserQueryParts({
+    String? aramaTerimi,
+    DateTime? baslangicTarihi,
+    DateTime? bitisTarihi,
+    String? rol,
+    bool? aktifMi,
+    String? lastId,
+    bool includeLastId = true,
+  }) {
+    String selectClause = 'SELECT users.*';
+    final conditions = <String>[];
+    final params = <String, dynamic>{};
+    final trimmedSearch = (aramaTerimi ?? '').trim();
+    final normalizedSearch = _normalizeSearchInput(trimmedSearch);
+
+    if (normalizedSearch.isNotEmpty) {
+      final rootSearch = _searchClause(
+        'users.search_tags',
+        'user_root_',
+        normalizedSearch,
+        params,
+      );
+      final txSearch = _searchClause(
+        'ut.search_tags',
+        'user_tx_',
+        normalizedSearch,
+        params,
+      );
+
+      selectClause +=
+          '''
+        , (CASE
+            WHEN EXISTS (
+              SELECT 1
+              FROM user_transactions ut
+              WHERE ut.user_id = users.id
+                AND $txSearch
+            )
+            AND NOT ($rootSearch)
+            THEN 1
+            ELSE 0
+          END) AS matched_in_hidden_calc
+      ''';
+
+      conditions.add('''
+        (
+          $rootSearch
+          OR EXISTS (
+            SELECT 1
+            FROM user_transactions ut
+            WHERE ut.user_id = users.id
+              AND $txSearch
+          )
+        )
+      ''');
+    } else {
+      selectClause += ', 0 as matched_in_hidden_calc';
+    }
+
+    if (baslangicTarihi != null) {
+      conditions.add('users.hire_date_sort >= @startDate');
+      params['startDate'] = DateTime(
+        baslangicTarihi.year,
+        baslangicTarihi.month,
+        baslangicTarihi.day,
+      );
+    }
+
+    if (bitisTarihi != null) {
+      conditions.add('users.hire_date_sort <= @endDate');
+      params['endDate'] = DateTime(
+        bitisTarihi.year,
+        bitisTarihi.month,
+        bitisTarihi.day,
+      );
+    }
+
+    if (rol != null && rol.trim().isNotEmpty) {
+      conditions.add('users.role = @role');
+      params['role'] = rol.trim();
+    }
+
+    if (aktifMi != null) {
+      conditions.add('users.is_active = @isActive');
+      params['isActive'] = aktifMi ? 1 : 0;
+    }
+
+    if (includeLastId && lastId != null && lastId.trim().isNotEmpty) {
+      conditions.add('users.id > @lastId');
+      params['lastId'] = lastId.trim();
+    }
+
+    return (selectClause: selectClause, conditions: conditions, params: params);
+  }
+
+  ({List<String> conditions, Map<String, dynamic> params})
+  _buildSimpleSearchParts({
+    required String alias,
+    required String searchExpression,
+    String? aramaTerimi,
+    Object? lastId,
+    bool includeLastId = true,
+  }) {
+    final conditions = <String>[];
+    final params = <String, dynamic>{};
+    final trimmedSearch = (aramaTerimi ?? '').trim();
+    final normalizedSearch = _normalizeSearchInput(trimmedSearch);
+
+    if (normalizedSearch.isNotEmpty) {
+      conditions.add(
+        _searchClause(searchExpression, '${alias}_', normalizedSearch, params),
+      );
+    }
+
+    if (includeLastId) {
+      if (lastId is int && lastId > 0) {
+        conditions.add('$alias.id > @lastId');
+        params['lastId'] = lastId;
+      } else if (lastId is String && lastId.trim().isNotEmpty) {
+        conditions.add('$alias.id > @lastId');
+        params['lastId'] = lastId.trim();
+      }
+    }
+
+    return (conditions: conditions, params: params);
+  }
+
   // --- KULLANICILAR ---
 
   Future<List<KullaniciModel>> kullanicilariGetir({
@@ -1553,158 +2131,29 @@ class AyarlarVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return [];
+    final queryParts = _buildUserQueryParts(
+      aramaTerimi: aramaTerimi,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      rol: rol,
+      aktifMi: aktifMi,
+      lastId: lastId,
+    );
+    final params = <String, dynamic>{
+      ...queryParts.params,
+      'limit': sayfaBasinaKayit.clamp(1, 500),
+    };
 
-    // Derin Arama SQL Yapısı - cekler_sayfasi.dart gibi
-    String selectClause = 'SELECT users.*';
-
-    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      // Eşleşme detaydaysa yakala (işlemlerde eşleşme var ama ana satırda yok)
-      selectClause += '''
-        , (CASE 
-            WHEN (
-              EXISTS (
-                SELECT 1 FROM user_transactions ut 
-                WHERE ut.user_id = users.id 
-                AND (
-                  LOWER(COALESCE(ut.description, '')) LIKE @search
-                  -- İşlem Tipi Çevirisi (Display Name) ile Arama
-                  OR (
-                    CASE 
-                      WHEN LOWER(ut.type) LIKE '%odeme%' OR LOWER(ut.type) LIKE '%ödeme%' THEN 'ödeme'
-                      WHEN LOWER(ut.type) LIKE '%alacak%' THEN 'alacak kaydı'
-                      WHEN LOWER(ut.type) LIKE '%maas%' OR LOWER(ut.type) LIKE '%maaş%' THEN 'maaş ödemesi'
-                      WHEN LOWER(ut.type) LIKE '%prim%' OR LOWER(ut.type) LIKE '%bonus%' THEN 'prim'
-                      WHEN LOWER(ut.type) LIKE '%avans%' THEN 'avans'
-                      WHEN LOWER(ut.type) LIKE '%kesinti%' THEN 'kesinti'
-                      WHEN LOWER(ut.type) LIKE '%tahsilat%' THEN (CASE WHEN ut.credit > ut.debt THEN 'tahsilat' ELSE 'ödeme' END)
-                      ELSE (CASE WHEN ut.credit > ut.debt THEN 'girdi' ELSE 'çıktı' END)
-                    END LIKE @search
-                  )
-                  OR LOWER(COALESCE(ut.type, '')) LIKE @search
-                  -- Tarih Formatlı Arama (DD.MM.YYYY HH:MM)
-                  OR TO_CHAR(ut.date::timestamp, 'DD.MM.YYYY HH24:MI') LIKE @search
-                  OR TO_CHAR(ut.date::timestamp, 'DD.MM') LIKE @search
-                  OR TO_CHAR(ut.date::timestamp, 'HH24:MI') LIKE @search
-                  OR LOWER(COALESCE(ut.date::text, '')) LIKE @search
-                  OR CAST(COALESCE(ut.debt, 0) AS TEXT) LIKE @search
-                  OR CAST(COALESCE(ut.credit, 0) AS TEXT) LIKE @search
-                )
-              )
-            )
-            AND NOT (
-              LOWER(COALESCE(username, '')) LIKE @search OR 
-              LOWER(COALESCE(name, '')) LIKE @search OR 
-              LOWER(COALESCE(surname, '')) LIKE @search OR
-              LOWER(COALESCE(email, '')) LIKE @search OR
-              LOWER(COALESCE(phone, '')) LIKE @search OR
-              LOWER(COALESCE(role, '')) LIKE @search OR
-              LOWER(COALESCE(position, '')) LIKE @search OR
-              LOWER(COALESCE(hire_date, '')) LIKE @search
-            )
-            THEN 1 
-            ELSE 0 
-           END) as matched_in_hidden_calc
-      ''';
-    } else {
-      selectClause += ', 0 as matched_in_hidden_calc';
-    }
-
-    List<String> conditions = [];
-    Map<String, dynamic> params = {};
-
-    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      // Derin arama: kullanıcı alanları VE işlem alanları
-      conditions.add('''
-        (
-          LOWER(COALESCE(username, '')) LIKE @search 
-          OR LOWER(COALESCE(name, '')) LIKE @search 
-          OR LOWER(COALESCE(surname, '')) LIKE @search 
-          OR LOWER(COALESCE(email, '')) LIKE @search 
-          OR LOWER(COALESCE(phone, '')) LIKE @search
-          OR LOWER(COALESCE(role, '')) LIKE @search
-          OR LOWER(COALESCE(position, '')) LIKE @search
-          OR LOWER(COALESCE(address, '')) LIKE @search
-          OR LOWER(COALESCE(info1, '')) LIKE @search
-          OR LOWER(COALESCE(info2, '')) LIKE @search
-          OR LOWER(COALESCE(hire_date, '')) LIKE @search
-          OR LOWER(COALESCE(salary_currency, '')) LIKE @search
-          OR CAST(COALESCE(salary, 0) AS TEXT) LIKE @search
-          OR CAST(COALESCE(balance_debt, 0) AS TEXT) LIKE @search
-          OR CAST(COALESCE(balance_credit, 0) AS TEXT) LIKE @search
-          OR EXISTS (
-            SELECT 1 FROM user_transactions ut 
-            WHERE ut.user_id = users.id 
-            AND (
-              LOWER(COALESCE(ut.description, '')) LIKE @search
-              -- İşlem Tipi Çevirisi (Display Name) ile Arama
-              OR (
-                CASE 
-                  WHEN LOWER(ut.type) LIKE '%odeme%' OR LOWER(ut.type) LIKE '%ödeme%' THEN 'ödeme'
-                  WHEN LOWER(ut.type) LIKE '%alacak%' THEN 'alacak kaydı'
-                  WHEN LOWER(ut.type) LIKE '%maas%' OR LOWER(ut.type) LIKE '%maaş%' THEN 'maaş ödemesi'
-                  WHEN LOWER(ut.type) LIKE '%prim%' OR LOWER(ut.type) LIKE '%bonus%' THEN 'prim'
-                  WHEN LOWER(ut.type) LIKE '%avans%' THEN 'avans'
-                  WHEN LOWER(ut.type) LIKE '%kesinti%' THEN 'kesinti'
-                  WHEN LOWER(ut.type) LIKE '%tahsilat%' THEN (CASE WHEN ut.credit > ut.debt THEN 'tahsilat' ELSE 'ödeme' END)
-                  ELSE (CASE WHEN ut.credit > ut.debt THEN 'girdi' ELSE 'çıktı' END)
-                END LIKE @search
-              )
-              OR LOWER(COALESCE(ut.type, '')) LIKE @search
-              -- Tarih Formatlı Arama (DD.MM.YYYY HH:MM)
-              OR TO_CHAR(ut.date::timestamp, 'DD.MM.YYYY HH24:MI') LIKE @search
-              OR TO_CHAR(ut.date::timestamp, 'DD.MM') LIKE @search
-              OR TO_CHAR(ut.date::timestamp, 'HH24:MI') LIKE @search
-              OR LOWER(COALESCE(ut.date::text, '')) LIKE @search
-              OR CAST(COALESCE(ut.debt, 0) AS TEXT) LIKE @search
-              OR CAST(COALESCE(ut.credit, 0) AS TEXT) LIKE @search
-            )
-          )
-        )
-      ''');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-    }
-
-    if (baslangicTarihi != null) {
-      conditions.add("TO_DATE(hire_date, 'DD.MM.YYYY') >= @startDate");
-      params['startDate'] = baslangicTarihi;
-    }
-
-    if (bitisTarihi != null) {
-      conditions.add("TO_DATE(hire_date, 'DD.MM.YYYY') <= @endDate");
-      params['endDate'] = bitisTarihi;
-    }
-
-    if (rol != null && rol.isNotEmpty) {
-      conditions.add('role = @role');
-      params['role'] = rol;
-    }
-
-    if (aktifMi != null) {
-      conditions.add('is_active = @isActive');
-      params['isActive'] = aktifMi ? 1 : 0;
-    }
-
-    if (lastId != null && lastId.isNotEmpty) {
-      conditions.add('id > @lastId');
-      params['lastId'] = lastId;
-    }
-
-    String whereClause = '';
-    if (conditions.isNotEmpty) {
-      whereClause = ' WHERE ${conditions.join(' AND ')}';
-    }
-
-    String query =
-        '''
-      $selectClause
-      FROM users
-      $whereClause
-      ORDER BY id LIMIT @limit
-    ''';
-
-    params['limit'] = sayfaBasinaKayit;
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
+    final result = await _pool!.execute(
+      Sql.named('''
+        ${queryParts.selectClause}
+        FROM users
+        ${_whereClause(queryParts.conditions)}
+        ORDER BY users.id ASC
+        LIMIT @limit
+      '''),
+      parameters: params,
+    );
     return result.map((row) {
       final map = row.toColumnMap();
       return KullaniciModel.fromMap(map);
@@ -1720,89 +2169,22 @@ class AyarlarVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
+    final queryParts = _buildUserQueryParts(
+      aramaTerimi: aramaTerimi,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      rol: rol,
+      aktifMi: aktifMi,
+      includeLastId: false,
+    );
 
-    String query = 'SELECT COUNT(*) FROM users';
-    List<String> conditions = [];
-    Map<String, dynamic> params = {};
-
-    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      // Derin arama: kullanıcı alanları VE işlem alanları
-      conditions.add('''
-        (
-          LOWER(COALESCE(username, '')) LIKE @search 
-          OR LOWER(COALESCE(name, '')) LIKE @search 
-          OR LOWER(COALESCE(surname, '')) LIKE @search 
-          OR LOWER(COALESCE(email, '')) LIKE @search 
-          OR LOWER(COALESCE(phone, '')) LIKE @search
-          OR LOWER(COALESCE(role, '')) LIKE @search
-          OR LOWER(COALESCE(position, '')) LIKE @search
-          OR LOWER(COALESCE(address, '')) LIKE @search
-          OR LOWER(COALESCE(info1, '')) LIKE @search
-          OR LOWER(COALESCE(info2, '')) LIKE @search
-          OR LOWER(COALESCE(hire_date, '')) LIKE @search
-          OR LOWER(COALESCE(salary_currency, '')) LIKE @search
-          OR CAST(COALESCE(salary, 0) AS TEXT) LIKE @search
-          OR CAST(COALESCE(balance_debt, 0) AS TEXT) LIKE @search
-          OR CAST(COALESCE(balance_credit, 0) AS TEXT) LIKE @search
-          OR EXISTS (
-            SELECT 1 FROM user_transactions ut 
-            WHERE ut.user_id = users.id 
-            AND (
-              LOWER(COALESCE(ut.description, '')) LIKE @search
-              -- İşlem Tipi Çevirisi (Display Name) ile Arama
-              OR (
-                CASE 
-                  WHEN LOWER(ut.type) LIKE '%odeme%' OR LOWER(ut.type) LIKE '%ödeme%' THEN 'ödeme'
-                  WHEN LOWER(ut.type) LIKE '%alacak%' THEN 'alacak kaydı'
-                  WHEN LOWER(ut.type) LIKE '%maas%' OR LOWER(ut.type) LIKE '%maaş%' THEN 'maaş ödemesi'
-                  WHEN LOWER(ut.type) LIKE '%prim%' OR LOWER(ut.type) LIKE '%bonus%' THEN 'prim'
-                  WHEN LOWER(ut.type) LIKE '%avans%' THEN 'avans'
-                  WHEN LOWER(ut.type) LIKE '%kesinti%' THEN 'kesinti'
-                  WHEN LOWER(ut.type) LIKE '%tahsilat%' THEN (CASE WHEN ut.credit > ut.debt THEN 'tahsilat' ELSE 'ödeme' END)
-                  ELSE (CASE WHEN ut.credit > ut.debt THEN 'girdi' ELSE 'çıktı' END)
-                END LIKE @search
-              )
-              OR LOWER(COALESCE(ut.type, '')) LIKE @search
-              -- Tarih Formatlı Arama (DD.MM.YYYY HH:MM)
-              OR TO_CHAR(ut.date::timestamp, 'DD.MM.YYYY HH24:MI') LIKE @search
-              OR TO_CHAR(ut.date::timestamp, 'DD.MM') LIKE @search
-              OR TO_CHAR(ut.date::timestamp, 'HH24:MI') LIKE @search
-              OR LOWER(COALESCE(ut.date::text, '')) LIKE @search
-              OR CAST(COALESCE(ut.debt, 0) AS TEXT) LIKE @search
-              OR CAST(COALESCE(ut.credit, 0) AS TEXT) LIKE @search
-            )
-          )
-        )
-      ''');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-    }
-
-    if (baslangicTarihi != null) {
-      conditions.add("TO_DATE(hire_date, 'DD.MM.YYYY') >= @startDate");
-      params['startDate'] = baslangicTarihi;
-    }
-
-    if (bitisTarihi != null) {
-      conditions.add("TO_DATE(hire_date, 'DD.MM.YYYY') <= @endDate");
-      params['endDate'] = bitisTarihi;
-    }
-
-    if (rol != null && rol.isNotEmpty) {
-      conditions.add('role = @role');
-      params['role'] = rol;
-    }
-
-    if (aktifMi != null) {
-      conditions.add('is_active = @isActive');
-      params['isActive'] = aktifMi ? 1 : 0;
-    }
-
-    if (conditions.isNotEmpty) {
-      query += ' WHERE ${conditions.join(' AND ')}';
-    }
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'users',
+      whereConditions: queryParts.conditions,
+      params: queryParts.params,
+      unfilteredTable: 'users',
+    );
   }
 
   Future<int> rolKullaniciSayisiGetir(String rol) async {
@@ -1834,50 +2216,52 @@ class AyarlarVeritabaniServisi {
       bitisTarihi: bitisTarihi,
     );
 
-    // Tüm rolleri getir (listeyi dinamik tutmak için)
-    final rolesResult = await _pool!.execute(
-      Sql.named("SELECT DISTINCT COALESCE(role, '') AS role FROM users"),
+    final roleBase = _buildUserQueryParts(
+      aramaTerimi: aramaTerimi,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      aktifMi: aktifMi,
+      includeLastId: false,
     );
-    final roles = rolesResult
-        .map((r) => (r[0] ?? '').toString())
-        .map((r) => r.trim())
-        .where((r) => r.isNotEmpty)
-        .toSet()
-        .toList();
-
-    // Rol facet: mevcut aktiflik filtresine göre say
-    final roleEntries = await Future.wait(
-      roles.map((r) async {
-        final count = await kullaniciSayisiGetir(
-          aramaTerimi: aramaTerimi,
-          baslangicTarihi: baslangicTarihi,
-          bitisTarihi: bitisTarihi,
-          rol: r,
-          aktifMi: aktifMi,
-        );
-        return MapEntry(r, count);
-      }),
+    final roleRows = await _pool!.execute(
+      Sql.named('''
+        SELECT COALESCE(users.role, '') AS role, COUNT(*)::BIGINT AS adet
+        FROM users
+        ${_whereClause(roleBase.conditions)}
+        GROUP BY COALESCE(users.role, '')
+      '''),
+      parameters: roleBase.params,
     );
+    final roleCounts = <String, int>{};
+    for (final row in roleRows) {
+      final roleName = (row[0] ?? '').toString().trim();
+      if (roleName.isEmpty) continue;
+      roleCounts[roleName] = num.tryParse(row[1].toString())?.toInt() ?? 0;
+    }
 
-    final roleCounts = <String, int>{
-      for (final e in roleEntries) e.key: e.value,
-    };
-
-    // Durum facet: mevcut rol filtresine göre say
-    final activeCount = await kullaniciSayisiGetir(
+    final statusBase = _buildUserQueryParts(
       aramaTerimi: aramaTerimi,
       baslangicTarihi: baslangicTarihi,
       bitisTarihi: bitisTarihi,
       rol: rol,
-      aktifMi: true,
+      includeLastId: false,
     );
-    final passiveCount = await kullaniciSayisiGetir(
-      aramaTerimi: aramaTerimi,
-      baslangicTarihi: baslangicTarihi,
-      bitisTarihi: bitisTarihi,
-      rol: rol,
-      aktifMi: false,
+    final statusRows = await _pool!.execute(
+      Sql.named('''
+        SELECT
+          SUM(CASE WHEN users.is_active = 1 THEN 1 ELSE 0 END)::BIGINT AS active_count,
+          SUM(CASE WHEN users.is_active = 0 THEN 1 ELSE 0 END)::BIGINT AS passive_count
+        FROM users
+        ${_whereClause(statusBase.conditions)}
+      '''),
+      parameters: statusBase.params,
     );
+    final activeCount = statusRows.isEmpty
+        ? 0
+        : num.tryParse(statusRows.first[0]?.toString() ?? '0')?.toInt() ?? 0;
+    final passiveCount = statusRows.isEmpty
+        ? 0
+        : num.tryParse(statusRows.first[1]?.toString() ?? '0')?.toInt() ?? 0;
 
     return {
       'ozet': {'toplam': toplam},
@@ -2030,29 +2414,23 @@ class AyarlarVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return [];
+    final parts = _buildSimpleSearchParts(
+      alias: 'r',
+      searchExpression: 'r.search_tags',
+      aramaTerimi: aramaTerimi,
+      lastId: lastId,
+    );
 
-    String query = 'SELECT * FROM roles';
-    final List<String> conditions = [];
-    final Map<String, dynamic> params = {};
-
-    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      conditions.add('LOWER(name) LIKE @search');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-    }
-
-    if (lastId != null && lastId.isNotEmpty) {
-      conditions.add('id > @lastId');
-      params['lastId'] = lastId;
-    }
-
-    if (conditions.isNotEmpty) {
-      query += ' WHERE ${conditions.join(' AND ')}';
-    }
-
-    query += ' ORDER BY id LIMIT @limit';
-    params['limit'] = sayfaBasinaKayit;
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
+    final result = await _pool!.execute(
+      Sql.named('''
+        SELECT *
+        FROM roles r
+        ${_whereClause(parts.conditions)}
+        ORDER BY r.id ASC
+        LIMIT @limit
+      '''),
+      parameters: {...parts.params, 'limit': sayfaBasinaKayit.clamp(1, 500)},
+    );
     return result.map((row) {
       final map = row.toColumnMap();
       return RolModel.fromMap(map);
@@ -2062,17 +2440,20 @@ class AyarlarVeritabaniServisi {
   Future<int> rolSayisiGetir({String? aramaTerimi}) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
+    final parts = _buildSimpleSearchParts(
+      alias: 'roles',
+      searchExpression: 'roles.search_tags',
+      aramaTerimi: aramaTerimi,
+      includeLastId: false,
+    );
 
-    String query = 'SELECT COUNT(*) FROM roles';
-    Map<String, dynamic> params = {};
-
-    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      query += ' WHERE LOWER(name) LIKE @search';
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-    }
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'roles',
+      whereConditions: parts.conditions,
+      params: parts.params,
+      unfilteredTable: 'roles',
+    );
   }
 
   Future<void> rolEkle(RolModel r) async {
@@ -2121,29 +2502,23 @@ class AyarlarVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return [];
+    final parts = _buildSimpleSearchParts(
+      alias: 'cs',
+      searchExpression: 'cs.search_tags',
+      aramaTerimi: aramaTerimi,
+      lastId: lastId,
+    );
 
-    String query = 'SELECT * FROM company_settings';
-    final List<String> conditions = [];
-    final Map<String, dynamic> params = {};
-
-    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      conditions.add('(LOWER(kod) LIKE @search OR LOWER(ad) LIKE @search)');
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-    }
-
-    if (lastId != null && lastId > 0) {
-      conditions.add('id > @lastId');
-      params['lastId'] = lastId;
-    }
-
-    if (conditions.isNotEmpty) {
-      query += ' WHERE ${conditions.join(' AND ')}';
-    }
-
-    query += ' ORDER BY id LIMIT @limit';
-    params['limit'] = sayfaBasinaKayit;
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
+    final result = await _pool!.execute(
+      Sql.named('''
+        SELECT *
+        FROM company_settings cs
+        ${_whereClause(parts.conditions)}
+        ORDER BY cs.id ASC
+        LIMIT @limit
+      '''),
+      parameters: {...parts.params, 'limit': sayfaBasinaKayit.clamp(1, 500)},
+    );
     return result.map((row) {
       final map = row.toColumnMap();
       return SirketAyarlariModel.fromMap(map);
@@ -2153,17 +2528,20 @@ class AyarlarVeritabaniServisi {
   Future<int> sirketSayisiGetir({String? aramaTerimi}) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
+    final parts = _buildSimpleSearchParts(
+      alias: 'company_settings',
+      searchExpression: 'company_settings.search_tags',
+      aramaTerimi: aramaTerimi,
+      includeLastId: false,
+    );
 
-    String query = 'SELECT COUNT(*) FROM company_settings';
-    Map<String, dynamic> params = {};
-
-    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      query += ' WHERE LOWER(kod) LIKE @search OR LOWER(ad) LIKE @search';
-      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-    }
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'company_settings',
+      whereConditions: parts.conditions,
+      params: parts.params,
+      unfilteredTable: 'company_settings',
+    );
   }
 
   Future<void> sirketEkle(SirketAyarlariModel s) async {

@@ -13,6 +13,7 @@ import 'veritabani_havuzu.dart';
 import 'kredi_kartlari_veritabani_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'lite_kisitlari.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 
 import '../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
@@ -177,23 +178,135 @@ class SenetlerVeritabaniServisi {
       )
     ''');
 
-    // Create Note Transactions Table
-    await _pool!.execute('''
-      CREATE TABLE IF NOT EXISTS note_transactions (
-        id BIGSERIAL PRIMARY KEY,
-        company_id TEXT,
-        note_id BIGINT,
-        date TIMESTAMP,
-        description TEXT,
-        amount NUMERIC(15, 2) DEFAULT 0,
-        type TEXT,
-        source_dest TEXT,
-        user_name TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        search_tags TEXT NOT NULL DEFAULT '',
-        integration_ref TEXT
-      )
-    ''');
+    // Create Note Transactions Table (Aylık partitioned)
+    try {
+      final txTableCheck = await _pool!.execute(
+        "SELECT relkind::text FROM pg_class WHERE relname = 'note_transactions' LIMIT 1",
+      );
+
+      bool shouldCreatePartitioned = true;
+      if (txTableCheck.isNotEmpty) {
+        final relkind = txTableCheck.first[0]?.toString().toLowerCase();
+        if (relkind == 'p') {
+          shouldCreatePartitioned = false;
+        } else {
+          await _pool!.execute(
+            'DROP TABLE IF EXISTS note_transactions_old CASCADE',
+          );
+          await _pool!.execute(
+            'ALTER TABLE note_transactions RENAME TO note_transactions_old',
+          );
+          try {
+            await _pool!.execute(
+              'ALTER SEQUENCE IF EXISTS note_transactions_id_seq RENAME TO note_transactions_old_id_seq',
+            );
+          } catch (_) {}
+        }
+      }
+
+      if (shouldCreatePartitioned) {
+        await _pool!.execute('''
+          CREATE TABLE IF NOT EXISTS note_transactions (
+            id BIGSERIAL,
+            company_id TEXT,
+            note_id BIGINT,
+            date TIMESTAMP NOT NULL,
+            description TEXT,
+            amount NUMERIC(15, 2) DEFAULT 0,
+            type TEXT,
+            source_dest TEXT,
+            user_name TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            search_tags TEXT NOT NULL DEFAULT '',
+            integration_ref TEXT,
+            PRIMARY KEY (id, date)
+          ) PARTITION BY RANGE (date)
+        ''');
+
+        await _pool!.execute(
+          'CREATE TABLE IF NOT EXISTS note_transactions_default PARTITION OF note_transactions DEFAULT',
+        );
+
+        final now = DateTime.now();
+        final start = DateTime(now.year, now.month, 1);
+        final end = now.month == 12
+            ? DateTime(now.year + 1, 1, 1)
+            : DateTime(now.year, now.month + 1, 1);
+        final monthStr = now.month.toString().padLeft(2, '0');
+        final startStr =
+            '${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}-01 00:00:00';
+        final endStr =
+            '${end.year.toString().padLeft(4, '0')}-${end.month.toString().padLeft(2, '0')}-01 00:00:00';
+        await _pool!.execute(
+          "CREATE TABLE IF NOT EXISTS note_transactions_y${now.year}_m$monthStr PARTITION OF note_transactions FOR VALUES FROM ('$startStr') TO ('$endStr')",
+        );
+      }
+
+      final oldExists = await _pool!.execute(
+        "SELECT 1 FROM pg_class WHERE relname = 'note_transactions_old' LIMIT 1",
+      );
+      if (oldExists.isNotEmpty) {
+        await _pool!.execute('''
+          INSERT INTO note_transactions (
+            id,
+            company_id,
+            note_id,
+            date,
+            description,
+            amount,
+            type,
+            source_dest,
+            user_name,
+            created_at,
+            search_tags,
+            integration_ref
+          )
+          SELECT
+            id,
+            company_id,
+            note_id,
+            COALESCE(date, created_at, CURRENT_TIMESTAMP),
+            description,
+            amount,
+            type,
+            source_dest,
+            user_name,
+            created_at,
+            COALESCE(search_tags, ''),
+            integration_ref
+          FROM note_transactions_old
+          ORDER BY id ASC
+        ''');
+        final maxIdResult = await _pool!.execute(
+          'SELECT COALESCE(MAX(id), 0) FROM note_transactions',
+        );
+        final maxId = maxIdResult.first[0];
+        if (maxId != null) {
+          await _pool!.execute(
+            "SELECT setval(pg_get_serial_sequence('note_transactions', 'id'), $maxId)",
+          );
+        }
+        await _pool!.execute('DROP TABLE note_transactions_old CASCADE');
+      }
+    } catch (e) {
+      debugPrint('note_transactions partition migration uyarısı: $e');
+      await _pool!.execute('''
+        CREATE TABLE IF NOT EXISTS note_transactions (
+          id BIGSERIAL PRIMARY KEY,
+          company_id TEXT,
+          note_id BIGINT,
+          date TIMESTAMP,
+          description TEXT,
+          amount NUMERIC(15, 2) DEFAULT 0,
+          type TEXT,
+          source_dest TEXT,
+          user_name TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          search_tags TEXT NOT NULL DEFAULT '',
+          integration_ref TEXT
+        )
+      ''');
+    }
 
     // Migration: company_id columns and search_tags
     try {
@@ -333,7 +446,8 @@ class SenetlerVeritabaniServisi {
     // Initial indeksleme: arka planda çalıştır (sayfa açılışını bloklama)
     // [100B SAFE] Varsayılan kapalı.
     final cfg = VeritabaniYapilandirma();
-    if (cfg.allowBackgroundDbMaintenance && cfg.allowBackgroundHeavyMaintenance) {
+    if (cfg.allowBackgroundDbMaintenance &&
+        cfg.allowBackgroundHeavyMaintenance) {
       Future(() async {
         await verileriIndeksle(forceUpdate: false);
       });
@@ -515,7 +629,8 @@ class SenetlerVeritabaniServisi {
     DateTime? bitisTarihi,
     String? islemTuru,
     int? senetId,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId, // [2026 KEYSET] Cursor pagination
   }) async {
     if (!_isInitialized) await baslat();
@@ -533,14 +648,12 @@ class SenetlerVeritabaniServisi {
                 normalize_text(COALESCE(promissory_notes.description, '')) LIKE @search OR
                 normalize_text(COALESCE(promissory_notes.user_name, '')) LIKE @search OR
                 normalize_text(COALESCE(promissory_notes.collection_status, '')) LIKE @search OR
-	                EXISTS (
-	                  SELECT 1 FROM note_transactions nt 
-	                  WHERE nt.note_id = promissory_notes.id 
-	                  AND COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId
-	                  AND (
-	                    nt.search_tags LIKE @search
-	                    OR to_tsvector('simple', nt.search_tags) @@ plainto_tsquery('simple', @fts)
-	                  )
+	                promissory_notes.id IN (
+	                  SELECT nt.note_id
+	                  FROM note_transactions nt
+	                  WHERE nt.search_tags LIKE @search
+	                    AND COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId
+	                  GROUP BY nt.note_id
 	                )
 	              )
 	              THEN 1 
@@ -558,28 +671,23 @@ class SenetlerVeritabaniServisi {
       "COALESCE(promissory_notes.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
-	      conditions.add('''
+    if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
+      conditions.add('''
 	        (
 	          (
 	            promissory_notes.search_tags LIKE @search
-	            OR to_tsvector('simple', promissory_notes.search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
 	          OR promissory_notes.id IN (
 	            SELECT nt.note_id
 	            FROM note_transactions nt
 	            WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId
-	            AND (
-	              nt.search_tags LIKE @search
-	              OR to_tsvector('simple', nt.search_tags) @@ plainto_tsquery('simple', @fts)
-	            )
+	            AND nt.search_tags LIKE @search
 	            GROUP BY nt.note_id
 	          )
 	        )
 	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaKelimesi)}%';
-	      params['fts'] = _normalizeTurkish(aramaKelimesi);
-	    }
+      params['search'] = '%${_normalizeTurkish(aramaKelimesi)}%';
+    }
 
     if (aktifMi != null) {
       conditions.add('promissory_notes.is_active = @isActive');
@@ -597,7 +705,7 @@ class SenetlerVeritabaniServisi {
         (islemTuru != null && islemTuru.isNotEmpty) ||
         (kullanici != null && kullanici.isNotEmpty)) {
       String existsQuery =
-          "EXISTS (SELECT 1 FROM note_transactions nt WHERE nt.note_id = promissory_notes.id AND COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId";
+          "promissory_notes.id IN (SELECT nt.note_id FROM note_transactions nt WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId";
 
       if (baslangicTarihi != null) {
         existsQuery += ' AND nt.date >= @startDate';
@@ -627,7 +735,7 @@ class SenetlerVeritabaniServisi {
         params['kullanici'] = kullanici;
       }
 
-      existsQuery += ')';
+      existsQuery += ' GROUP BY nt.note_id)';
       conditions.add(existsQuery);
     }
 
@@ -716,8 +824,8 @@ class SenetlerVeritabaniServisi {
       whereClause = ' WHERE ${conditions.join(' AND ')}';
     }
 
-	    String query =
-	        '''
+    String query =
+        '''
 	      $selectClause
 	      FROM promissory_notes
 	      $whereClause
@@ -725,9 +833,9 @@ class SenetlerVeritabaniServisi {
 	      LIMIT @limit
 	    ''';
 
-	    params['limit'] = sayfaBasinaKayit;
+    params['limit'] = sayfaBasinaKayit;
 
-	    final result = await _pool!.execute(Sql.named(query), parameters: params);
+    final result = await _pool!.execute(Sql.named(query), parameters: params);
 
     return result.map((row) {
       final map = row.toColumnMap();
@@ -753,8 +861,6 @@ class SenetlerVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
 
-    String query =
-        'SELECT COUNT(DISTINCT promissory_notes.id) FROM promissory_notes';
     List<String> conditions = [];
     Map<String, dynamic> params = {'companyId': _companyId};
 
@@ -762,28 +868,23 @@ class SenetlerVeritabaniServisi {
       "COALESCE(promissory_notes.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      conditions.add('''
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      conditions.add('''
 	        (
 	          (
 	            promissory_notes.search_tags LIKE @search
-	            OR to_tsvector('simple', promissory_notes.search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
 	          OR promissory_notes.id IN (
 	            SELECT nt.note_id
 	            FROM note_transactions nt
 	            WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId
-	            AND (
-	              nt.search_tags LIKE @search
-	              OR to_tsvector('simple', nt.search_tags) @@ plainto_tsquery('simple', @fts)
-	            )
+	            AND nt.search_tags LIKE @search
 	            GROUP BY nt.note_id
 	          )
 	        )
 	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+    }
 
     if (aktifMi != null) {
       conditions.add('promissory_notes.is_active = @isActive');
@@ -799,7 +900,7 @@ class SenetlerVeritabaniServisi {
         (islemTuru != null && islemTuru.isNotEmpty) ||
         (kullanici != null && kullanici.isNotEmpty)) {
       String existsQuery =
-          "EXISTS (SELECT 1 FROM note_transactions nt WHERE nt.note_id = promissory_notes.id AND COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId";
+          "promissory_notes.id IN (SELECT nt.note_id FROM note_transactions nt WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId";
 
       if (baslangicTarihi != null) {
         existsQuery += ' AND nt.date >= @startDate';
@@ -829,7 +930,7 @@ class SenetlerVeritabaniServisi {
         params['kullanici'] = kullanici;
       }
 
-      existsQuery += ')';
+      existsQuery += ' GROUP BY nt.note_id)';
       conditions.add(existsQuery);
     }
 
@@ -838,12 +939,13 @@ class SenetlerVeritabaniServisi {
       params['senetId'] = senetId;
     }
 
-    if (conditions.isNotEmpty) {
-      query += ' WHERE ${conditions.join(' AND ')}';
-    }
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'promissory_notes',
+      whereConditions: conditions,
+      params: params,
+      unfilteredTable: 'promissory_notes',
+    );
   }
 
   /// [2026 HYPER-SPEED] Dinamik filtre seçeneklerini ve sayıları getirir.
@@ -865,28 +967,23 @@ class SenetlerVeritabaniServisi {
       "COALESCE(promissory_notes.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      baseConditions.add('''
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      baseConditions.add('''
 	        (
 	          (
 	            promissory_notes.search_tags LIKE @search
-	            OR to_tsvector('simple', promissory_notes.search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
 	          OR promissory_notes.id IN (
 	            SELECT nt.note_id
 	            FROM note_transactions nt
 	            WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId
-	            AND (
-	              nt.search_tags LIKE @search
-	              OR to_tsvector('simple', nt.search_tags) @@ plainto_tsquery('simple', @fts)
-	            )
+	            AND nt.search_tags LIKE @search
 	            GROUP BY nt.note_id
 	          )
 	        )
 	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+    }
 
     // Transaction conditions used across facets (always includes company filter)
     String transactionFilters =
@@ -1064,8 +1161,7 @@ class SenetlerVeritabaniServisi {
     params['limit'] = limit.clamp(1, 5000);
 
     final result = await _pool!.execute(
-      Sql.named(
-        '''
+      Sql.named('''
         SELECT t.*,
                p.note_no as senet_no,
                p.customer_name as cari_adi,
@@ -1080,8 +1176,7 @@ class SenetlerVeritabaniServisi {
         $keyset
         ORDER BY t.created_at DESC, t.id DESC
         LIMIT @limit
-        ''',
-      ),
+        '''),
       parameters: params,
     );
 
@@ -1128,13 +1223,11 @@ class SenetlerVeritabaniServisi {
       params['lastId'] = lastId;
     }
 
-	    // Arama filtresi
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      query +=
-	          " AND (t.search_tags LIKE @search OR to_tsvector('simple', t.search_tags) @@ plainto_tsquery('simple', @fts))";
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+    // Arama filtresi
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      query += ' AND t.search_tags LIKE @search';
+      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+    }
 
     // İşlem türü filtresi
     if (islemTuru != null && islemTuru.isNotEmpty) {

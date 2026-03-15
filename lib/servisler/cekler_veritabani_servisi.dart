@@ -13,6 +13,7 @@ import 'veritabani_yapilandirma.dart';
 import '../sayfalar/ceksenet/modeller/cek_model.dart';
 import 'veritabani_havuzu.dart';
 import 'kredi_kartlari_veritabani_servisi.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 
 import '../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
@@ -178,23 +179,135 @@ class CeklerVeritabaniServisi {
       )
     ''');
 
-    // Çek Hareketleri Tablosu (Giriş/Çıkış Tarihçesi)
-    await _pool!.execute('''
-      CREATE TABLE IF NOT EXISTS cheque_transactions (
-        id BIGSERIAL PRIMARY KEY,
-        company_id TEXT,
-        cheque_id BIGINT,
-        date TIMESTAMP,
-        description TEXT,
-        amount NUMERIC(15, 2) DEFAULT 0,
-        type TEXT, -- Giriş, Çıkış, Tahsilat, Ödeme, Ciro
-        source_dest TEXT, -- Kime/Kimden (Kasa, Banka, Cari Adı)
-        user_name TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        search_tags TEXT NOT NULL DEFAULT '',
-        integration_ref TEXT
-      )
-    ''');
+    // Çek Hareketleri Tablosu (Aylık partitioned)
+    try {
+      final txTableCheck = await _pool!.execute(
+        "SELECT relkind::text FROM pg_class WHERE relname = 'cheque_transactions' LIMIT 1",
+      );
+
+      bool shouldCreatePartitioned = true;
+      if (txTableCheck.isNotEmpty) {
+        final relkind = txTableCheck.first[0]?.toString().toLowerCase();
+        if (relkind == 'p') {
+          shouldCreatePartitioned = false;
+        } else {
+          await _pool!.execute(
+            'DROP TABLE IF EXISTS cheque_transactions_old CASCADE',
+          );
+          await _pool!.execute(
+            'ALTER TABLE cheque_transactions RENAME TO cheque_transactions_old',
+          );
+          try {
+            await _pool!.execute(
+              'ALTER SEQUENCE IF EXISTS cheque_transactions_id_seq RENAME TO cheque_transactions_old_id_seq',
+            );
+          } catch (_) {}
+        }
+      }
+
+      if (shouldCreatePartitioned) {
+        await _pool!.execute('''
+          CREATE TABLE IF NOT EXISTS cheque_transactions (
+            id BIGSERIAL,
+            company_id TEXT,
+            cheque_id BIGINT,
+            date TIMESTAMP NOT NULL,
+            description TEXT,
+            amount NUMERIC(15, 2) DEFAULT 0,
+            type TEXT,
+            source_dest TEXT,
+            user_name TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            search_tags TEXT NOT NULL DEFAULT '',
+            integration_ref TEXT,
+            PRIMARY KEY (id, date)
+          ) PARTITION BY RANGE (date)
+        ''');
+
+        await _pool!.execute(
+          'CREATE TABLE IF NOT EXISTS cheque_transactions_default PARTITION OF cheque_transactions DEFAULT',
+        );
+
+        final now = DateTime.now();
+        final start = DateTime(now.year, now.month, 1);
+        final end = now.month == 12
+            ? DateTime(now.year + 1, 1, 1)
+            : DateTime(now.year, now.month + 1, 1);
+        final monthStr = now.month.toString().padLeft(2, '0');
+        final startStr =
+            '${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}-01 00:00:00';
+        final endStr =
+            '${end.year.toString().padLeft(4, '0')}-${end.month.toString().padLeft(2, '0')}-01 00:00:00';
+        await _pool!.execute(
+          "CREATE TABLE IF NOT EXISTS cheque_transactions_y${now.year}_m$monthStr PARTITION OF cheque_transactions FOR VALUES FROM ('$startStr') TO ('$endStr')",
+        );
+      }
+
+      final oldExists = await _pool!.execute(
+        "SELECT 1 FROM pg_class WHERE relname = 'cheque_transactions_old' LIMIT 1",
+      );
+      if (oldExists.isNotEmpty) {
+        await _pool!.execute('''
+          INSERT INTO cheque_transactions (
+            id,
+            company_id,
+            cheque_id,
+            date,
+            description,
+            amount,
+            type,
+            source_dest,
+            user_name,
+            created_at,
+            search_tags,
+            integration_ref
+          )
+          SELECT
+            id,
+            company_id,
+            cheque_id,
+            COALESCE(date, created_at, CURRENT_TIMESTAMP),
+            description,
+            amount,
+            type,
+            source_dest,
+            user_name,
+            created_at,
+            COALESCE(search_tags, ''),
+            integration_ref
+          FROM cheque_transactions_old
+          ORDER BY id ASC
+        ''');
+        final maxIdResult = await _pool!.execute(
+          'SELECT COALESCE(MAX(id), 0) FROM cheque_transactions',
+        );
+        final maxId = maxIdResult.first[0];
+        if (maxId != null) {
+          await _pool!.execute(
+            "SELECT setval(pg_get_serial_sequence('cheque_transactions', 'id'), $maxId)",
+          );
+        }
+        await _pool!.execute('DROP TABLE cheque_transactions_old CASCADE');
+      }
+    } catch (e) {
+      debugPrint('cheque_transactions partition migration uyarısı: $e');
+      await _pool!.execute('''
+        CREATE TABLE IF NOT EXISTS cheque_transactions (
+          id BIGSERIAL PRIMARY KEY,
+          company_id TEXT,
+          cheque_id BIGINT,
+          date TIMESTAMP,
+          description TEXT,
+          amount NUMERIC(15, 2) DEFAULT 0,
+          type TEXT,
+          source_dest TEXT,
+          user_name TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          search_tags TEXT NOT NULL DEFAULT '',
+          integration_ref TEXT
+        )
+      ''');
+    }
 
     // Migration: Eksik kolon varsa ekle
     try {
@@ -337,7 +450,8 @@ class CeklerVeritabaniServisi {
     // Initial indeksleme: arka planda çalıştır (sayfa açılışını bloklama)
     // [100B SAFE] Varsayılan kapalı.
     final cfg = VeritabaniYapilandirma();
-    if (cfg.allowBackgroundDbMaintenance && cfg.allowBackgroundHeavyMaintenance) {
+    if (cfg.allowBackgroundDbMaintenance &&
+        cfg.allowBackgroundHeavyMaintenance) {
       Future(() async {
         await verileriIndeksle(forceUpdate: false);
       });
@@ -516,7 +630,8 @@ class CeklerVeritabaniServisi {
     DateTime? bitisTarihi,
     String? islemTuru,
     int? cekId,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId, // [2026 KEYSET] Cursor pagination
   }) async {
     if (!_isInitialized) await baslat();
@@ -527,22 +642,20 @@ class CeklerVeritabaniServisi {
 
     if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
       // Eşleşme detaydaysa yakala
-      selectClause +=
-          '''
+	      selectClause +=
+	          '''
           , (CASE 
               WHEN (
                 normalize_text(COALESCE(cheques.customer_code, '')) LIKE @search OR
                 normalize_text(COALESCE(cheques.description, '')) LIKE @search OR
                 normalize_text(COALESCE(cheques.user_name, '')) LIKE @search OR
                 normalize_text(COALESCE(cheques.collection_status, '')) LIKE @search OR
-	                EXISTS (
-	                  SELECT 1 FROM cheque_transactions ct 
-	                  WHERE ct.cheque_id = cheques.id 
-	                  AND COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId
-	                  AND (
-	                    ct.search_tags LIKE @search
-	                    OR to_tsvector('simple', ct.search_tags) @@ plainto_tsquery('simple', @fts)
-	                  )
+	                cheques.id IN (
+	                  SELECT ct.cheque_id
+	                  FROM cheque_transactions ct
+	                  WHERE ct.search_tags LIKE @search
+	                    AND COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId
+	                  GROUP BY ct.cheque_id
 	                )
 	              )
 	              THEN 1 
@@ -560,28 +673,23 @@ class CeklerVeritabaniServisi {
       "COALESCE(cheques.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
-	      conditions.add('''
+    if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
+      conditions.add('''
 	        (
 	          (
 	            cheques.search_tags LIKE @search
-	            OR to_tsvector('simple', cheques.search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
 	          OR cheques.id IN (
 	            SELECT ct.cheque_id
 	            FROM cheque_transactions ct
 	            WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId
-	            AND (
-	              ct.search_tags LIKE @search
-	              OR to_tsvector('simple', ct.search_tags) @@ plainto_tsquery('simple', @fts)
-	            )
+	            AND ct.search_tags LIKE @search
 	            GROUP BY ct.cheque_id
 	          )
 	        )
 	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaKelimesi)}%';
-	      params['fts'] = _normalizeTurkish(aramaKelimesi);
-	    }
+      params['search'] = '%${_normalizeTurkish(aramaKelimesi)}%';
+    }
 
     if (aktifMi != null) {
       conditions.add('cheques.is_active = @isActive');
@@ -604,7 +712,7 @@ class CeklerVeritabaniServisi {
         (islemTuru != null && islemTuru.isNotEmpty) ||
         (kullanici != null && kullanici.isNotEmpty)) {
       String existsQuery =
-          "EXISTS (SELECT 1 FROM cheque_transactions ct WHERE ct.cheque_id = cheques.id AND COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId";
+          "cheques.id IN (SELECT ct.cheque_id FROM cheque_transactions ct WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId";
 
       if (baslangicTarihi != null) {
         existsQuery += ' AND ct.date >= @startDate';
@@ -634,7 +742,7 @@ class CeklerVeritabaniServisi {
         params['kullanici'] = kullanici;
       }
 
-      existsQuery += ')';
+      existsQuery += ' GROUP BY ct.cheque_id)';
       conditions.add(existsQuery);
     }
 
@@ -718,8 +826,8 @@ class CeklerVeritabaniServisi {
       whereClause = ' WHERE ${conditions.join(' AND ')}';
     }
 
-	    String query =
-	        '''
+    String query =
+        '''
 	      $selectClause
 	      FROM cheques
 	      $whereClause
@@ -727,9 +835,9 @@ class CeklerVeritabaniServisi {
 	      LIMIT @limit
 	    ''';
 
-	    params['limit'] = sayfaBasinaKayit;
+    params['limit'] = sayfaBasinaKayit;
 
-	    final result = await _pool!.execute(Sql.named(query), parameters: params);
+    final result = await _pool!.execute(Sql.named(query), parameters: params);
 
     return result.map((row) {
       final map = row.toColumnMap();
@@ -753,7 +861,6 @@ class CeklerVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
 
-    String query = 'SELECT COUNT(DISTINCT cheques.id) FROM cheques';
     List<String> conditions = [];
     Map<String, dynamic> params = {'companyId': _companyId};
 
@@ -761,28 +868,23 @@ class CeklerVeritabaniServisi {
       "COALESCE(cheques.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      conditions.add('''
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      conditions.add('''
 	        (
 	          (
 	            cheques.search_tags LIKE @search
-	            OR to_tsvector('simple', cheques.search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
 	          OR cheques.id IN (
 	            SELECT ct.cheque_id
 	            FROM cheque_transactions ct
 	            WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId
-	            AND (
-	              ct.search_tags LIKE @search
-	              OR to_tsvector('simple', ct.search_tags) @@ plainto_tsquery('simple', @fts)
-	            )
+	            AND ct.search_tags LIKE @search
 	            GROUP BY ct.cheque_id
 	          )
 	        )
 	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+    }
 
     if (aktifMi != null) {
       conditions.add('cheques.is_active = @isActive');
@@ -798,7 +900,7 @@ class CeklerVeritabaniServisi {
         (islemTuru != null && islemTuru.isNotEmpty) ||
         (kullanici != null && kullanici.isNotEmpty)) {
       String existsQuery =
-          "EXISTS (SELECT 1 FROM cheque_transactions ct WHERE ct.cheque_id = cheques.id AND COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId";
+          "cheques.id IN (SELECT ct.cheque_id FROM cheque_transactions ct WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId";
 
       if (baslangicTarihi != null) {
         existsQuery += ' AND ct.date >= @startDate';
@@ -828,7 +930,7 @@ class CeklerVeritabaniServisi {
         params['kullanici'] = kullanici;
       }
 
-      existsQuery += ')';
+      existsQuery += ' GROUP BY ct.cheque_id)';
       conditions.add(existsQuery);
     }
 
@@ -837,12 +939,13 @@ class CeklerVeritabaniServisi {
       params['cekId'] = cekId;
     }
 
-    if (conditions.isNotEmpty) {
-      query += ' WHERE ${conditions.join(' AND ')}';
-    }
-
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'cheques',
+      whereConditions: conditions,
+      params: params,
+      unfilteredTable: 'cheques',
+    );
   }
 
   /// [2026 HYPER-SPEED] Dinamik filtre seçeneklerini ve sayıları getirir.
@@ -864,28 +967,23 @@ class CeklerVeritabaniServisi {
       "COALESCE(cheques.company_id, '$_defaultCompanyId') = @companyId",
     );
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      baseConditions.add('''
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      baseConditions.add('''
 	        (
 	          (
 	            cheques.search_tags LIKE @search
-	            OR to_tsvector('simple', cheques.search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
 	          OR cheques.id IN (
 	            SELECT ct.cheque_id
 	            FROM cheque_transactions ct
 	            WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId
-	            AND (
-	              ct.search_tags LIKE @search
-	              OR to_tsvector('simple', ct.search_tags) @@ plainto_tsquery('simple', @fts)
-	            )
+	            AND ct.search_tags LIKE @search
 	            GROUP BY ct.cheque_id
 	          )
 	        )
 	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+    }
 
     // Transaction conditions used across facets (always includes company filter)
     String transactionFilters =
@@ -973,14 +1071,15 @@ class CeklerVeritabaniServisi {
       userParams['islemTuru'] = islemTuru;
     }
 
+    final totalCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'cheques',
+      whereConditions: baseConditions,
+      params: params,
+      unfilteredTable: 'cheques',
+    );
+
     final results = await Future.wait([
-      // Toplam (search + tarih aralığı bazında)
-      _pool!.execute(
-        Sql.named(
-          'SELECT COUNT(*) FROM cheques ${baseConditions.isNotEmpty ? 'WHERE ${baseConditions.join(' AND ')}' : ''}',
-        ),
-        parameters: params,
-      ),
       // Bankalar
       _pool!.execute(
         Sql.named(buildQuery('bank, COUNT(*)', bankConds)),
@@ -1013,25 +1112,25 @@ class CeklerVeritabaniServisi {
     ]);
 
     Map<String, Map<String, int>> stats = {
-      'ozet': {'toplam': results[0][0][0] as int},
+      'ozet': {'toplam': totalCount},
       'bankalar': {},
       'islem_turleri': {},
       'kullanicilar': {},
     };
 
-    for (final row in results[1]) {
+    for (final row in results[0]) {
       if (row[0] != null) {
         stats['bankalar']![row[0] as String] = row[1] as int;
       }
     }
 
-    for (final row in results[2]) {
+    for (final row in results[1]) {
       if (row[0] != null) {
         stats['islem_turleri']![row[0] as String] = row[1] as int;
       }
     }
 
-    for (final row in results[3]) {
+    for (final row in results[2]) {
       if (row[0] != null) {
         stats['kullanicilar']![row[0] as String] = row[1] as int;
       }
@@ -1063,8 +1162,7 @@ class CeklerVeritabaniServisi {
     params['limit'] = limit.clamp(1, 5000);
 
     final result = await _pool!.execute(
-      Sql.named(
-        '''
+      Sql.named('''
         SELECT t.*,
                c.check_no as cek_no,
                c.customer_name as cari_adi,
@@ -1079,8 +1177,7 @@ class CeklerVeritabaniServisi {
         $keyset
         ORDER BY t.created_at DESC, t.id DESC
         LIMIT @limit
-        ''',
-      ),
+        '''),
       parameters: params,
     );
 
@@ -1116,12 +1213,10 @@ class CeklerVeritabaniServisi {
       params['lastId'] = lastId;
     }
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      query +=
-	          " AND (t.search_tags LIKE @search OR to_tsvector('simple', t.search_tags) @@ plainto_tsquery('simple', @fts))";
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      query += ' AND t.search_tags LIKE @search';
+      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+    }
 
     // İşlem türü filtresi
     if (islemTuru != null && islemTuru.isNotEmpty) {

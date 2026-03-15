@@ -19,6 +19,7 @@ import 'taksit_veritabani_servisi.dart';
 import 'ayarlar_veritabani_servisi.dart';
 import 'lisans_yazma_koruma.dart';
 import 'lite_kisitlari.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import '../yardimcilar/format_yardimcisi.dart';
 import '../yardimcilar/islem_turu_renkleri.dart';
 
@@ -272,7 +273,8 @@ class CariHesaplarVeritabaniServisi {
         //
         // [100B SAFE] search_tags backfill döngülerini default kapalı tut.
         final cfg = VeritabaniYapilandirma();
-        if (cfg.allowBackgroundDbMaintenance && cfg.allowBackgroundHeavyMaintenance) {
+        if (cfg.allowBackgroundDbMaintenance &&
+            cfg.allowBackgroundHeavyMaintenance) {
           unawaited(verileriIndeksle(forceUpdate: false).catchError((_) {}));
         }
       } else {
@@ -495,7 +497,9 @@ class CariHesaplarVeritabaniServisi {
   }
 
   Future<Pool> _poolOlustur() async {
-    return VeritabaniHavuzu().havuzAl(database: OturumServisi().aktifVeritabaniAdi);
+    return VeritabaniHavuzu().havuzAl(
+      database: OturumServisi().aktifVeritabaniAdi,
+    );
   }
 
   Future<Connection?> _yoneticiBaglantisiAl() async {
@@ -679,7 +683,10 @@ class CariHesaplarVeritabaniServisi {
       try {
         await PgEklentiler.ensurePgSearch(_pool!);
       } catch (_) {}
-      await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'current_accounts');
+      await PgEklentiler.ensureSearchTagsNotNullDefault(
+        _pool!,
+        'current_accounts',
+      );
       await PgEklentiler.ensureSearchTagsNotNullDefault(
         _pool!,
         'current_account_transactions',
@@ -1089,7 +1096,9 @@ class CariHesaplarVeritabaniServisi {
     }
   }
 
-  Future<void> _backfillCurrentAccountTransactionsDefault({Session? session}) async {
+  Future<void> _backfillCurrentAccountTransactionsDefault({
+    Session? session,
+  }) async {
     if (_pool == null && session == null) return;
     final executor = session ?? _pool!;
 
@@ -1432,6 +1441,59 @@ class CariHesaplarVeritabaniServisi {
       \$\$ LANGUAGE plpgsql;
     ''');
 
+    await _pool!.execute('''
+      CREATE OR REPLACE FUNCTION update_current_account_search_tags() RETURNS TRIGGER AS \$\$
+      BEGIN
+        NEW.search_tags = normalize_text(
+          '$_searchTagsVersionPrefix ' ||
+          COALESCE(NEW.kod_no, '') || ' ' ||
+          COALESCE(NEW.adi, '') || ' ' ||
+          COALESCE(NEW.hesap_turu, '') || ' ' ||
+          CAST(NEW.id AS TEXT) || ' ' ||
+          (CASE WHEN COALESCE(NEW.aktif_mi, 0) = 1 THEN 'aktif' ELSE 'pasif' END) || ' ' ||
+          COALESCE(CAST(NEW.bakiye_borc AS TEXT), '') || ' ' ||
+          COALESCE(CAST(NEW.bakiye_alacak AS TEXT), '') || ' ' ||
+          COALESCE(NEW.fat_unvani, '') || ' ' ||
+          COALESCE(NEW.fat_adresi, '') || ' ' ||
+          COALESCE(NEW.fat_ilce, '') || ' ' ||
+          COALESCE(NEW.fat_sehir, '') || ' ' ||
+          COALESCE(NEW.posta_kodu, '') || ' ' ||
+          COALESCE(NEW.v_dairesi, '') || ' ' ||
+          COALESCE(NEW.v_numarasi, '') || ' ' ||
+          COALESCE(NEW.sf_grubu, '') || ' ' ||
+          COALESCE(CAST(NEW.s_iskonto AS TEXT), '') || ' ' ||
+          COALESCE(CAST(NEW.vade_gun AS TEXT), '') || ' ' ||
+          COALESCE(CAST(NEW.risk_limiti AS TEXT), '') || ' ' ||
+          COALESCE(NEW.para_birimi, '') || ' ' ||
+          COALESCE(NEW.bakiye_durumu, '') || ' ' ||
+          COALESCE(NEW.telefon1, '') || ' ' ||
+          COALESCE(NEW.telefon2, '') || ' ' ||
+          COALESCE(NEW.eposta, '') || ' ' ||
+          COALESCE(NEW.web_adresi, '') || ' ' ||
+          COALESCE(NEW.bilgi1, '') || ' ' ||
+          COALESCE(NEW.bilgi2, '') || ' ' ||
+          COALESCE(NEW.bilgi3, '') || ' ' ||
+          COALESCE(NEW.bilgi4, '') || ' ' ||
+          COALESCE(NEW.bilgi5, '') || ' ' ||
+          COALESCE(NEW.sevk_adresleri, '') || ' ' ||
+          COALESCE(NEW.renk, '') || ' ' ||
+          COALESCE(NEW.created_by, '')
+        );
+        RETURN NEW;
+      END;
+      \$\$ LANGUAGE plpgsql;
+    ''');
+    try {
+      await _pool!.execute(
+        'DROP TRIGGER IF EXISTS trg_update_current_account_search_tags ON current_accounts',
+      );
+    } catch (_) {}
+    await _pool!.execute('''
+      CREATE TRIGGER trg_update_current_account_search_tags
+      BEFORE INSERT OR UPDATE ON current_accounts
+      FOR EACH ROW EXECUTE FUNCTION update_current_account_search_tags();
+    ''');
+
     // 2.2 [PERF 2026] Cari `search_tags` artık hareketlerden türetilmiyor.
     // Eski sürümden kalan "transaction -> cari search_tags refresh" trigger'ı yazma yükünü katlar.
     // (100M+ hareket senaryosunda her INSERT'te ayrıca UPDATE current_accounts çalışır.)
@@ -1519,7 +1581,8 @@ class CariHesaplarVeritabaniServisi {
     DateTime? bitisTarihi,
     String? islemTuru,
     String? kullanici,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId,
   }) async {
     if (!_isInitialized) await baslat();
@@ -1584,15 +1647,11 @@ class CariHesaplarVeritabaniServisi {
       if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
         selectClause += '''
             , (CASE 
-	                WHEN EXISTS (
-	                  SELECT 1
+	                WHEN id IN (
+	                  SELECT cat.current_account_id
 	                  FROM current_account_transactions cat
-	                  WHERE cat.current_account_id = current_accounts.id
-	                    AND (
-	                      cat.search_tags LIKE @search
-	                      OR to_tsvector('simple', cat.search_tags) @@ plainto_tsquery('simple', @fts)
-	                    )
-	                  LIMIT 1
+	                  WHERE cat.search_tags LIKE @search
+	                  GROUP BY cat.current_account_id
 	                )
                 THEN true 
                 ELSE false 
@@ -1609,28 +1668,23 @@ class CariHesaplarVeritabaniServisi {
     List<String> whereConditions = [];
     Map<String, dynamic> params = {};
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      whereConditions.add('''
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      whereConditions.add('''
 	        (
 	          (
 	            search_tags LIKE @search
-	            OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
-	          OR EXISTS (
-	            SELECT 1 FROM current_account_transactions cat
-	            WHERE cat.current_account_id = current_accounts.id
-	              AND (
-	                cat.search_tags LIKE @search
-	                OR to_tsvector('simple', cat.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
+	          OR id IN (
+	            SELECT cat.current_account_id
+	            FROM current_account_transactions cat
+	            WHERE cat.search_tags LIKE @search
+	            GROUP BY cat.current_account_id
 	          )
 	        )
 	      ''');
-	      // [2026 FIX] Normalize search term with ASCII-Mapping
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+      // [2026 FIX] Normalize search term with ASCII-Mapping
+      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+    }
 
     if (aktifMi != null) {
       whereConditions.add('aktif_mi = @aktifMi');
@@ -1658,9 +1712,10 @@ class CariHesaplarVeritabaniServisi {
 
     if (islemTuru != null) {
       whereConditions.add('''
-        EXISTS (
-          SELECT 1 FROM current_account_transactions cat 
-          WHERE cat.current_account_id = current_accounts.id 
+        id IN (
+          SELECT cat.current_account_id
+          FROM current_account_transactions cat
+          WHERE 1=1
           AND (
             cat.source_type = @islemTuru OR 
             get_professional_label(cat.source_type, 'cari', cat.type) = @islemTuru
@@ -1668,6 +1723,7 @@ class CariHesaplarVeritabaniServisi {
           ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
           ${baslangicTarihi != null ? 'AND cat.date >= @start' : ''}
           ${bitisTarihi != null ? 'AND cat.date < @end' : ''}
+          GROUP BY cat.current_account_id
         )
       ''');
       params['islemTuru'] = islemTuru;
@@ -1692,29 +1748,32 @@ class CariHesaplarVeritabaniServisi {
       if (islemTuru == null) {
         if (baslangicTarihi != null && bitisTarihi != null) {
           whereConditions.add('''
-            EXISTS (
-              SELECT 1 FROM current_account_transactions cat 
-              WHERE cat.current_account_id = current_accounts.id 
-              AND cat.date >= @start AND cat.date < @end
+            id IN (
+              SELECT cat.current_account_id
+              FROM current_account_transactions cat 
+              WHERE cat.date >= @start AND cat.date < @end
               ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
+              GROUP BY cat.current_account_id
             )
           ''');
         } else if (baslangicTarihi != null) {
           whereConditions.add('''
-            EXISTS (
-              SELECT 1 FROM current_account_transactions cat 
-              WHERE cat.current_account_id = current_accounts.id 
-              AND cat.date >= @start
+            id IN (
+              SELECT cat.current_account_id
+              FROM current_account_transactions cat 
+              WHERE cat.date >= @start
               ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
+              GROUP BY cat.current_account_id
             )
           ''');
         } else if (bitisTarihi != null) {
           whereConditions.add('''
-            EXISTS (
-              SELECT 1 FROM current_account_transactions cat 
-              WHERE cat.current_account_id = current_accounts.id 
-              AND cat.date < @end
+            id IN (
+              SELECT cat.current_account_id
+              FROM current_account_transactions cat 
+              WHERE cat.date < @end
               ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
+              GROUP BY cat.current_account_id
             )
           ''');
         }
@@ -1726,10 +1785,11 @@ class CariHesaplarVeritabaniServisi {
         baslangicTarihi == null &&
         bitisTarihi == null) {
       whereConditions.add('''
-        EXISTS (
-          SELECT 1 FROM current_account_transactions cat 
-          WHERE cat.current_account_id = current_accounts.id 
-          AND cat.user_name = @kullanici
+        id IN (
+          SELECT cat.current_account_id
+          FROM current_account_transactions cat 
+          WHERE cat.user_name = @kullanici
+          GROUP BY cat.current_account_id
         )
       ''');
     }
@@ -1831,27 +1891,22 @@ class CariHesaplarVeritabaniServisi {
     List<String> whereConditions = [];
     Map<String, dynamic> params = {};
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      whereConditions.add('''
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      whereConditions.add('''
 	        (
 	          (
 	            search_tags LIKE @search
-	            OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
-	          OR EXISTS (
-	            SELECT 1 FROM current_account_transactions cat
-	            WHERE cat.current_account_id = current_accounts.id
-	              AND (
-	                cat.search_tags LIKE @search
-	                OR to_tsvector('simple', cat.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
+	          OR id IN (
+	            SELECT cat.current_account_id
+	            FROM current_account_transactions cat
+	            WHERE cat.search_tags LIKE @search
+	            GROUP BY cat.current_account_id
 	          )
 	        )
 	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+    }
     if (aktifMi != null) {
       whereConditions.add('aktif_mi = @aktifMi');
       params['aktifMi'] = aktifMi ? 1 : 0;
@@ -1871,9 +1926,10 @@ class CariHesaplarVeritabaniServisi {
 
     if (islemTuru != null) {
       whereConditions.add('''
-        EXISTS (
-          SELECT 1 FROM current_account_transactions cat 
-          WHERE cat.current_account_id = current_accounts.id 
+        id IN (
+          SELECT cat.current_account_id
+          FROM current_account_transactions cat 
+          WHERE 1=1
           AND (
             cat.source_type = @islemTuru OR 
             get_professional_label(cat.source_type, 'cari', cat.type) = @islemTuru
@@ -1881,6 +1937,7 @@ class CariHesaplarVeritabaniServisi {
           ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
           ${baslangicTarihi != null ? 'AND cat.date >= @start' : ''}
           ${bitisTarihi != null ? 'AND cat.date < @end' : ''}
+          GROUP BY cat.current_account_id
         )
       ''');
       params['islemTuru'] = islemTuru;
@@ -1905,29 +1962,32 @@ class CariHesaplarVeritabaniServisi {
       if (islemTuru == null) {
         if (baslangicTarihi != null && bitisTarihi != null) {
           whereConditions.add('''
-            EXISTS (
-              SELECT 1 FROM current_account_transactions cat 
-              WHERE cat.current_account_id = current_accounts.id 
-              AND cat.date >= @start AND cat.date < @end
+            id IN (
+              SELECT cat.current_account_id
+              FROM current_account_transactions cat 
+              WHERE cat.date >= @start AND cat.date < @end
               ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
+              GROUP BY cat.current_account_id
             )
           ''');
         } else if (baslangicTarihi != null) {
           whereConditions.add('''
-            EXISTS (
-              SELECT 1 FROM current_account_transactions cat 
-              WHERE cat.current_account_id = current_accounts.id 
-              AND cat.date >= @start
+            id IN (
+              SELECT cat.current_account_id
+              FROM current_account_transactions cat 
+              WHERE cat.date >= @start
               ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
+              GROUP BY cat.current_account_id
             )
           ''');
         } else if (bitisTarihi != null) {
           whereConditions.add('''
-            EXISTS (
-              SELECT 1 FROM current_account_transactions cat 
-              WHERE cat.current_account_id = current_accounts.id 
-              AND cat.date < @end
+            id IN (
+              SELECT cat.current_account_id
+              FROM current_account_transactions cat 
+              WHERE cat.date < @end
               ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
+              GROUP BY cat.current_account_id
             )
           ''');
         }
@@ -1939,26 +1999,22 @@ class CariHesaplarVeritabaniServisi {
         baslangicTarihi == null &&
         bitisTarihi == null) {
       whereConditions.add('''
-        EXISTS (
-          SELECT 1 FROM current_account_transactions cat 
-          WHERE cat.current_account_id = current_accounts.id 
-          AND cat.user_name = @kullanici
+        id IN (
+          SELECT cat.current_account_id
+          FROM current_account_transactions cat 
+          WHERE cat.user_name = @kullanici
+          GROUP BY cat.current_account_id
         )
       ''');
     }
 
-    String whereClause = '';
-    if (whereConditions.isNotEmpty) {
-      whereClause = 'WHERE ${whereConditions.join(' AND ')}';
-    }
-
-    final results = await _pool!.execute(
-      Sql.named('SELECT COUNT(id) FROM current_accounts $whereClause'),
-      parameters: params,
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'current_accounts',
+      whereConditions: whereConditions,
+      params: params,
+      unfilteredTable: 'current_accounts',
     );
-
-    if (results.isEmpty) return 0;
-    return results.first[0] as int;
   }
 
   /// [2026 HYPER-SPEED] Dinamik filtre seçeneklerini ve sayılarını getirir.
@@ -1978,34 +2034,30 @@ class CariHesaplarVeritabaniServisi {
     Map<String, dynamic> params = {};
     List<String> baseConditions = [];
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      baseConditions.add('''
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      baseConditions.add('''
 	        (
 	          (
 	            search_tags LIKE @search
-	            OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
-	          OR EXISTS (
-	            SELECT 1 FROM current_account_transactions cat
-	            WHERE cat.current_account_id = current_accounts.id
-	              AND (
-	                cat.search_tags LIKE @search
-	                OR to_tsvector('simple', cat.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
+	          OR id IN (
+	            SELECT cat.current_account_id
+	            FROM current_account_transactions cat
+	            WHERE cat.search_tags LIKE @search
+	            GROUP BY cat.current_account_id
 	          )
 	        )
 	      ''');
-	      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
-	      params['fts'] = _normalizeTurkish(aramaTerimi);
-	    }
+      params['search'] = '%${_normalizeTurkish(aramaTerimi)}%';
+    }
 
     if (baslangicTarihi != null && bitisTarihi != null) {
       baseConditions.add('''
-        EXISTS (
-          SELECT 1 FROM current_account_transactions cat 
-          WHERE cat.current_account_id = current_accounts.id 
-          AND cat.date >= @start AND cat.date < @end
+        id IN (
+          SELECT cat.current_account_id
+          FROM current_account_transactions cat 
+          WHERE cat.date >= @start AND cat.date < @end
+          GROUP BY cat.current_account_id
         )
       ''');
       params['start'] = DateTime(
@@ -2020,10 +2072,11 @@ class CariHesaplarVeritabaniServisi {
       ).add(const Duration(days: 1)).toIso8601String();
     } else if (baslangicTarihi != null) {
       baseConditions.add('''
-        EXISTS (
-          SELECT 1 FROM current_account_transactions cat 
-          WHERE cat.current_account_id = current_accounts.id 
-          AND cat.date >= @start
+        id IN (
+          SELECT cat.current_account_id
+          FROM current_account_transactions cat 
+          WHERE cat.date >= @start
+          GROUP BY cat.current_account_id
         )
       ''');
       params['start'] = DateTime(
@@ -2033,10 +2086,11 @@ class CariHesaplarVeritabaniServisi {
       ).toIso8601String();
     } else if (bitisTarihi != null) {
       baseConditions.add('''
-        EXISTS (
-          SELECT 1 FROM current_account_transactions cat 
-          WHERE cat.current_account_id = current_accounts.id 
-          AND cat.date < @end
+        id IN (
+          SELECT cat.current_account_id
+          FROM current_account_transactions cat 
+          WHERE cat.date < @end
+          GROUP BY cat.current_account_id
         )
       ''');
       params['end'] = DateTime(
@@ -2054,13 +2108,15 @@ class CariHesaplarVeritabaniServisi {
     if (hesapTuru != null) durumConds.add('hesap_turu = @hesapTuru');
     if (islemTuru != null || kullanici != null) {
       durumConds.add('''
-        EXISTS (
-          SELECT 1 FROM current_account_transactions cat 
-          WHERE cat.current_account_id = current_accounts.id 
+        id IN (
+          SELECT cat.current_account_id
+          FROM current_account_transactions cat 
+          WHERE 1=1
           ${islemTuru != null ? "AND (cat.source_type = @islemTuru OR get_professional_label(cat.source_type, 'cari', cat.type) = @islemTuru)" : ''}
           ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
           ${baslangicTarihi != null ? 'AND cat.date >= @start' : ''}
           ${bitisTarihi != null ? 'AND cat.date < @end' : ''}
+          GROUP BY cat.current_account_id
         )
       ''');
     }
@@ -2090,13 +2146,15 @@ class CariHesaplarVeritabaniServisi {
     if (aktifMi != null) turConds.add('aktif_mi = @aktifMi');
     if (islemTuru != null || kullanici != null) {
       turConds.add('''
-        EXISTS (
-          SELECT 1 FROM current_account_transactions cat 
-          WHERE cat.current_account_id = current_accounts.id 
+        id IN (
+          SELECT cat.current_account_id
+          FROM current_account_transactions cat 
+          WHERE 1=1
           ${islemTuru != null ? "AND (cat.source_type = @islemTuru OR get_professional_label(cat.source_type, 'cari', cat.type) = @islemTuru)" : ''}
           ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
           ${baslangicTarihi != null ? 'AND cat.date >= @start' : ''}
           ${bitisTarihi != null ? 'AND cat.date < @end' : ''}
+          GROUP BY cat.current_account_id
         )
       ''');
     }
@@ -2115,16 +2173,14 @@ class CariHesaplarVeritabaniServisi {
     ''';
 
     // 3. İşlem Türü İstatistikleri
-	    List<String> islemAccountConds = [];
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      islemAccountConds.add(
-	        '''(
-            (ca.search_tags LIKE @search OR to_tsvector('simple', ca.search_tags) @@ plainto_tsquery('simple', @fts))
+    List<String> islemAccountConds = [];
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      islemAccountConds.add('''(
+            (ca.search_tags LIKE @search)
             OR
-            (cat.search_tags LIKE @search OR to_tsvector('simple', cat.search_tags) @@ plainto_tsquery('simple', @fts))
-          )''',
-	      );
-	    }
+            (cat.search_tags LIKE @search)
+          )''');
+    }
     if (aktifMi != null) islemAccountConds.add('ca.aktif_mi = @aktifMi');
     if (hesapTuru != null) islemAccountConds.add('ca.hesap_turu = @hesapTuru');
 
@@ -2161,13 +2217,11 @@ class CariHesaplarVeritabaniServisi {
     // 4. Kullanıcı İstatistikleri
     List<String> kullaniciAccountConds = [];
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      kullaniciAccountConds.add(
-        '''(
-            (ca.search_tags LIKE @search OR to_tsvector('simple', ca.search_tags) @@ plainto_tsquery('simple', @fts))
+      kullaniciAccountConds.add('''(
+            (ca.search_tags LIKE @search)
             OR
-            (cat.search_tags LIKE @search OR to_tsvector('simple', cat.search_tags) @@ plainto_tsquery('simple', @fts))
-          )''',
-      );
+            (cat.search_tags LIKE @search)
+          )''');
     }
     if (aktifMi != null) {
       kullaniciAccountConds.add('ca.aktif_mi = @aktifMi');
@@ -2436,8 +2490,9 @@ class CariHesaplarVeritabaniServisi {
     }
 
     final row = result.first.toColumnMap();
-    double d(String key) =>
-        (row[key] is num) ? (row[key] as num).toDouble() : double.tryParse(row[key]?.toString() ?? '') ?? 0.0;
+    double d(String key) => (row[key] is num)
+        ? (row[key] as num).toDouble()
+        : double.tryParse(row[key]?.toString() ?? '') ?? 0.0;
 
     return {
       'odeme_alindi': d('odeme_alindi'),
@@ -3772,12 +3827,9 @@ class CariHesaplarVeritabaniServisi {
     Map<String, dynamic> params = {};
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add(
-        "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      whereConditions.add('search_tags ILIKE @search');
       final normalized = _normalizeTurkish(aramaTerimi);
       params['search'] = '%$normalized%';
-      params['fts'] = normalized;
     }
     if (aktifMi != null) {
       whereConditions.add('aktif_mi = @aktifMi');
@@ -4478,7 +4530,8 @@ class CariHesaplarVeritabaniServisi {
     }
 
     if (searchConds.isNotEmpty) {
-      selectClause += ''',
+      selectClause +=
+          ''',
         CASE WHEN ${searchConds.join(' AND ')} THEN true ELSE false END as matched_in_hidden
       ''';
     } else {
@@ -4541,7 +4594,8 @@ class CariHesaplarVeritabaniServisi {
         lastCreatedAt != null &&
         lastId != null &&
         lastId > 0) {
-      whereClause += '''
+      whereClause +=
+          '''
         AND (
           cat.date < @lastDate
           OR (cat.date = @lastDate AND ($sortPriorityExpr) > @lastSortPriority)

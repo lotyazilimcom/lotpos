@@ -43,7 +43,7 @@ class OturumServisi {
       _sonVeritabaniAdi = yeniDb;
       unawaited(_servisleriYenidenBaslat());
 
-      // [2026 GOOGLE-LIKE] Yeni DB için ParadeDB/pg_search BM25 index bootstrap (best-effort).
+      // [2026 GOOGLE-LIKE] Yeni DB için saf PostgreSQL arama/index bootstrap'i (best-effort).
       unawaited(
         BuyukOlcekAramaBootstrapServisi().hazirlaBestEffort(
           databaseName: yeniDb,

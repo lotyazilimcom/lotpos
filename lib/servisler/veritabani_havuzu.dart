@@ -40,19 +40,19 @@ class _PoolKey {
 
   @override
   int get hashCode => Object.hash(
-        useApi,
-        apiReadBaseUrl,
-        apiWriteBaseUrl,
-        apiToken,
-        host,
-        port,
-        database,
-        username,
-        password,
-        sslMode,
-        queryMode,
-        maxConnections,
-      );
+    useApi,
+    apiReadBaseUrl,
+    apiWriteBaseUrl,
+    apiToken,
+    host,
+    port,
+    database,
+    username,
+    password,
+    sslMode,
+    queryMode,
+    maxConnections,
+  );
 
   @override
   bool operator ==(Object other) {
@@ -79,11 +79,14 @@ class VeritabaniHavuzu {
 
   final Map<_PoolKey, Pool<void>> _pools = <_PoolKey, Pool<void>>{};
   final Map<Pool<void>, _PoolKey> _reverse = <Pool<void>, _PoolKey>{};
-  final Map<_PoolKey, Future<Pool<void>>> _inFlight = <_PoolKey, Future<Pool<void>>>{};
+  final Map<_PoolKey, Future<Pool<void>>> _inFlight =
+      <_PoolKey, Future<Pool<void>>>{};
 
   Future<Pool<void>> havuzAl({
     required String database,
     int? maxConnectionsOverride,
+    bool preferDirectSocket = false,
+    bool allowApiFallback = true,
   }) async {
     final cfg = VeritabaniYapilandirma();
     final db = database.trim();
@@ -91,12 +94,28 @@ class VeritabaniHavuzu {
       throw ArgumentError.value(database, 'database', 'Boş olamaz');
     }
 
-    final useApi =
-        cfg.isCloudMode && VeritabaniYapilandirma.cloudApiCredentialsReady;
-    final apiReadBaseUrl =
-        (VeritabaniYapilandirma.cloudApiReadBaseUrl ?? '').trim();
-    final apiWriteBaseUrl =
-        (VeritabaniYapilandirma.cloudApiWriteBaseUrl ?? '').trim();
+    final canUseDirectCloud =
+        cfg.isCloudMode && VeritabaniYapilandirma.cloudCredentialsReady;
+
+    final bool useApi;
+    if (cfg.isCloudMode) {
+      if (!canUseDirectCloud) {
+        throw StateError(
+          'Bulut modunda yalnız direct PostgreSQL bağlantısı destekleniyor. '
+          'Cloud DB host/user/password ayarlarını tamamlayın.',
+        );
+      }
+      useApi = false;
+    } else if (preferDirectSocket) {
+      useApi = false;
+    } else {
+      useApi = false;
+    }
+
+    final apiReadBaseUrl = (VeritabaniYapilandirma.cloudApiReadBaseUrl ?? '')
+        .trim();
+    final apiWriteBaseUrl = (VeritabaniYapilandirma.cloudApiWriteBaseUrl ?? '')
+        .trim();
     final apiToken = (VeritabaniYapilandirma.cloudApiToken ?? '').trim();
 
     final key = _PoolKey(
@@ -111,7 +130,10 @@ class VeritabaniHavuzu {
       password: useApi ? '' : cfg.password,
       sslMode: useApi ? SslMode.disable : cfg.sslMode,
       queryMode: useApi ? QueryMode.extended : cfg.queryMode,
-      maxConnections: (maxConnectionsOverride ?? cfg.maxConnections).clamp(1, 1000),
+      maxConnections: (maxConnectionsOverride ?? cfg.maxConnections).clamp(
+        1,
+        1000,
+      ),
     );
 
     final existing = _pools[key];
@@ -191,8 +213,9 @@ class VeritabaniHavuzu {
     final db = database.trim();
     if (db.isEmpty) return;
 
-    final keys =
-        _pools.keys.where((k) => k.database == db).toList(growable: false);
+    final keys = _pools.keys
+        .where((k) => k.database == db)
+        .toList(growable: false);
     for (final k in keys) {
       final pool = _pools.remove(k);
       if (pool != null) _reverse.remove(pool);

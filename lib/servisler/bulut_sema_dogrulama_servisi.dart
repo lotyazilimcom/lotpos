@@ -245,6 +245,10 @@ class BulutSemaDogrulamaServisi {
     'idx_warehouse_stocks_wid',
   ];
 
+  static final List<String> _requiredHotPathIndexes = _requiredIndexes
+      .where((name) => !name.contains('_fts_') && !name.contains('_tsv_'))
+      .toList(growable: false);
+
   static const List<String> _requiredFunctions = <String>[
     'get_professional_label',
     'normalize_text',
@@ -533,7 +537,7 @@ class BulutSemaDogrulamaServisi {
         ),
         required_indexes(name) AS (
           VALUES
-            ${values1(_requiredIndexes)}
+            ${values1(_requiredHotPathIndexes)}
         ),
         required_functions(name) AS (
           VALUES

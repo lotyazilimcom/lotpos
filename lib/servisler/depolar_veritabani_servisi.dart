@@ -8,6 +8,7 @@ import '../sayfalar/urunler_ve_depolar/depolar/modeller/depo_model.dart';
 import '../sayfalar/urunler_ve_depolar/depolar/sevkiyat_olustur_sayfasi.dart';
 
 import 'alisyap_veritabani_servisleri.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'perakende_satis_veritabani_servisleri.dart';
 import 'satisyap_veritabani_servisleri.dart';
@@ -42,6 +43,62 @@ class DepolarVeritabaniServisi {
     if (inner.isEmpty) return null;
 
     return '($inner)';
+  }
+
+  Future<List<int>> _eslesenDepoSevkiyatIdleriniGetir({
+    required Session executor,
+    required String normalizedSearch,
+  }) async {
+    if (normalizedSearch.trim().length < 3) return const <int>[];
+    try {
+      final rows = await executor.execute(
+        Sql.named('''
+          SELECT DISTINCT depot_id
+          FROM (
+            SELECT s.source_warehouse_id AS depot_id
+            FROM shipments s
+            WHERE s.source_warehouse_id IS NOT NULL
+              AND s.search_tags LIKE @search
+            UNION
+            SELECT s.dest_warehouse_id AS depot_id
+            FROM shipments s
+            WHERE s.dest_warehouse_id IS NOT NULL
+              AND s.search_tags LIKE @search
+          ) matched
+          WHERE depot_id IS NOT NULL
+          ORDER BY depot_id ASC
+          LIMIT 4096
+        '''),
+        parameters: {'search': '%$normalizedSearch%'},
+      );
+      return rows
+          .map((row) => int.tryParse(row[0]?.toString() ?? ''))
+          .whereType<int>()
+          .toList(growable: false);
+    } catch (e) {
+      debugPrint('Depo arama ID fetch error: $e');
+      return const <int>[];
+    }
+  }
+
+  String _depoAramaKosulu({
+    required String alias,
+    required String idParam,
+    required bool hasShipmentMatches,
+  }) {
+    if (!hasShipmentMatches) {
+      return '$alias.search_tags LIKE @search';
+    }
+    return '($alias.search_tags LIKE @search OR $alias.id = ANY(@$idParam))';
+  }
+
+  String _depoHiddenTxKosulu({
+    required String alias,
+    required String idParam,
+    required bool hasShipmentMatches,
+  }) {
+    if (!hasShipmentMatches) return 'FALSE';
+    return '$alias.id = ANY(@$idParam)';
   }
 
   Future<Map<String, String>> _fetchRetailBankSourceSuffixByRef(
@@ -184,9 +241,7 @@ class DepolarVeritabaniServisi {
         // Mobil+Bulut'ta kullanıcı işlemlerini bloklamamak için ağır bakım işleri kapalı.
         if (_yapilandirma.allowBackgroundDbMaintenance &&
             _yapilandirma.allowBackgroundHeavyMaintenance) {
-          unawaited(
-            verileriIndeksle(forceUpdate: false).catchError((_) {}),
-          );
+          unawaited(verileriIndeksle(forceUpdate: false).catchError((_) {}));
         }
       }
     } catch (e) {
@@ -378,7 +433,9 @@ class DepolarVeritabaniServisi {
   }
 
   Future<Pool> _poolOlustur() async {
-    return VeritabaniHavuzu().havuzAl(database: OturumServisi().aktifVeritabaniAdi);
+    return VeritabaniHavuzu().havuzAl(
+      database: OturumServisi().aktifVeritabaniAdi,
+    );
   }
 
   Future<Connection?> _yoneticiBaglantisiAl() async {
@@ -760,7 +817,10 @@ class DepolarVeritabaniServisi {
               await _executeCreateIndexSafe(
                 "CREATE INDEX IF NOT EXISTS idx_sm_search_tags_fts_gin ON stock_movements USING GIN (to_tsvector('simple', search_tags))",
               );
-              await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'depots');
+              await PgEklentiler.ensureSearchTagsNotNullDefault(
+                _pool!,
+                'depots',
+              );
               await PgEklentiler.ensureSearchTagsFtsIndex(
                 _pool!,
                 table: 'depots',
@@ -1175,7 +1235,9 @@ class DepolarVeritabaniServisi {
                   \$\$;
                 ''');
               } catch (e) {
-                debugPrint('Shipments -> product_devices last_tx trigger uyarısı: $e');
+                debugPrint(
+                  'Shipments -> product_devices last_tx trigger uyarısı: $e',
+                );
               }
 
               // Trigger (Depolar İçin)
@@ -1305,8 +1367,8 @@ class DepolarVeritabaniServisi {
       final int count = rawCount is int
           ? rawCount
           : rawCount is BigInt
-              ? rawCount.toInt()
-              : int.tryParse(rawCount.toString()) ?? 0;
+          ? rawCount.toInt()
+          : int.tryParse(rawCount.toString()) ?? 0;
       if (count > 0) return;
 
       // Ensure the first depot starts from ID=1 even if a previous failed insert
@@ -1368,7 +1430,9 @@ class DepolarVeritabaniServisi {
         'DepolarVeritabaniServisi: Varsayilan depo olusturma hatasi: ${e.code} ${e.message}',
       );
     } catch (e) {
-      debugPrint('DepolarVeritabaniServisi: Varsayilan depo olusturma hatasi: $e');
+      debugPrint(
+        'DepolarVeritabaniServisi: Varsayilan depo olusturma hatasi: $e',
+      );
     }
   }
 
@@ -1416,7 +1480,8 @@ class DepolarVeritabaniServisi {
     String? islemTuru,
     String? kullanici,
     int? depoId,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId, // [2026 KEYSET] Cursor pagination
   }) async {
     if (!_isInitialized) await baslat();
@@ -1458,20 +1523,22 @@ class DepolarVeritabaniServisi {
 
     List<String> whereConditions = [];
     Map<String, dynamic> params = {};
+    final normalizedSearch = aramaKelimesi == null
+        ? ''
+        : aramaKelimesi.toLowerCase().trim();
+    final matchedShipmentDepotIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenDepoSevkiyatIdleriniGetir(
+            executor: _pool!,
+            normalizedSearch: normalizedSearch,
+          );
 
     if (aramaKelimesi != null && aramaKelimesi.isNotEmpty) {
-      selectClause += '''
+      selectClause +=
+          '''
           , (CASE 
               WHEN (
-	                EXISTS (
-	                  SELECT 1 FROM shipments s
-	                  WHERE (s.source_warehouse_id = depots.id OR s.dest_warehouse_id = depots.id)
-	                    AND (
-	                      s.search_tags LIKE @search
-	                      OR to_tsvector('simple', s.search_tags) @@ plainto_tsquery('simple', @fts)
-	                    )
-	                  LIMIT 1
-	                )
+                ${_depoHiddenTxKosulu(alias: 'depots', idParam: 'matchedShipmentDepotIds', hasShipmentMatches: matchedShipmentDepotIds.isNotEmpty)}
                 AND NOT (
                   COALESCE(depots.kod, '') LIKE @search OR
                   COALESCE(depots.ad, '') LIKE @search OR
@@ -1486,26 +1553,14 @@ class DepolarVeritabaniServisi {
            END) as matched_in_hidden
       ''';
 
-	      whereConditions.add('''
-	        (
-	          (
-	            depots.search_tags LIKE @search
-	            OR to_tsvector('simple', depots.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM shipments s
-	            WHERE (s.source_warehouse_id = depots.id OR s.dest_warehouse_id = depots.id)
-	              AND (
-	                s.search_tags LIKE @search
-	                OR to_tsvector('simple', s.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${aramaKelimesi.toLowerCase()}%';
-	      params['fts'] = aramaKelimesi.toLowerCase();
-	    } else {
+      whereConditions.add('''
+        ${_depoAramaKosulu(alias: 'depots', idParam: 'matchedShipmentDepotIds', hasShipmentMatches: matchedShipmentDepotIds.isNotEmpty)}
+		      ''');
+      params['search'] = '%$normalizedSearch%';
+      if (matchedShipmentDepotIds.isNotEmpty) {
+        params['matchedShipmentDepotIds'] = matchedShipmentDepotIds;
+      }
+    } else {
       selectClause += ', false as matched_in_hidden';
     }
 
@@ -1736,31 +1791,31 @@ class DepolarVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
 
-    String query = 'SELECT COUNT(*) FROM depots';
     Map<String, dynamic> params = {};
     List<String> whereConditions = [];
+    final normalizedSearch = aramaTerimi == null
+        ? ''
+        : aramaTerimi.toLowerCase().trim();
+    final matchedShipmentDepotIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenDepoSevkiyatIdleriniGetir(
+            executor: _pool!,
+            normalizedSearch: normalizedSearch,
+          );
 
-	    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-	      whereConditions.add('''
-	        (
-	          (
-	            depots.search_tags LIKE @search
-	            OR to_tsvector('simple', depots.search_tags) @@ plainto_tsquery('simple', @fts)
-	          )
-	          OR EXISTS (
-	            SELECT 1 FROM shipments s
-	            WHERE (s.source_warehouse_id = depots.id OR s.dest_warehouse_id = depots.id)
-	              AND (
-	                s.search_tags LIKE @search
-	                OR to_tsvector('simple', s.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
-	          )
-	        )
-	      ''');
-	      params['search'] = '%${aramaTerimi.toLowerCase()}%';
-	      params['fts'] = aramaTerimi.toLowerCase();
-	    }
+    if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
+      whereConditions.add(
+        _depoAramaKosulu(
+          alias: 'depots',
+          idParam: 'matchedShipmentDepotIds',
+          hasShipmentMatches: matchedShipmentDepotIds.isNotEmpty,
+        ),
+      );
+      params['search'] = '%$normalizedSearch%';
+      if (matchedShipmentDepotIds.isNotEmpty) {
+        params['matchedShipmentDepotIds'] = matchedShipmentDepotIds;
+      }
+    }
 
     if (aktifMi != null) {
       whereConditions.add('aktif_mi = @aktifMi');
@@ -1855,9 +1910,7 @@ class DepolarVeritabaniServisi {
       params['depoId'] = depoId;
     }
 
-    if (whereConditions.isNotEmpty) {
-      query += ' WHERE ${whereConditions.join(' AND ')}';
-    } else {
+    if (whereConditions.isEmpty) {
       // Filtre yoksa pg_class üzerinden tahmini sayıyı al (HIZLI)
       final estimateResult = await _pool!.execute(
         "SELECT reltuples::bigint AS estimate FROM pg_class WHERE relname = 'depots'",
@@ -1868,8 +1921,13 @@ class DepolarVeritabaniServisi {
       }
     }
 
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'depots',
+      whereConditions: whereConditions,
+      params: params,
+      unfilteredTable: 'depots',
+    );
   }
 
   Future<Map<String, Map<String, int>>> depoFiltreIstatistikleriniGetir({
@@ -1883,6 +1941,15 @@ class DepolarVeritabaniServisi {
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return {};
+    final normalizedSearch = aramaTerimi == null
+        ? ''
+        : aramaTerimi.toLowerCase().trim();
+    final matchedShipmentDepotIds = normalizedSearch.isEmpty
+        ? const <int>[]
+        : await _eslesenDepoSevkiyatIdleriniGetir(
+            executor: _pool!,
+            normalizedSearch: normalizedSearch,
+          );
 
     const List<String> supportedStockTypes = <String>[
       'Açılış Stoğu (Girdi)',
@@ -1905,28 +1972,20 @@ class DepolarVeritabaniServisi {
     }
 
     void addBaseConds(List<String> conds, Map<String, dynamic> params) {
-	      final String? trimmedSearch = aramaTerimi?.trim();
-	      if (trimmedSearch != null && trimmedSearch.isNotEmpty) {
-	        conds.add('''
-	          (
-	            (
-	              depots.search_tags LIKE @search
-	              OR to_tsvector('simple', depots.search_tags) @@ plainto_tsquery('simple', @fts)
-	            )
-	            OR EXISTS (
-	              SELECT 1 FROM shipments s
-	              WHERE (s.source_warehouse_id = depots.id OR s.dest_warehouse_id = depots.id)
-	                AND (
-	                  s.search_tags LIKE @search
-	                  OR to_tsvector('simple', s.search_tags) @@ plainto_tsquery('simple', @fts)
-	                )
-	              LIMIT 1
-	            )
-	          )
-	        ''');
-	        params['search'] = '%${trimmedSearch.toLowerCase()}%';
-	        params['fts'] = trimmedSearch.toLowerCase();
-	      }
+      final String? trimmedSearch = aramaTerimi?.trim();
+      if (trimmedSearch != null && trimmedSearch.isNotEmpty) {
+        conds.add(
+          _depoAramaKosulu(
+            alias: 'depots',
+            idParam: 'matchedShipmentDepotIds',
+            hasShipmentMatches: matchedShipmentDepotIds.isNotEmpty,
+          ),
+        );
+        params['search'] = '%$normalizedSearch%';
+        if (matchedShipmentDepotIds.isNotEmpty) {
+          params['matchedShipmentDepotIds'] = matchedShipmentDepotIds;
+        }
+      }
 
       if (baslangicTarihi != null || bitisTarihi != null) {
         final List<String> shipmentConds = [
@@ -2041,13 +2100,13 @@ class DepolarVeritabaniServisi {
     final totalParams = <String, dynamic>{};
     final totalConds = <String>[];
     addBaseConds(totalConds, totalParams);
-    final totalResult = await _pool!.execute(
-      Sql.named('SELECT COUNT(*) FROM depots ${buildWhere(totalConds)}'),
-      parameters: totalParams,
+    final int genelToplam = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'depots',
+      whereConditions: totalConds,
+      params: totalParams,
+      unfilteredTable: 'depots',
     );
-    final int genelToplam = totalResult.isEmpty
-        ? 0
-        : (totalResult.first[0] as int);
 
     // 1) Durum facet (aktif_mi)
     final statusParams = <String, dynamic>{};
@@ -2100,14 +2159,11 @@ class DepolarVeritabaniServisi {
     // 3) Kullanıcı facet (shipments.created_by)
     final userParams = <String, dynamic>{};
     final userConds = <String>[];
-	    final String? trimmedSearch = aramaTerimi?.trim();
-	    if (trimmedSearch != null && trimmedSearch.isNotEmpty) {
-	      userConds.add(
-	        "(d.search_tags LIKE @search OR to_tsvector('simple', d.search_tags) @@ plainto_tsquery('simple', @fts))",
-	      );
-	      userParams['search'] = '%${trimmedSearch.toLowerCase()}%';
-	      userParams['fts'] = trimmedSearch.toLowerCase();
-	    }
+    final String? trimmedSearch = aramaTerimi?.trim();
+    if (trimmedSearch != null && trimmedSearch.isNotEmpty) {
+      userConds.add("d.search_tags LIKE @search");
+      userParams['search'] = '%${trimmedSearch.toLowerCase()}%';
+    }
     if (aktifMi != null) {
       userConds.add('d.aktif_mi = @aktifMi');
       userParams['aktifMi'] = aktifMi ? 1 : 0;
@@ -2326,10 +2382,10 @@ class DepolarVeritabaniServisi {
     final int? minId = rawMinId == null
         ? null
         : rawMinId is int
-            ? rawMinId
-            : rawMinId is BigInt
-                ? rawMinId.toInt()
-                : int.tryParse(rawMinId.toString());
+        ? rawMinId
+        : rawMinId is BigInt
+        ? rawMinId.toInt()
+        : int.tryParse(rawMinId.toString());
     if (minId != null && id == minId) {
       throw StateError('Ana Depo silinemez.');
     }
@@ -3290,15 +3346,13 @@ class DepolarVeritabaniServisi {
       params['kullanici'] = kullanici.trim();
     }
 
-	    final trimmedSearch = aramaTerimi?.trim() ?? '';
-	    if (trimmedSearch.isNotEmpty) {
-	      // [PERF] Shipments için search_tags (trigger + gin_trgm_ops) kullan.
-	      // Böylece jsonb_array_elements/ILIKE taraması yerine indeksli arama yapılır.
-	      query +=
-	          " AND (s.search_tags LIKE @search OR to_tsvector('simple', s.search_tags) @@ plainto_tsquery('simple', @fts))";
-	      params['search'] = '%${trimmedSearch.toLowerCase()}%';
-	      params['fts'] = trimmedSearch.toLowerCase();
-	    }
+    final trimmedSearch = aramaTerimi?.trim() ?? '';
+    if (trimmedSearch.isNotEmpty) {
+      // [PERF] Shipments için search_tags (trigger + gin_trgm_ops) kullan.
+      // Böylece jsonb_array_elements/ILIKE taraması yerine indeksli arama yapılır.
+      query += " AND s.search_tags LIKE @search";
+      params['search'] = '%${trimmedSearch.toLowerCase()}%';
+    }
 
     // Cursor pagination (date + id) for deep history without skip-based paging.
     if (lastDate != null && lastId != null && lastId > 0) {
@@ -3537,8 +3591,8 @@ class DepolarVeritabaniServisi {
             ? '(K.Kartı)'
             : hasBankTx
             ? retailBankSuffix.isNotEmpty
-                ? retailBankSuffix
-                : '(Banka)'
+                  ? retailBankSuffix
+                  : '(Banka)'
             : '(Cari)';
         displayRelatedPartyName = 'Perakende Satış Yapıldı $perakendePaySuffix';
         displayRelatedPartyCode = '';
@@ -3731,14 +3785,12 @@ class DepolarVeritabaniServisi {
       }
     }
 
-	    // [2026] Deep search: precomputed (trigger-maintained) shipments.search_tags (GIN trgm).
-	    // Bu ekranlarda in-memory filtre yerine DB araması kullanılır (5 yıllık geçmiş dahil).
-	    if (aramaTerimi != null && aramaTerimi.trim().isNotEmpty) {
-	      query +=
-	          " AND (s.search_tags LIKE @search OR to_tsvector('simple', s.search_tags) @@ plainto_tsquery('simple', @fts))";
-	      params['search'] = '%${normalizeTurkish(aramaTerimi.trim())}%';
-	      params['fts'] = normalizeTurkish(aramaTerimi.trim());
-	    }
+    // [2026] Deep search: precomputed (trigger-maintained) shipments.search_tags (GIN trgm).
+    // Bu ekranlarda in-memory filtre yerine DB araması kullanılır (5 yıllık geçmiş dahil).
+    if (aramaTerimi != null && aramaTerimi.trim().isNotEmpty) {
+      query += " AND s.search_tags LIKE @search";
+      params['search'] = '%${normalizeTurkish(aramaTerimi.trim())}%';
+    }
 
     // [2026 CURSOR PAGINATION] Stable ordering with (date, id) tie-breaker.
     if (lastDate != null && lastShipmentId != null) {
@@ -3932,8 +3984,8 @@ class DepolarVeritabaniServisi {
             ? '(K.Kartı)'
             : hasBankTx
             ? retailBankSuffix.isNotEmpty
-                ? retailBankSuffix
-                : '(Banka)'
+                  ? retailBankSuffix
+                  : '(Banka)'
             : '(Cari)';
         displayRelatedPartyName = 'Perakende Satış Yapıldı $perakendePaySuffix';
       }

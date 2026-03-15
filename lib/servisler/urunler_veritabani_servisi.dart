@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../sayfalar/urunler_ve_depolar/urunler/modeller/urun_model.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'depolar_veritabani_servisi.dart';
 import '../sayfalar/urunler_ve_depolar/depolar/sevkiyat_olustur_sayfasi.dart';
@@ -522,6 +523,47 @@ class UrunlerVeritabaniServisi {
           );
         END;
         \$\$ LANGUAGE plpgsql IMMUTABLE;
+      ''');
+
+      await _pool!.execute('''
+        CREATE OR REPLACE FUNCTION update_products_search_tags()
+        RETURNS TRIGGER AS \$\$
+        BEGIN
+          NEW.search_tags := normalize_text(
+            COALESCE(NEW.kod, '') || ' ' ||
+            COALESCE(NEW.ad, '') || ' ' ||
+            COALESCE(NEW.barkod, '') || ' ' ||
+            COALESCE(NEW.grubu, '') || ' ' ||
+            COALESCE(NEW.kullanici, '') || ' ' ||
+            COALESCE(NEW.ozellikler, '') || ' ' ||
+            COALESCE(NEW.birim, '') || ' ' ||
+            CAST(NEW.id AS TEXT) || ' ' ||
+            COALESCE(CAST(NEW.alis_fiyati AS TEXT), '') || ' ' ||
+            COALESCE(CAST(NEW.satis_fiyati_1 AS TEXT), '') || ' ' ||
+            COALESCE(CAST(NEW.satis_fiyati_2 AS TEXT), '') || ' ' ||
+            COALESCE(CAST(NEW.satis_fiyati_3 AS TEXT), '') || ' ' ||
+            COALESCE(CAST(NEW.erken_uyari_miktari AS TEXT), '') || ' ' ||
+            COALESCE(CAST(NEW.stok AS TEXT), '') || ' ' ||
+            COALESCE(CAST(NEW.kdv_orani AS TEXT), '') || ' ' ||
+            CASE WHEN COALESCE(NEW.aktif_mi, 0) = 1 THEN 'aktif' ELSE 'pasif' END
+          );
+          RETURN NEW;
+        END;
+        \$\$ LANGUAGE plpgsql;
+      ''');
+
+      await _pool!.execute('''
+        DO \$\$
+        BEGIN
+          IF NOT EXISTS (
+            SELECT 1 FROM pg_trigger WHERE tgname = 'trg_update_products_search_tags'
+          ) THEN
+            CREATE TRIGGER trg_update_products_search_tags
+            BEFORE INSERT OR UPDATE ON products
+            FOR EACH ROW EXECUTE FUNCTION update_products_search_tags();
+          END IF;
+        END;
+        \$\$;
       ''');
 
       await _pool!.execute('''
@@ -1519,17 +1561,12 @@ class UrunlerVeritabaniServisi {
 	                (
 	                  (
 	                    products.search_tags ILIKE @search
-	                    OR to_tsvector('simple', products.search_tags) @@ plainto_tsquery('simple', @fts)
 	                  )
-	                  OR EXISTS (
-	                    SELECT 1
+	                  OR products.id IN (
+	                    SELECT sm.product_id
 	                    FROM stock_movements sm
-	                    WHERE sm.product_id = products.id
-	                      AND (
-	                        sm.search_tags ILIKE @search
-	                        OR to_tsvector('simple', sm.search_tags) @@ plainto_tsquery('simple', @fts)
-	                      )
-	                    LIMIT 1
+	                    WHERE sm.search_tags ILIKE @search
+	                    GROUP BY sm.product_id
 	                  )
 	                )
                 AND NOT (
@@ -1566,22 +1603,16 @@ class UrunlerVeritabaniServisi {
 	        (
 	          (
 	            products.search_tags ILIKE @search
-	            OR to_tsvector('simple', products.search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
-	          OR EXISTS (
-	            SELECT 1
+	          OR products.id IN (
+	            SELECT sm.product_id
 	            FROM stock_movements sm
-	            WHERE sm.product_id = products.id
-	              AND (
-	                sm.search_tags ILIKE @search
-	                OR to_tsvector('simple', sm.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
+	            WHERE sm.search_tags ILIKE @search
+	            GROUP BY sm.product_id
 	          )
 	        )
 	      '''); // Optimized for GIN
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
     }
 
     if (aktifMi != null) {
@@ -1616,15 +1647,15 @@ class UrunlerVeritabaniServisi {
         kullanici != null) {
       final bool needsShipmentJoin = islemTuru == 'Devir Çıktı';
       String existsQuery = '''
-        EXISTS (
-          SELECT 1 FROM stock_movements sm
+        products.id IN (
+          SELECT DISTINCT sm.product_id FROM stock_movements sm
       ''';
 
       if (needsShipmentJoin) {
         existsQuery += ' JOIN shipments s ON s.id = sm.shipment_id';
       }
 
-      existsQuery += ' WHERE sm.product_id = products.id';
+      existsQuery += ' WHERE TRUE';
 
       if (baslangicTarihi != null) {
         existsQuery += ' AND sm.movement_date >= @startDate';
@@ -1689,7 +1720,7 @@ class UrunlerVeritabaniServisi {
         }
       }
 
-      existsQuery += ')';
+      existsQuery += ' GROUP BY sm.product_id)';
       whereConditions.add(existsQuery);
     }
 
@@ -1699,11 +1730,12 @@ class UrunlerVeritabaniServisi {
     if (depoIds != null && depoIds.isNotEmpty) {
       // Join yerine EXISTS kullanıyoruz (Multi-select için daha güvenli ve duplicate yapmaz)
       whereConditions.add('''
-        EXISTS (
-          SELECT 1 FROM warehouse_stocks ws_filter 
-          WHERE ws_filter.product_code = products.kod 
-          AND ws_filter.warehouse_id = ANY(@depoIdArray)
+        products.kod IN (
+          SELECT ws_filter.product_code
+          FROM warehouse_stocks ws_filter 
+          WHERE ws_filter.warehouse_id = ANY(@depoIdArray)
           AND ws_filter.quantity > 0
+          GROUP BY ws_filter.product_code
         )
       ''');
       params['depoIdArray'] = depoIds;
@@ -1827,7 +1859,6 @@ class UrunlerVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
 
-    String query = 'SELECT COUNT(*) FROM products';
     Map<String, dynamic> params = {};
     List<String> whereConditions = [];
 
@@ -1855,40 +1886,32 @@ class UrunlerVeritabaniServisi {
 
     if (depoIds != null && depoIds.isNotEmpty) {
       whereConditions.add('''
-        EXISTS (
-          SELECT 1 FROM warehouse_stocks ws_filter 
-          WHERE ws_filter.product_code = products.kod 
-          AND ws_filter.warehouse_id = ANY(@depoIdArray)
+        products.kod IN (
+          SELECT ws_filter.product_code
+          FROM warehouse_stocks ws_filter 
+          WHERE ws_filter.warehouse_id = ANY(@depoIdArray)
           AND ws_filter.quantity > 0
+          GROUP BY ws_filter.product_code
         )
       ''');
       params['depoIdArray'] = depoIds;
     }
-
-    // Add join clause to query if needed
-    query += joinClause;
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
       whereConditions.add('''
 	        (
 	          (
 	            products.search_tags LIKE @search
-	            OR to_tsvector('simple', products.search_tags) @@ plainto_tsquery('simple', @fts)
 	          )
-	          OR EXISTS (
-	            SELECT 1
+	          OR products.id IN (
+	            SELECT sm.product_id
 	            FROM stock_movements sm
-	            WHERE sm.product_id = products.id
-	              AND (
-	                sm.search_tags LIKE @search
-	                OR to_tsvector('simple', sm.search_tags) @@ plainto_tsquery('simple', @fts)
-	              )
-	            LIMIT 1
+	            WHERE sm.search_tags LIKE @search
+	            GROUP BY sm.product_id
 	          )
 	        )
 	      ''');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
     }
 
     if (aktifMi != null) {
@@ -1918,15 +1941,15 @@ class UrunlerVeritabaniServisi {
         kullanici != null) {
       final bool needsShipmentJoin = islemTuru == 'Devir Çıktı';
       String existsQuery = '''
-        EXISTS (
-          SELECT 1 FROM stock_movements sm
+        products.id IN (
+          SELECT DISTINCT sm.product_id FROM stock_movements sm
       ''';
 
       if (needsShipmentJoin) {
         existsQuery += ' JOIN shipments s ON s.id = sm.shipment_id';
       }
 
-      existsQuery += ' WHERE sm.product_id = products.id';
+      existsQuery += ' WHERE TRUE';
 
       if (baslangicTarihi != null) {
         existsQuery += ' AND sm.movement_date >= @startDate';
@@ -1981,13 +2004,11 @@ class UrunlerVeritabaniServisi {
         }
       }
 
-      existsQuery += ')';
+      existsQuery += ' GROUP BY sm.product_id)';
       whereConditions.add(existsQuery);
     }
 
     if (whereConditions.isNotEmpty) {
-      query += ' WHERE ${whereConditions.join(' AND ')}';
-
       // 🚀 ESTIMATE COUNT OPTIMIZATION
 
       try {
@@ -2049,8 +2070,13 @@ class UrunlerVeritabaniServisi {
       params['endDate'] = endOfDay.toIso8601String();
     }
 
-    final result = await _pool!.execute(Sql.named(query), parameters: params);
-    return result[0][0] as int;
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'products$joinClause',
+      whereConditions: whereConditions,
+      params: params,
+      unfilteredTable: 'products',
+    );
   }
 
   /// [2026] Ürünler sayfası için dinamik filtre istatistiklerini (facet counts) getirir.
@@ -2106,22 +2132,16 @@ class UrunlerVeritabaniServisi {
 	          (
 	            (
 	              products.search_tags ILIKE @search
-	              OR to_tsvector('simple', products.search_tags) @@ plainto_tsquery('simple', @fts)
 	            )
-	            OR EXISTS (
-	              SELECT 1
+	            OR products.id IN (
+	              SELECT sm_search.product_id
 	              FROM stock_movements sm_search
-	              WHERE sm_search.product_id = products.id
-	                AND (
-	                  sm_search.search_tags ILIKE @search
-	                  OR to_tsvector('simple', sm_search.search_tags) @@ plainto_tsquery('simple', @fts)
-	                )
-	              LIMIT 1
+	              WHERE sm_search.search_tags ILIKE @search
+	              GROUP BY sm_search.product_id
 	            )
 	          )
 	        ''');
         params['search'] = '%${trimmedQ.toLowerCase()}%';
-        params['fts'] = trimmedQ.toLowerCase();
       }
 
       if (aktif != null) {
@@ -2205,7 +2225,7 @@ class UrunlerVeritabaniServisi {
 
       final bool needsShipmentJoin = trimmedType == 'Devir Çıktı';
 
-      final List<String> movementConds = ['sm.product_id = products.id'];
+      final List<String> movementConds = <String>[];
 
       if (start != null) {
         movementConds.add('sm.movement_date >= @startDate');
@@ -2232,8 +2252,8 @@ class UrunlerVeritabaniServisi {
       }
 
       return '''
-        EXISTS (
-          SELECT 1 FROM stock_movements sm
+        products.id IN (
+          SELECT DISTINCT sm.product_id FROM stock_movements sm
           ${needsShipmentJoin ? 'JOIN shipments s ON s.id = sm.shipment_id' : ''}
           WHERE ${movementConds.join(' AND ')}
         )
@@ -2611,11 +2631,8 @@ class UrunlerVeritabaniServisi {
     Map<String, dynamic> params = {};
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add(
-        "(search_tags LIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      whereConditions.add('search_tags LIKE @search');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
     }
 
     if (aktifMi != null) {
@@ -2644,15 +2661,15 @@ class UrunlerVeritabaniServisi {
         kullanici != null) {
       final bool needsShipmentJoin = islemTuru == 'Devir Çıktı';
       String existsQuery = '''
-          EXISTS (
-            SELECT 1 FROM stock_movements sm
+          products.id IN (
+            SELECT DISTINCT sm.product_id FROM stock_movements sm
         ''';
 
       if (needsShipmentJoin) {
         existsQuery += ' JOIN shipments s ON s.id = sm.shipment_id';
       }
 
-      existsQuery += ' WHERE sm.product_id = products.id';
+      existsQuery += ' WHERE TRUE';
 
       if (baslangicTarihi != null) {
         existsQuery += ' AND sm.movement_date >= @startDate';
@@ -3911,11 +3928,8 @@ class UrunlerVeritabaniServisi {
 
     final trimmedSearch = (aramaTerimi ?? '').trim();
     if (trimmedSearch.isNotEmpty) {
-      conds.add(
-        "(pd.search_tags LIKE @search OR to_tsvector('simple', pd.search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      conds.add('pd.search_tags LIKE @search');
       params['search'] = '%${normalizeTurkish(trimmedSearch)}%';
-      params['fts'] = normalizeTurkish(trimmedSearch);
     }
 
     if (baslangicTarihi != null || bitisTarihi != null) {

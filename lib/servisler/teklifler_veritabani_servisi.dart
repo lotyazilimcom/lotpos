@@ -1274,15 +1274,11 @@ class TekliflerVeritabaniServisi {
     String selectCols = 'quotes.*';
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add(
-        "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      whereConditions.add('search_tags ILIKE @search');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
       selectCols += ''', (CASE 
           WHEN (
                  search_tags ILIKE @search
-                 OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts)
                )
                AND NOT (
                  COALESCE(id::text, '') ILIKE @search OR
@@ -1352,8 +1348,7 @@ class TekliflerVeritabaniServisi {
 
     // [ITEM FILTER] Depo + Birim aynı satırda (intersection)
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM quote_items qi WHERE qi.quote_id = quotes.id';
+      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         params['depoId'] = depoId;
@@ -1362,7 +1357,7 @@ class TekliflerVeritabaniServisi {
         existsQuery += ' AND qi.birim = @birim';
         params['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY qi.quote_id)';
       whereConditions.add(existsQuery);
     }
 
@@ -1517,11 +1512,8 @@ class TekliflerVeritabaniServisi {
     Map<String, dynamic> params = {};
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      whereConditions.add(
-        "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      whereConditions.add('search_tags ILIKE @search');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
     }
 
     if (durum != null) {
@@ -1564,8 +1556,7 @@ class TekliflerVeritabaniServisi {
 
     // [ITEM FILTER] Depo + Birim aynı satırda (intersection)
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM quote_items qi WHERE qi.quote_id = quotes.id';
+      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         params['depoId'] = depoId;
@@ -1574,7 +1565,7 @@ class TekliflerVeritabaniServisi {
         existsQuery += ' AND qi.birim = @birim';
         params['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY qi.quote_id)';
       whereConditions.add(existsQuery);
     }
 
@@ -1654,11 +1645,8 @@ class TekliflerVeritabaniServisi {
     List<String> baseConditions = [];
 
     if (aramaTerimi != null && aramaTerimi.isNotEmpty) {
-      baseConditions.add(
-        "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      baseConditions.add('search_tags ILIKE @search');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
     }
 
     // NOTE: "tur" seçimi facet olduğu için base koşullara eklenmiyor.
@@ -1705,8 +1693,7 @@ class TekliflerVeritabaniServisi {
       statusParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM quote_items qi WHERE qi.quote_id = quotes.id';
+      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         statusParams['depoId'] = depoId;
@@ -1715,7 +1702,7 @@ class TekliflerVeritabaniServisi {
         existsQuery += ' AND qi.birim = @birim';
         statusParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY qi.quote_id)';
       statusConds.add(existsQuery);
     }
 
@@ -1735,8 +1722,7 @@ class TekliflerVeritabaniServisi {
       typeParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM quote_items qi WHERE qi.quote_id = quotes.id';
+      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         typeParams['depoId'] = depoId;
@@ -1745,7 +1731,7 @@ class TekliflerVeritabaniServisi {
         existsQuery += ' AND qi.birim = @birim';
         typeParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY qi.quote_id)';
       typeConds.add(existsQuery);
     }
 
@@ -1811,8 +1797,7 @@ class TekliflerVeritabaniServisi {
       accountParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM quote_items qi WHERE qi.quote_id = quotes.id';
+      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         accountParams['depoId'] = depoId;
@@ -1821,7 +1806,7 @@ class TekliflerVeritabaniServisi {
         existsQuery += ' AND qi.birim = @birim';
         accountParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY qi.quote_id)';
       accountConds.add(existsQuery);
     }
 
@@ -1841,8 +1826,7 @@ class TekliflerVeritabaniServisi {
       userParams['ilgiliHesapAdi'] = ilgiliHesapAdi.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM quote_items qi WHERE qi.quote_id = quotes.id';
+      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         userParams['depoId'] = depoId;
@@ -1851,7 +1835,7 @@ class TekliflerVeritabaniServisi {
         existsQuery += ' AND qi.birim = @birim';
         userParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY qi.quote_id)';
       userConds.add(existsQuery);
     }
 
@@ -1875,8 +1859,7 @@ class TekliflerVeritabaniServisi {
       totalParams['kullanici'] = kullanici.trim();
     }
     if (depoId != null || (birim != null && birim.trim().isNotEmpty)) {
-      String existsQuery =
-          'EXISTS (SELECT 1 FROM quote_items qi WHERE qi.quote_id = quotes.id';
+      String existsQuery = 'id IN (SELECT qi.quote_id FROM quote_items qi WHERE 1=1';
       if (depoId != null) {
         existsQuery += ' AND qi.depo_id = @depoId';
         totalParams['depoId'] = depoId;
@@ -1885,7 +1868,7 @@ class TekliflerVeritabaniServisi {
         existsQuery += ' AND qi.birim = @birim';
         totalParams['birim'] = birim.trim();
       }
-      existsQuery += ')';
+      existsQuery += ' GROUP BY qi.quote_id)';
       totalConds.add(existsQuery);
     }
     final totalWhere = totalConds.isEmpty

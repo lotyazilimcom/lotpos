@@ -1,21 +1,21 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:postgres/postgres.dart';
 
 import 'arama/buyuk_olcek_arama_bootstrap_spec.dart';
 import 'pg_eklentiler.dart';
 import 'veritabani_havuzu.dart';
 import 'veritabani_yapilandirma.dart';
 
-/// [2026] 100B+ veri için opsiyonel (env ile açılan) büyük ölçek arama bootstrap'i.
+/// [2026] Harici search ve Citus olmadan saf PostgreSQL performans bootstrap'i.
 ///
-/// Amaç:
-/// - ParadeDB/pg_search extension + BM25 indexleri (index-first arama için)
-/// - Citus dağıtımı (sharding) için best-effort hook
-///
-/// Varsayılan davranış:
-/// - `PATISYO_ALLOW_HEAVY_MAINTENANCE` açık değilse ağır DDL/backfill yok.
-/// - Best-effort: izin/extension yoksa uygulama akışı bozulmaz.
+/// Omurga:
+/// - `pg_trgm`
+/// - `search_tags` trigram GIN
+/// - `search_tags` FTS GIN
+/// - büyük tarih akışlarında BRIN
+/// - keyset sıraları için temel composite index'ler
 class BuyukOlcekAramaBootstrapServisi {
   static final BuyukOlcekAramaBootstrapServisi _instance =
       BuyukOlcekAramaBootstrapServisi._internal();
@@ -24,6 +24,27 @@ class BuyukOlcekAramaBootstrapServisi {
 
   final Map<String, Future<void>> _inFlightByDb = <String, Future<void>>{};
   final Set<String> _completedByDb = <String>{};
+
+  Future<void> hazirlaTablolarZorunlu({
+    required String databaseName,
+    required List<String> tables,
+  }) async {
+    final db = databaseName.trim();
+    if (db.isEmpty) return;
+    final safeTables = tables
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toSet()
+        .toList(growable: false);
+    if (safeTables.isEmpty) return;
+
+    final pool = await VeritabaniHavuzu().havuzAl(database: db);
+    await _ensureCoreIndexes(
+      pool: pool,
+      onlyTables: safeTables.toSet(),
+      includeHeavyIndexes: true,
+    );
+  }
 
   Future<void> hazirlaBestEffort({
     required String databaseName,
@@ -60,57 +81,85 @@ class BuyukOlcekAramaBootstrapServisi {
     if (!cfg.allowBackgroundDbMaintenance) return;
 
     final pool = await VeritabaniHavuzu().havuzAl(database: db);
+    await _ensureCoreIndexes(
+      pool: pool,
+      includeHeavyIndexes: cfg.allowBackgroundHeavyMaintenance,
+    );
+    _completedByDb.add(db);
+  }
 
-    // Extension kurulumu (best-effort)
-    try {
-      await PgEklentiler.ensurePgSearch(pool);
-    } catch (_) {}
-    try {
-      await PgEklentiler.ensureCitus(pool);
-    } catch (_) {}
+  Future<void> _ensureCoreIndexes({
+    required Session pool,
+    Set<String>? onlyTables,
+    required bool includeHeavyIndexes,
+  }) async {
+    final filter = onlyTables;
 
-    // Ağır DDL işleri sadece explicit maintenance'te.
-    // Heavy maintenance kapalıysa bu DB için bir sonraki çağrıları skip edebiliriz.
-    if (!cfg.allowBackgroundHeavyMaintenance) {
-      _completedByDb.add(db);
-      return;
+    try {
+      await PgEklentiler.ensurePgTrgm(pool);
+    } catch (e) {
+      if (kDebugMode) {
+        debugPrint('pg_trgm ensure uyarisi: $e');
+      }
     }
 
-    // BM25 indexleri: index-first path için zorunlu.
-    for (final table in BuyukOlcekAramaBootstrapSpec.bm25Tables) {
+    for (final table in BuyukOlcekAramaBootstrapSpec.searchTables) {
+      if (filter != null && !filter.contains(table)) continue;
       try {
-        await PgEklentiler.ensureBm25Index(
+        await PgEklentiler.ensureSearchTagsNotNullDefault(pool, table);
+        await PgEklentiler.ensureSearchTagsTrgmIndex(
           pool,
           table: table,
-          indexName: 'idx_${table}_search_tags_bm25',
+          indexName: 'idx_${table}_search_tags_gin',
+        );
+        await PgEklentiler.ensureSearchTagsFtsIndex(
+          pool,
+          table: table,
+          indexName: 'idx_${table}_search_tags_fts_gin',
         );
       } catch (e) {
-        // Best-effort
         if (kDebugMode) {
-          debugPrint('BM25 ensure uyarısı: table=$table err=$e');
+          debugPrint('Core search index uyarisi: table=$table err=$e');
         }
       }
     }
 
-    // Citus dağıtımı (best-effort).
-    for (final s in BuyukOlcekAramaBootstrapSpec.citusDistributionSpecs) {
+    if (!includeHeavyIndexes) return;
+
+    for (final spec in BuyukOlcekAramaBootstrapSpec.brinSpecs) {
+      if (filter != null && !filter.contains(spec.table)) continue;
       try {
-        await PgEklentiler.ensureDistributedTable(
+        await PgEklentiler.ensureBrinIndex(
           pool,
-          table: s.table,
-          distributionColumn: s.column,
-          colocateWith: s.colocateWith,
+          table: spec.table,
+          indexName: spec.indexName,
+          column: spec.column,
         );
       } catch (e) {
         if (kDebugMode) {
           debugPrint(
-            'Citus distribute uyarısı: table=${s.table} col=${s.column} err=$e',
+            'BRIN ensure uyarisi: ${spec.table}.${spec.column} err=$e',
           );
         }
       }
     }
 
-    // Heavy maintenance açıkken tablolar henüz oluşmamış olabilir (bootstrap yarışları).
-    // Bu yüzden burada "completed" işaretlemiyoruz; sonraki çağrılar tekrar deneyebilir.
+    for (final spec in BuyukOlcekAramaBootstrapSpec.compositeSpecs) {
+      if (filter != null && !filter.contains(spec.table)) continue;
+      try {
+        await PgEklentiler.ensureCompositeIndex(
+          pool,
+          table: spec.table,
+          indexName: spec.indexName,
+          expressions: spec.expressions,
+        );
+      } catch (e) {
+        if (kDebugMode) {
+          debugPrint(
+            'Composite index uyarisi: ${spec.table}/${spec.indexName} err=$e',
+          );
+        }
+      }
+    }
   }
 }

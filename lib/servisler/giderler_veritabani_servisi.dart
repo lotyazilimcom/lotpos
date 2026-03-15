@@ -7,6 +7,7 @@ import 'package:postgres/postgres.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../sayfalar/giderler/modeller/gider_model.dart';
+import 'arama/hizli_sayim_yardimcisi.dart';
 import 'oturum_servisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'pg_eklentiler.dart';
@@ -117,7 +118,9 @@ class GiderlerVeritabaniServisi {
   }
 
   Future<Pool> _poolOlustur() async {
-    return VeritabaniHavuzu().havuzAl(database: OturumServisi().aktifVeritabaniAdi);
+    return VeritabaniHavuzu().havuzAl(
+      database: OturumServisi().aktifVeritabaniAdi,
+    );
   }
 
   Future<Connection?> _yoneticiBaglantisiAl() async {
@@ -209,17 +212,114 @@ class GiderlerVeritabaniServisi {
       )
     ''');
 
-    await _pool!.execute('''
-      CREATE TABLE IF NOT EXISTS expense_items (
-        id BIGSERIAL PRIMARY KEY,
-        expense_id BIGINT NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
-        aciklama TEXT DEFAULT '',
-        tutar NUMERIC DEFAULT 0,
-        not_metni TEXT DEFAULT '',
-        search_tags TEXT NOT NULL DEFAULT '',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    ''');
+    try {
+      final txTableCheck = await _pool!.execute(
+        "SELECT relkind::text FROM pg_class WHERE relname = 'expense_items' LIMIT 1",
+      );
+
+      bool shouldCreatePartitioned = true;
+      if (txTableCheck.isNotEmpty) {
+        final relkind = txTableCheck.first[0]?.toString().toLowerCase();
+        if (relkind == 'p') {
+          shouldCreatePartitioned = false;
+        } else {
+          await _pool!.execute(
+            'DROP TABLE IF EXISTS expense_items_old CASCADE',
+          );
+          await _pool!.execute(
+            'ALTER TABLE expense_items RENAME TO expense_items_old',
+          );
+          try {
+            await _pool!.execute(
+              'ALTER SEQUENCE IF EXISTS expense_items_id_seq RENAME TO expense_items_old_id_seq',
+            );
+          } catch (_) {}
+        }
+      }
+
+      if (shouldCreatePartitioned) {
+        await _pool!.execute('''
+          CREATE TABLE IF NOT EXISTS expense_items (
+            id BIGSERIAL,
+            expense_id BIGINT NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+            aciklama TEXT DEFAULT '',
+            tutar NUMERIC DEFAULT 0,
+            not_metni TEXT DEFAULT '',
+            search_tags TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            PRIMARY KEY (id, created_at)
+          ) PARTITION BY RANGE (created_at)
+        ''');
+
+        await _pool!.execute(
+          'CREATE TABLE IF NOT EXISTS expense_items_default PARTITION OF expense_items DEFAULT',
+        );
+
+        final now = DateTime.now();
+        final start = DateTime(now.year, now.month, 1);
+        final end = now.month == 12
+            ? DateTime(now.year + 1, 1, 1)
+            : DateTime(now.year, now.month + 1, 1);
+        final monthStr = now.month.toString().padLeft(2, '0');
+        final startStr =
+            '${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}-01 00:00:00';
+        final endStr =
+            '${end.year.toString().padLeft(4, '0')}-${end.month.toString().padLeft(2, '0')}-01 00:00:00';
+        await _pool!.execute(
+          "CREATE TABLE IF NOT EXISTS expense_items_y${now.year}_m$monthStr PARTITION OF expense_items FOR VALUES FROM ('$startStr') TO ('$endStr')",
+        );
+      }
+
+      final oldExists = await _pool!.execute(
+        "SELECT 1 FROM pg_class WHERE relname = 'expense_items_old' LIMIT 1",
+      );
+      if (oldExists.isNotEmpty) {
+        await _pool!.execute('''
+          INSERT INTO expense_items (
+            id,
+            expense_id,
+            aciklama,
+            tutar,
+            not_metni,
+            search_tags,
+            created_at
+          )
+          SELECT
+            id,
+            expense_id,
+            aciklama,
+            tutar,
+            COALESCE(not_metni, ''),
+            COALESCE(search_tags, ''),
+            COALESCE(created_at, CURRENT_TIMESTAMP)
+          FROM expense_items_old
+          ORDER BY id ASC
+        ''');
+        final maxIdResult = await _pool!.execute(
+          'SELECT COALESCE(MAX(id), 0) FROM expense_items',
+        );
+        final maxId = maxIdResult.first[0];
+        if (maxId != null) {
+          await _pool!.execute(
+            "SELECT setval(pg_get_serial_sequence('expense_items', 'id'), $maxId)",
+          );
+        }
+        await _pool!.execute('DROP TABLE expense_items_old CASCADE');
+      }
+    } catch (e) {
+      debugPrint('expense_items partition migration uyarısı: $e');
+      await _pool!.execute('''
+        CREATE TABLE IF NOT EXISTS expense_items (
+          id BIGSERIAL PRIMARY KEY,
+          expense_id BIGINT NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+          aciklama TEXT DEFAULT '',
+          tutar NUMERIC DEFAULT 0,
+          not_metni TEXT DEFAULT '',
+          search_tags TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      ''');
+    }
 
     // Migration safety
     try {
@@ -257,7 +357,10 @@ class GiderlerVeritabaniServisi {
         await PgEklentiler.ensurePgSearch(_pool!);
       } catch (_) {}
       await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'expenses');
-      await PgEklentiler.ensureSearchTagsNotNullDefault(_pool!, 'expense_items');
+      await PgEklentiler.ensureSearchTagsNotNullDefault(
+        _pool!,
+        'expense_items',
+      );
       await PgEklentiler.ensureSearchTagsFtsIndex(
         _pool!,
         table: 'expenses',
@@ -373,8 +476,10 @@ class GiderlerVeritabaniServisi {
       } catch (_) {}
     } catch (_) {}
 
-    _expenseItemsHasSearchTags =
-        await _columnExists(table: 'expense_items', column: 'search_tags');
+    _expenseItemsHasSearchTags = await _columnExists(
+      table: 'expense_items',
+      column: 'search_tags',
+    );
 
     if (_expenseItemsHasSearchTags &&
         _config.allowBackgroundDbMaintenance &&
@@ -513,11 +618,7 @@ class GiderlerVeritabaniServisi {
   }
 
   static String _buildExpenseItemSearchTags(GiderKalemi kalem) {
-    final parts = <String>[
-      kalem.aciklama,
-      kalem.not,
-      kalem.tutar.toString(),
-    ];
+    final parts = <String>[kalem.aciklama, kalem.not, kalem.tutar.toString()];
     return parts
         .where((e) => e.trim().isNotEmpty)
         .join(' ')
@@ -852,10 +953,10 @@ class GiderlerVeritabaniServisi {
 
     final currentUser = updatedBy ?? await _getCurrentUser();
 
-	    await _pool!.runTx((ctx) async {
-	      if (_expenseItemsHasSearchTags) {
-	        await ctx.execute(
-	          Sql.named('''
+    await _pool!.runTx((ctx) async {
+      if (_expenseItemsHasSearchTags) {
+        await ctx.execute(
+          Sql.named('''
 	            INSERT INTO expense_items (
 	              expense_id, aciklama, tutar, not_metni, search_tags, created_at
 	            )
@@ -863,30 +964,30 @@ class GiderlerVeritabaniServisi {
 	              @expense_id, @aciklama, @tutar, @not_metni, @search_tags, @created_at
 	            )
 	          '''),
-	          parameters: {
-	            'expense_id': giderId,
-	            'aciklama': kalem.aciklama,
-	            'tutar': kalem.tutar,
-	            'not_metni': kalem.not,
-	            'search_tags': _buildExpenseItemSearchTags(kalem),
-	            'created_at': DateTime.now(),
-	          },
-	        );
-	      } else {
-	        await ctx.execute(
-	          Sql.named('''
+          parameters: {
+            'expense_id': giderId,
+            'aciklama': kalem.aciklama,
+            'tutar': kalem.tutar,
+            'not_metni': kalem.not,
+            'search_tags': _buildExpenseItemSearchTags(kalem),
+            'created_at': DateTime.now(),
+          },
+        );
+      } else {
+        await ctx.execute(
+          Sql.named('''
 	            INSERT INTO expense_items (expense_id, aciklama, tutar, not_metni, created_at)
 	            VALUES (@expense_id, @aciklama, @tutar, @not_metni, @created_at)
 	          '''),
-	          parameters: {
-	            'expense_id': giderId,
-	            'aciklama': kalem.aciklama,
-	            'tutar': kalem.tutar,
-	            'not_metni': kalem.not,
-	            'created_at': DateTime.now(),
-	          },
-	        );
-	      }
+          parameters: {
+            'expense_id': giderId,
+            'aciklama': kalem.aciklama,
+            'tutar': kalem.tutar,
+            'not_metni': kalem.not,
+            'created_at': DateTime.now(),
+          },
+        );
+      }
 
       // Total + tags update (single shot)
       final tagsAppend = [
@@ -966,7 +1067,8 @@ class GiderlerVeritabaniServisi {
     DateTime? baslangicTarihi,
     DateTime? bitisTarihi,
     String? kullanici,
-    List<int>? sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
+    List<int>?
+    sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
     int? lastId,
   }) async {
     if (!_isInitialized) await baslat();
@@ -1016,11 +1118,8 @@ class GiderlerVeritabaniServisi {
     final params = <String, dynamic>{};
 
     if (aramaTerimi != null && aramaTerimi.trim().isNotEmpty) {
-      whereConditions.add(
-        "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      whereConditions.add('search_tags ILIKE @search');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
     }
 
     if (aktifMi != null) {
@@ -1063,14 +1162,12 @@ class GiderlerVeritabaniServisi {
     if (lastId != null && lastId > 0 && !isIdSort) {
       try {
         final cursor = await _pool!.execute(
-          Sql.named(
-            '''
+          Sql.named('''
             SELECT ($sortColumn IS NULL) AS is_null, $sortExpr AS sort_val
             FROM expenses
             WHERE id = @id
             LIMIT 1
-          ''',
-          ),
+          '''),
           parameters: {'id': lastId},
         );
         if (cursor.isNotEmpty) {
@@ -1115,12 +1212,11 @@ class GiderlerVeritabaniServisi {
 
     String selectClause = 'SELECT expenses.*';
     final String? trimmedQ = aramaTerimi?.trim();
-	    if (trimmedQ != null && trimmedQ.isNotEmpty) {
+    if (trimmedQ != null && trimmedQ.isNotEmpty) {
 	      selectClause += '''
 	        , (CASE 
 	            WHEN (
 	              search_tags ILIKE @search
-	              OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts)
 	            )
 	              AND NOT (
 	                kod ILIKE @search OR
@@ -1274,11 +1370,8 @@ class GiderlerVeritabaniServisi {
     final params = <String, dynamic>{};
 
     if (aramaTerimi != null && aramaTerimi.trim().isNotEmpty) {
-      whereConditions.add(
-        "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-      );
+      whereConditions.add('search_tags ILIKE @search');
       params['search'] = '%${aramaTerimi.toLowerCase()}%';
-      params['fts'] = aramaTerimi.toLowerCase();
     }
 
     if (aktifMi != null) {
@@ -1311,15 +1404,13 @@ class GiderlerVeritabaniServisi {
       params['endDate'] = bitisTarihi.add(const Duration(days: 1));
     }
 
-    final whereClause = whereConditions.isNotEmpty
-        ? 'WHERE ${whereConditions.join(' AND ')}'
-        : '';
-
-    final res = await _pool!.execute(
-      Sql.named('SELECT COUNT(*) FROM expenses $whereClause'),
-      parameters: params,
+    return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
+      _pool!,
+      fromClause: 'expenses',
+      whereConditions: whereConditions,
+      params: params,
+      unfilteredTable: 'expenses',
     );
-    return (res.first[0] as num).toInt();
   }
 
   Future<Map<String, Map<String, int>>> giderFiltreIstatistikleriniGetir({
@@ -1354,14 +1445,11 @@ class GiderlerVeritabaniServisi {
       DateTime? start,
       DateTime? end,
     }) {
-	      final String? trimmedQ = q?.trim();
-	      if (trimmedQ != null && trimmedQ.isNotEmpty) {
-	        conds.add(
-	          "(search_tags ILIKE @search OR to_tsvector('simple', search_tags) @@ plainto_tsquery('simple', @fts))",
-	        );
-	        params['search'] = '%${trimmedQ.toLowerCase()}%';
-	        params['fts'] = trimmedQ.toLowerCase();
-	      }
+      final String? trimmedQ = q?.trim();
+      if (trimmedQ != null && trimmedQ.isNotEmpty) {
+        conds.add('search_tags ILIKE @search');
+        params['search'] = '%${trimmedQ.toLowerCase()}%';
+      }
 
       if (aktif != null) {
         conds.add('aktif_mi = @aktifMi');

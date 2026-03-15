@@ -178,8 +178,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
   final TextEditingController _searchController = TextEditingController();
   late FocusNode _searchFocusNode;
   bool _isInternalSearchFocusNode = false;
-  final FocusNode _keyboardListenerFocusNode =
-      FocusNode(); // Persistent node for listener
+
   final ScrollController _scrollController = ScrollController();
   int _rowsPerPage = 25;
   int _currentPage = 1;
@@ -224,7 +223,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
     if (_isInternalSearchFocusNode) {
       _searchFocusNode.dispose();
     }
-    _keyboardListenerFocusNode.dispose();
+
     if (_isInternalFocusNode) {
       _tableFocusNode.dispose();
     }
@@ -404,6 +403,20 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
       _isInternalSearchFocusNode = true;
     }
 
+    // ESC key handling: clear search text when ESC is pressed
+    _searchFocusNode.onKeyEvent = (node, event) {
+      if (event is KeyDownEvent &&
+          event.logicalKey == LogicalKeyboardKey.escape) {
+        if (_searchController.text.isNotEmpty) {
+          _searchController.clear();
+          _debounce?.cancel();
+          widget.onSearch('');
+          return KeyEventResult.handled;
+        }
+      }
+      return KeyEventResult.ignored;
+    };
+
     // Table FocusNode setup
     if (widget.focusNode != null) {
       _tableFocusNode = widget.focusNode!;
@@ -575,240 +588,226 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
   Widget build(BuildContext context) {
     return TapRegion(
       onTapOutside: (_) => _clearAllSelections(),
-      child: MouseRegion(
-        cursor: SystemMouseCursors.click,
-        hitTestBehavior: HitTestBehavior.deferToChild,
-        child: GestureDetector(
-          onTap: () {
-            // Request focus when table area is tapped
-            if (!_tableFocusNode.hasFocus) {
-              _tableFocusNode.requestFocus();
-            }
-          },
-          behavior: HitTestBehavior.translucent,
-          child: Focus(
-            focusNode: _tableFocusNode,
-            autofocus: widget
-                .autofocusTable, // CRITICAL: Auto-focus when widget is built
-            onKeyEvent: (node, event) => _handleKeyEvent(event),
-            child: Column(
+      child: Focus(
+        focusNode: _tableFocusNode,
+        autofocus:
+            widget.autofocusTable, // CRITICAL: Auto-focus when widget is built
+        onKeyEvent: (node, event) => _handleKeyEvent(event),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Breadcrumbs
+            if (widget.breadcrumbs != null &&
+                widget.breadcrumbs!.isNotEmpty) ...[
+              Row(
+                children: [
+                  for (int i = 0; i < widget.breadcrumbs!.length; i++) ...[
+                    if (i > 0)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Icon(
+                          Icons.chevron_right_rounded,
+                          size: 16,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    Text(
+                      widget.breadcrumbs![i],
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: i == widget.breadcrumbs!.length - 1
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: i == widget.breadcrumbs!.length - 1
+                            ? const Color(0xFF2C3E50)
+                            : Colors.grey.shade600,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+            ],
+
+            // Title
+            if (widget.title.isNotEmpty) ...[
+              Text(
+                widget.title,
+                style: const TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+
+            // Header Widget (Optional)
+            if (widget.headerWidget != null) ...[
+              widget.headerWidget!,
+              const SizedBox(height: 12),
+            ],
+
+            // Toolbar
+            Row(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Breadcrumbs
-                if (widget.breadcrumbs != null &&
-                    widget.breadcrumbs!.isNotEmpty) ...[
-                  Row(
-                    children: [
-                      for (int i = 0; i < widget.breadcrumbs!.length; i++) ...[
-                        if (i > 0)
-                          const Padding(
-                            padding: EdgeInsets.symmetric(horizontal: 8),
-                            child: Icon(
-                              Icons.chevron_right_rounded,
-                              size: 16,
-                              color: Colors.grey,
+                // Left Side
+                // Left Side
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        MouseRegion(
+                          cursor: SystemMouseCursors.click,
+                          hitTestBehavior: HitTestBehavior.deferToChild,
+                          child: Container(
+                            height: 40,
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(8),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 2,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<int>(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
+                                dropdownMenuItemMouseCursor:
+                                    WidgetStateMouseCursor.clickable,
+                                value: _rowsPerPage,
+                                icon: const Icon(
+                                  Icons.keyboard_arrow_down,
+                                  size: 20,
+                                  color: Color(0xFF606368),
+                                ),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF333333),
+                                  fontSize: 14,
+                                ),
+                                dropdownColor: Colors.white,
+                                borderRadius: BorderRadius.circular(8),
+                                elevation: 4,
+                                onChanged: _changeRowsPerPage,
+                                items: _rowsPerPageOptions.map((e) {
+                                  return DropdownMenuItem(
+                                    value: e,
+                                    child: Text('$e'),
+                                  );
+                                }).toList(),
+                              ),
                             ),
                           ),
-                        Text(
-                          widget.breadcrumbs![i],
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: i == widget.breadcrumbs!.length - 1
-                                ? FontWeight.w600
-                                : FontWeight.w500,
-                            color: i == widget.breadcrumbs!.length - 1
-                                ? const Color(0xFF2C3E50)
-                                : Colors.grey.shade600,
-                          ),
                         ),
+                        if (widget.extraWidgets != null) ...[
+                          const SizedBox(width: 16),
+                          ...widget.extraWidgets!,
+                        ],
                       ],
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                ],
-
-                // Title
-                if (widget.title.isNotEmpty) ...[
-                  Text(
-                    widget.title,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                ],
+                    if (widget.selectionWidget != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: widget.selectionWidget!,
+                      ),
+                  ],
+                ),
 
-                // Header Widget (Optional)
-                if (widget.headerWidget != null) ...[
-                  widget.headerWidget!,
-                  const SizedBox(height: 12),
-                ],
-
-                // Toolbar
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    // Left Side
-                    // Left Side
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            MouseRegion(
-                              cursor: SystemMouseCursors.click,
-                              hitTestBehavior: HitTestBehavior.deferToChild,
-                              child: Container(
-                                height: 40,
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
+                // Right Side
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      const SizedBox(width: 16),
+                      Flexible(
+                        child: MouseRegion(
+                          cursor: SystemMouseCursors.text,
+                          hitTestBehavior: HitTestBehavior.deferToChild,
+                          child: Container(
+                            constraints: const BoxConstraints(
+                              maxWidth: 250,
+                              minWidth: 100,
+                            ),
+                            child: TextField(
+                              controller: _searchController,
+                              focusNode: _searchFocusNode,
+                              mouseCursor: SystemMouseCursors.text,
+                              showCursor: true,
+                              cursorColor: const Color(0xFF2C3E50),
+                              textAlignVertical: TextAlignVertical.center,
+                              onTap: () {
+                                if (!_searchFocusNode.hasFocus) {
+                                  _searchFocusNode.requestFocus();
+                                }
+                              },
+                              decoration: InputDecoration(
+                                hintText: tr('common.search'),
+                                hintStyle: const TextStyle(
+                                  color: Colors.grey,
+                                  fontWeight: FontWeight.w500,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  border: Border.all(
+                                prefixIcon: const Padding(
+                                  padding: EdgeInsets.only(top: 5),
+                                  child: Icon(Icons.search, color: Colors.grey),
+                                ),
+                                suffixIcon: _searchController.text.isNotEmpty
+                                    ? IconButton(
+                                        icon: const Icon(
+                                          Icons.clear,
+                                          size: 18,
+                                          color: Colors.grey,
+                                        ),
+                                        onPressed: () {
+                                          _searchController.clear();
+                                          _debounce?.cancel();
+                                          widget.onSearch('');
+                                        },
+                                      )
+                                    : null,
+                                contentPadding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                enabledBorder: UnderlineInputBorder(
+                                  borderSide: BorderSide(
                                     color: Colors.grey.shade300,
                                   ),
-                                  borderRadius: BorderRadius.circular(8),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.05,
-                                      ),
-                                      blurRadius: 2,
-                                      offset: const Offset(0, 1),
-                                    ),
-                                  ],
                                 ),
-                                child: DropdownButtonHideUnderline(
-                                  child: DropdownButton<int>(
-                                    mouseCursor:
-                                        WidgetStateMouseCursor.clickable,
-                                    dropdownMenuItemMouseCursor:
-                                        WidgetStateMouseCursor.clickable,
-                                    value: _rowsPerPage,
-                                    icon: const Icon(
-                                      Icons.keyboard_arrow_down,
-                                      size: 20,
-                                      color: Color(0xFF606368),
-                                    ),
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                      color: Color(0xFF333333),
-                                      fontSize: 14,
-                                    ),
-                                    dropdownColor: Colors.white,
-                                    borderRadius: BorderRadius.circular(8),
-                                    elevation: 4,
-                                    onChanged: _changeRowsPerPage,
-                                    items: _rowsPerPageOptions.map((e) {
-                                      return DropdownMenuItem(
-                                        value: e,
-                                        child: Text('$e'),
-                                      );
-                                    }).toList(),
+                                focusedBorder: const UnderlineInputBorder(
+                                  borderSide: BorderSide(
+                                    color: Color(0xFF2C3E50),
                                   ),
                                 ),
                               ),
-                            ),
-                            if (widget.extraWidgets != null) ...[
-                              const SizedBox(width: 16),
-                              ...widget.extraWidgets!,
-                            ],
-                          ],
-                        ),
-                        if (widget.selectionWidget != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 8.0),
-                            child: widget.selectionWidget!,
-                          ),
-                      ],
-                    ),
-
-                    // Right Side
-                    Flexible(
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          const SizedBox(width: 16),
-                          Flexible(
-                            child: Container(
-                              constraints: const BoxConstraints(
-                                maxWidth: 250,
-                                minWidth: 100,
-                              ),
-                              child: KeyboardListener(
-                                focusNode: _keyboardListenerFocusNode,
-                                onKeyEvent: (event) {
-                                  if (event is KeyDownEvent &&
-                                      event.logicalKey ==
-                                          LogicalKeyboardKey.escape) {
-                                    if (_searchController.text.isNotEmpty) {
-                                      _searchController.clear();
-                                      _debounce?.cancel();
-                                      widget.onSearch('');
-                                    }
-                                  }
-                                },
-                                child: TextField(
-                                  controller: _searchController,
-                                  focusNode: _searchFocusNode,
-                                  textAlignVertical: TextAlignVertical.center,
-                                  decoration: InputDecoration(
-                                    hintText: tr('common.search'),
-                                    hintStyle: const TextStyle(
-                                      color: Colors.grey,
-                                      fontWeight: FontWeight.w500,
-                                    ),
-                                    prefixIcon: const Padding(
-                                      padding: EdgeInsets.only(top: 5),
-                                      child: Icon(
-                                        Icons.search,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                    suffixIcon:
-                                        _searchController.text.isNotEmpty
-                                        ? IconButton(
-                                            icon: const Icon(
-                                              Icons.clear,
-                                              size: 18,
-                                              color: Colors.grey,
-                                            ),
-                                            onPressed: () {
-                                              _searchController.clear();
-                                              _debounce?.cancel();
-                                              widget.onSearch('');
-                                            },
-                                          )
-                                        : Padding(
-                                            padding: const EdgeInsets.only(
-                                              right: 8,
-                                              top: 12,
-                                            ),
-                                            child: KlavyeKisayolRozeti.neutral(
-                                              label: tr('common.key.f3'),
-                                              textColor: Colors.grey.shade400,
-                                            ),
-                                          ),
-                                    contentPadding: EdgeInsets.zero,
-                                    enabledBorder: UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Colors.grey.shade300,
-                                      ),
-                                    ),
-                                    focusedBorder: const UnderlineInputBorder(
-                                      borderSide: BorderSide(
-                                        color: Color(0xFF2C3E50),
-                                      ),
-                                    ),
-                                  ),
-                                  onSubmitted: (value) {
-                                    // Trigger search immediately on Enter
+                              onSubmitted: (value) {
+                                // Trigger search immediately on Enter
+                                final q = value.toLowerCase();
+                                final trimmed = q.trim();
+                                final effectiveQuery =
+                                    widget.cursorPagination &&
+                                        trimmed.isNotEmpty &&
+                                        trimmed.length < 3
+                                    ? ''
+                                    : q;
+                                widget.onSearch(effectiveQuery);
+                              },
+                              onChanged: (value) {
+                                if (_debounce?.isActive ?? false) {
+                                  _debounce!.cancel();
+                                }
+                                _debounce = Timer(
+                                  const Duration(milliseconds: 500),
+                                  () {
                                     final q = value.toLowerCase();
                                     final trimmed = q.trim();
                                     final effectiveQuery =
@@ -819,59 +818,300 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                         : q;
                                     widget.onSearch(effectiveQuery);
                                   },
-                                  onChanged: (value) {
-                                    if (_debounce?.isActive ?? false) {
-                                      _debounce!.cancel();
-                                    }
-                                    _debounce = Timer(
-                                      const Duration(milliseconds: 500),
-                                      () {
-                                        final q = value.toLowerCase();
-                                        final trimmed = q.trim();
-                                        final effectiveQuery =
-                                            widget.cursorPagination &&
-                                                trimmed.isNotEmpty &&
-                                                trimmed.length < 3
-                                            ? ''
-                                            : q;
-                                        widget.onSearch(effectiveQuery);
-                                      },
-                                    );
-                                  },
-                                ),
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (_searchController.text.isEmpty) ...[
+                        const SizedBox(width: 8),
+                        IgnorePointer(
+                          child: KlavyeKisayolRozeti.neutral(
+                            label: tr('common.key.f3'),
+                            textColor: Colors.grey.shade400,
+                          ),
+                        ),
+                      ],
+                      if (widget.actionButton != null) ...[
+                        const SizedBox(width: 16),
+                        widget.actionButton!,
+                      ],
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+
+            // Table Content (Header + Body) with Horizontal Scroll
+            Expanded(
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final double totalWidth = widget.columns.fold(
+                    0,
+                    (sum, col) => sum + col.width,
+                  );
+
+                  final bool hasFlex = widget.columns.any(
+                    (c) => c.flex != null,
+                  );
+
+                  if (hasFlex) {
+                    return Column(
+                      children: [
+                        // Table Header
+                        Container(
+                          height: 50,
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border(
+                              bottom: BorderSide(
+                                color: Colors.grey.shade200,
+                                width: 1,
                               ),
                             ),
                           ),
-                          if (widget.actionButton != null) ...[
-                            const SizedBox(width: 16),
-                            widget.actionButton!,
-                          ],
-                        ],
+                          child: Row(
+                            children: widget.columns.asMap().entries.map((
+                              entry,
+                            ) {
+                              final index = entry.key;
+                              final col = entry.value;
+                              final isSorted = widget.sortColumnIndex == index;
+
+                              Widget child = InkWell(
+                                mouseCursor: WidgetStateMouseCursor.clickable,
+                                onTap: col.allowSorting
+                                    ? () {
+                                        if (widget.onSort != null) {
+                                          widget.onSort!(
+                                            index,
+                                            isSorted
+                                                ? !widget.sortAscending
+                                                : true,
+                                          );
+                                        }
+                                      }
+                                    : null,
+                                child: Container(
+                                  padding:
+                                      widget.headerPadding ??
+                                      const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
+                                  alignment: col.alignment,
+                                  child: _buildHeaderContent(
+                                    column: col,
+                                    isSorted: isSorted,
+                                    sortAscending: widget.sortAscending,
+                                    headerTextStyle: widget.headerTextStyle,
+                                    headerMaxLines: widget.headerMaxLines,
+                                    headerOverflow: widget.headerOverflow,
+                                  ),
+                                ),
+                              );
+
+                              if (col.flex != null) {
+                                return Expanded(flex: col.flex!, child: child);
+                              }
+
+                              return SizedBox(width: col.width, child: child);
+                            }).toList(),
+                          ),
+                        ),
+
+                        // Table Body (List) - Optimized with SliverList
+                        Expanded(
+                          child: CustomScrollView(
+                            // No controller here because StickyHeader might need its own context or we share parent?
+                            // Actually Standard ListView didn't have controller attached in this branch!
+                            slivers: [
+                              SliverList(
+                                delegate: SliverChildBuilderDelegate((
+                                  context,
+                                  index,
+                                ) {
+                                  final item = widget.data[index];
+                                  final isExpanded =
+                                      widget.expandAll ||
+                                      _expandedIndex == index ||
+                                      (widget.expandedIndices?.contains(
+                                            index,
+                                          ) ??
+                                          false);
+                                  final isSelected =
+                                      widget.isRowSelected?.call(item, index) ??
+                                      false;
+
+                                  return StickyHeader(
+                                    header: Material(
+                                      color: Colors.white,
+                                      child: InkWell(
+                                        mouseCursor:
+                                            WidgetStateMouseCursor.clickable,
+                                        onTap: () {
+                                          if (!_tableFocusNode.hasFocus) {
+                                            _tableFocusNode.requestFocus();
+                                          }
+                                          final isDoubleTap =
+                                              widget.onRowDoubleTap != null &&
+                                              _consumeDoubleTap(index);
+                                          if (isDoubleTap) {
+                                            if (!widget.expandOnRowTap) {
+                                              widget.onRowTap?.call(item);
+                                            }
+                                            widget.onRowDoubleTap?.call(item);
+                                            return;
+                                          }
+
+                                          if (widget.deselectOnRepeatedRowTap &&
+                                              _focusedRowIndex == index) {
+                                            _clearAllSelections();
+                                            return;
+                                          }
+
+                                          setState(
+                                            () => _focusedRowIndex = index,
+                                          );
+
+                                          widget.onFocusedRowChanged?.call(
+                                            item,
+                                            index,
+                                          );
+
+                                          if (widget.expandOnRowTap) {
+                                            _toggleExpand(index);
+                                          } else {
+                                            widget.onRowTap?.call(item);
+                                          }
+                                        },
+                                        hoverColor: const Color(
+                                          0xFF2C3E50,
+                                        ).withValues(alpha: 0.02),
+                                        child: Container(
+                                          constraints: const BoxConstraints(
+                                            minHeight: 60,
+                                          ),
+                                          padding:
+                                              widget.rowPadding ??
+                                              const EdgeInsets.symmetric(
+                                                vertical: 12,
+                                              ),
+                                          decoration: BoxDecoration(
+                                            color:
+                                                (isExpanded ||
+                                                    isSelected ||
+                                                    index == _focusedRowIndex)
+                                                ? const Color(
+                                                    0xFF2C3E50,
+                                                  ).withValues(alpha: 0.05)
+                                                : Colors.white,
+                                            border: Border(
+                                              bottom: BorderSide(
+                                                color: Colors.grey.shade200,
+                                                width: 1,
+                                              ),
+                                            ),
+                                          ),
+                                          child: widget.rowBuilder(
+                                            context,
+                                            item,
+                                            index,
+                                            isExpanded,
+                                            () => _toggleExpand(index),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    content: AnimatedSize(
+                                      duration: const Duration(
+                                        milliseconds: 200,
+                                      ),
+                                      curve: Curves.easeInOut,
+                                      alignment: Alignment.topCenter,
+                                      child: Container(
+                                        height: isExpanded ? null : 0,
+                                        width: double.infinity,
+                                        decoration: BoxDecoration(
+                                          color: Colors.grey.shade50,
+                                          border: Border(
+                                            bottom: BorderSide(
+                                              color: Colors.grey.shade200,
+                                              width: 1,
+                                            ),
+                                          ),
+                                        ),
+                                        child: isExpanded
+                                            ? TableDetailFocusScope(
+                                                focusedDetailIndex:
+                                                    index == _focusedRowIndex
+                                                    ? _focusedDetailRowIndex
+                                                    : null,
+                                                setFocusedDetailIndex:
+                                                    (detailIndex) {
+                                                      // CRITICAL: Set the detail focus when a detail row is clicked
+                                                      setState(() {
+                                                        _focusedRowIndex =
+                                                            index;
+                                                        _focusedDetailRowIndex =
+                                                            detailIndex;
+                                                      });
+                                                    },
+                                                ensureVisibleCallback:
+                                                    (context) {
+                                                      Scrollable.ensureVisible(
+                                                        context,
+                                                        duration:
+                                                            const Duration(
+                                                              milliseconds: 200,
+                                                            ),
+                                                        curve: Curves.easeInOut,
+                                                      );
+                                                    },
+                                                child: Padding(
+                                                  padding:
+                                                      widget
+                                                          .expandedContentPadding ??
+                                                      const EdgeInsets.all(
+                                                        24.0,
+                                                      ),
+                                                  child: widget.detailBuilder(
+                                                    context,
+                                                    item,
+                                                  ),
+                                                ),
+                                              )
+                                            : const SizedBox.shrink(),
+                                      ),
+                                    ),
+                                  );
+                                }, childCount: widget.data.length),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  return SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minWidth: constraints.maxWidth,
+                        minHeight: constraints.maxHeight,
+                        maxHeight: constraints.maxHeight,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-
-                // Table Content (Header + Body) with Horizontal Scroll
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      final double totalWidth = widget.columns.fold(
-                        0,
-                        (sum, col) => sum + col.width,
-                      );
-
-                      final bool hasFlex = widget.columns.any(
-                        (c) => c.flex != null,
-                      );
-
-                      if (hasFlex) {
-                        return Column(
+                      child: SizedBox(
+                        width: totalWidth > constraints.maxWidth
+                            ? totalWidth
+                            : constraints.maxWidth,
+                        child: Column(
                           children: [
                             // Table Header
                             Container(
-                              height: 50,
+                              height: 50, // Match StandartTablo default
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 border: Border(
@@ -906,11 +1146,9 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                           }
                                         : null,
                                     child: Container(
-                                      padding:
-                                          widget.headerPadding ??
-                                          const EdgeInsets.symmetric(
-                                            horizontal: 16,
-                                          ),
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 16,
+                                      ),
                                       alignment: col.alignment,
                                       child: _buildHeaderContent(
                                         column: col,
@@ -941,8 +1179,7 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                             // Table Body (List) - Optimized with SliverList
                             Expanded(
                               child: CustomScrollView(
-                                // No controller here because StickyHeader might need its own context or we share parent?
-                                // Actually Standard ListView didn't have controller attached in this branch!
+                                controller: _scrollController,
                                 slivers: [
                                   SliverList(
                                     delegate: SliverChildBuilderDelegate((
@@ -964,13 +1201,16 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                           ) ??
                                           false;
 
-                                      return StickyHeader(
-                                        header: Material(
-                                          color: Colors.white,
-                                          child: InkWell(
+                                      return Column(
+                                        children: [
+                                          // Main Row
+                                          InkWell(
                                             mouseCursor: WidgetStateMouseCursor
                                                 .clickable,
                                             onTap: () {
+                                              if (!_tableFocusNode.hasFocus) {
+                                                _tableFocusNode.requestFocus();
+                                              }
                                               final isDoubleTap =
                                                   widget.onRowDoubleTap !=
                                                       null &&
@@ -1045,326 +1285,45 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                               ),
                                             ),
                                           ),
-                                        ),
-                                        content: AnimatedSize(
-                                          duration: const Duration(
-                                            milliseconds: 200,
-                                          ),
-                                          curve: Curves.easeInOut,
-                                          alignment: Alignment.topCenter,
-                                          child: Container(
-                                            height: isExpanded ? null : 0,
-                                            width: double.infinity,
-                                            decoration: BoxDecoration(
-                                              color: Colors.grey.shade50,
-                                              border: Border(
-                                                bottom: BorderSide(
-                                                  color: Colors.grey.shade200,
-                                                  width: 1,
-                                                ),
-                                              ),
+
+                                          // Detail Panel
+                                          AnimatedSize(
+                                            duration: const Duration(
+                                              milliseconds: 200,
                                             ),
-                                            child: isExpanded
-                                                ? TableDetailFocusScope(
-                                                    focusedDetailIndex:
-                                                        index ==
-                                                            _focusedRowIndex
-                                                        ? _focusedDetailRowIndex
-                                                        : null,
-                                                    setFocusedDetailIndex:
-                                                        (detailIndex) {
-                                                          // CRITICAL: Set the detail focus when a detail row is clicked
-                                                          setState(() {
-                                                            _focusedRowIndex =
-                                                                index;
-                                                            _focusedDetailRowIndex =
-                                                                detailIndex;
-                                                          });
-                                                        },
-                                                    ensureVisibleCallback:
-                                                        (context) {
-                                                          Scrollable.ensureVisible(
-                                                            context,
-                                                            duration:
-                                                                const Duration(
-                                                                  milliseconds:
-                                                                      200,
-                                                                ),
-                                                            curve: Curves
-                                                                .easeInOut,
-                                                          );
-                                                        },
-                                                    child: Padding(
-                                                      padding:
-                                                          widget
-                                                              .expandedContentPadding ??
-                                                          const EdgeInsets.all(
-                                                            24.0,
-                                                          ),
-                                                      child: widget
-                                                          .detailBuilder(
-                                                            context,
-                                                            item,
-                                                          ),
-                                                    ),
-                                                  )
-                                                : const SizedBox.shrink(),
-                                          ),
-                                        ),
-                                      );
-                                    }, childCount: widget.data.length),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        );
-                      }
-
-                      return SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minWidth: constraints.maxWidth,
-                            minHeight: constraints.maxHeight,
-                            maxHeight: constraints.maxHeight,
-                          ),
-                          child: SizedBox(
-                            width: totalWidth > constraints.maxWidth
-                                ? totalWidth
-                                : constraints.maxWidth,
-                            child: Column(
-                              children: [
-                                // Table Header
-                                Container(
-                                  height: 50, // Match StandartTablo default
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    border: Border(
-                                      bottom: BorderSide(
-                                        color: Colors.grey.shade200,
-                                        width: 1,
-                                      ),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: widget.columns
-                                        .asMap()
-                                        .entries
-                                        .map((entry) {
-                                          final index = entry.key;
-                                          final col = entry.value;
-                                          final isSorted =
-                                              widget.sortColumnIndex == index;
-
-                                          Widget child = InkWell(
-                                            mouseCursor: WidgetStateMouseCursor
-                                                .clickable,
-                                            onTap: col.allowSorting
-                                                ? () {
-                                                    if (widget.onSort != null) {
-                                                      widget.onSort!(
-                                                        index,
-                                                        isSorted
-                                                            ? !widget
-                                                                  .sortAscending
-                                                            : true,
-                                                      );
-                                                    }
-                                                  }
-                                                : null,
+                                            curve: Curves.easeInOut,
+                                            alignment: Alignment.topCenter,
                                             child: Container(
-                                              padding:
-                                                  const EdgeInsets.symmetric(
-                                                    horizontal: 16,
-                                                  ),
-                                              alignment: col.alignment,
-                                              child: _buildHeaderContent(
-                                                column: col,
-                                                isSorted: isSorted,
-                                                sortAscending:
-                                                    widget.sortAscending,
-                                                headerTextStyle:
-                                                    widget.headerTextStyle,
-                                                headerMaxLines:
-                                                    widget.headerMaxLines,
-                                                headerOverflow:
-                                                    widget.headerOverflow,
-                                              ),
-                                            ),
-                                          );
-
-                                          if (col.flex != null) {
-                                            return Expanded(
-                                              flex: col.flex!,
-                                              child: child,
-                                            );
-                                          }
-
-                                          return SizedBox(
-                                            width: col.width,
-                                            child: child,
-                                          );
-                                        })
-                                        .toList(),
-                                  ),
-                                ),
-
-                                // Table Body (List) - Optimized with SliverList
-                                Expanded(
-                                  child: CustomScrollView(
-                                    controller: _scrollController,
-                                    slivers: [
-                                      SliverList(
-                                        delegate: SliverChildBuilderDelegate((
-                                          context,
-                                          index,
-                                        ) {
-                                          final item = widget.data[index];
-                                          final isExpanded =
-                                              widget.expandAll ||
-                                              _expandedIndex == index ||
-                                              (widget.expandedIndices?.contains(
-                                                    index,
-                                                  ) ??
-                                                  false);
-                                          final isSelected =
-                                              widget.isRowSelected?.call(
-                                                item,
-                                                index,
-                                              ) ??
-                                              false;
-
-                                          return Column(
-                                            children: [
-                                              // Main Row
-                                              InkWell(
-                                                mouseCursor:
-                                                    WidgetStateMouseCursor
-                                                        .clickable,
-                                                onTap: () {
-                                                  final isDoubleTap =
-                                                      widget.onRowDoubleTap !=
-                                                          null &&
-                                                      _consumeDoubleTap(index);
-                                                  if (isDoubleTap) {
-                                                    if (!widget
-                                                        .expandOnRowTap) {
-                                                      widget.onRowTap?.call(
-                                                        item,
-                                                      );
-                                                    }
-                                                    widget.onRowDoubleTap?.call(
-                                                      item,
-                                                    );
-                                                    return;
-                                                  }
-
-                                                  if (widget
-                                                          .deselectOnRepeatedRowTap &&
-                                                      _focusedRowIndex ==
-                                                          index) {
-                                                    _clearAllSelections();
-                                                    return;
-                                                  }
-
-                                                  setState(
-                                                    () => _focusedRowIndex =
-                                                        index,
-                                                  );
-
-                                                  widget.onFocusedRowChanged
-                                                      ?.call(item, index);
-
-                                                  if (widget.expandOnRowTap) {
-                                                    _toggleExpand(index);
-                                                  } else {
-                                                    widget.onRowTap?.call(item);
-                                                  }
-                                                },
-                                                hoverColor: const Color(
-                                                  0xFF2C3E50,
-                                                ).withValues(alpha: 0.02),
-                                                child: Container(
-                                                  constraints:
-                                                      const BoxConstraints(
-                                                        minHeight: 60,
-                                                      ),
-                                                  padding:
-                                                      widget.rowPadding ??
-                                                      const EdgeInsets.symmetric(
-                                                        vertical: 12,
-                                                      ),
-                                                  decoration: BoxDecoration(
-                                                    color:
-                                                        (isExpanded ||
-                                                            isSelected ||
-                                                            index ==
-                                                                _focusedRowIndex)
-                                                        ? const Color(
-                                                            0xFF2C3E50,
-                                                          ).withValues(
-                                                            alpha: 0.05,
-                                                          )
-                                                        : Colors.white,
-                                                    border: Border(
-                                                      bottom: BorderSide(
-                                                        color: Colors
-                                                            .grey
-                                                            .shade200,
-                                                        width: 1,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  child: widget.rowBuilder(
-                                                    context,
-                                                    item,
-                                                    index,
-                                                    isExpanded,
-                                                    () => _toggleExpand(index),
+                                              height: isExpanded ? null : 0,
+                                              width: double.infinity,
+                                              decoration: BoxDecoration(
+                                                color: Colors.grey.shade50,
+                                                border: Border(
+                                                  bottom: BorderSide(
+                                                    color: Colors.grey.shade200,
+                                                    width: 1,
                                                   ),
                                                 ),
                                               ),
-
-                                              // Detail Panel
-                                              AnimatedSize(
-                                                duration: const Duration(
-                                                  milliseconds: 200,
-                                                ),
-                                                curve: Curves.easeInOut,
-                                                alignment: Alignment.topCenter,
-                                                child: Container(
-                                                  height: isExpanded ? null : 0,
-                                                  width: double.infinity,
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.grey.shade50,
-                                                    border: Border(
-                                                      bottom: BorderSide(
-                                                        color: Colors
-                                                            .grey
-                                                            .shade200,
-                                                        width: 1,
-                                                      ),
-                                                    ),
-                                                  ),
-                                                  child: isExpanded
-                                                      ? TableDetailFocusScope(
-                                                          focusedDetailIndex:
-                                                              index ==
-                                                                  _focusedRowIndex
-                                                              ? _focusedDetailRowIndex
-                                                              : null,
-                                                          setFocusedDetailIndex:
-                                                              (detailIndex) {
-                                                                // CRITICAL: Set the detail focus when a detail row is clicked
-                                                                setState(() {
-                                                                  _focusedRowIndex =
-                                                                      index;
-                                                                  _focusedDetailRowIndex =
-                                                                      detailIndex;
-                                                                });
-                                                              },
-                                                          ensureVisibleCallback: (context) {
+                                              child: isExpanded
+                                                  ? TableDetailFocusScope(
+                                                      focusedDetailIndex:
+                                                          index ==
+                                                              _focusedRowIndex
+                                                          ? _focusedDetailRowIndex
+                                                          : null,
+                                                      setFocusedDetailIndex:
+                                                          (detailIndex) {
+                                                            // CRITICAL: Set the detail focus when a detail row is clicked
+                                                            setState(() {
+                                                              _focusedRowIndex =
+                                                                  index;
+                                                              _focusedDetailRowIndex =
+                                                                  detailIndex;
+                                                            });
+                                                          },
+                                                      ensureVisibleCallback:
+                                                          (context) {
                                                             Scrollable.ensureVisible(
                                                               context,
                                                               duration:
@@ -1376,44 +1335,42 @@ class _GenisletilebilirTabloState<T> extends State<GenisletilebilirTablo<T>> {
                                                                   .easeInOut,
                                                             );
                                                           },
-                                                          child: Padding(
-                                                            padding:
-                                                                widget
-                                                                    .expandedContentPadding ??
-                                                                const EdgeInsets.all(
-                                                                  24.0,
-                                                                ),
-                                                            child: widget
-                                                                .detailBuilder(
-                                                                  context,
-                                                                  item,
-                                                                ),
-                                                          ),
-                                                        )
-                                                      : const SizedBox.shrink(),
-                                                ),
-                                              ),
-                                            ],
-                                          );
-                                        }, childCount: widget.data.length),
-                                      ),
-                                    ],
+                                                      child: Padding(
+                                                        padding:
+                                                            widget
+                                                                .expandedContentPadding ??
+                                                            const EdgeInsets.all(
+                                                              24.0,
+                                                            ),
+                                                        child: widget
+                                                            .detailBuilder(
+                                                              context,
+                                                              item,
+                                                            ),
+                                                      ),
+                                                    )
+                                                  : const SizedBox.shrink(),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    }, childCount: widget.data.length),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
-                          ),
+                          ],
                         ),
-                      );
-                    },
-                  ),
-                ),
-
-                // Pagination Footer
-                _buildPaginationFooter(),
-              ],
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
+
+            // Pagination Footer
+            _buildPaginationFooter(),
+          ],
         ),
       ),
     );

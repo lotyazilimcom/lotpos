@@ -398,8 +398,8 @@ class BaglantiYoneticisi extends ChangeNotifier {
       unawaited(BulutSemaBootstrapServisi().hazirlaBestEffort());
     }
 
-    // [2026 GOOGLE-LIKE] ParadeDB/pg_search BM25 indexleri (index-first arama için).
-    // Varsayılan kapalı: PATISYO_ALLOW_HEAVY_MAINTENANCE=true ile açılır.
+    // [2026 GOOGLE-LIKE] Saf PostgreSQL arama/index bootstrap'i.
+    // Citus ve harici search olmadan `pg_trgm` + GIN/BRIN + keyset omurgasını hazırlar.
     unawaited(
       BuyukOlcekAramaBootstrapServisi().hazirlaBestEffort(
         databaseName: OturumServisi().aktifVeritabaniAdi,
