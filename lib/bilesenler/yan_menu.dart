@@ -119,6 +119,7 @@ class _YanMenuState extends State<YanMenu> {
   }
 
   bool _hasPermission(String id) {
+    if (id == 'settings.account') return true;
     if (widget.currentUser.rol == 'admin') return true;
     if (_userPermissions.contains('*')) return true;
     return _userPermissions.contains(id);

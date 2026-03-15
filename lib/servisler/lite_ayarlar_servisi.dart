@@ -10,6 +10,7 @@ class LiteAyarlar {
   final int maxDailyTransactions;
   final int maxDailyRetailSales;
   final int reportDaysLimit;
+  final double initialLosPayCredit;
   final bool isBankCreditActive;
   final bool isCheckPromissoryActive;
   final bool isCloudBackupActive;
@@ -21,6 +22,7 @@ class LiteAyarlar {
     required this.maxDailyTransactions,
     required this.maxDailyRetailSales,
     required this.reportDaysLimit,
+    required this.initialLosPayCredit,
     required this.isBankCreditActive,
     required this.isCheckPromissoryActive,
     required this.isCloudBackupActive,
@@ -33,6 +35,7 @@ class LiteAyarlar {
     maxDailyTransactions: 50,
     maxDailyRetailSales: 65,
     reportDaysLimit: 7,
+    initialLosPayCredit: 0,
     isBankCreditActive: false,
     isCheckPromissoryActive: false,
     isCloudBackupActive: false,
@@ -56,6 +59,13 @@ class LiteAyarlar {
     return fallback;
   }
 
+  static double _toDouble(dynamic value, double fallback) {
+    if (value == null) return fallback;
+    if (value is num) return value.toDouble();
+    final normalized = value.toString().trim().replaceAll(',', '.');
+    return double.tryParse(normalized) ?? fallback;
+  }
+
   static DateTime? _toDateTimeUtc(dynamic value) {
     if (value == null) return null;
     if (value is DateTime) return value.toUtc();
@@ -65,24 +75,42 @@ class LiteAyarlar {
 
   factory LiteAyarlar.fromMap(Map<String, dynamic> map) {
     return LiteAyarlar(
-      maxCurrentAccounts:
-          _toInt(map['max_current_accounts'], LiteAyarlar.defaults.maxCurrentAccounts),
-      maxDailyTransactions:
-          _toInt(map['max_daily_transactions'], LiteAyarlar.defaults.maxDailyTransactions),
-      maxDailyRetailSales:
-          _toInt(map['max_daily_retail_sales'], LiteAyarlar.defaults.maxDailyRetailSales),
-      reportDaysLimit:
-          _toInt(map['report_days_limit'], LiteAyarlar.defaults.reportDaysLimit),
-      isBankCreditActive:
-          _toBool(map['is_bank_credit_active'], LiteAyarlar.defaults.isBankCreditActive),
+      maxCurrentAccounts: _toInt(
+        map['max_current_accounts'],
+        LiteAyarlar.defaults.maxCurrentAccounts,
+      ),
+      maxDailyTransactions: _toInt(
+        map['max_daily_transactions'],
+        LiteAyarlar.defaults.maxDailyTransactions,
+      ),
+      maxDailyRetailSales: _toInt(
+        map['max_daily_retail_sales'],
+        LiteAyarlar.defaults.maxDailyRetailSales,
+      ),
+      reportDaysLimit: _toInt(
+        map['report_days_limit'],
+        LiteAyarlar.defaults.reportDaysLimit,
+      ),
+      initialLosPayCredit: _toDouble(
+        map['initial_lospay_credit'],
+        LiteAyarlar.defaults.initialLosPayCredit,
+      ),
+      isBankCreditActive: _toBool(
+        map['is_bank_credit_active'],
+        LiteAyarlar.defaults.isBankCreditActive,
+      ),
       isCheckPromissoryActive: _toBool(
         map['is_check_promissory_active'],
         LiteAyarlar.defaults.isCheckPromissoryActive,
       ),
-      isCloudBackupActive:
-          _toBool(map['is_cloud_backup_active'], LiteAyarlar.defaults.isCloudBackupActive),
-      isExcelExportActive:
-          _toBool(map['is_excel_export_active'], LiteAyarlar.defaults.isExcelExportActive),
+      isCloudBackupActive: _toBool(
+        map['is_cloud_backup_active'],
+        LiteAyarlar.defaults.isCloudBackupActive,
+      ),
+      isExcelExportActive: _toBool(
+        map['is_excel_export_active'],
+        LiteAyarlar.defaults.isExcelExportActive,
+      ),
       updatedAtUtc: _toDateTimeUtc(map['updated_at']),
     );
   }
@@ -93,6 +121,7 @@ class LiteAyarlar {
       'max_daily_transactions': maxDailyTransactions,
       'max_daily_retail_sales': maxDailyRetailSales,
       'report_days_limit': reportDaysLimit,
+      'initial_lospay_credit': initialLosPayCredit,
       'is_bank_credit_active': isBankCreditActive,
       'is_check_promissory_active': isCheckPromissoryActive,
       'is_cloud_backup_active': isCloudBackupActive,
@@ -108,6 +137,7 @@ class LiteAyarlar {
         other.maxDailyTransactions == maxDailyTransactions &&
         other.maxDailyRetailSales == maxDailyRetailSales &&
         other.reportDaysLimit == reportDaysLimit &&
+        other.initialLosPayCredit == initialLosPayCredit &&
         other.isBankCreditActive == isBankCreditActive &&
         other.isCheckPromissoryActive == isCheckPromissoryActive &&
         other.isCloudBackupActive == isCloudBackupActive &&
@@ -117,16 +147,17 @@ class LiteAyarlar {
 
   @override
   int get hashCode => Object.hash(
-        maxCurrentAccounts,
-        maxDailyTransactions,
-        maxDailyRetailSales,
-        reportDaysLimit,
-        isBankCreditActive,
-        isCheckPromissoryActive,
-        isCloudBackupActive,
-        isExcelExportActive,
-        updatedAtUtc,
-      );
+    maxCurrentAccounts,
+    maxDailyTransactions,
+    maxDailyRetailSales,
+    reportDaysLimit,
+    initialLosPayCredit,
+    isBankCreditActive,
+    isCheckPromissoryActive,
+    isCloudBackupActive,
+    isExcelExportActive,
+    updatedAtUtc,
+  );
 }
 
 /// Lite sürüm kısıtlamaları için online (Supabase) konfigürasyon + offline cache.
@@ -154,6 +185,7 @@ class LiteAyarlarServisi extends ChangeNotifier {
   int get maxDailyTransactions => _ayarlar.maxDailyTransactions;
   int get maxDailyRetailSales => _ayarlar.maxDailyRetailSales;
   int get reportDaysLimit => _ayarlar.reportDaysLimit;
+  double get initialLosPayCredit => _ayarlar.initialLosPayCredit;
   bool get isBankCreditActive => _ayarlar.isBankCreditActive;
   bool get isCheckPromissoryActive => _ayarlar.isCheckPromissoryActive;
   bool get isCloudBackupActive => _ayarlar.isCloudBackupActive;
@@ -197,7 +229,11 @@ class LiteAyarlarServisi extends ChangeNotifier {
     Duration timeout = const Duration(seconds: 4),
   }) async {
     try {
-      await senkronize(force: force, minInterval: minInterval, timeout: timeout);
+      await senkronize(
+        force: force,
+        minInterval: minInterval,
+        timeout: timeout,
+      );
     } catch (_) {}
   }
 
@@ -216,7 +252,9 @@ class LiteAyarlarServisi extends ChangeNotifier {
 
     final now = DateTime.now().toUtc();
     final lastAttempt = _lastSyncAttemptUtc;
-    if (!force && lastAttempt != null && now.difference(lastAttempt) < minInterval) {
+    if (!force &&
+        lastAttempt != null &&
+        now.difference(lastAttempt) < minInterval) {
       return _ayarlar;
     }
 
@@ -253,4 +291,3 @@ class LiteAyarlarServisi extends ChangeNotifier {
     }
   }
 }
-

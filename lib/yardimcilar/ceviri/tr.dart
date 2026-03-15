@@ -230,6 +230,7 @@ const Map<String, String> trCeviriler = {
   'settings.modules.items.expenses.title': 'Giderler',
   'settings.modules.items.expenses.description':
       'İşletme giderlerinizi kategorize ederek takip edin.',
+  'nav.settings.account': 'Hesap Ayarları',
   'nav.settings.language': 'Dil Ayarları',
   'nav.settings.database_backup': 'Veritabanı / Yedek Ayarları',
 
@@ -433,6 +434,70 @@ const Map<String, String> trCeviriler = {
   'settings.ai.test_api_success': 'Bağlantı başarılı! Modeller güncellendi.',
   'settings.ai.test_api_error': 'Bağlantı hatası: ',
   'settings.ai.save_success': 'Ayarlar başarıyla kaydedildi.',
+  'settings.account.title': 'Hesap Ayarları',
+  'settings.account.subtitle':
+      'Lisans, cihaz kimliği ve sürüm durumunu buradan yönetin.',
+  'settings.account.hero.label': 'HESAP MERKEZİ',
+  'settings.account.hero.lite_title':
+      'Lite profilden Pro seviyeye tek ekranda geçin.',
+  'settings.account.hero.lite_body':
+      'Cihaz kimliklerinizi paylaşın, lisans kaydınızı doğrulayın ve kullanım limitlerini aynı panelden takip edin.',
+  'settings.account.hero.pro_title':
+      'Lisans durumunuz bu cihaz için profesyonel olarak izleniyor.',
+  'settings.account.hero.pro_body':
+      'Aktif lisans bilgileriniz, cihaz kayıt eşleşmeniz ve Lite referans limitleri tek yerde görünür.',
+  'settings.account.feedback.refresh_success':
+      'Lisans durumu ve Lite ayarları güncellendi.',
+  'settings.account.ids.title': 'Kimlik ve Eşleştirme',
+  'settings.account.ids.subtitle':
+      'Yönetici paylaşımı için gerekli lisans ve cihaz kodları burada hazırdır.',
+  'settings.account.identity.unavailable': 'TANIMSIZ',
+  'settings.account.master_id.help':
+      'Bu kod lisans grubunuzu temsil eder. Pro lisans eşleştirmeleri bu kimlik üzerinden takip edilir.',
+  'settings.account.hardware_id.help':
+      'Bu cihazın benzersiz donanım kimliğidir. Yönetici lisansı bu kimlikle ilişkilendirir.',
+  'settings.account.help.title': 'Hızlı Not',
+  'settings.account.help.body':
+      'Lisans henüz görünmüyorsa internet bağlantınızı kontrol edip durumu yenileyin. Gerekirse yukarıdaki kimlikleri yöneticinizle paylaşın.',
+  'settings.account.summary.version': 'Sürüm',
+  'settings.account.summary.master_id': 'Lisans ID',
+  'settings.account.summary.expiry': 'Bitiş',
+  'settings.account.summary.lospay': 'LosPay Kredisi',
+  'settings.account.summary.connectivity': 'Senkron',
+  'settings.account.summary.connectivity.synced': 'Güncel',
+  'settings.account.summary.connectivity.checking': 'Kontrol ediliyor',
+  'settings.account.lospay.label': 'LosPay',
+  'settings.account.lospay.unit': 'kredi',
+  'settings.account.plan.title': 'Sürüm Özeti',
+  'settings.account.plan.subtitle':
+      'Mevcut planınızın çalışma biçimi ve doğrulama durumu.',
+  'settings.account.plan.lite_badge': 'LITE',
+  'settings.account.plan.pro_badge': 'PRO',
+  'settings.account.plan.lite_description':
+      'Bu cihaz şu anda Lite profilde çalışıyor. Limitlere ulaştığınızda Pro lisans ile tam erişime geçebilirsiniz.',
+  'settings.account.plan.pro_description':
+      'Bu cihaz aktif Pro lisans ile çalışıyor. Sistem lisans durumunu çevrim içi olarak doğrulamaya devam eder.',
+  'settings.account.plan.expiry_label': 'Lisans Bitiş Tarihi',
+  'settings.account.plan.expiry_unknown': 'Bilgi bekleniyor',
+  'settings.account.limits.title': 'Lite Limit Referansı',
+  'settings.account.limits.subtitle':
+      'Aşağıdaki değerler Lite profildeki güncel sınırları gösterir.',
+  'settings.account.limit.active_accounts': 'Aktif Cari Limiti',
+  'settings.account.limit.daily_transactions': 'Günlük Alış / Satış',
+  'settings.account.limit.daily_retail': 'Günlük Perakende Satış',
+  'settings.account.limit.report_days': 'Rapor Gün Aralığı',
+  'settings.account.features.title': 'Lite Özellik Anahtarları',
+  'settings.account.features.subtitle':
+      'Lite kullanımında hangi modüllerin açık olduğunu hızlıca görün.',
+  'settings.account.feature.bank_credit': 'Banka ve Kredi Kartı',
+  'settings.account.feature.check_note': 'Çek ve Senet',
+  'settings.account.feature.cloud_backup': 'Bulut Yedekleme',
+  'settings.account.feature.excel_export': 'Excel Dışa Aktarım',
+  'settings.account.state.available': 'Kullanılabilir',
+  'settings.account.state.locked': 'Kapalı',
+  'settings.account.actions.refresh': 'Durumu Yenile',
+  'settings.account.actions.verify': 'Lisansı Doğrula',
+  'settings.account.actions.copy': 'Kopyala',
 
   'nav.trading_operations': 'Alım Satım İşlemleri',
   'nav.trading_operations.fast_sale': 'Hızlı Satış',

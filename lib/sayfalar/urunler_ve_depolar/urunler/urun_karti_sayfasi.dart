@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../bilesenler/genisletilebilir_tablo.dart';
 import '../../../bilesenler/onay_dialog.dart';
+import '../../../bilesenler/responsive_filtreler.dart';
 import '../../../bilesenler/tab_acici_scope.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
@@ -182,6 +183,13 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
   @override
   void initState() {
     super.initState();
+    final initialDateRange = DateRangeDefaults.currentMonth();
+    _startDate = initialDateRange.start;
+    _endDate = initialDateRange.end;
+    initialDateRange.writeToControllers(
+      startController: _startDateController,
+      endController: _endDateController,
+    );
     _currentUrun = widget.urun;
     _availableUnits = [
       (_currentUrun.birim.toString().trim().isNotEmpty)
@@ -1996,16 +2004,14 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
       _selectedWarehouse != null ||
       _selectedUnit != null ||
       _selectedUser != null ||
-      _startDate != null ||
-      _endDate != null;
+      DateRangeDefaults.isCustomSelection(_startDate, _endDate);
 
   bool get _hasActiveNonSearchFilters =>
       _selectedTransactionType != null ||
       _selectedWarehouse != null ||
       _selectedUnit != null ||
       _selectedUser != null ||
-      _startDate != null ||
-      _endDate != null;
+      DateRangeDefaults.isCustomSelection(_startDate, _endDate);
 
   bool get _effectiveKeepDetailsOpen =>
       _keepDetailsOpen || _autoKeepDetailsOpen;
@@ -2032,18 +2038,22 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
   // -- Helper Widgets Replicated from CariKartiSayfasi --
 
   Widget _buildFilters() {
-    final filtersRow = Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(child: _buildDateRangeFilter(width: double.infinity)),
-        const SizedBox(width: 24),
-        Expanded(child: _buildWarehouseFilter(width: double.infinity)),
-        const SizedBox(width: 24),
-        Expanded(child: _buildUnitFilter(width: double.infinity)),
-        const SizedBox(width: 24),
-        Expanded(child: _buildTransactionFilter(width: double.infinity)),
-        const SizedBox(width: 24),
-        Expanded(child: _buildUserFilter(width: double.infinity)),
+    final filtersRow = ResponsiveFilterRow(
+      items: [
+        ResponsiveFilterItem(
+          child: _buildDateRangeFilter(width: double.infinity),
+          desktopWidth: 432,
+          tabletWidth: 392,
+          minWidth: 280,
+        ),
+        ResponsiveFilterItem(
+          child: _buildWarehouseFilter(width: double.infinity),
+        ),
+        ResponsiveFilterItem(child: _buildUnitFilter(width: double.infinity)),
+        ResponsiveFilterItem(
+          child: _buildTransactionFilter(width: double.infinity),
+        ),
+        ResponsiveFilterItem(child: _buildUserFilter(width: double.infinity)),
       ],
     );
 
@@ -3164,7 +3174,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
           _endDateController.clear();
         }
 
-        if (_startDate != null || _endDate != null) {
+        if (DateRangeDefaults.isCustomSelection(_startDate, _endDate)) {
           _autoKeepDetailsOpen = true;
         } else if (!_hasActiveFilters) {
           _autoKeepDetailsOpen = false;
@@ -3182,84 +3192,45 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
   }
 
   Widget _buildDateRangeFilter({double? width}) {
-    final hasSelection = _startDate != null || _endDate != null;
-    return InkWell(
-      mouseCursor: WidgetStateMouseCursor.clickable,
-      onTap: _showDateRangePicker,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        width: width ?? 240,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: hasSelection
-                  ? const Color(0xFF2C3E50) // Patisyo Dark Blue
-                  : Colors.grey.shade300,
-              width: hasSelection ? 2 : 1,
-            ),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.date_range_rounded,
-              size: 20,
-              color: hasSelection
-                  ? const Color(0xFF2C3E50)
-                  : Colors.grey.shade600,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                hasSelection
-                    ? '${_startDateController.text} - ${_endDateController.text}'
-                    : tr('common.date_range_select'),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: hasSelection ? FontWeight.w600 : FontWeight.w500,
-                  color: hasSelection
-                      ? const Color(0xFF2C3E50)
-                      : Colors.grey.shade700,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (hasSelection)
-              InkWell(
-                mouseCursor: WidgetStateMouseCursor.clickable,
-                onTap: () {
-                  setState(() {
-                    _startDate = null;
-                    _endDate = null;
-                    _startDateController.clear();
-                    _endDateController.clear();
-                    if (!_hasActiveFilters) _autoKeepDetailsOpen = false;
+    return RaporStiliTarihAraligiFiltresi(
+      width: width,
+      startDate: _startDate,
+      endDate: _endDate,
+      onCustomTap: _showDateRangePicker,
+      onPresetSelected: (start, end) {
+        setState(() {
+          _startDate = start;
+          _endDate = end;
+          if (_startDate != null) {
+            _startDateController.text = DateFormat(
+              'dd.MM.yyyy',
+            ).format(_startDate!);
+          } else {
+            _startDateController.clear();
+          }
+          if (_endDate != null) {
+            _endDateController.text = DateFormat(
+              'dd.MM.yyyy',
+            ).format(_endDate!);
+          } else {
+            _endDateController.clear();
+          }
 
-                    if (_isSerialListMode) {
-                      _serialCurrentPage = 1;
-                      _serialHasNextPage = false;
-                      _serialPageCursors.clear();
-                      _serialPaginationResetKey = Object();
-                    }
-                  });
-                  _refreshCurrentView();
-                },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4.0),
-                  child: Icon(Icons.close, size: 16, color: Colors.grey),
-                ),
-              ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 20,
-              color: Colors.grey.shade400,
-            ),
-          ],
-        ),
-      ),
+          if (DateRangeDefaults.isCustomSelection(_startDate, _endDate)) {
+            _autoKeepDetailsOpen = true;
+          } else if (!_hasActiveFilters) {
+            _autoKeepDetailsOpen = false;
+          }
+
+          if (_isSerialListMode) {
+            _serialCurrentPage = 1;
+            _serialHasNextPage = false;
+            _serialPageCursors.clear();
+            _serialPaginationResetKey = Object();
+          }
+        });
+        _refreshCurrentView();
+      },
     );
   }
 
@@ -4023,7 +3994,7 @@ class _UrunKartiSayfasiState extends State<UrunKartiSayfasi> {
   int _getActiveMobileFilterCount() {
     int count = 0;
     if (_searchController.text.trim().isNotEmpty) count++;
-    if (_startDate != null || _endDate != null) count++;
+    if (DateRangeDefaults.isCustomSelection(_startDate, _endDate)) count++;
     if (_isSerialListMode) return count;
     if (_selectedWarehouse != null) count++;
     if (_selectedUnit != null) count++;

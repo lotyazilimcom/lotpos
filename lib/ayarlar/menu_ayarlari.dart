@@ -218,6 +218,12 @@ class MenuAyarlari {
           index: 50,
         ),
         MenuItem(
+          id: 'settings.account',
+          labelKey: 'nav.settings.account',
+          icon: Icons.manage_accounts_rounded,
+          index: 21,
+        ),
+        MenuItem(
           id: 'settings.language',
           labelKey: 'nav.settings.language',
           icon: Icons.language_rounded,

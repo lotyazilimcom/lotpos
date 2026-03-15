@@ -9,6 +9,7 @@ import '../../bilesenler/tab_acici_scope.dart';
 import '../../bilesenler/genisletilebilir_tablo.dart';
 import '../ayarlar/genel_ayarlar/veri_kaynagi/genel_ayarlar_veri_kaynagi.dart';
 import '../../bilesenler/onay_dialog.dart';
+import '../../bilesenler/responsive_filtreler.dart';
 import '../../bilesenler/tarih_araligi_secici_dialog.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
@@ -133,6 +134,13 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
   @override
   void initState() {
     super.initState();
+    final initialDateRange = DateRangeDefaults.currentMonth();
+    _startDate = initialDateRange.start;
+    _endDate = initialDateRange.end;
+    initialDateRange.writeToControllers(
+      startController: _startDateController,
+      endController: _endDateController,
+    );
     if (widget.initialSearchQuery != null) {
       _searchController.text = widget.initialSearchQuery!;
       _searchQuery = widget.initialSearchQuery!.toLowerCase();
@@ -395,12 +403,15 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
 
       if (mounted) {
         final indices = <int>{};
+        final bool hasCustomDateFilter = DateRangeDefaults.isCustomSelection(
+          _startDate,
+          _endDate,
+        );
         final bool hasNonSearchFilter =
             _selectedStatus != null ||
             _selectedDefault != null ||
             _selectedUser != null ||
-            _startDate != null ||
-            _endDate != null ||
+            hasCustomDateFilter ||
             _selectedTransactionType != null ||
             _selectedWarehouse != null;
 
@@ -2009,95 +2020,57 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
   Widget _buildFilters() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 14),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: _buildDateRangeFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildStatusFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildDefaultFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildTransactionFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildUserFilter(width: double.infinity)),
+      child: ResponsiveFilterRow(
+        items: [
+          ResponsiveFilterItem(
+            child: _buildDateRangeFilter(width: double.infinity),
+            desktopWidth: 432,
+            tabletWidth: 392,
+            minWidth: 280,
+          ),
+          ResponsiveFilterItem(
+            child: _buildStatusFilter(width: double.infinity),
+          ),
+          ResponsiveFilterItem(
+            child: _buildDefaultFilter(width: double.infinity),
+          ),
+          ResponsiveFilterItem(
+            child: _buildTransactionFilter(width: double.infinity),
+          ),
+          ResponsiveFilterItem(child: _buildUserFilter(width: double.infinity)),
         ],
       ),
     );
   }
 
   Widget _buildDateRangeFilter({double? width}) {
-    final hasSelection = _startDate != null || _endDate != null;
-    return InkWell(
-      mouseCursor: WidgetStateMouseCursor.clickable,
-      onTap: _showDateRangePicker,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        width: width ?? 240,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: hasSelection
-                  ? const Color(0xFF2C3E50)
-                  : Colors.grey.shade300,
-              width: hasSelection ? 2 : 1,
-            ),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.date_range_rounded,
-              size: 20,
-              color: hasSelection
-                  ? const Color(0xFF2C3E50)
-                  : Colors.grey.shade600,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                hasSelection
-                    ? '${_startDateController.text} - ${_endDateController.text}'
-                    : tr('common.date_range_select'),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: hasSelection ? FontWeight.w600 : FontWeight.w500,
-                  color: hasSelection
-                      ? const Color(0xFF2C3E50)
-                      : Colors.grey.shade700,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (hasSelection)
-              InkWell(
-                mouseCursor: WidgetStateMouseCursor.clickable,
-                onTap: () {
-                  setState(() {
-                    _startDate = null;
-                    _endDate = null;
-                    _startDateController.clear();
-                    _endDateController.clear();
-                    _resetPagination();
-                  });
-                  _fetchKrediKartlari();
-                },
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4.0),
-                  child: Icon(Icons.close, size: 16, color: Colors.grey),
-                ),
-              ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 20,
-              color: Colors.grey.shade400,
-            ),
-          ],
-        ),
-      ),
+    return RaporStiliTarihAraligiFiltresi(
+      width: width,
+      startDate: _startDate,
+      endDate: _endDate,
+      onCustomTap: _showDateRangePicker,
+      onPresetSelected: (start, end) {
+        setState(() {
+          _startDate = start;
+          _endDate = end;
+          if (_startDate != null) {
+            _startDateController.text = DateFormat(
+              'dd.MM.yyyy',
+            ).format(_startDate!);
+          } else {
+            _startDateController.clear();
+          }
+          if (_endDate != null) {
+            _endDateController.text = DateFormat(
+              'dd.MM.yyyy',
+            ).format(_endDate!);
+          } else {
+            _endDateController.clear();
+          }
+          _resetPagination();
+        });
+        _fetchKrediKartlari();
+      },
     );
   }
 
@@ -5476,7 +5449,7 @@ class _KrediKartlariSayfasiState extends State<KrediKartlariSayfasi> {
   int _getActiveMobileFilterCount() {
     int count = 0;
     if (_searchController.text.trim().isNotEmpty) count++;
-    if (_startDate != null || _endDate != null) count++;
+    if (DateRangeDefaults.isCustomSelection(_startDate, _endDate)) count++;
     if (_selectedStatus != null) count++;
     if (_selectedDefault != null) count++;
     if (_selectedTransactionType != null) count++;

@@ -45,6 +45,7 @@ class LisansServisi extends ChangeNotifier {
   static const Duration _clockRollbackTolerance = Duration(minutes: 10);
   static const Duration _kasasiTouchInterval = Duration(minutes: 15);
   static const Duration _licenseIdSyncInterval = Duration(minutes: 10);
+  static const Duration _losPaySyncInterval = Duration(minutes: 10);
 
   String get _vaultSecret => '$_licenseSecret|$_secKey|LOT-LICENSE-VAULT-V1';
 
@@ -52,11 +53,13 @@ class LisansServisi extends ChangeNotifier {
   String? _licenseId;
   bool _isLicensed = false;
   DateTime? _licenseEndDate;
+  double _losPayBalance = 0;
   bool _isInitialized = false;
   bool? _lastOnlineStatus; // Durum önbelleği (Caching)
   bool _inheritedPro = false; // Sunucudan devralınan lisans durumu
   bool _noOnlineLicenseLogged = false;
   DateTime? _licenseIdLastSyncUtc;
+  DateTime? _losPayLastSyncUtc;
 
   String? get hardwareId => _hardwareId;
   String? get licenseId => _licenseId;
@@ -64,6 +67,7 @@ class LisansServisi extends ChangeNotifier {
   bool get isLiteMode => !isLicensed;
   bool get inheritedPro => _inheritedPro;
   DateTime? get licenseEndDate => _licenseEndDate;
+  double get losPayBalance => _losPayBalance;
   String? _licenseKey;
   String? get licenseKey => _licenseKey;
 
@@ -73,10 +77,7 @@ class LisansServisi extends ChangeNotifier {
   /// Sunucudan devralınan lisans durumunu ayarlar
   Future<void> setInheritedPro(bool status) async {
     if (_inheritedPro == status) return;
-    _inheritedPro = status;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_prefsInheritedProKey, status);
-    notifyListeners();
+    await _setInheritedProLocal(status);
     debugPrint('Lisans Servisi: Devralınan PRO durumu: $status');
   }
 
@@ -107,6 +108,7 @@ class LisansServisi extends ChangeNotifier {
   String get _prefsLicenseEndDateKey =>
       'license_end_date_${_requireHardwareId()}';
   String get _prefsLicenseIdKey => 'license_id_${_requireHardwareId()}';
+  String get _prefsLosPayBalanceKey => 'lospay_balance_${_requireHardwareId()}';
 
   DateTime _nowUtc() => DateTime.now().toUtc();
 
@@ -151,6 +153,7 @@ class LisansServisi extends ChangeNotifier {
         final normalized = cachedLicenseId.trim().toUpperCase();
         _licenseId = normalized.isNotEmpty ? normalized : null;
       }
+      _losPayBalance = prefs.getDouble(_prefsLosPayBalanceKey) ?? 0;
 
       // Açılışta lisansı doğrula:
       // - Online erişilebiliyorsa: sadece online kayıt belirleyicidir (yerel lisansa bakılmaz).
@@ -196,6 +199,7 @@ class LisansServisi extends ChangeNotifier {
       _lastOnlineStatus = null;
       unawaited(durumGuncelle(true));
       unawaited(_syncLicenseIdFromServerBestEffort());
+      unawaited(_syncLosPayBalanceFromServerBestEffort());
     });
   }
 
@@ -603,6 +607,78 @@ class LisansServisi extends ChangeNotifier {
     notifyListeners();
   }
 
+  double _toDouble(dynamic value) {
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final normalized = value.trim().replaceAll(',', '.');
+      return double.tryParse(normalized) ?? 0;
+    }
+    return 0;
+  }
+
+  Future<void> _setLosPayBalanceLocal(
+    double amount, {
+    bool notify = true,
+  }) async {
+    if (_hardwareId == null) return;
+
+    final double sanitized = amount.isFinite
+        ? (amount < 0 ? 0.0 : amount)
+        : 0.0;
+    if ((_losPayBalance - sanitized).abs() < 0.0001) return;
+
+    _losPayBalance = sanitized;
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setDouble(_prefsLosPayBalanceKey, sanitized);
+    } catch (_) {}
+
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  Future<void> _setInheritedProLocal(bool status, {bool notify = true}) async {
+    if (_inheritedPro == status) return;
+
+    _inheritedPro = status;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(_prefsInheritedProKey, status);
+
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  bool _isLitePackageName(String? packageName) {
+    final value = (packageName ?? '').trim().toUpperCase();
+    if (value.isEmpty) return false;
+    return value.contains('LITE');
+  }
+
+  Future<void> _clearOnlineLicenseState({
+    bool clearInheritedPro = false,
+    bool notify = true,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsLicenseKeyKey);
+
+    _licenseKey = null;
+    _isLicensed = false;
+
+    if (clearInheritedPro) {
+      await _setInheritedProLocal(false, notify: false);
+    }
+
+    await _setLicenseEndDate(null);
+    unawaited(_persistKasasiBestEffort(includeLicenseKey: false));
+
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
   bool _isExpiredByDate(DateTime endDate) {
     final today = _secureTodayUtc();
     final end = DateTime.utc(endDate.year, endDate.month, endDate.day);
@@ -706,19 +782,43 @@ class LisansServisi extends ChangeNotifier {
     Duration onlineTimeout = const Duration(seconds: 4),
   }) async {
     try {
+      bool forceLiteByLifecycle = false;
+      final lifecycle = await _programDurumuGetirOnlineOrThrow(
+        timeout: onlineTimeout,
+      );
+      final serverLicenseId = lifecycle?.licenseId;
+      if (lifecycle != null) {
+        await _setLicenseIdLocal(serverLicenseId);
+        // Online cevap geldiyse lisans kararı artık çevrim içi kayıttan alınır.
+        await _setInheritedProLocal(false, notify: false);
+
+        final status = lifecycle.status;
+        if (status != null && status.isNotEmpty && status != 'converted') {
+          forceLiteByLifecycle = true;
+        }
+      }
+
       // Online-first: Supabase'e erişilebiliyorsa yerel lisans dikkate alınmaz.
       // Online sorgu başarıyla dönüp kayıt yoksa (silinmişse) cihaz direkt LITE'a düşer.
       final data = await _lisansBilgisiGetirOnlineOrThrow(
         timeout: onlineTimeout,
+        groupLicenseIdOverride: serverLicenseId,
+      );
+      await _syncLosPayBalanceFromServerBestEffort(
+        licenseData: data,
+        timeout: onlineTimeout,
+        force: true,
+        notify: false,
+        clearOnMissing: true,
       );
 
+      if (forceLiteByLifecycle) {
+        await _clearOnlineLicenseState(notify: true);
+        return _isLicensed;
+      }
+
       if (data == null) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_prefsLicenseKeyKey);
-        _licenseKey = null;
-        _isLicensed = false;
-        await _setLicenseEndDate(null);
-        notifyListeners();
+        await _clearOnlineLicenseState(notify: true);
         if (!_noOnlineLicenseLogged) {
           _noOnlineLicenseLogged = true;
           debugPrint(
@@ -732,6 +832,8 @@ class LisansServisi extends ChangeNotifier {
       _noOnlineLicenseLogged = false;
 
       final key = data['license_key']?.toString() ?? '';
+      final packageName = data['package_name']?.toString();
+      final isLitePackage = _isLitePackageName(packageName);
       final isCancelled = key.startsWith('CANCELLED');
 
       final endDateRaw = data['end_date'];
@@ -739,33 +841,18 @@ class LisansServisi extends ChangeNotifier {
           ? DateTime.tryParse(endDateRaw.toString())
           : null;
 
-      if (parsedEndDate != null) {
-        await _setLicenseEndDate(parsedEndDate);
-      }
-
-      if (isCancelled || key.trim().isEmpty) {
-        if (_licenseKey != null || _isLicensed) {
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.remove(_prefsLicenseKeyKey);
-          _licenseKey = null;
-          _isLicensed = false;
-          unawaited(_persistKasasiBestEffort(includeLicenseKey: false));
-          notifyListeners();
-        }
+      if (isLitePackage || isCancelled || key.trim().isEmpty) {
+        await _clearOnlineLicenseState(notify: true);
         return _isLicensed;
       }
 
       if (parsedEndDate != null && _isExpiredByDate(parsedEndDate)) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove(_prefsLicenseKeyKey);
-        _licenseKey = null;
-        _isLicensed = false;
-        unawaited(_persistKasasiBestEffort(includeLicenseKey: false));
-        notifyListeners();
+        await _clearOnlineLicenseState(notify: true);
         return _isLicensed;
       }
 
       // PRO (aktif lisans)
+      await _setLicenseEndDate(parsedEndDate);
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_prefsLicenseKeyKey);
       _licenseKey = key;
@@ -793,6 +880,63 @@ class LisansServisi extends ChangeNotifier {
     final now = _nowUtc().toIso8601String();
     final desiredStatus = isLicensed ? 'converted' : 'active';
     final hid = _hardwareId!;
+    await LiteAyarlarServisi().baslat();
+    await LiteAyarlarServisi().senkronizeBestEffort();
+    final initialLosPayCredit = desiredStatus == 'active'
+        ? LiteAyarlarServisi().initialLosPayCredit
+        : 0.0;
+
+    bool isMissingColumn(PostgrestException error, String columnName) {
+      final msg = error.message.toLowerCase();
+      return msg.contains(columnName) &&
+          (msg.contains('column') || msg.contains('schema'));
+    }
+
+    Future<bool> insertProgramDeneme(Map<String, dynamic> payload) async {
+      final nextPayload = Map<String, dynamic>.from(payload);
+      var losPayApplied = nextPayload.containsKey('lospay_credit');
+
+      while (true) {
+        try {
+          await supabase.from('program_deneme').insert(nextPayload);
+          return losPayApplied;
+        } on PostgrestException catch (e) {
+          if (isMissingColumn(e, 'status') &&
+              nextPayload.containsKey('status')) {
+            nextPayload.remove('status');
+            continue;
+          }
+          if (isMissingColumn(e, 'lospay_credit') &&
+              nextPayload.containsKey('lospay_credit')) {
+            nextPayload.remove('lospay_credit');
+            losPayApplied = false;
+            continue;
+          }
+          rethrow;
+        }
+      }
+    }
+
+    Future<void> updateProgramDeneme(Map<String, dynamic> payload) async {
+      final nextPayload = Map<String, dynamic>.from(payload);
+
+      while (true) {
+        try {
+          await supabase
+              .from('program_deneme')
+              .update(nextPayload)
+              .eq('hardware_id', hid);
+          return;
+        } on PostgrestException catch (e) {
+          if (isMissingColumn(e, 'status') &&
+              nextPayload.containsKey('status')) {
+            nextPayload.remove('status');
+            continue;
+          }
+          rethrow;
+        }
+      }
+    }
 
     try {
       final payload = {
@@ -803,26 +947,12 @@ class LisansServisi extends ChangeNotifier {
         'is_online': true,
         'last_heartbeat': now,
         'status': desiredStatus,
+        'lospay_credit': initialLosPayCredit,
       };
 
-      try {
-        await supabase.from('program_deneme').insert(payload);
-      } on PostgrestException catch (e) {
-        final msg = (e.message).toLowerCase();
-        final statusColumnMissing =
-            msg.contains('status') &&
-            (msg.contains('column') || msg.contains('schema'));
-        if (!statusColumnMissing) rethrow;
-
-        // Eski şemalarda `status` sütunu yoksa insert'i status olmadan tekrar dene.
-        await supabase.from('program_deneme').insert({
-          'hardware_id': hid,
-          'machine_name': machineName,
-          'install_date': now,
-          'last_activity': now,
-          'is_online': true,
-          'last_heartbeat': now,
-        });
+      final losPayApplied = await insertProgramDeneme(payload);
+      if (losPayApplied) {
+        await _setLosPayBalanceLocal(initialLosPayCredit);
       }
       debugPrint('Lisans Servisi: program_deneme cihaz kaydı oluşturuldu.');
     } on PostgrestException catch (e) {
@@ -834,37 +964,13 @@ class LisansServisi extends ChangeNotifier {
       }
 
       try {
-        final updatePayload = {
+        await updateProgramDeneme({
           'machine_name': machineName,
           'last_activity': now,
           'is_online': true,
           'last_heartbeat': now,
           'status': desiredStatus,
-        };
-
-        try {
-          await supabase
-              .from('program_deneme')
-              .update(updatePayload)
-              .eq('hardware_id', hid);
-        } on PostgrestException catch (e2) {
-          final msg2 = (e2.message).toLowerCase();
-          final statusColumnMissing =
-              msg2.contains('status') &&
-              (msg2.contains('column') || msg2.contains('schema'));
-          if (!statusColumnMissing) rethrow;
-
-          // Eski şemalarda `status` sütunu yoksa status olmadan güncelle.
-          await supabase
-              .from('program_deneme')
-              .update({
-                'machine_name': machineName,
-                'last_activity': now,
-                'is_online': true,
-                'last_heartbeat': now,
-              })
-              .eq('hardware_id', hid);
-        }
+        });
       } catch (e2) {
         debugPrint('program_deneme update hatası: $e2');
       }
@@ -896,9 +1002,7 @@ class LisansServisi extends ChangeNotifier {
 
       if (data is Map<String, dynamic>) {
         final serverLicenseId = data['license_id']?.toString().trim();
-        if (serverLicenseId != null && serverLicenseId.isNotEmpty) {
-          unawaited(_setLicenseIdLocal(serverLicenseId));
-        }
+        unawaited(_setLicenseIdLocal(serverLicenseId));
       }
     } on PostgrestException catch (e) {
       final msg = (e.message).toLowerCase();
@@ -909,6 +1013,112 @@ class LisansServisi extends ChangeNotifier {
       debugPrint('Lisans Servisi: license_id senkron hatası: $e');
     } catch (e) {
       debugPrint('Lisans Servisi: license_id senkron hatası: $e');
+    }
+  }
+
+  Future<void> _syncLosPayBalanceFromServerBestEffort({
+    Map<String, dynamic>? licenseData,
+    Duration timeout = const Duration(seconds: 4),
+    bool force = false,
+    bool notify = true,
+    bool clearOnMissing = false,
+  }) async {
+    final hid = _hardwareId;
+    if (hid == null || hid.trim().isEmpty) return;
+
+    final now = _nowUtc();
+    final last = _losPayLastSyncUtc;
+    if (!force && last != null && now.difference(last) < _losPaySyncInterval) {
+      return;
+    }
+    _losPayLastSyncUtc = now;
+
+    final supabase = Supabase.instance.client;
+
+    try {
+      final rawCustomerId = licenseData?['customer_id']?.toString().trim();
+
+      Map<String, dynamic>? customerData;
+      if (rawCustomerId != null && rawCustomerId.isNotEmpty) {
+        try {
+          final result = await supabase
+              .from('customers')
+              .select('lospay_credit')
+              .eq('id', rawCustomerId)
+              .maybeSingle()
+              .timeout(timeout);
+          if (result is Map<String, dynamic>) {
+            customerData = result;
+          }
+        } on PostgrestException catch (e) {
+          final msg = e.message.toLowerCase();
+          final missingLosPayColumn =
+              msg.contains('lospay_credit') &&
+              (msg.contains('column') || msg.contains('schema'));
+          if (!missingLosPayColumn) rethrow;
+        }
+      } else {
+        try {
+          final result = await supabase
+              .from('customers')
+              .select('lospay_credit')
+              .eq('hardware_id', hid)
+              .maybeSingle()
+              .timeout(timeout);
+          if (result is Map<String, dynamic>) {
+            customerData = result;
+          }
+        } on PostgrestException catch (e) {
+          final msg = e.message.toLowerCase();
+          final missingLosPayColumn =
+              msg.contains('lospay_credit') &&
+              (msg.contains('column') || msg.contains('schema'));
+          if (!missingLosPayColumn) rethrow;
+        }
+      }
+
+      if (customerData != null) {
+        await _setLosPayBalanceLocal(
+          _toDouble(customerData['lospay_credit']),
+          notify: notify,
+        );
+        return;
+      }
+
+      try {
+        final demoData = await supabase
+            .from('program_deneme')
+            .select('lospay_credit')
+            .eq('hardware_id', hid)
+            .maybeSingle()
+            .timeout(timeout);
+        if (demoData is Map<String, dynamic>) {
+          await _setLosPayBalanceLocal(
+            _toDouble(demoData['lospay_credit']),
+            notify: notify,
+          );
+          return;
+        }
+      } on PostgrestException catch (e) {
+        final msg = e.message.toLowerCase();
+        final missingLosPayColumn =
+            msg.contains('lospay_credit') &&
+            (msg.contains('column') || msg.contains('schema'));
+        if (!missingLosPayColumn) rethrow;
+      }
+
+      if (clearOnMissing) {
+        await _setLosPayBalanceLocal(0, notify: notify);
+      }
+    } on PostgrestException catch (e) {
+      final msg = e.message.toLowerCase();
+      final missingLosPayColumn =
+          msg.contains('lospay_credit') &&
+          (msg.contains('column') || msg.contains('schema'));
+      if (missingLosPayColumn) return;
+      debugPrint('Lisans Servisi: LosPay senkron hatası: $e');
+    } catch (e) {
+      debugPrint('Lisans Servisi: LosPay senkron hatası: $e');
     }
   }
 
@@ -1007,6 +1217,42 @@ class LisansServisi extends ChangeNotifier {
     }
   }
 
+  Future<_ProgramLisansDurumu?> _programDurumuGetirOnlineOrThrow({
+    Duration timeout = const Duration(seconds: 4),
+  }) async {
+    if (_hardwareId == null) return null;
+
+    final supabase = Supabase.instance.client;
+
+    try {
+      final data = await supabase
+          .from('program_deneme')
+          .select('status, license_id')
+          .eq('hardware_id', _hardwareId!)
+          .maybeSingle()
+          .timeout(timeout);
+
+      if (data is! Map<String, dynamic>) return null;
+
+      final status = data['status']?.toString().trim().toLowerCase();
+      final licenseId = data['license_id']?.toString().trim().toUpperCase();
+
+      return _ProgramLisansDurumu(
+        status: (status == null || status.isEmpty) ? null : status,
+        licenseId: (licenseId == null || licenseId.isEmpty) ? null : licenseId,
+      );
+    } on PostgrestException catch (e) {
+      final msg = e.message.toLowerCase();
+      final missingKnownColumn =
+          (msg.contains('status') || msg.contains('license_id')) &&
+          (msg.contains('column') || msg.contains('schema'));
+      if (missingKnownColumn) {
+        return null;
+      }
+      rethrow;
+    }
+  }
+
   bool _verifyLicenseSignature(String data, String signaturePart) {
     final secret = _licenseSecret;
 
@@ -1039,6 +1285,7 @@ class LisansServisi extends ChangeNotifier {
 
   Future<Map<String, dynamic>?> _lisansBilgisiGetirOnlineOrThrow({
     Duration timeout = const Duration(seconds: 4),
+    String? groupLicenseIdOverride,
   }) async {
     if (_hardwareId == null) return null;
     final supabase = Supabase.instance.client;
@@ -1053,7 +1300,9 @@ class LisansServisi extends ChangeNotifier {
 
     // Eğer cihaz bir lisans grubuna (license_id) bağlıysa, lisans bilgisini grup bazında al.
     // Böylece kullanıcı farklı cihazda PRO lisans aldıysa, birleşen tüm cihazlarda PRO görünür.
-    final groupId = _licenseId?.trim().toUpperCase();
+    final groupId = (groupLicenseIdOverride ?? _licenseId)
+        ?.trim()
+        .toUpperCase();
     if (groupId == null || groupId.isEmpty) return direct;
 
     final hwIds = await OnlineVeritabaniServisi().cihazlariGetirByLisansKimligi(
@@ -1091,10 +1340,15 @@ class LisansServisi extends ChangeNotifier {
     if (_hardwareId == null) return false;
     final data = await lisansBilgisiGetir();
     if (data != null && data['license_key'] != null) {
+      unawaited(
+        _syncLosPayBalanceFromServerBestEffort(licenseData: data, force: true),
+      );
       final key = data['license_key']?.toString() ?? '';
+      final packageName = data['package_name']?.toString();
+      final isLitePackage = _isLitePackageName(packageName);
 
       // İptal edilmiş mi kontrolü
-      if (key.isEmpty || key.startsWith('CANCELLED')) {
+      if (isLitePackage || key.isEmpty || key.startsWith('CANCELLED')) {
         return false;
       }
 
@@ -1266,4 +1520,11 @@ class _LicenseTokenInfo {
   final DateTime expiryDate;
 
   const _LicenseTokenInfo({required this.hardwareId, required this.expiryDate});
+}
+
+class _ProgramLisansDurumu {
+  final String? status;
+  final String? licenseId;
+
+  const _ProgramLisansDurumu({required this.status, required this.licenseId});
 }

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
 import '../../../bilesenler/genisletilebilir_tablo.dart';
+import '../../../bilesenler/responsive_filtreler.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
 import '../../../yardimcilar/responsive_yardimcisi.dart';
@@ -115,6 +116,9 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
   @override
   void initState() {
     super.initState();
+    final initialDateRange = DateRangeDefaults.currentMonth();
+    _startDate = initialDateRange.start;
+    _endDate = initialDateRange.end;
     _mobileSearchController.text = _searchQuery;
     _columnVisibility = {
       // Main Table
@@ -718,7 +722,7 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
 
   int _getActiveMobileFilterCount() {
     int count = 0;
-    if (_startDate != null || _endDate != null) count++;
+    if (DateRangeDefaults.isCustomSelection(_startDate, _endDate)) count++;
     if (_selectedStatus != null) count++;
     if (_selectedType != null) count++;
     if (_selectedWarehouse != null) count++;
@@ -2858,22 +2862,26 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
   Widget _buildFilters() {
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: _buildDateRangeFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildStatusFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildTypeFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildWarehouseFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildUnitFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildAccountFilter(width: double.infinity)),
-          const SizedBox(width: 24),
-          Expanded(child: _buildUserFilter(width: double.infinity)),
+      child: ResponsiveFilterRow(
+        items: [
+          ResponsiveFilterItem(
+            child: _buildDateRangeFilter(width: double.infinity),
+            desktopWidth: 432,
+            tabletWidth: 392,
+            minWidth: 280,
+          ),
+          ResponsiveFilterItem(
+            child: _buildStatusFilter(width: double.infinity),
+          ),
+          ResponsiveFilterItem(child: _buildTypeFilter(width: double.infinity)),
+          ResponsiveFilterItem(
+            child: _buildWarehouseFilter(width: double.infinity),
+          ),
+          ResponsiveFilterItem(child: _buildUnitFilter(width: double.infinity)),
+          ResponsiveFilterItem(
+            child: _buildAccountFilter(width: double.infinity),
+          ),
+          ResponsiveFilterItem(child: _buildUserFilter(width: double.infinity)),
         ],
       ),
     );
@@ -3477,78 +3485,23 @@ class _SiparislerSayfasiState extends State<SiparislerSayfasi> {
   }
 
   Widget _buildDateRangeFilter({double? width}) {
-    final hasSelection = _startDate != null || _endDate != null;
-
-    String label = tr('common.date_range_select');
-    if (hasSelection) {
-      final start = _startDate != null
-          ? DateFormat('dd.MM.yyyy').format(_startDate!)
-          : '';
-      final end = _endDate != null
-          ? DateFormat('dd.MM.yyyy').format(_endDate!)
-          : '';
-      label = '$start - $end';
-    }
-
-    return InkWell(
-      mouseCursor: WidgetStateMouseCursor.clickable,
-      onTap: _showDateRangePicker,
-      borderRadius: BorderRadius.circular(4),
-      child: Container(
-        width: width ?? 240,
-        padding: const EdgeInsets.symmetric(vertical: 8),
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: hasSelection
-                  ? const Color(0xFF2C3E50)
-                  : Colors.grey.shade300,
-              width: hasSelection ? 2 : 1,
-            ),
-          ),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.date_range_rounded,
-              size: 20,
-              color: hasSelection
-                  ? const Color(0xFF2C3E50)
-                  : Colors.grey.shade600,
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: hasSelection ? FontWeight.w600 : FontWeight.w500,
-                  color: hasSelection
-                      ? const Color(0xFF2C3E50)
-                      : Colors.grey.shade700,
-                ),
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            if (hasSelection)
-              InkWell(
-                mouseCursor: WidgetStateMouseCursor.clickable,
-                onTap: _clearDateFilter,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(horizontal: 4.0),
-                  child: Icon(Icons.close, size: 16, color: Colors.grey),
-                ),
-              ),
-            const SizedBox(width: 4),
-            Icon(
-              Icons.keyboard_arrow_down_rounded,
-              size: 20,
-              color: Colors.grey.shade400,
-            ),
-          ],
-        ),
-      ),
+    return RaporStiliTarihAraligiFiltresi(
+      width: width,
+      startDate: _startDate,
+      endDate: _endDate,
+      onCustomTap: _showDateRangePicker,
+      onPresetSelected: (start, end) {
+        if (start == null && end == null) {
+          _clearDateFilter();
+          return;
+        }
+        setState(() {
+          _startDate = start;
+          _endDate = end;
+          _resetPagination();
+        });
+        _fetchSiparisler();
+      },
     );
   }
 

@@ -227,6 +227,7 @@ const Map<String, String> enCeviriler = {
   'settings.modules.items.expenses.title': 'Expenses',
   'settings.modules.items.expenses.description':
       'Categorize and track your business expenses.',
+  'nav.settings.account': 'Account Settings',
   'nav.settings.language': 'Language Settings',
   'nav.settings.database_backup': 'Database / Backup Settings',
 
@@ -425,6 +426,70 @@ const Map<String, String> enCeviriler = {
   'settings.ai.test_api_success': 'Connection successful! Models updated.',
   'settings.ai.test_api_error': 'Connection error: ',
   'settings.ai.save_success': 'Settings saved successfully.',
+  'settings.account.title': 'Account Settings',
+  'settings.account.subtitle':
+      'Manage license state, device identity, and version details here.',
+  'settings.account.hero.label': 'ACCOUNT CENTER',
+  'settings.account.hero.lite_title':
+      'Move from Lite profile to Pro from a single screen.',
+  'settings.account.hero.lite_body':
+      'Share your device identifiers, verify the license record, and track current usage limits from the same panel.',
+  'settings.account.hero.pro_title':
+      'Your license state is being tracked professionally for this device.',
+  'settings.account.hero.pro_body':
+      'Active license data, device registration match, and Lite reference limits are visible in one place.',
+  'settings.account.feedback.refresh_success':
+      'License status and Lite settings were refreshed.',
+  'settings.account.ids.title': 'Identity & Pairing',
+  'settings.account.ids.subtitle':
+      'The license and device codes required for administrator sharing are ready here.',
+  'settings.account.identity.unavailable': 'UNAVAILABLE',
+  'settings.account.master_id.help':
+      'This code represents your license group. Pro assignments are tracked through this identifier.',
+  'settings.account.hardware_id.help':
+      'This is the unique hardware identity of the current device. Administrators pair the license to this value.',
+  'settings.account.help.title': 'Quick Note',
+  'settings.account.help.body':
+      'If the license is not visible yet, check your internet connection and refresh the status. Share the identifiers above with your administrator if needed.',
+  'settings.account.summary.version': 'Version',
+  'settings.account.summary.master_id': 'License ID',
+  'settings.account.summary.expiry': 'Expiry',
+  'settings.account.summary.lospay': 'LosPay Credits',
+  'settings.account.summary.connectivity': 'Sync',
+  'settings.account.summary.connectivity.synced': 'Up to date',
+  'settings.account.summary.connectivity.checking': 'Checking',
+  'settings.account.lospay.label': 'LosPay',
+  'settings.account.lospay.unit': 'credits',
+  'settings.account.plan.title': 'Plan Overview',
+  'settings.account.plan.subtitle':
+      'How your current plan operates and its verification status.',
+  'settings.account.plan.lite_badge': 'LITE',
+  'settings.account.plan.pro_badge': 'PRO',
+  'settings.account.plan.lite_description':
+      'This device is currently running on the Lite profile. Upgrade to Pro when you need full access beyond Lite limits.',
+  'settings.account.plan.pro_description':
+      'This device is running with an active Pro license. The system continues to verify the license online.',
+  'settings.account.plan.expiry_label': 'License Expiry Date',
+  'settings.account.plan.expiry_unknown': 'Waiting for data',
+  'settings.account.limits.title': 'Lite Reference Limits',
+  'settings.account.limits.subtitle':
+      'The values below show the current restrictions applied in Lite mode.',
+  'settings.account.limit.active_accounts': 'Active Account Limit',
+  'settings.account.limit.daily_transactions': 'Daily Purchase / Sale',
+  'settings.account.limit.daily_retail': 'Daily Retail Sales',
+  'settings.account.limit.report_days': 'Report Day Range',
+  'settings.account.features.title': 'Lite Feature Flags',
+  'settings.account.features.subtitle':
+      'Quickly see which modules are enabled while operating in Lite mode.',
+  'settings.account.feature.bank_credit': 'Bank & Credit Cards',
+  'settings.account.feature.check_note': 'Checks & Notes',
+  'settings.account.feature.cloud_backup': 'Cloud Backup',
+  'settings.account.feature.excel_export': 'Excel Export',
+  'settings.account.state.available': 'Available',
+  'settings.account.state.locked': 'Locked',
+  'settings.account.actions.refresh': 'Refresh Status',
+  'settings.account.actions.verify': 'Verify License',
+  'settings.account.actions.copy': 'Copy',
 
   'nav.trading_operations': 'Trading Operations',
   'nav.trading_operations.fast_sale': 'Fast Sale',

@@ -219,6 +219,7 @@ const Map<String, String> arCeviriler = {
   'settings.modules.items.expenses.title': 'المصروفات',
   'settings.modules.items.expenses.description':
       'تتبع مصروفات عملك حسب الفئات.',
+  'nav.settings.account': 'إعدادات الحساب',
   'nav.settings.language': 'إعدادات اللغة',
   'nav.settings.database_backup': 'إعدادات قاعدة البيانات / النسخ الاحتياطي',
 
@@ -419,6 +420,70 @@ const Map<String, String> arCeviriler = {
   'settings.ai.test_api_success': 'تم الاتصال بنجاح! تم تحديث النماذج.',
   'settings.ai.test_api_error': 'خطأ في الاتصال: ',
   'settings.ai.save_success': 'تم حفظ الإعدادات بنجاح.',
+  'settings.account.title': 'إعدادات الحساب',
+  'settings.account.subtitle':
+      'أدر حالة الترخيص ومعرّف الجهاز وتفاصيل الإصدار من هنا.',
+  'settings.account.hero.label': 'مركز الحساب',
+  'settings.account.hero.lite_title':
+      'انتقل من ملف Lite إلى Pro من شاشة واحدة.',
+  'settings.account.hero.lite_body':
+      'شارك معرّفات جهازك، وتحقق من سجل الترخيص، وتابع حدود الاستخدام الحالية من نفس اللوحة.',
+  'settings.account.hero.pro_title':
+      'يتم تتبع حالة الترخيص لهذا الجهاز بشكل احترافي.',
+  'settings.account.hero.pro_body':
+      'تظهر بيانات الترخيص النشط، وتطابق تسجيل الجهاز، وحدود Lite المرجعية في مكان واحد.',
+  'settings.account.feedback.refresh_success':
+      'تم تحديث حالة الترخيص وإعدادات Lite.',
+  'settings.account.ids.title': 'الهوية والربط',
+  'settings.account.ids.subtitle':
+      'أكواد الترخيص والجهاز المطلوبة للمشاركة مع المسؤول جاهزة هنا.',
+  'settings.account.identity.unavailable': 'غير متاح',
+  'settings.account.master_id.help':
+      'يمثل هذا الرمز مجموعة الترخيص الخاصة بك. تتم متابعة تعيينات Pro عبر هذا المعرّف.',
+  'settings.account.hardware_id.help':
+      'هذا هو معرّف العتاد الفريد لهذا الجهاز. يقوم المسؤول بربط الترخيص بهذه القيمة.',
+  'settings.account.help.title': 'ملاحظة سريعة',
+  'settings.account.help.body':
+      'إذا لم يظهر الترخيص بعد، فتحقق من اتصال الإنترنت وحدّث الحالة. شارك المعرّفات أعلاه مع المسؤول عند الحاجة.',
+  'settings.account.summary.version': 'الإصدار',
+  'settings.account.summary.master_id': 'معرّف الترخيص',
+  'settings.account.summary.expiry': 'الانتهاء',
+  'settings.account.summary.lospay': 'رصيد LosPay',
+  'settings.account.summary.connectivity': 'المزامنة',
+  'settings.account.summary.connectivity.synced': 'محدّث',
+  'settings.account.summary.connectivity.checking': 'جارٍ التحقق',
+  'settings.account.lospay.label': 'LosPay',
+  'settings.account.lospay.unit': 'رصيد',
+  'settings.account.plan.title': 'ملخص الخطة',
+  'settings.account.plan.subtitle':
+      'طريقة عمل خطتك الحالية وحالة التحقق الخاصة بها.',
+  'settings.account.plan.lite_badge': 'LITE',
+  'settings.account.plan.pro_badge': 'PRO',
+  'settings.account.plan.lite_description':
+      'يعمل هذا الجهاز حالياً بملف Lite. يمكنك الترقية إلى Pro عند الحاجة إلى صلاحيات كاملة تتجاوز حدود Lite.',
+  'settings.account.plan.pro_description':
+      'يعمل هذا الجهاز بترخيص Pro نشط. يواصل النظام التحقق من الترخيص عبر الإنترنت.',
+  'settings.account.plan.expiry_label': 'تاريخ انتهاء الترخيص',
+  'settings.account.plan.expiry_unknown': 'بانتظار البيانات',
+  'settings.account.limits.title': 'حدود Lite المرجعية',
+  'settings.account.limits.subtitle':
+      'القيم التالية تعرض القيود الحالية المطبقة في وضع Lite.',
+  'settings.account.limit.active_accounts': 'حد الحسابات النشطة',
+  'settings.account.limit.daily_transactions': 'عمليات الشراء / البيع اليومية',
+  'settings.account.limit.daily_retail': 'مبيعات التجزئة اليومية',
+  'settings.account.limit.report_days': 'نطاق أيام التقارير',
+  'settings.account.features.title': 'مفاتيح ميزات Lite',
+  'settings.account.features.subtitle':
+      'شاهد بسرعة الوحدات المفعلة أثناء العمل في وضع Lite.',
+  'settings.account.feature.bank_credit': 'البنك وبطاقات الائتمان',
+  'settings.account.feature.check_note': 'الشيكات والسندات',
+  'settings.account.feature.cloud_backup': 'النسخ الاحتياطي السحابي',
+  'settings.account.feature.excel_export': 'تصدير Excel',
+  'settings.account.state.available': 'متاح',
+  'settings.account.state.locked': 'مغلق',
+  'settings.account.actions.refresh': 'تحديث الحالة',
+  'settings.account.actions.verify': 'التحقق من الترخيص',
+  'settings.account.actions.copy': 'نسخ',
 
   'nav.trading_operations': 'عمليات البيع والشراء',
   'nav.trading_operations.fast_sale': 'بيع سريع',

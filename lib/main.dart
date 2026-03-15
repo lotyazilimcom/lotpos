@@ -14,6 +14,7 @@ import 'bilesenler/tab_acici_scope.dart';
 import 'sayfalar/carihesaplar/modeller/cari_hesap_model.dart';
 import 'yardimcilar/ceviri/ceviri_servisi.dart';
 import 'yardimcilar/app_route_observer.dart';
+import 'sayfalar/ayarlar/hesap_ayarlari/hesap_ayarlari_sayfasi.dart';
 import 'sayfalar/ayarlar/veritabaniyedekayarlari/veritabani_yedek_ayarlari_sayfasi.dart';
 import 'sayfalar/ayarlar/genel_ayarlar/genel_ayarlar_sayfasi.dart';
 import 'ayarlar/ai_ayarlari_sayfasi.dart';
@@ -708,6 +709,21 @@ class _HomePageState extends State<HomePage> {
     _tabAcVeyaSec(index);
   }
 
+  void _openAccountSettingsFromChrome() {
+    final width = MediaQuery.sizeOf(context).width;
+    final isMobilePlatform = !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+
+    if (width >= 900 && !isMobilePlatform) {
+      _tabAcVeyaSec(21);
+      return;
+    }
+
+    setState(() {
+      _selectedIndex = 21;
+      _isSidebarExpanded = false;
+    });
+  }
+
   /// Tab açar veya mevcut tab'ı seçer (isteğe bağlı parametreler ile)
   void _tabAcVeyaSec(
     int menuIndex, {
@@ -1015,6 +1031,7 @@ class _HomePageState extends State<HomePage> {
                     onMenuPressed: () {
                       // Geniş ekranda menü tuşu sidebar'ı etkilemez.
                     },
+                    onLicensePressed: _openAccountSettingsFromChrome,
                   ),
                   TabYonetici(
                     acikTablar: _acikTablar,
@@ -1042,6 +1059,7 @@ class _HomePageState extends State<HomePage> {
                             _aktifTabIndex < _acikTablar.length &&
                             const {
                               4,
+                              21,
                               20,
                               22,
                               50,
@@ -1084,12 +1102,14 @@ class _HomePageState extends State<HomePage> {
                             _isSidebarExpanded = !_isSidebarExpanded;
                           });
                         },
+                        onLicensePressed: _openAccountSettingsFromChrome,
                       ),
                       Expanded(
                         child: Builder(
                           builder: (context) {
                             final bool isAyarSayfasiMobile = const {
                               4,
+                              21,
                               20,
                               22,
                               50,
@@ -1238,12 +1258,14 @@ class _HomePageState extends State<HomePage> {
                             _isSidebarExpanded = !_isSidebarExpanded;
                           });
                         },
+                        onLicensePressed: _openAccountSettingsFromChrome,
                       ),
                       Expanded(
                         child: Builder(
                           builder: (context) {
                             final bool isAyarSayfasiMobile = const {
                               4,
+                              21,
                               20,
                               22,
                               50,
@@ -1424,6 +1446,7 @@ class _HomePageState extends State<HomePage> {
   String _titleForIndex() {
     // Ayarlar altındaki sayfalar için başlık "Ayarlar" olmalı
     if ((_selectedIndex >= 2 && _selectedIndex <= 5) ||
+        _selectedIndex == 21 ||
         _selectedIndex == 20 ||
         _selectedIndex == 50) {
       return tr('nav.settings');
@@ -1485,6 +1508,9 @@ class _HomePageState extends State<HomePage> {
     }
     if (index == 20) {
       return const AiAyarlariSayfasi();
+    }
+    if (index == 21) {
+      return const HesapAyarlariSayfasi();
     }
     if (index == 5) {
       return const DilAyarlariSayfasi();
