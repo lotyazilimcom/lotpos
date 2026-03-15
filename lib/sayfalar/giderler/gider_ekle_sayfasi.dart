@@ -10,6 +10,7 @@ import '../../servisler/giderler_veritabani_servisi.dart';
 import '../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../../bilesenler/tek_tarih_secici_dialog.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
+import '../../bilesenler/onay_dialog.dart';
 import 'modeller/gider_model.dart';
 import 'dart:io';
 import 'package:file_selector/file_selector.dart';
@@ -297,6 +298,38 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
         'GD-${now.millisecondsSinceEpoch.toString().substring(7)}';
   }
 
+  String _formatLosPayKredi(double amount) {
+    final bool hasFraction = (amount - amount.roundToDouble()).abs() > 0.001;
+    final locale = CeviriServisi().mevcutDil == 'ar'
+        ? 'ar_SA'
+        : CeviriServisi().mevcutDil == 'en'
+        ? 'en_US'
+        : 'tr_TR';
+    return NumberFormat.decimalPatternDigits(
+      locale: locale,
+      decimalDigits: hasFraction ? 2 : 0,
+    ).format(amount);
+  }
+
+  Future<void> _showLosPayYetersizDialog(LosPayYetersizHatasi hata) async {
+    await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => OnayDialog(
+        baslik: tr('settings.ai.los_ai.insufficient_credit_title'),
+        mesaj: tr(
+          'settings.ai.los_ai.insufficient_credit_message',
+          args: {
+            'required': _formatLosPayKredi(hata.gerekliKredi),
+            'balance': _formatLosPayKredi(hata.mevcutKredi),
+          },
+        ),
+        onOnay: () {},
+        onayButonMetni: tr('common.ok'),
+        showCancelButton: false,
+      ),
+    );
+  }
+
   Future<void> _handleAIScan() async {
     if (_aiScanning) return;
 
@@ -330,6 +363,16 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
         _applyAIData();
 
         MesajYardimcisi.basariGoster(context, tr('expenses.ai.scan_success'));
+      }
+    } on LosPayYetersizHatasi catch (e) {
+      if (mounted) {
+        setState(() => _aiScanning = false);
+        await _showLosPayYetersizDialog(e);
+      }
+    } on LosYapayZekaYapilandirmaHatasi catch (e) {
+      if (mounted) {
+        setState(() => _aiScanning = false);
+        MesajYardimcisi.hataGoster(context, tr(e.messageKey));
       }
     } catch (e) {
       if (mounted) {
@@ -1183,7 +1226,8 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
                                     top: 4,
                                     right: 4,
                                     child: InkWell(
-                                      mouseCursor: WidgetStateMouseCursor.clickable,
+                                      mouseCursor:
+                                          WidgetStateMouseCursor.clickable,
                                       onTap: () {
                                         setState(() {
                                           _resimler.removeAt(index);

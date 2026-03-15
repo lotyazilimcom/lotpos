@@ -639,6 +639,13 @@ class LisansServisi extends ChangeNotifier {
     }
   }
 
+  Future<void> losPayBakiyesiGuncelle(
+    double amount, {
+    bool notify = true,
+  }) async {
+    await _setLosPayBalanceLocal(amount, notify: notify);
+  }
+
   Future<void> _setInheritedProLocal(bool status, {bool notify = true}) async {
     if (_inheritedPro == status) return;
 

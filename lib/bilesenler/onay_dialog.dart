@@ -8,6 +8,7 @@ class OnayDialog extends StatelessWidget {
   final String? iptalButonMetni;
   final VoidCallback onOnay;
   final bool isDestructive;
+  final bool showCancelButton;
 
   const OnayDialog({
     super.key,
@@ -17,6 +18,7 @@ class OnayDialog extends StatelessWidget {
     this.onayButonMetni,
     this.iptalButonMetni,
     this.isDestructive = false,
+    this.showCancelButton = true,
   });
 
   @override
@@ -90,25 +92,26 @@ class OnayDialog extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                MouseRegion(
-                  cursor: SystemMouseCursors.click,
-                  child: TextButton(
-                    onPressed: () => Navigator.of(context).pop(false),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 12,
+                if (showCancelButton)
+                  MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 18,
+                          vertical: 12,
+                        ),
+                        foregroundColor: primaryColor,
+                        textStyle: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                      foregroundColor: primaryColor,
-                      textStyle: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                      ),
+                      child: Text(iptalMetni),
                     ),
-                    child: Text(iptalMetni),
                   ),
-                ),
-                const SizedBox(width: 12),
+                if (showCancelButton) const SizedBox(width: 12),
                 MouseRegion(
                   cursor: SystemMouseCursors.click,
                   child: ElevatedButton(

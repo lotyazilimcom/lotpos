@@ -417,11 +417,40 @@ const Map<String, String> enCeviriler = {
   'nav.settings.ai': 'AI Settings',
   'settings.ai.title': 'AI Settings',
   'settings.ai.subtitle': 'Manage AI integrations here.',
+  'settings.ai.local.title': 'Local AI Settings',
+  'settings.ai.local.provider': 'AI Provider',
+  'settings.ai.local.provider.gemini': 'Google Gemini',
+  'settings.ai.local.provider.openai': 'OpenAI / ChatGPT',
+  'settings.ai.local.provider.anthropic': 'Anthropic / Claude',
+  'settings.ai.local.provider.deepseek': 'DeepSeek',
+  'settings.ai.local.provider.qwen': 'Qwen',
+  'settings.ai.local.api_key': 'API Key',
+  'settings.ai.local.api_key_hint': 'Enter your API key for {provider}',
+  'settings.ai.local.model': 'Model',
+  'settings.ai.local.model_hint': 'Select the model to use',
   'settings.ai.gemini.title': 'Google Gemini Settings',
   'settings.ai.gemini.api_key': 'API Key',
   'settings.ai.gemini.api_key_hint': 'Enter your Gemini API key',
   'settings.ai.gemini.model': 'Model',
   'settings.ai.gemini.model_hint': 'Select the model to use',
+  'settings.ai.los_ai.title': 'Los AI Usage',
+  'settings.ai.los_ai.subtitle':
+      'Run AI actions through the secure API flow configured by your administrator.',
+  'settings.ai.los_ai.credit_required': 'LosPay credit required',
+  'settings.ai.los_ai.cost_badge': '{credit} credits per action',
+  'settings.ai.los_ai.help':
+      'When enabled, expense scanning, quick product analysis, and other AI actions using this service run with the Los AI provider, API key, and model stored on the customer record. Each successful use consumes {credit} LosPay credits.',
+  'settings.ai.los_ai.config_note':
+      'When Los AI is enabled, the local provider, API key, and model fields on this screen stay passive. The provider, API key, and model are pulled from the customer record in the admin panel and each action consumes {credit} LosPay credits.',
+  'settings.ai.los_ai.api_source_hint':
+      'Los AI is enabled. The provider, API key, and model are pulled from the Los AI field on the customer record.',
+  'settings.ai.los_ai.config_missing':
+      'Los AI is not ready for this account yet. Your administrator must define the provider, model, and API key on the customer record.',
+  'settings.ai.los_ai.vision_not_supported':
+      'The selected Los AI provider or model does not support the current visual AI flows. Choose a vision-capable model from Gemini, OpenAI, Claude, or Qwen.',
+  'settings.ai.los_ai.insufficient_credit_title': 'Insufficient LosPay Credit',
+  'settings.ai.los_ai.insufficient_credit_message':
+      'This AI action requires at least {required} LosPay credits. Your current balance is {balance} credits. Please top up your LosPay credit.',
   'settings.ai.test_api': 'Test Connection',
   'settings.ai.test_api_success': 'Connection successful! Models updated.',
   'settings.ai.test_api_error': 'Connection error: ',

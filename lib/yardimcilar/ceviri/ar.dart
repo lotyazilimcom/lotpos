@@ -411,11 +411,40 @@ const Map<String, String> arCeviriler = {
   'nav.settings.ai': 'إعدادات الذكاء الاصطناعي',
   'settings.ai.title': 'إعدادات الذكاء الاصطناعي',
   'settings.ai.subtitle': 'يمكنك إدارة تكامل الذكاء الاصطناعي من هنا.',
+  'settings.ai.local.title': 'إعدادات الذكاء الاصطناعي المحلية',
+  'settings.ai.local.provider': 'مزود الذكاء الاصطناعي',
+  'settings.ai.local.provider.gemini': 'Google Gemini',
+  'settings.ai.local.provider.openai': 'OpenAI / ChatGPT',
+  'settings.ai.local.provider.anthropic': 'Anthropic / Claude',
+  'settings.ai.local.provider.deepseek': 'DeepSeek',
+  'settings.ai.local.provider.qwen': 'Qwen',
+  'settings.ai.local.api_key': 'مفتاح API',
+  'settings.ai.local.api_key_hint': 'أدخل مفتاح API الخاص بـ {provider}',
+  'settings.ai.local.model': 'النموذج',
+  'settings.ai.local.model_hint': 'اختر النموذج المستخدم',
   'settings.ai.gemini.title': 'إعدادات Google Gemini',
   'settings.ai.gemini.api_key': 'مفتاح API',
   'settings.ai.gemini.api_key_hint': 'أدخل مفتاح Gemini API الخاص بك',
   'settings.ai.gemini.model': 'النموذج',
   'settings.ai.gemini.model_hint': 'اختر النموذج المستخدم',
+  'settings.ai.los_ai.title': 'استخدام Los AI',
+  'settings.ai.los_ai.subtitle':
+      'شغّل إجراءات الذكاء الاصطناعي عبر مسار API الآمن الذي يضبطه المسؤول.',
+  'settings.ai.los_ai.credit_required': 'يتطلب رصيد LosPay',
+  'settings.ai.los_ai.cost_badge': '{credit} رصيد لكل عملية',
+  'settings.ai.los_ai.help':
+      'عند التفعيل، تعمل قراءة المصروفات السريعة وتحليل المنتجات السريع وأي إجراءات أخرى تستخدم هذه الخدمة عبر مزود Los AI ومفتاح API والنموذج المحفوظ في سجل العميل. كل استخدام ناجح يستهلك {credit} من رصيد LosPay.',
+  'settings.ai.los_ai.config_note':
+      'عند تفعيل Los AI تصبح حقول المزود المحلي ومفتاح API والنموذج في هذه الشاشة غير نشطة. يتم سحب المزود ومفتاح API والنموذج من سجل العميل في لوحة الإدارة ويستهلك كل إجراء {credit} من رصيد LosPay.',
+  'settings.ai.los_ai.api_source_hint':
+      'تم تفعيل Los AI. يتم جلب المزود ومفتاح API والنموذج من حقل Los AI في سجل العميل.',
+  'settings.ai.los_ai.config_missing':
+      'Los AI غير جاهز لهذا الحساب بعد. يجب على المسؤول تعريف المزود والنموذج ومفتاح API في سجل العميل.',
+  'settings.ai.los_ai.vision_not_supported':
+      'المزود أو النموذج المحدد في Los AI لا يدعم تدفقات الذكاء الاصطناعي المرئية الحالية. اختر نموذجاً يدعم الصور من Gemini أو OpenAI أو Claude أو Qwen.',
+  'settings.ai.los_ai.insufficient_credit_title': 'رصيد LosPay غير كافٍ',
+  'settings.ai.los_ai.insufficient_credit_message':
+      'تتطلب هذه العملية ما لا يقل عن {required} من رصيد LosPay. رصيدك الحالي هو {balance} رصيد. يرجى تعبئة رصيد LosPay.',
   'settings.ai.test_api': 'اختبار الاتصال',
   'settings.ai.test_api_success': 'تم الاتصال بنجاح! تم تحديث النماذج.',
   'settings.ai.test_api_error': 'خطأ في الاتصال: ',

@@ -18,6 +18,7 @@ import '../depolar/modeller/depo_model.dart';
 import 'modeller/urun_model.dart';
 import 'modeller/cihaz_model.dart';
 import '../../../bilesenler/tek_tarih_secici_dialog.dart';
+import '../../../bilesenler/onay_dialog.dart';
 
 class HizliUrunEkleDialog extends StatefulWidget {
   const HizliUrunEkleDialog({super.key});
@@ -239,6 +240,38 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
     });
   }
 
+  String _formatLosPayKredi(double amount) {
+    final bool hasFraction = (amount - amount.roundToDouble()).abs() > 0.001;
+    final locale = CeviriServisi().mevcutDil == 'ar'
+        ? 'ar_SA'
+        : CeviriServisi().mevcutDil == 'en'
+        ? 'en_US'
+        : 'tr_TR';
+    return NumberFormat.decimalPatternDigits(
+      locale: locale,
+      decimalDigits: hasFraction ? 2 : 0,
+    ).format(amount);
+  }
+
+  Future<void> _showLosPayYetersizDialog(LosPayYetersizHatasi hata) async {
+    await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => OnayDialog(
+        baslik: tr('settings.ai.los_ai.insufficient_credit_title'),
+        mesaj: tr(
+          'settings.ai.los_ai.insufficient_credit_message',
+          args: {
+            'required': _formatLosPayKredi(hata.gerekliKredi),
+            'balance': _formatLosPayKredi(hata.mevcutKredi),
+          },
+        ),
+        onOnay: () {},
+        onayButonMetni: tr('common.ok'),
+        showCancelButton: false,
+      ),
+    );
+  }
+
   Future<void> _handleAiScan() async {
     final XTypeGroup typeGroup = XTypeGroup(
       label: tr('common.images'),
@@ -310,6 +343,14 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
 
       if (mounted) {
         MesajYardimcisi.basariGoster(context, tr('expenses.ai.scan_success'));
+      }
+    } on LosPayYetersizHatasi catch (e) {
+      if (mounted) {
+        await _showLosPayYetersizDialog(e);
+      }
+    } on LosYapayZekaYapilandirmaHatasi catch (e) {
+      if (mounted) {
+        MesajYardimcisi.hataGoster(context, tr(e.messageKey));
       }
     } catch (e) {
       if (mounted) {
@@ -882,11 +923,11 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                             args: {
                               'value':
                                   (item['barkod'] as TextEditingController)
-                                          .text
-                                          .isEmpty
-                                      ? '-'
-                                      : (item['barkod'] as TextEditingController)
-                                          .text,
+                                      .text
+                                      .isEmpty
+                                  ? '-'
+                                  : (item['barkod'] as TextEditingController)
+                                        .text,
                             },
                           ),
                           style: TextStyle(
@@ -900,10 +941,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                             tr(
                               'products.quick_add.identity_count',
                               args: {
-                                'count':
-                                    (item['imeiList'] as List)
-                                        .length
-                                        .toString(),
+                                'count': (item['imeiList'] as List).length
+                                    .toString(),
                               },
                             ),
                             style: TextStyle(
@@ -1207,9 +1246,7 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                                   style: Theme.of(dialogContext)
                                       .textTheme
                                       .titleLarge
-                                      ?.copyWith(
-                                        fontWeight: FontWeight.bold,
-                                      ),
+                                      ?.copyWith(fontWeight: FontWeight.bold),
                                 ),
                               ),
                               IconButton(
@@ -1323,7 +1360,8 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
                             width: double.infinity,
                             height: 50,
                             child: ElevatedButton(
-                              onPressed: () => Navigator.of(dialogContext).pop(),
+                              onPressed: () =>
+                                  Navigator.of(dialogContext).pop(),
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: primaryColor,
                                 shape: RoundedRectangleBorder(
@@ -1780,103 +1818,107 @@ class _HizliUrunEkleDialogState extends State<HizliUrunEkleDialog> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hoveredIndex = index),
       onExit: (_) => setState(() => _hoveredIndex = null),
-      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-        onTap: () => setState(() => _selectedIndex = index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          decoration: BoxDecoration(
-            color: isSelected
-                ? primaryColor.withValues(alpha: 0.08)
-                : (isHovered ? Colors.grey.shade50 : Colors.white),
-            border: Border(
-              bottom: BorderSide(color: Colors.grey.shade100),
-              left: BorderSide(
-                color: isSelected ? primaryColor : Colors.transparent,
-                width: 3,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        hitTestBehavior: HitTestBehavior.deferToChild,
+        child: GestureDetector(
+          onTap: () => setState(() => _selectedIndex = index),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? primaryColor.withValues(alpha: 0.08)
+                  : (isHovered ? Colors.grey.shade50 : Colors.white),
+              border: Border(
+                bottom: BorderSide(color: Colors.grey.shade100),
+                left: BorderSide(
+                  color: isSelected ? primaryColor : Colors.transparent,
+                  width: 3,
+                ),
               ),
             ),
-          ),
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 37, // Adjusted for selection border
-                child: Text(
-                  '${index + 1}',
-                  style: TextStyle(
-                    color: isSelected ? primaryColor : Colors.grey.shade400,
-                    fontSize: 12,
-                    fontWeight: isSelected
-                        ? FontWeight.bold
-                        : FontWeight.normal,
+            padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 37, // Adjusted for selection border
+                  child: Text(
+                    '${index + 1}',
+                    style: TextStyle(
+                      color: isSelected ? primaryColor : Colors.grey.shade400,
+                      fontSize: 12,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
+                    ),
                   ),
                 ),
-              ),
-              Expanded(
-                flex: 4,
-                child: _tableCell(item['ad'], 'Ürün adı yazın'),
-              ),
-              Expanded(flex: 2, child: _tableCell(item['barkod'], 'Barkod')),
-              Expanded(flex: 2, child: _tableCell(item['kod'], 'Kod')),
-              _warehouseDropdownCell(index, 140),
-              _dropdownCell(index, 'birim', 90, [
-                'Adet',
-                'Kg',
-                'Lt',
-                'Mt',
-                'Koli',
-              ]),
-              _tableCell(
-                item['alisFiyati'],
-                '0.00',
-                width: 110,
-                isNumeric: true,
-                focusNode: item['focusNodes']['alisFiyati'],
-              ),
-              _tableCell(
-                item['satisFiyati1'],
-                '0.00',
-                width: 110,
-                isNumeric: true,
-                focusNode: item['focusNodes']['satisFiyati1'],
-              ),
-              _tableCell(
-                item['kdvOrani'],
-                '20',
-                width: 70,
-                isNumeric: true,
-                focusNode: item['focusNodes']['kdvOrani'],
-              ),
-              _tableCell(
-                item['stok'],
-                '1',
-                width: 70,
-                isNumeric: true,
-                focusNode: item['focusNodes']['stok'],
-              ),
-              _dropdownCell(index, 'grubu', 140, [
-                tr('common.general'),
-                'Elektronik',
-                'Giyim',
-                'Gıda',
-              ]),
-              _imageCell(index, 110),
-              SizedBox(
-                width: 50,
-                child: IconButton(
-                  onPressed: () => _removeRow(index),
-                  icon: const Icon(
-                    Icons.delete_outline_rounded,
-                    color: Colors.red,
-                    size: 20,
-                  ),
-                  padding: EdgeInsets.zero,
+                Expanded(
+                  flex: 4,
+                  child: _tableCell(item['ad'], 'Ürün adı yazın'),
                 ),
-              ),
-            ],
+                Expanded(flex: 2, child: _tableCell(item['barkod'], 'Barkod')),
+                Expanded(flex: 2, child: _tableCell(item['kod'], 'Kod')),
+                _warehouseDropdownCell(index, 140),
+                _dropdownCell(index, 'birim', 90, [
+                  'Adet',
+                  'Kg',
+                  'Lt',
+                  'Mt',
+                  'Koli',
+                ]),
+                _tableCell(
+                  item['alisFiyati'],
+                  '0.00',
+                  width: 110,
+                  isNumeric: true,
+                  focusNode: item['focusNodes']['alisFiyati'],
+                ),
+                _tableCell(
+                  item['satisFiyati1'],
+                  '0.00',
+                  width: 110,
+                  isNumeric: true,
+                  focusNode: item['focusNodes']['satisFiyati1'],
+                ),
+                _tableCell(
+                  item['kdvOrani'],
+                  '20',
+                  width: 70,
+                  isNumeric: true,
+                  focusNode: item['focusNodes']['kdvOrani'],
+                ),
+                _tableCell(
+                  item['stok'],
+                  '1',
+                  width: 70,
+                  isNumeric: true,
+                  focusNode: item['focusNodes']['stok'],
+                ),
+                _dropdownCell(index, 'grubu', 140, [
+                  tr('common.general'),
+                  'Elektronik',
+                  'Giyim',
+                  'Gıda',
+                ]),
+                _imageCell(index, 110),
+                SizedBox(
+                  width: 50,
+                  child: IconButton(
+                    onPressed: () => _removeRow(index),
+                    icon: const Icon(
+                      Icons.delete_outline_rounded,
+                      color: Colors.red,
+                      size: 20,
+                    ),
+                    padding: EdgeInsets.zero,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      )),
+      ),
     );
   }
 

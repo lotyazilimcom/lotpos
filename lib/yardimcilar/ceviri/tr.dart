@@ -425,11 +425,40 @@ const Map<String, String> trCeviriler = {
   'settings.ai.title': 'Yapay Zeka Ayarları',
   'settings.ai.subtitle':
       'Yapay zeka entegrasyonlarını buradan yönetebilirsiniz.',
+  'settings.ai.local.title': 'Yerel Yapay Zeka Ayarları',
+  'settings.ai.local.provider': 'AI Sağlayıcısı',
+  'settings.ai.local.provider.gemini': 'Google Gemini',
+  'settings.ai.local.provider.openai': 'OpenAI / ChatGPT',
+  'settings.ai.local.provider.anthropic': 'Anthropic / Claude',
+  'settings.ai.local.provider.deepseek': 'DeepSeek',
+  'settings.ai.local.provider.qwen': 'Qwen',
+  'settings.ai.local.api_key': 'API Anahtarı',
+  'settings.ai.local.api_key_hint': '{provider} için API anahtarınızı giriniz',
+  'settings.ai.local.model': 'Model',
+  'settings.ai.local.model_hint': 'Kullanılacak modeli seçiniz',
   'settings.ai.gemini.title': 'Google Gemini Ayarları',
   'settings.ai.gemini.api_key': 'API Anahtarı',
   'settings.ai.gemini.api_key_hint': 'Gemini API anahtarınızı giriniz',
   'settings.ai.gemini.model': 'Model',
   'settings.ai.gemini.model_hint': 'Kullanılacak modeli seçiniz',
+  'settings.ai.los_ai.title': 'Los Yapay Zeka Kullanımı',
+  'settings.ai.los_ai.subtitle':
+      'Yapay zeka işlemlerini yönetici panelinde tanımlanan güvenli API akışıyla çalıştırın.',
+  'settings.ai.los_ai.credit_required': 'LosPay kredisi gerekli',
+  'settings.ai.los_ai.cost_badge': 'İşlem başına {credit} kredi',
+  'settings.ai.los_ai.help':
+      'Bu seçenek açıkken gider tarama, hızlı ürün çözümleme ve aynı servisi kullanan diğer AI işlemleri müşteri kaydındaki Los Yapay Zeka sağlayıcısı, API anahtarı ve model bilgisi ile çalışır. Her başarılı kullanımda {credit} LosPay kredisi düşer.',
+  'settings.ai.los_ai.config_note':
+      'Los Yapay Zeka açıkken bu ekrandaki yerel sağlayıcı, API ve model alanları pasif kalır. Sağlayıcı, API anahtarı ve model admin panelindeki müşteri kaydından alınır; işlem başına {credit} LosPay kredisi tüketilir.',
+  'settings.ai.los_ai.api_source_hint':
+      'Los Yapay Zeka açık. Sağlayıcı, API anahtarı ve model müşteri kaydındaki Los Yapay Zeka alanından alınır.',
+  'settings.ai.los_ai.config_missing':
+      'Los Yapay Zeka bu hesap için hazır değil. Yöneticiniz müşteri kaydına sağlayıcı, model ve API anahtarı tanımlamalı.',
+  'settings.ai.los_ai.vision_not_supported':
+      'Seçili Los Yapay Zeka sağlayıcısı veya modeli mevcut görsel AI işlemlerini desteklemiyor. Gemini, OpenAI, Claude veya Qwen için görüntü destekli bir model seçin.',
+  'settings.ai.los_ai.insufficient_credit_title': 'Yetersiz LosPay Kredisi',
+  'settings.ai.los_ai.insufficient_credit_message':
+      'Bu AI işlemi için en az {required} LosPay kredisi gerekiyor. Mevcut bakiyeniz {balance} kredi. Lütfen LosPay kredinizi artırın.',
   'settings.ai.test_api': 'Bağlantıyı Test Et',
   'settings.ai.test_api_success': 'Bağlantı başarılı! Modeller güncellendi.',
   'settings.ai.test_api_error': 'Bağlantı hatası: ',
