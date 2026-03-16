@@ -69,6 +69,7 @@ const Map<String, String> enCeviriler = {
   'common.clean': 'Clear',
   'common.apply': 'Apply',
   'common.select': 'Select',
+  'common.selected': 'Selected',
   'common.date_select': 'Select Date',
   'common.placeholder.date': 'DD.MM.YYYY',
   'common.placeholder.phone': '5XX XXX XX XX',
@@ -517,8 +518,73 @@ const Map<String, String> enCeviriler = {
   'settings.account.state.available': 'Available',
   'settings.account.state.locked': 'Locked',
   'settings.account.actions.refresh': 'Refresh Status',
+  'settings.account.actions.upgrade': 'Go Pro',
   'settings.account.actions.verify': 'Verify License',
   'settings.account.actions.copy': 'Copy',
+  'settings.account.upgrade.dialog.title': 'Pro Upgrade Checkout',
+  'settings.account.upgrade.dialog.subtitle':
+      'Choose your monthly, 6-month, or yearly Pro plan, complete the missing details, and continue to secure checkout.',
+  'settings.account.upgrade.hero.badge': 'SECURE CHECKOUT',
+  'settings.account.upgrade.hero.billing_badge': '+ VAT',
+  'settings.account.upgrade.hero.title':
+      'Upgrade your Lite setup to Pro in just a few minutes.',
+  'settings.account.upgrade.hero.body':
+      'After payment, your customer record, license group, and device assignments are updated automatically. Your current Lite device stays protected and moves into the Pro customer flow.',
+  'settings.account.upgrade.hero.autopilot':
+      'Once the payment is complete, the license, customer record, and device mapping are synchronized automatically.',
+  'settings.account.upgrade.plan.section_title': 'Pick the plan that fits you',
+  'settings.account.upgrade.plan.section_subtitle':
+      'Every plan unlocks Pro modules, advanced AI usage, and online license tracking.',
+  'settings.account.upgrade.plan.monthly.title': 'Monthly Pro',
+  'settings.account.upgrade.plan.monthly.badge': 'MONTHLY',
+  'settings.account.upgrade.plan.semiannual.title': '6-Month Pro',
+  'settings.account.upgrade.plan.semiannual.badge': 'MOST POPULAR',
+  'settings.account.upgrade.plan.yearly.title': 'Yearly Pro',
+  'settings.account.upgrade.plan.yearly.badge': 'BEST VALUE',
+  'settings.account.upgrade.feature.device_limit':
+      'Up to 5 Pro device connections',
+  'settings.account.upgrade.feature.ai':
+      'Los AI, document scanning, and fast product resolution',
+  'settings.account.upgrade.feature.cloud':
+      'Online verification and cloud-first workflow',
+  'settings.account.upgrade.feature.support':
+      'Priority support and license follow-up',
+  'settings.account.upgrade.selected.title':
+      'What unlocks with the selected plan?',
+  'settings.account.upgrade.selected.note':
+      'When payment succeeds, your device license state refreshes automatically. The customer record, license rows, and device mappings are written into the admin panel automatically.',
+  'settings.account.upgrade.form.title': 'Billing and contact details',
+  'settings.account.upgrade.form.existing_customer_note':
+      'An existing customer record was found for this device. Review the prefilled data and complete only the missing fields.',
+  'settings.account.upgrade.form.new_customer_note':
+      'A new customer record will be created for this purchase. Full name, phone, email, tax office, and tax ID are required.',
+  'settings.account.upgrade.field.company_name': 'Company / business name',
+  'settings.account.upgrade.field.full_name': 'Full name',
+  'settings.account.upgrade.field.phone': 'Phone',
+  'settings.account.upgrade.field.email': 'Email',
+  'settings.account.upgrade.field.city': 'City',
+  'settings.account.upgrade.field.address': 'Full address',
+  'settings.account.upgrade.field.tax_office': 'Tax office',
+  'settings.account.upgrade.field.tax_id': 'Tax ID / National ID',
+  'settings.account.upgrade.form.invoice_note':
+      'This information is sent to LemonSqueezy as checkout prefill data and is also used to create or update the customer record in the admin panel after payment.',
+  'settings.account.upgrade.validation.required':
+      'This field is required.',
+  'settings.account.upgrade.validation.email':
+      'Enter a valid email address.',
+  'settings.account.upgrade.checkout.browser_opened':
+      'The checkout page opened in your browser. This window will update automatically after the purchase completes.',
+  'settings.account.upgrade.checkout.copy_success':
+      'Checkout link copied.',
+  'settings.account.upgrade.checkout.waiting_title':
+      'You can keep this window open until the payment is complete',
+  'settings.account.upgrade.checkout.waiting_body':
+      'When the purchase succeeds, your license status refreshes automatically. If you closed the browser, you can reopen the checkout from the link below.',
+  'settings.account.upgrade.checkout.copy_link': 'Copy Link',
+  'settings.account.upgrade.checkout.open_again': 'Open Checkout',
+  'settings.account.upgrade.footer.note':
+      'VAT is added separately on the checkout page. After payment, your device is removed from the Lite list and moved into the Pro customer record automatically.',
+  'settings.account.upgrade.footer.cta': 'Buy for {price}',
 
   'nav.trading_operations': 'Trading Operations',
   'nav.trading_operations.fast_sale': 'Fast Sale',

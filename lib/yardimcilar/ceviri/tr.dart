@@ -49,6 +49,7 @@ const Map<String, String> trCeviriler = {
   'common.clean': 'Temizle',
   'common.apply': 'Uygula',
   'common.select': 'Seç',
+  'common.selected': 'Seçili',
   'common.date_select': 'Tarih Seç',
   'common.placeholder.date': 'GG.AA.YYYY',
   'common.placeholder.phone': '5XX XXX XX XX',
@@ -525,8 +526,72 @@ const Map<String, String> trCeviriler = {
   'settings.account.state.available': 'Kullanılabilir',
   'settings.account.state.locked': 'Kapalı',
   'settings.account.actions.refresh': 'Durumu Yenile',
+  'settings.account.actions.upgrade': 'Pro Sürüme Geç',
   'settings.account.actions.verify': 'Lisansı Doğrula',
   'settings.account.actions.copy': 'Kopyala',
+  'settings.account.upgrade.dialog.title': 'Pro Sürüm Siparişi',
+  'settings.account.upgrade.dialog.subtitle':
+      'Aylık, 6 aylık veya yıllık Pro planınızı seçin; eksik bilgileri tamamlayıp güvenli ödeme sayfasına geçin.',
+  'settings.account.upgrade.hero.badge': 'GÜVENLİ ÖDEME',
+  'settings.account.upgrade.hero.billing_badge': '+ KDV',
+  'settings.account.upgrade.hero.title':
+      'Lite kullanımınızı dakikalar içinde Pro lisansa yükseltin.',
+  'settings.account.upgrade.hero.body':
+      'Satın alma tamamlandığında müşteri kaydınız, lisans grubunuz ve cihaz eşleştirmeleriniz otomatik güncellenir. Mevcut Lite cihazınız sistemde korunur, ödeme sonrası Pro müşteri akışına taşınır.',
+  'settings.account.upgrade.hero.autopilot':
+      'Ödeme tamamlanınca lisans, müşteri kaydı ve cihaz bağlantıları otomatik senkronize edilir.',
+  'settings.account.upgrade.plan.section_title': 'Size uygun planı seçin',
+  'settings.account.upgrade.plan.section_subtitle':
+      'Tüm planlarda Pro modüller, gelişmiş AI kullanımı ve çevrim içi lisans takibi açıktır.',
+  'settings.account.upgrade.plan.monthly.title': 'Aylık Pro',
+  'settings.account.upgrade.plan.monthly.badge': 'AYLIK',
+  'settings.account.upgrade.plan.semiannual.title': '6 Aylık Pro',
+  'settings.account.upgrade.plan.semiannual.badge': 'EN POPÜLER',
+  'settings.account.upgrade.plan.yearly.title': 'Yıllık Pro',
+  'settings.account.upgrade.plan.yearly.badge': 'EN İYİ DEĞER',
+  'settings.account.upgrade.feature.device_limit':
+      '5 cihaza kadar Pro cihaz bağlantısı',
+  'settings.account.upgrade.feature.ai':
+      'Los AI, belge tarama ve hızlı ürün çözümleri',
+  'settings.account.upgrade.feature.cloud':
+      'Çevrim içi doğrulama ve bulut odaklı çalışma',
+  'settings.account.upgrade.feature.support':
+      'Öncelikli destek ve lisans takibi',
+  'settings.account.upgrade.selected.title':
+      'Seçili planla hangi avantajlar açılır?',
+  'settings.account.upgrade.selected.note':
+      'Ödeme başarılı olduğunda cihazınızın lisans durumu otomatik yenilenir. Müşteri kaydı, lisans satırları ve cihaz eşleştirmeleri admin paneline otomatik işlenir.',
+  'settings.account.upgrade.form.title': 'Faturalama ve iletişim bilgileri',
+  'settings.account.upgrade.form.existing_customer_note':
+      'Sistemde mevcut müşteri kaydınız bulundu. Hazır gelen alanları kontrol edip eksik bilgileri tamamlamanız yeterlidir.',
+  'settings.account.upgrade.form.new_customer_note':
+      'Bu satın alma için yeni müşteri kaydı oluşturulacak. Ad soyad, telefon, e-posta, vergi dairesi ve vergi no alanları zorunludur.',
+  'settings.account.upgrade.field.company_name': 'Firma / işletme adı',
+  'settings.account.upgrade.field.full_name': 'Ad soyad',
+  'settings.account.upgrade.field.phone': 'Telefon',
+  'settings.account.upgrade.field.email': 'E-posta',
+  'settings.account.upgrade.field.city': 'Şehir',
+  'settings.account.upgrade.field.address': 'Açık adres',
+  'settings.account.upgrade.field.tax_office': 'Vergi dairesi',
+  'settings.account.upgrade.field.tax_id': 'Vergi no / T.C. no',
+  'settings.account.upgrade.form.invoice_note':
+      'Bu bilgiler LemonSqueezy ödeme sayfasına ön doldurma olarak gönderilir ve ödeme tamamlandığında admin panelindeki müşteri kaydı için kullanılır.',
+  'settings.account.upgrade.validation.required': 'Bu alan zorunludur.',
+  'settings.account.upgrade.validation.email':
+      'Geçerli bir e-posta adresi girin.',
+  'settings.account.upgrade.checkout.browser_opened':
+      'Ödeme sayfası tarayıcıda açıldı. Satın alma tamamlanınca bu pencere otomatik güncellenecek.',
+  'settings.account.upgrade.checkout.copy_success':
+      'Ödeme bağlantısı kopyalandı.',
+  'settings.account.upgrade.checkout.waiting_title':
+      'Ödeme tamamlanana kadar bu pencere açık kalabilir',
+  'settings.account.upgrade.checkout.waiting_body':
+      'Satın alma başarıyla tamamlandığında lisans durumunuz otomatik yenilenir. Tarayıcıyı kapattıysanız aşağıdaki bağlantıyla ödeme sayfasını tekrar açabilirsiniz.',
+  'settings.account.upgrade.checkout.copy_link': 'Bağlantıyı Kopyala',
+  'settings.account.upgrade.checkout.open_again': 'Ödeme Sayfasını Aç',
+  'settings.account.upgrade.footer.note':
+      'Fiyatlara KDV ödeme ekranında ayrıca eklenir. Satın alma sonrası cihazınız Lite listesinden çıkarılıp Pro müşteri kaydına otomatik taşınır.',
+  'settings.account.upgrade.footer.cta': '{price} ile Satın Al',
 
   'nav.trading_operations': 'Alım Satım İşlemleri',
   'nav.trading_operations.fast_sale': 'Hızlı Satış',

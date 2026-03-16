@@ -62,6 +62,7 @@ const Map<String, String> arCeviriler = {
   'common.clean': 'مسح',
   'common.apply': 'تطبيق',
   'common.select': 'اختيار',
+  'common.selected': 'محدد',
   'common.date_select': 'اختر التاريخ',
   'common.placeholder.date': 'DD.MM.YYYY',
   'common.placeholder.phone': '5XX XXX XX XX',
@@ -511,8 +512,72 @@ const Map<String, String> arCeviriler = {
   'settings.account.state.available': 'متاح',
   'settings.account.state.locked': 'مغلق',
   'settings.account.actions.refresh': 'تحديث الحالة',
+  'settings.account.actions.upgrade': 'الترقية إلى Pro',
   'settings.account.actions.verify': 'التحقق من الترخيص',
   'settings.account.actions.copy': 'نسخ',
+  'settings.account.upgrade.dialog.title': 'شراء وترقية Pro',
+  'settings.account.upgrade.dialog.subtitle':
+      'اختر خطة Pro الشهرية أو 6 أشهر أو السنوية، أكمل البيانات الناقصة، ثم انتقل إلى صفحة الدفع الآمنة.',
+  'settings.account.upgrade.hero.badge': 'دفع آمن',
+  'settings.account.upgrade.hero.billing_badge': '+ ضريبة',
+  'settings.account.upgrade.hero.title':
+      'حوّل نسخة Lite إلى Pro خلال دقائق.',
+  'settings.account.upgrade.hero.body':
+      'بعد إتمام الدفع يتم تحديث سجل العميل ومجموعة الترخيص وربط الأجهزة تلقائياً. يبقى جهاز Lite الحالي محفوظاً وينتقل مباشرة إلى تدفق عميل Pro.',
+  'settings.account.upgrade.hero.autopilot':
+      'بعد نجاح الدفع تتم مزامنة الترخيص وسجل العميل وربط الأجهزة بشكل تلقائي.',
+  'settings.account.upgrade.plan.section_title': 'اختر الخطة الأنسب لك',
+  'settings.account.upgrade.plan.section_subtitle':
+      'كل الخطط تفتح وحدات Pro واستخدام AI المتقدم وتتبع الترخيص عبر الإنترنت.',
+  'settings.account.upgrade.plan.monthly.title': 'Pro شهري',
+  'settings.account.upgrade.plan.monthly.badge': 'شهري',
+  'settings.account.upgrade.plan.semiannual.title': 'Pro لمدة 6 أشهر',
+  'settings.account.upgrade.plan.semiannual.badge': 'الأكثر شيوعاً',
+  'settings.account.upgrade.plan.yearly.title': 'Pro سنوي',
+  'settings.account.upgrade.plan.yearly.badge': 'أفضل قيمة',
+  'settings.account.upgrade.feature.device_limit':
+      'حتى 5 أجهزة على خطة Pro',
+  'settings.account.upgrade.feature.ai':
+      'Los AI ومسح المستندات والحلول السريعة للمنتجات',
+  'settings.account.upgrade.feature.cloud':
+      'تحقق عبر الإنترنت وتشغيل سحابي',
+  'settings.account.upgrade.feature.support':
+      'دعم أولوية ومتابعة للترخيص',
+  'settings.account.upgrade.selected.title':
+      'ماذا تفتح هذه الخطة؟',
+  'settings.account.upgrade.selected.note':
+      'عند نجاح الدفع يتم تحديث حالة ترخيص جهازك تلقائياً، كما يتم إنشاء أو تحديث سجل العميل وصفوف التراخيص وربط الأجهزة داخل لوحة الإدارة.',
+  'settings.account.upgrade.form.title': 'بيانات الفوترة والتواصل',
+  'settings.account.upgrade.form.existing_customer_note':
+      'تم العثور على سجل عميل موجود لهذا الجهاز. راجع البيانات الجاهزة وأكمل الحقول الناقصة فقط.',
+  'settings.account.upgrade.form.new_customer_note':
+      'سيتم إنشاء سجل عميل جديد لهذه العملية. الاسم الكامل والهاتف والبريد الإلكتروني ومكتب الضريبة والرقم الضريبي حقول مطلوبة.',
+  'settings.account.upgrade.field.company_name': 'اسم الشركة / النشاط',
+  'settings.account.upgrade.field.full_name': 'الاسم الكامل',
+  'settings.account.upgrade.field.phone': 'الهاتف',
+  'settings.account.upgrade.field.email': 'البريد الإلكتروني',
+  'settings.account.upgrade.field.city': 'المدينة',
+  'settings.account.upgrade.field.address': 'العنوان الكامل',
+  'settings.account.upgrade.field.tax_office': 'مكتب الضريبة',
+  'settings.account.upgrade.field.tax_id': 'الرقم الضريبي / رقم الهوية',
+  'settings.account.upgrade.form.invoice_note':
+      'يتم إرسال هذه المعلومات إلى LemonSqueezy كبيانات جاهزة في صفحة الدفع، وتُستخدم أيضاً لإنشاء أو تحديث سجل العميل في لوحة الإدارة بعد الدفع.',
+  'settings.account.upgrade.validation.required': 'هذا الحقل مطلوب.',
+  'settings.account.upgrade.validation.email':
+      'أدخل بريداً إلكترونياً صحيحاً.',
+  'settings.account.upgrade.checkout.browser_opened':
+      'تم فتح صفحة الدفع في المتصفح. ستتحدث هذه النافذة تلقائياً بعد اكتمال الشراء.',
+  'settings.account.upgrade.checkout.copy_success':
+      'تم نسخ رابط الدفع.',
+  'settings.account.upgrade.checkout.waiting_title':
+      'يمكنك إبقاء هذه النافذة مفتوحة حتى يكتمل الدفع',
+  'settings.account.upgrade.checkout.waiting_body':
+      'عند نجاح عملية الشراء يتم تحديث حالة الترخيص تلقائياً. إذا أغلقت المتصفح يمكنك إعادة فتح صفحة الدفع من الرابط أدناه.',
+  'settings.account.upgrade.checkout.copy_link': 'نسخ الرابط',
+  'settings.account.upgrade.checkout.open_again': 'فتح صفحة الدفع',
+  'settings.account.upgrade.footer.note':
+      'تُضاف الضريبة بشكل منفصل في صفحة الدفع. بعد الشراء يُزال جهازك من قائمة Lite وينتقل تلقائياً إلى سجل عميل Pro.',
+  'settings.account.upgrade.footer.cta': 'اشترِ مقابل {price}',
 
   'nav.trading_operations': 'عمليات البيع والشراء',
   'nav.trading_operations.fast_sale': 'بيع سريع',

@@ -9,6 +9,7 @@ import '../../../servisler/lite_ayarlar_servisi.dart';
 import '../../../servisler/lite_kisitlari.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
+import 'pro_satin_alma_dialog.dart';
 
 class HesapAyarlariSayfasi extends StatefulWidget {
   const HesapAyarlariSayfasi({super.key});
@@ -25,7 +26,6 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
   static const Color _mutedColor = Color(0xFF6B7280);
 
   bool _refreshing = false;
-  bool _activating = false;
   String? _errorMessage;
   String? _successMessage;
 
@@ -65,43 +65,6 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
       if (mounted) {
         setState(() {
           _refreshing = false;
-        });
-      }
-    }
-  }
-
-  Future<void> _activateLicense() async {
-    if (_activating) return;
-
-    setState(() {
-      _activating = true;
-      _errorMessage = null;
-      _successMessage = null;
-    });
-
-    try {
-      final activated = await LisansServisi().lisansla();
-      if (!mounted) return;
-
-      if (activated) {
-        setState(() {
-          _successMessage = tr('login.license.success');
-        });
-        unawaited(_refreshStatus());
-      } else {
-        setState(() {
-          _errorMessage = tr('login.license.error.not_found');
-        });
-      }
-    } catch (_) {
-      if (!mounted) return;
-      setState(() {
-        _errorMessage = tr('login.license.error.connection');
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _activating = false;
         });
       }
     }
@@ -150,7 +113,9 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
 
   Future<void> _handlePrimaryAction(bool isLite) async {
     if (isLite) {
-      await _activateLicense();
+      final purchased = await showProSatinAlmaDialog(context);
+      if (!mounted || purchased != true) return;
+      await _refreshStatus(showFeedback: true);
       return;
     }
     await _refreshStatus(showFeedback: true);
@@ -272,16 +237,16 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
                         StandartAltAksiyonBar(
                           isCompact: isCompact,
                           secondaryText: tr('settings.account.actions.refresh'),
-                          onSecondaryPressed: _refreshing || _activating
+                          onSecondaryPressed: _refreshing
                               ? null
                               : () => _refreshStatus(showFeedback: true),
                           primaryText: isLite
-                              ? tr('login.license.button')
+                              ? tr('settings.account.actions.upgrade')
                               : tr('settings.account.actions.verify'),
-                          onPrimaryPressed: _refreshing || _activating
+                          onPrimaryPressed: _refreshing
                               ? null
                               : () => _handlePrimaryAction(isLite),
-                          primaryLoading: _activating || _refreshing,
+                          primaryLoading: _refreshing,
                           primaryColor: isLite ? _accentColor : _primaryColor,
                           alignment: Alignment.centerRight,
                         ),
