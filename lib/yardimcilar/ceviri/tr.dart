@@ -545,6 +545,7 @@ const Map<String, String> trCeviriler = {
   'settings.account.state.available': 'Kullanılabilir',
   'settings.account.state.locked': 'Kapalı',
   'settings.account.actions.refresh': 'Durumu Yenile',
+  'settings.account.actions.load_credit': 'Kredi Yükle',
   'settings.account.actions.upgrade': 'Pro Sürüme Geç',
   'settings.account.actions.verify': 'Lisansı Doğrula',
   'settings.account.actions.copy': 'Kopyala',

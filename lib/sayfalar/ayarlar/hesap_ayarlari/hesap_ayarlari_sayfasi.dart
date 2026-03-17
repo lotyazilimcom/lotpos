@@ -10,6 +10,7 @@ import '../../../servisler/lite_kisitlari.dart';
 import '../../../servisler/pro_satin_alma_servisi.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
+import 'lospay_kredi_yukle_dialog.dart';
 import 'pro_satin_alma_dialog.dart';
 
 class HesapAyarlariSayfasi extends StatefulWidget {
@@ -340,6 +341,14 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
     await _refreshStatus(showFeedback: true);
   }
 
+  Future<void> _handleLoadLosPayCredit() async {
+    if (_refreshing || _cancellingSubscription) return;
+
+    final loaded = await showLosPayKrediYukleDialog(context);
+    if (!mounted || loaded != true) return;
+    await _refreshStatus(showFeedback: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -532,6 +541,33 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
             spacing: 10,
             runSpacing: 10,
             children: [
+              TextButton.icon(
+                onPressed: (_refreshing || _cancellingSubscription)
+                    ? null
+                    : _handleLoadLosPayCredit,
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFB7791F),
+                  backgroundColor: const Color(0xFFFFF8EE),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(999),
+                    side: BorderSide(
+                      color: const Color(0xFFF59E0B).withValues(alpha: 0.28),
+                    ),
+                  ),
+                ),
+                icon: const Icon(Icons.add_card_rounded, size: 18),
+                label: Text(
+                  tr('settings.account.actions.load_credit'),
+                  style: const TextStyle(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.4,
+                  ),
+                ),
+              ),
               _buildLosPayBadge(
                 value: _formattedLosPay(losPayBalance),
                 compact: isCompact,

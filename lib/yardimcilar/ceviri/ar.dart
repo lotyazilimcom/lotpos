@@ -531,6 +531,7 @@ const Map<String, String> arCeviriler = {
   'settings.account.state.available': 'متاح',
   'settings.account.state.locked': 'مغلق',
   'settings.account.actions.refresh': 'تحديث الحالة',
+  'settings.account.actions.load_credit': 'شحن الرصيد',
   'settings.account.actions.upgrade': 'الترقية إلى Pro',
   'settings.account.actions.verify': 'التحقق من الترخيص',
   'settings.account.actions.copy': 'نسخ',

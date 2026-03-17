@@ -537,6 +537,7 @@ const Map<String, String> enCeviriler = {
   'settings.account.state.available': 'Available',
   'settings.account.state.locked': 'Locked',
   'settings.account.actions.refresh': 'Refresh Status',
+  'settings.account.actions.load_credit': 'Load Credits',
   'settings.account.actions.upgrade': 'Go Pro',
   'settings.account.actions.verify': 'Verify License',
   'settings.account.actions.copy': 'Copy',
