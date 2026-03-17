@@ -101,6 +101,7 @@ class ProOdemeDialogMetinleri {
   final String subtitle;
   final String planStepLabel;
   final String formStepLabel;
+  final String checkoutStepLabel;
   final String planSectionTitle;
   final String planSectionSubtitle;
   final String planInfoText;
@@ -122,12 +123,51 @@ class ProOdemeDialogMetinleri {
   final String purchaseButtonTemplate;
   final String licenseIdLabel;
   final String hardwareIdLabel;
+  final String loadingText;
+  final String requiredFieldText;
+  final String invalidEmailText;
+  final String checkoutOpenErrorText;
+  final String copySuccessText;
+  final String checkoutOpenedBannerText;
+  final String paymentReceivedBannerText;
+  final String licenseActivatedBannerText;
+  final String checkoutTrackingWaitingTitle;
+  final String checkoutTrackingWaitingBody;
+  final String checkoutTrackingPaymentReceivedTitle;
+  final String checkoutTrackingPaymentReceivedBody;
+  final String checkoutTrackingCompletedTitle;
+  final String checkoutTrackingCompletedBody;
+  final String checkoutPaymentReceivedTitle;
+  final String checkoutPaymentReceivedBody;
+  final String checkoutCompletedTitle;
+  final String checkoutCompletedBody;
+  final String checkoutTimelineOpenedTitle;
+  final String checkoutTimelineOpenedSubtitle;
+  final String checkoutTimelineWaitingTitle;
+  final String checkoutTimelineWaitingSubtitle;
+  final String checkoutTimelineReceivedSubtitle;
+  final String checkoutTimelineActivationTitle;
+  final String checkoutTimelineActivationSubtitle;
+  final String checkoutTimelineCompletedSubtitle;
+  final String checkoutOpenAgainHint;
+  final String checkoutBrowserHint;
+  final String checkoutReloadLabel;
+  final String checkoutFooterWaitingText;
+  final String checkoutFooterPaymentReceivedText;
+  final String checkoutFooterCompletedText;
+  final String eventLabelOrderCreated;
+  final String eventLabelSubscriptionCreated;
+  final String eventLabelSubscriptionUpdated;
+  final String eventLabelSubscriptionPlanChanged;
+  final String eventLabelSubscriptionPaymentSuccess;
+  final String eventLabelSubscriptionPaymentRecovered;
 
   const ProOdemeDialogMetinleri({
     required this.title,
     required this.subtitle,
     required this.planStepLabel,
     required this.formStepLabel,
+    required this.checkoutStepLabel,
     required this.planSectionTitle,
     required this.planSectionSubtitle,
     required this.planInfoText,
@@ -149,6 +189,44 @@ class ProOdemeDialogMetinleri {
     required this.purchaseButtonTemplate,
     required this.licenseIdLabel,
     required this.hardwareIdLabel,
+    required this.loadingText,
+    required this.requiredFieldText,
+    required this.invalidEmailText,
+    required this.checkoutOpenErrorText,
+    required this.copySuccessText,
+    required this.checkoutOpenedBannerText,
+    required this.paymentReceivedBannerText,
+    required this.licenseActivatedBannerText,
+    required this.checkoutTrackingWaitingTitle,
+    required this.checkoutTrackingWaitingBody,
+    required this.checkoutTrackingPaymentReceivedTitle,
+    required this.checkoutTrackingPaymentReceivedBody,
+    required this.checkoutTrackingCompletedTitle,
+    required this.checkoutTrackingCompletedBody,
+    required this.checkoutPaymentReceivedTitle,
+    required this.checkoutPaymentReceivedBody,
+    required this.checkoutCompletedTitle,
+    required this.checkoutCompletedBody,
+    required this.checkoutTimelineOpenedTitle,
+    required this.checkoutTimelineOpenedSubtitle,
+    required this.checkoutTimelineWaitingTitle,
+    required this.checkoutTimelineWaitingSubtitle,
+    required this.checkoutTimelineReceivedSubtitle,
+    required this.checkoutTimelineActivationTitle,
+    required this.checkoutTimelineActivationSubtitle,
+    required this.checkoutTimelineCompletedSubtitle,
+    required this.checkoutOpenAgainHint,
+    required this.checkoutBrowserHint,
+    required this.checkoutReloadLabel,
+    required this.checkoutFooterWaitingText,
+    required this.checkoutFooterPaymentReceivedText,
+    required this.checkoutFooterCompletedText,
+    required this.eventLabelOrderCreated,
+    required this.eventLabelSubscriptionCreated,
+    required this.eventLabelSubscriptionUpdated,
+    required this.eventLabelSubscriptionPlanChanged,
+    required this.eventLabelSubscriptionPaymentSuccess,
+    required this.eventLabelSubscriptionPaymentRecovered,
   });
 
   factory ProOdemeDialogMetinleri.fromJson(
@@ -165,6 +243,7 @@ class ProOdemeDialogMetinleri {
       subtitle: read('subtitle', fallback.subtitle),
       planStepLabel: read('planStepLabel', fallback.planStepLabel),
       formStepLabel: read('formStepLabel', fallback.formStepLabel),
+      checkoutStepLabel: read('checkoutStepLabel', fallback.checkoutStepLabel),
       planSectionTitle: read('planSectionTitle', fallback.planSectionTitle),
       planSectionSubtitle: read(
         'planSectionSubtitle',
@@ -207,6 +286,146 @@ class ProOdemeDialogMetinleri {
       ),
       licenseIdLabel: read('licenseIdLabel', fallback.licenseIdLabel),
       hardwareIdLabel: read('hardwareIdLabel', fallback.hardwareIdLabel),
+      loadingText: read('loadingText', fallback.loadingText),
+      requiredFieldText: read('requiredFieldText', fallback.requiredFieldText),
+      invalidEmailText: read('invalidEmailText', fallback.invalidEmailText),
+      checkoutOpenErrorText: read(
+        'checkoutOpenErrorText',
+        fallback.checkoutOpenErrorText,
+      ),
+      copySuccessText: read('copySuccessText', fallback.copySuccessText),
+      checkoutOpenedBannerText: read(
+        'checkoutOpenedBannerText',
+        fallback.checkoutOpenedBannerText,
+      ),
+      paymentReceivedBannerText: read(
+        'paymentReceivedBannerText',
+        fallback.paymentReceivedBannerText,
+      ),
+      licenseActivatedBannerText: read(
+        'licenseActivatedBannerText',
+        fallback.licenseActivatedBannerText,
+      ),
+      checkoutTrackingWaitingTitle: read(
+        'checkoutTrackingWaitingTitle',
+        fallback.checkoutTrackingWaitingTitle,
+      ),
+      checkoutTrackingWaitingBody: read(
+        'checkoutTrackingWaitingBody',
+        fallback.checkoutTrackingWaitingBody,
+      ),
+      checkoutTrackingPaymentReceivedTitle: read(
+        'checkoutTrackingPaymentReceivedTitle',
+        fallback.checkoutTrackingPaymentReceivedTitle,
+      ),
+      checkoutTrackingPaymentReceivedBody: read(
+        'checkoutTrackingPaymentReceivedBody',
+        fallback.checkoutTrackingPaymentReceivedBody,
+      ),
+      checkoutTrackingCompletedTitle: read(
+        'checkoutTrackingCompletedTitle',
+        fallback.checkoutTrackingCompletedTitle,
+      ),
+      checkoutTrackingCompletedBody: read(
+        'checkoutTrackingCompletedBody',
+        fallback.checkoutTrackingCompletedBody,
+      ),
+      checkoutPaymentReceivedTitle: read(
+        'checkoutPaymentReceivedTitle',
+        fallback.checkoutPaymentReceivedTitle,
+      ),
+      checkoutPaymentReceivedBody: read(
+        'checkoutPaymentReceivedBody',
+        fallback.checkoutPaymentReceivedBody,
+      ),
+      checkoutCompletedTitle: read(
+        'checkoutCompletedTitle',
+        fallback.checkoutCompletedTitle,
+      ),
+      checkoutCompletedBody: read(
+        'checkoutCompletedBody',
+        fallback.checkoutCompletedBody,
+      ),
+      checkoutTimelineOpenedTitle: read(
+        'checkoutTimelineOpenedTitle',
+        fallback.checkoutTimelineOpenedTitle,
+      ),
+      checkoutTimelineOpenedSubtitle: read(
+        'checkoutTimelineOpenedSubtitle',
+        fallback.checkoutTimelineOpenedSubtitle,
+      ),
+      checkoutTimelineWaitingTitle: read(
+        'checkoutTimelineWaitingTitle',
+        fallback.checkoutTimelineWaitingTitle,
+      ),
+      checkoutTimelineWaitingSubtitle: read(
+        'checkoutTimelineWaitingSubtitle',
+        fallback.checkoutTimelineWaitingSubtitle,
+      ),
+      checkoutTimelineReceivedSubtitle: read(
+        'checkoutTimelineReceivedSubtitle',
+        fallback.checkoutTimelineReceivedSubtitle,
+      ),
+      checkoutTimelineActivationTitle: read(
+        'checkoutTimelineActivationTitle',
+        fallback.checkoutTimelineActivationTitle,
+      ),
+      checkoutTimelineActivationSubtitle: read(
+        'checkoutTimelineActivationSubtitle',
+        fallback.checkoutTimelineActivationSubtitle,
+      ),
+      checkoutTimelineCompletedSubtitle: read(
+        'checkoutTimelineCompletedSubtitle',
+        fallback.checkoutTimelineCompletedSubtitle,
+      ),
+      checkoutOpenAgainHint: read(
+        'checkoutOpenAgainHint',
+        fallback.checkoutOpenAgainHint,
+      ),
+      checkoutBrowserHint: read(
+        'checkoutBrowserHint',
+        fallback.checkoutBrowserHint,
+      ),
+      checkoutReloadLabel: read(
+        'checkoutReloadLabel',
+        fallback.checkoutReloadLabel,
+      ),
+      checkoutFooterWaitingText: read(
+        'checkoutFooterWaitingText',
+        fallback.checkoutFooterWaitingText,
+      ),
+      checkoutFooterPaymentReceivedText: read(
+        'checkoutFooterPaymentReceivedText',
+        fallback.checkoutFooterPaymentReceivedText,
+      ),
+      checkoutFooterCompletedText: read(
+        'checkoutFooterCompletedText',
+        fallback.checkoutFooterCompletedText,
+      ),
+      eventLabelOrderCreated: read(
+        'eventLabelOrderCreated',
+        fallback.eventLabelOrderCreated,
+      ),
+      eventLabelSubscriptionCreated: read(
+        'eventLabelSubscriptionCreated',
+        fallback.eventLabelSubscriptionCreated,
+      ),
+      eventLabelSubscriptionUpdated: read(
+        'eventLabelSubscriptionUpdated',
+        fallback.eventLabelSubscriptionUpdated,
+      ),
+      eventLabelSubscriptionPlanChanged: read(
+        'eventLabelSubscriptionPlanChanged',
+        fallback.eventLabelSubscriptionPlanChanged,
+      ),
+      eventLabelSubscriptionPaymentSuccess: read(
+        'eventLabelSubscriptionPaymentSuccess',
+        fallback.eventLabelSubscriptionPaymentSuccess,
+      ),
+      eventLabelSubscriptionPaymentRecovered: read(
+        'eventLabelSubscriptionPaymentRecovered',
+        fallback.eventLabelSubscriptionPaymentRecovered,
+      ),
     );
   }
 }
@@ -381,6 +600,7 @@ class ProSatinAlmaServisi {
             'Paketinizi seçin; eksik fatura ve iletişim bilgilerini tamamlayıp güvenli ödeme sayfasına geçin.',
         planStepLabel: 'Size uygun planı seçin',
         formStepLabel: 'Faturalama ve iletişim bilgileri',
+        checkoutStepLabel: 'Güvenli ödeme',
         planSectionTitle: 'Size uygun planı seçin',
         planSectionSubtitle:
             'Paket sayısı, fiyat metinleri ve plan özellikleri admin panelinden tamamen yönetilir.',
@@ -409,6 +629,63 @@ class ProSatinAlmaServisi {
         purchaseButtonTemplate: '{price} ile Satın Al',
         licenseIdLabel: 'Lisans ID',
         hardwareIdLabel: 'Donanım Kimliği (Hardware ID)',
+        loadingText: 'Yükleniyor...',
+        requiredFieldText: 'Bu alan zorunludur.',
+        invalidEmailText: 'Geçerli bir e-posta girin.',
+        checkoutOpenErrorText:
+            'Ödeme sayfası otomatik açılamadı. Bağlantıyı kopyalayıp tarayıcıda açın.',
+        copySuccessText: 'Bağlantı panoya kopyalandı.',
+        checkoutOpenedBannerText:
+            'Ödeme sayfası güvenli tarayıcıda açıldı. Ödeme tamamlandığında bu pencere lisans durumunu otomatik yeniler.',
+        paymentReceivedBannerText:
+            'Ödemeniz alındı. Lemon ödemeyi doğruladı; lisansınız şu anda otomatik olarak etkinleştiriliyor.',
+        licenseActivatedBannerText:
+            'Pro lisansınız etkinleştirildi. Pencere kapatılıyor ve uygulama yeni lisans durumunu yüklüyor.',
+        checkoutTrackingWaitingTitle: 'Güvenli ödeme takibi',
+        checkoutTrackingWaitingBody:
+            'Kart ve fatura ödemenizi tarayıcıda güvenle tamamlayın. Bu pencere ödeme sonrasını arka planda izlemeye devam eder.',
+        checkoutTrackingPaymentReceivedTitle: 'Ödeme onayı alındı',
+        checkoutTrackingPaymentReceivedBody:
+            'Tarayıcı veya uygulama içi ödeme penceresini kapatsanız bile webhook ve lisans kontrolü bu siparişi arka planda tamamlar.',
+        checkoutTrackingCompletedTitle: 'Pro lisans etkinleştirildi',
+        checkoutTrackingCompletedBody:
+            'Sistem Pro lisansın aktif olduğunu doğruladı. Bu pencere otomatik olarak kapanacak.',
+        checkoutPaymentReceivedTitle: 'Ödeme alındı',
+        checkoutPaymentReceivedBody:
+            'Lemon ödemeyi kaydetti. Sistem lisans ve müşteri kaydını otomatik tamamlıyor.',
+        checkoutCompletedTitle: 'Pro lisans etkin',
+        checkoutCompletedBody:
+            'Lisans doğrulandı. Bu pencere kapanırken uygulama yeni Pro durumunu gösterecek.',
+        checkoutTimelineOpenedTitle: 'Ödeme sayfası güvenli tarayıcıda açıldı',
+        checkoutTimelineOpenedSubtitle: 'lossoft.lemonsqueezy.com',
+        checkoutTimelineWaitingTitle: 'Lemon ödeme sonucu bekleniyor',
+        checkoutTimelineWaitingSubtitle:
+            'Webhook ve veritabanı dinleme akışı siparişi izliyor.',
+        checkoutTimelineReceivedSubtitle:
+            'Ödeme bildirimi alındı ve lisans akışı başladı.',
+        checkoutTimelineActivationTitle:
+            'Pro lisans otomatik etkinleştirilecek',
+        checkoutTimelineActivationSubtitle:
+            'Ödeme tamamlandığında bu pencere kendini kapatır.',
+        checkoutTimelineCompletedSubtitle:
+            'Lisans doğrulandı. Program yeni duruma geçiyor.',
+        checkoutOpenAgainHint:
+            'Tarayıcı açılmadıysa aşağıdaki butonla ödeme sayfasını tekrar açabilirsiniz.',
+        checkoutBrowserHint:
+            'Tarayıcı kapanırsa sorun değil. Lemon webhook bildirimi geldiğinde bu pencere otomatik güncellenecek.',
+        checkoutReloadLabel: 'Yenile',
+        checkoutFooterWaitingText:
+            'Ödeme tamamlandığında bu pencere lisans durumunu otomatik kontrol eder.',
+        checkoutFooterPaymentReceivedText:
+            'Ödeme alındı. Lisansınız hazırlanıyor; bu pencere birazdan durumu otomatik yeniler.',
+        checkoutFooterCompletedText:
+            'Pro lisans aktif. Pencere kapanırken uygulama yeni durumu kullanacak.',
+        eventLabelOrderCreated: 'Ödeme alındı',
+        eventLabelSubscriptionCreated: 'Abonelik oluşturuldu',
+        eventLabelSubscriptionUpdated: 'Abonelik güncellendi',
+        eventLabelSubscriptionPlanChanged: 'Plan güncellendi',
+        eventLabelSubscriptionPaymentSuccess: 'Ödeme başarılı',
+        eventLabelSubscriptionPaymentRecovered: 'Ödeme kurtarıldı',
       );
     }
 
@@ -418,6 +695,7 @@ class ProSatinAlmaServisi {
           'Pick a plan, complete any missing billing details, and continue to the secure payment page.',
       planStepLabel: 'Choose your plan',
       formStepLabel: 'Billing and contact details',
+      checkoutStepLabel: 'Secure checkout',
       planSectionTitle: 'Choose the plan that fits you',
       planSectionSubtitle:
           'Package count, pricing copy, and feature lists are fully managed from the admin payment settings.',
@@ -446,6 +724,63 @@ class ProSatinAlmaServisi {
       purchaseButtonTemplate: 'Buy with {price}',
       licenseIdLabel: 'License ID',
       hardwareIdLabel: 'Hardware ID',
+      loadingText: 'Loading...',
+      requiredFieldText: 'This field is required.',
+      invalidEmailText: 'Enter a valid email address.',
+      checkoutOpenErrorText:
+          'The checkout page could not be opened automatically. Copy the link and open it in your browser.',
+      copySuccessText: 'Checkout link copied.',
+      checkoutOpenedBannerText:
+          'The checkout page opened in a secure browser. This dialog will refresh your license automatically after payment.',
+      paymentReceivedBannerText:
+          'Your payment was received. Lemon confirmed it and your license is being activated automatically.',
+      licenseActivatedBannerText:
+          'Your Pro license has been activated. This dialog will close and refresh the app state.',
+      checkoutTrackingWaitingTitle: 'Secure checkout tracking',
+      checkoutTrackingWaitingBody:
+          'Complete the card and billing steps securely in your browser. This dialog keeps tracking the payment result in the background.',
+      checkoutTrackingPaymentReceivedTitle: 'Payment confirmation received',
+      checkoutTrackingPaymentReceivedBody:
+          'Even if you close the browser or in-app browser, webhook and license checks will continue processing this order in the background.',
+      checkoutTrackingCompletedTitle: 'Pro license activated',
+      checkoutTrackingCompletedBody:
+          'The system confirmed that your Pro license is active. This dialog will close automatically.',
+      checkoutPaymentReceivedTitle: 'Payment received',
+      checkoutPaymentReceivedBody:
+          'Lemon recorded the payment. The system is finalizing the license and customer record automatically.',
+      checkoutCompletedTitle: 'Pro license active',
+      checkoutCompletedBody:
+          'The license has been verified. The app will show the new Pro state as this dialog closes.',
+      checkoutTimelineOpenedTitle: 'Checkout page opened in a secure browser',
+      checkoutTimelineOpenedSubtitle: 'lossoft.lemonsqueezy.com',
+      checkoutTimelineWaitingTitle: 'Waiting for Lemon payment confirmation',
+      checkoutTimelineWaitingSubtitle:
+          'Webhook and database listeners are tracking the order.',
+      checkoutTimelineReceivedSubtitle:
+          'A payment event was received and license activation started.',
+      checkoutTimelineActivationTitle:
+          'The Pro license will be activated automatically',
+      checkoutTimelineActivationSubtitle:
+          'This dialog closes itself as soon as the payment is completed.',
+      checkoutTimelineCompletedSubtitle:
+          'The license was verified and the app is switching to the new state.',
+      checkoutOpenAgainHint:
+          'If the browser did not open, you can reopen the checkout page with the button below.',
+      checkoutBrowserHint:
+          'If the browser is closed, no problem. This dialog updates automatically as soon as Lemon sends the webhook.',
+      checkoutReloadLabel: 'Reload',
+      checkoutFooterWaitingText:
+          'Once the payment is completed, this dialog keeps checking your license automatically.',
+      checkoutFooterPaymentReceivedText:
+          'Payment received. Your license is being prepared and this dialog will refresh the status automatically.',
+      checkoutFooterCompletedText:
+          'Pro license is active. The app will use the new status when this dialog closes.',
+      eventLabelOrderCreated: 'Payment received',
+      eventLabelSubscriptionCreated: 'Subscription created',
+      eventLabelSubscriptionUpdated: 'Subscription updated',
+      eventLabelSubscriptionPlanChanged: 'Plan changed',
+      eventLabelSubscriptionPaymentSuccess: 'Payment successful',
+      eventLabelSubscriptionPaymentRecovered: 'Payment recovered',
     );
   }
 

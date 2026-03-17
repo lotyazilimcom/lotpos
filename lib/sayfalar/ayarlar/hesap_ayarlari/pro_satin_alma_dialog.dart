@@ -108,6 +108,8 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
       _paymentProfile ??
       ProSatinAlmaServisi.varsayilanOdemeProfili(_odemeLocale);
 
+  ProOdemeDialogMetinleri get _dialog => _activeProfile.dialog;
+
   List<ProPlanPaketi> get _plans => _activeProfile.planlar;
 
   ProPlanPaketi get _selectedPackage {
@@ -119,72 +121,35 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
     );
   }
 
-  bool get _isTurkish => _odemeLocale == 'tr';
-
-  String get _loadingText => _isTurkish ? 'Yükleniyor...' : 'Loading...';
-  String get _requiredText =>
-      _isTurkish ? 'Bu alan zorunludur.' : 'This field is required.';
-  String get _invalidEmailText => _isTurkish
-      ? 'Geçerli bir e-posta girin.'
-      : 'Enter a valid email address.';
-  String get _checkoutOpenErrorText => _isTurkish
-      ? 'Ödeme sayfası otomatik açılamadı. Bağlantıyı kopyalayıp tarayıcıda açın.'
-      : 'The checkout page could not be opened automatically. Copy the link and open it in your browser.';
-  String get _copySuccessText =>
-      _isTurkish ? 'Bağlantı panoya kopyalandı.' : 'Checkout link copied.';
-  String get _checkoutStepLabel =>
-      _isTurkish ? 'Guvenli odeme' : 'Secure checkout';
-  String get _checkoutOpenedText => _isTurkish
-      ? 'Odeme sayfasi guvenli tarayicida acildi. Odeme tamamlandiginda bu pencere lisans durumunu otomatik yeniler.'
-      : 'The checkout page opened in a secure browser. This dialog will refresh your license automatically after payment.';
-  String get _paymentReceivedText => _isTurkish
-      ? 'Odemeniz alindi. Lemon odemeyi dogruladi; lisansiniz su anda otomatik olarak etkinlestiriliyor.'
-      : 'Your payment was received. Lemon confirmed it and your license is being activated automatically.';
-  String get _licenseActivatedText => _isTurkish
-      ? 'Pro lisansiniz etkinlestirildi. Pencere kapatiliyor ve uygulama yeni lisans durumunu yukluyor.'
-      : 'Your Pro license has been activated. This dialog will close and refresh the app state.';
+  String get _loadingText => _dialog.loadingText;
+  String get _requiredText => _dialog.requiredFieldText;
+  String get _invalidEmailText => _dialog.invalidEmailText;
+  String get _checkoutOpenErrorText => _dialog.checkoutOpenErrorText;
+  String get _copySuccessText => _dialog.copySuccessText;
+  String get _checkoutStepLabel => _dialog.checkoutStepLabel;
+  String get _checkoutOpenedText => _dialog.checkoutOpenedBannerText;
+  String get _paymentReceivedText => _dialog.paymentReceivedBannerText;
+  String get _licenseActivatedText => _dialog.licenseActivatedBannerText;
   String get _checkoutStatusCardTitle => switch (_checkoutState) {
     _CheckoutState.paymentReceived =>
-      _isTurkish ? 'Odeme onayi alindi' : 'Payment confirmation received',
-    _CheckoutState.completed =>
-      _isTurkish ? 'Pro lisans etkinlestirildi' : 'Pro license activated',
-    _ => _isTurkish ? 'Guvenli odeme takibi' : 'Secure checkout tracking',
+      _dialog.checkoutTrackingPaymentReceivedTitle,
+    _CheckoutState.completed => _dialog.checkoutTrackingCompletedTitle,
+    _ => _dialog.checkoutTrackingWaitingTitle,
   };
   String get _checkoutStatusCardBody => switch (_checkoutState) {
     _CheckoutState.paymentReceived =>
-      _isTurkish
-          ? 'Tarayici veya uygulama ici odeme penceresini kapatsaniz bile webhook ve lisans kontrolu bu siparisi arka planda tamamlar.'
-          : 'Even if you close the browser or in-app browser, webhook and license checks will continue processing this order in the background.',
-    _CheckoutState.completed =>
-      _isTurkish
-          ? 'Sistem Pro lisansin aktif oldugunu dogruladi. Bu pencere otomatik olarak kapanacak.'
-          : 'The system confirmed that your Pro license is active. This dialog will close automatically.',
-    _ =>
-      _isTurkish
-          ? 'Kart ve fatura odemenizi tarayicida guvenle tamamlayin. Bu pencere odeme sonrasini arka planda izlemeye devam eder.'
-          : 'Complete the card and billing steps securely in your browser. This dialog keeps tracking the payment result in the background.',
+      _dialog.checkoutTrackingPaymentReceivedBody,
+    _CheckoutState.completed => _dialog.checkoutTrackingCompletedBody,
+    _ => _dialog.checkoutTrackingWaitingBody,
   };
   String get _checkoutFooterText => switch (_checkoutState) {
-    _CheckoutState.paymentReceived =>
-      _isTurkish
-          ? 'Odeme alindi. Lisansiniz hazirlaniyor; bu pencere birazdan durumu otomatik yeniler.'
-          : 'Payment received. Your license is being prepared and this dialog will refresh the status automatically.',
-    _CheckoutState.completed =>
-      _isTurkish
-          ? 'Pro lisans aktif. Pencere kapanirken uygulama yeni durumu kullanacak.'
-          : 'Pro license is active. The app will use the new status when this dialog closes.',
-    _ =>
-      _isTurkish
-          ? 'Odeme tamamlandiginda bu pencere lisans durumunu otomatik kontrol eder.'
-          : 'Once the payment is completed, this dialog keeps checking your license automatically.',
+    _CheckoutState.paymentReceived => _dialog.checkoutFooterPaymentReceivedText,
+    _CheckoutState.completed => _dialog.checkoutFooterCompletedText,
+    _ => _dialog.checkoutFooterWaitingText,
   };
-  String get _checkoutReloadLabel => _isTurkish ? 'Yenile' : 'Reload';
-  String get _checkoutBrowserHint => _isTurkish
-      ? 'Tarayici kapanirsa sorun degil. Lemon webhook bildirimi geldiginde bu pencere otomatik guncellenecek.'
-      : 'If the browser is closed, no problem. This dialog updates automatically as soon as Lemon sends the webhook.';
-  String get _checkoutOpenAgainHint => _isTurkish
-      ? 'Tarayici acilmadiysa asagidaki butonla odeme sayfasini tekrar acabilirsiniz.'
-      : 'If the browser did not open, you can reopen the checkout page with the button below.';
+  String get _checkoutReloadLabel => _dialog.checkoutReloadLabel;
+  String get _checkoutBrowserHint => _dialog.checkoutBrowserHint;
+  String get _checkoutOpenAgainHint => _dialog.checkoutOpenAgainHint;
 
   Future<void> _loadInitialData() async {
     setState(() {
@@ -439,25 +404,15 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
     final event = (rawEvent ?? '').trim();
     if (event.isEmpty) return null;
 
-    if (_isTurkish) {
-      return switch (event) {
-        'order_created' => 'Odeme alindi',
-        'subscription_created' => 'Abonelik olusturuldu',
-        'subscription_updated' => 'Abonelik guncellendi',
-        'subscription_plan_changed' => 'Plan guncellendi',
-        'subscription_payment_success' => 'Odeme basarili',
-        'subscription_payment_recovered' => 'Odeme kurtarildi',
-        _ => event.replaceAll('_', ' '),
-      };
-    }
-
     return switch (event) {
-      'order_created' => 'Payment received',
-      'subscription_created' => 'Subscription created',
-      'subscription_updated' => 'Subscription updated',
-      'subscription_plan_changed' => 'Plan changed',
-      'subscription_payment_success' => 'Payment successful',
-      'subscription_payment_recovered' => 'Payment recovered',
+      'order_created' => _dialog.eventLabelOrderCreated,
+      'subscription_created' => _dialog.eventLabelSubscriptionCreated,
+      'subscription_updated' => _dialog.eventLabelSubscriptionUpdated,
+      'subscription_plan_changed' => _dialog.eventLabelSubscriptionPlanChanged,
+      'subscription_payment_success' =>
+        _dialog.eventLabelSubscriptionPaymentSuccess,
+      'subscription_payment_recovered' =>
+        _dialog.eventLabelSubscriptionPaymentRecovered,
       _ => event.replaceAll('_', ' '),
     };
   }
@@ -1502,17 +1457,14 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
   }
 
   Widget _buildCheckoutSidePanel({required bool compact}) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _buildFormSideCard(compact: compact),
-        const SizedBox(height: 12),
-        _buildCheckoutMonitorCard(),
-      ],
-    );
+    return _buildFormSideCard(compact: compact);
   }
 
   Widget _buildCheckoutStatusCard() {
+    final dialog = _dialog;
+    final checkoutHost =
+        _checkoutDisplayHost ?? dialog.checkoutTimelineOpenedSubtitle;
+
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -1566,7 +1518,7 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        _checkoutDisplayHost ?? 'checkout.lemonsqueezy.com',
+                        checkoutHost,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -1636,28 +1588,19 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
                   ),
                   const SizedBox(height: 16),
                   _buildCheckoutTimelineItem(
-                    title: _isTurkish
-                        ? 'Odeme sayfasi guvenli tarayicida acildi'
-                        : 'Checkout page opened in a secure browser',
-                    subtitle:
-                        _checkoutDisplayHost ?? 'checkout.lemonsqueezy.com',
+                    title: dialog.checkoutTimelineOpenedTitle,
+                    subtitle: checkoutHost,
                     done: true,
                     active: _checkoutState == _CheckoutState.waiting,
                   ),
                   const SizedBox(height: 10),
                   _buildCheckoutTimelineItem(
-                    title: _isTurkish
-                        ? 'Lemon odeme sonucu bekleniyor'
-                        : 'Waiting for Lemon payment confirmation',
+                    title: dialog.checkoutTimelineWaitingTitle,
                     subtitle:
                         _checkoutState == _CheckoutState.paymentReceived ||
                             _checkoutState == _CheckoutState.completed
-                        ? (_isTurkish
-                              ? 'Odeme bildirimi alindi ve lisans akisi basladi.'
-                              : 'A payment event was received and license activation started.')
-                        : (_isTurkish
-                              ? 'Webhook ve veritabani dinleme akisi siparisi izliyor.'
-                              : 'Webhook and database listeners are tracking the order.'),
+                        ? dialog.checkoutTimelineReceivedSubtitle
+                        : dialog.checkoutTimelineWaitingSubtitle,
                     done:
                         _checkoutState == _CheckoutState.paymentReceived ||
                         _checkoutState == _CheckoutState.completed,
@@ -1665,16 +1608,10 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
                   ),
                   const SizedBox(height: 10),
                   _buildCheckoutTimelineItem(
-                    title: _isTurkish
-                        ? 'Pro lisans otomatik etkinlestirilecek'
-                        : 'The Pro license will be activated automatically',
+                    title: dialog.checkoutTimelineActivationTitle,
                     subtitle: _checkoutState == _CheckoutState.completed
-                        ? (_isTurkish
-                              ? 'Lisans dogrulandi. Program yeni duruma geciyor.'
-                              : 'The license was verified and the app is switching to the new state.')
-                        : (_isTurkish
-                              ? 'Odeme tamamlandiginda bu pencere kendini kapatir.'
-                              : 'This dialog closes itself as soon as the payment is completed.'),
+                        ? dialog.checkoutTimelineCompletedSubtitle
+                        : dialog.checkoutTimelineActivationSubtitle,
                     done: _checkoutState == _CheckoutState.completed,
                     active: _checkoutState == _CheckoutState.paymentReceived,
                   ),
@@ -1714,6 +1651,8 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
                       ],
                     ),
                   ),
+                  const SizedBox(height: 16),
+                  _buildCheckoutActionPanel(),
                 ],
               ),
             ),
@@ -1799,32 +1738,25 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
     );
   }
 
-  Widget _buildCheckoutMonitorCard() {
+  Widget _buildCheckoutActionPanel() {
+    final dialog = _dialog;
     final isWaiting = _checkoutState == _CheckoutState.waiting;
     final title = switch (_checkoutState) {
-      _CheckoutState.paymentReceived =>
-        _isTurkish ? 'Odeme alindi' : 'Payment received',
-      _CheckoutState.completed =>
-        _isTurkish ? 'Pro lisans etkin' : 'Pro license active',
-      _ => _activeProfile.dialog.checkoutWaitingTitle,
+      _CheckoutState.paymentReceived => dialog.checkoutPaymentReceivedTitle,
+      _CheckoutState.completed => dialog.checkoutCompletedTitle,
+      _ => dialog.checkoutWaitingTitle,
     };
     final body = switch (_checkoutState) {
-      _CheckoutState.paymentReceived =>
-        _isTurkish
-            ? 'Lemon odemeyi kaydetti. Sistem lisans ve musteri kaydini otomatik tamamliyor.'
-            : 'Lemon recorded the payment. The system is finalizing the license and customer record automatically.',
-      _CheckoutState.completed =>
-        _isTurkish
-            ? 'Lisans dogrulandi. Bu pencere kapanirken uygulama yeni Pro durumunu gosterecek.'
-            : 'The license has been verified. The app will show the new Pro state as this dialog closes.',
-      _ => _activeProfile.dialog.checkoutWaitingBody,
+      _CheckoutState.paymentReceived => dialog.checkoutPaymentReceivedBody,
+      _CheckoutState.completed => dialog.checkoutCompletedBody,
+      _ => dialog.checkoutWaitingBody,
     };
 
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
+        color: _surface,
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: _border),
       ),
       padding: const EdgeInsets.all(14),
@@ -1870,7 +1802,7 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
               OutlinedButton.icon(
                 onPressed: _copyCheckoutLink,
                 icon: const Icon(Icons.copy_rounded, size: 14),
-                label: Text(_activeProfile.dialog.checkoutCopyLinkLabel),
+                label: Text(dialog.checkoutCopyLinkLabel),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: _textSecondary,
                   side: const BorderSide(color: _border),
@@ -1883,7 +1815,7 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
                 FilledButton.icon(
                   onPressed: _submitting ? null : _openCheckoutAgain,
                   icon: const Icon(Icons.open_in_new_rounded, size: 14),
-                  label: Text(_activeProfile.dialog.checkoutOpenAgainLabel),
+                  label: Text(dialog.checkoutOpenAgainLabel),
                   style: FilledButton.styleFrom(
                     backgroundColor: _cta,
                     foregroundColor: Colors.white,
