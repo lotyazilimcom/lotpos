@@ -70,7 +70,6 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
   Timer? _profileRefreshTimer;
   Timer? _successCloseTimer;
   RealtimeChannel? _checkoutRealtimeChannel;
-  String? _checkoutDisplayHost;
   String? _checkoutEventLabel;
   DateTime? _checkoutEventAt;
   _CheckoutState _checkoutState = _CheckoutState.idle;
@@ -478,7 +477,6 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
 
       setState(() {
         _checkoutUri = result.checkoutUri;
-        _checkoutDisplayHost = result.checkoutUri.host;
         _checkoutEventLabel = null;
         _checkoutEventAt = null;
         _checkoutState = _CheckoutState.waiting;
@@ -1462,8 +1460,7 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
 
   Widget _buildCheckoutStatusCard() {
     final dialog = _dialog;
-    final checkoutHost =
-        _checkoutDisplayHost ?? dialog.checkoutTimelineOpenedSubtitle;
+    final checkoutSubtitle = dialog.checkoutTimelineOpenedSubtitle;
 
     return Container(
       decoration: BoxDecoration(
@@ -1518,7 +1515,7 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        checkoutHost,
+                        checkoutSubtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -1589,7 +1586,7 @@ class _ProSatinAlmaDialogState extends State<_ProSatinAlmaDialog> {
                   const SizedBox(height: 16),
                   _buildCheckoutTimelineItem(
                     title: dialog.checkoutTimelineOpenedTitle,
-                    subtitle: checkoutHost,
+                    subtitle: checkoutSubtitle,
                     done: true,
                     active: _checkoutState == _CheckoutState.waiting,
                   ),

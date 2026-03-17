@@ -29,6 +29,7 @@ class LosPayKrediDialogMetinleri {
   final String summaryUnitPriceLabel;
   final String summaryMinimumCreditsLabel;
   final String summaryMinimumChargeLabel;
+  final String currentBalanceLabel;
   final String formSectionTitle;
   final String existingCustomerNote;
   final String newCustomerNote;
@@ -45,6 +46,7 @@ class LosPayKrediDialogMetinleri {
   final String creditAmountRequiredText;
   final String creditAmountMinText;
   final String creditAmountMaxText;
+  final String creditAmountStepText;
   final String checkoutOpenErrorText;
   final String copySuccessText;
   final String checkoutOpenedBannerText;
@@ -73,6 +75,9 @@ class LosPayKrediDialogMetinleri {
   final String checkoutFooterPaymentReceivedText;
   final String checkoutFooterCompletedText;
   final String eventLabelOrderCreated;
+  final String eventLabelFailed;
+  final String eventLabelCancelled;
+  final String eventLabelRefunded;
   final String creditUnitLabel;
 
   const LosPayKrediDialogMetinleri({
@@ -97,6 +102,7 @@ class LosPayKrediDialogMetinleri {
     required this.summaryUnitPriceLabel,
     required this.summaryMinimumCreditsLabel,
     required this.summaryMinimumChargeLabel,
+    required this.currentBalanceLabel,
     required this.formSectionTitle,
     required this.existingCustomerNote,
     required this.newCustomerNote,
@@ -113,6 +119,7 @@ class LosPayKrediDialogMetinleri {
     required this.creditAmountRequiredText,
     required this.creditAmountMinText,
     required this.creditAmountMaxText,
+    required this.creditAmountStepText,
     required this.checkoutOpenErrorText,
     required this.copySuccessText,
     required this.checkoutOpenedBannerText,
@@ -141,6 +148,9 @@ class LosPayKrediDialogMetinleri {
     required this.checkoutFooterPaymentReceivedText,
     required this.checkoutFooterCompletedText,
     required this.eventLabelOrderCreated,
+    required this.eventLabelFailed,
+    required this.eventLabelCancelled,
+    required this.eventLabelRefunded,
     required this.creditUnitLabel,
   });
 
@@ -205,6 +215,10 @@ class LosPayKrediDialogMetinleri {
         'summaryMinimumChargeLabel',
         fallback.summaryMinimumChargeLabel,
       ),
+      currentBalanceLabel: read(
+        'currentBalanceLabel',
+        fallback.currentBalanceLabel,
+      ),
       formSectionTitle: read('formSectionTitle', fallback.formSectionTitle),
       existingCustomerNote: read(
         'existingCustomerNote',
@@ -241,6 +255,10 @@ class LosPayKrediDialogMetinleri {
       creditAmountMaxText: read(
         'creditAmountMaxText',
         fallback.creditAmountMaxText,
+      ),
+      creditAmountStepText: read(
+        'creditAmountStepText',
+        fallback.creditAmountStepText,
       ),
       checkoutOpenErrorText: read(
         'checkoutOpenErrorText',
@@ -350,6 +368,15 @@ class LosPayKrediDialogMetinleri {
       eventLabelOrderCreated: read(
         'eventLabelOrderCreated',
         fallback.eventLabelOrderCreated,
+      ),
+      eventLabelFailed: read('eventLabelFailed', fallback.eventLabelFailed),
+      eventLabelCancelled: read(
+        'eventLabelCancelled',
+        fallback.eventLabelCancelled,
+      ),
+      eventLabelRefunded: read(
+        'eventLabelRefunded',
+        fallback.eventLabelRefunded,
       ),
       creditUnitLabel: read('creditUnitLabel', fallback.creditUnitLabel),
     );
@@ -557,6 +584,7 @@ class LosPayKrediServisi {
         summaryUnitPriceLabel: 'Birim fiyat',
         summaryMinimumCreditsLabel: 'Minimum kredi',
         summaryMinimumChargeLabel: 'Minimum tutar',
+        currentBalanceLabel: 'Mevcut Bakiye',
         formSectionTitle: 'Faturalama ve iletişim bilgileri',
         existingCustomerNote:
             'Sistemde mevcut müşteri kaydınız bulundu. Hazır gelen alanları kontrol edip eksik bilgileri tamamlamanız yeterlidir.',
@@ -577,6 +605,7 @@ class LosPayKrediServisi {
         creditAmountRequiredText: 'Kredi miktarı girin.',
         creditAmountMinText: 'En az {min} kredi girilmelidir.',
         creditAmountMaxText: 'En fazla {max} kredi girilebilir.',
+        creditAmountStepText: '{step} katlarıyla ilerleyin.',
         checkoutOpenErrorText:
             'Ödeme sayfası otomatik açılamadı. Bağlantıyı kopyalayıp tarayıcıda açın.',
         copySuccessText: 'Bağlantı panoya kopyalandı.',
@@ -622,6 +651,9 @@ class LosPayKrediServisi {
         checkoutFooterCompletedText:
             'LosPay kredisi aktif. Pencere kapanırken uygulama yeni durumu kullanacak.',
         eventLabelOrderCreated: 'Ödeme alındı',
+        eventLabelFailed: 'Ödeme başarısız',
+        eventLabelCancelled: 'Sipariş iptal edildi',
+        eventLabelRefunded: 'İade edildi',
         creditUnitLabel: 'kredi',
       );
     }
@@ -654,6 +686,7 @@ class LosPayKrediServisi {
       summaryUnitPriceLabel: 'Unit price',
       summaryMinimumCreditsLabel: 'Minimum credits',
       summaryMinimumChargeLabel: 'Minimum amount',
+      currentBalanceLabel: 'Current balance',
       formSectionTitle: 'Billing and contact details',
       existingCustomerNote:
           'We found an existing customer record. Review the prefilled fields and complete any missing details.',
@@ -674,6 +707,7 @@ class LosPayKrediServisi {
       creditAmountRequiredText: 'Enter a credit amount.',
       creditAmountMinText: 'Enter at least {min} credits.',
       creditAmountMaxText: 'Enter at most {max} credits.',
+      creditAmountStepText: 'Use increments of {step}.',
       checkoutOpenErrorText:
           'The checkout page could not be opened automatically. Copy the link and open it in your browser.',
       copySuccessText: 'Checkout link copied.',
@@ -719,6 +753,9 @@ class LosPayKrediServisi {
       checkoutFooterCompletedText:
           'LosPay credits are active. The app will use the new balance when this dialog closes.',
       eventLabelOrderCreated: 'Payment received',
+      eventLabelFailed: 'Payment failed',
+      eventLabelCancelled: 'Order cancelled',
+      eventLabelRefunded: 'Refunded',
       creditUnitLabel: 'credits',
     );
   }
@@ -943,29 +980,48 @@ class LosPayKrediServisi {
     final resolvedCustomerId = (loadRow['customer_id'] ?? '').toString().trim();
     double currentBalance = 0;
 
-    if (resolvedCustomerId.isNotEmpty || normalizedCustomerId.isNotEmpty) {
-      try {
+    try {
+      if (resolvedCustomerId.isNotEmpty || normalizedCustomerId.isNotEmpty) {
         final customerRow = await client
             .from('customers')
             .select('lospay_credit')
-            .eq('id', resolvedCustomerId.isNotEmpty
-                ? resolvedCustomerId
-                : normalizedCustomerId)
+            .eq(
+              'id',
+              resolvedCustomerId.isNotEmpty
+                  ? resolvedCustomerId
+                  : normalizedCustomerId,
+            )
             .maybeSingle();
         currentBalance =
             (customerRow?['lospay_credit'] as num?)?.toDouble() ?? 0;
-      } catch (_) {}
-    }
+      } else if (hardwareId.trim().isNotEmpty) {
+        final customerRowsRaw = await client
+            .from('customers')
+            .select('lospay_credit')
+            .eq('hardware_id', hardwareId.trim().toUpperCase());
+        final customerRows =
+            List<Map<String, dynamic>>.from(customerRowsRaw as List);
+        for (final row in customerRows) {
+          final value = (row['lospay_credit'] as num?)?.toDouble() ?? 0;
+          if (value > currentBalance) {
+            currentBalance = value;
+          }
+        }
+      }
+    } catch (_) {}
 
-    if (!(currentBalance > 0) && hardwareId.trim().isNotEmpty) {
+    if (hardwareId.trim().isNotEmpty) {
       try {
         final programRow = await client
             .from('program_deneme')
             .select('lospay_credit')
             .eq('hardware_id', hardwareId.trim().toUpperCase())
             .maybeSingle();
-        currentBalance =
+        final programBalance =
             (programRow?['lospay_credit'] as num?)?.toDouble() ?? 0;
+        if (programBalance > currentBalance) {
+          currentBalance = programBalance;
+        }
       } catch (_) {}
     }
 

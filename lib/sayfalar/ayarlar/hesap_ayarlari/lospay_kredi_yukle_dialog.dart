@@ -65,7 +65,6 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
   String? _infoMessage;
   Uri? _checkoutUri;
   String? _requestKey;
-  String? _checkoutDisplayHost;
   String? _checkoutEventLabel;
   DateTime? _checkoutEventAt;
   double _currentBalance = 0;
@@ -220,6 +219,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
           '${_formatPrice(_activeProfile.credit.minimumChargeAmount)} $_currencyCode',
         )
         .replaceAll('{price}', '${_formatPrice(totalAmount)} $_currencyCode')
+        .replaceAll('{step}', _activeProfile.credit.stepCredits.toString())
         .replaceAll('{credit}', creditAmount.toString());
   }
 
@@ -252,7 +252,11 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
       );
     }
     if (amount % _activeProfile.credit.stepCredits != 0) {
-      return '${_activeProfile.credit.stepCredits} katlarıyla ilerleyin.';
+      return _replaceTemplate(
+        _dialog.creditAmountStepText,
+        creditAmount: amount,
+        totalAmount: amount * _activeProfile.credit.pricePerCredit,
+      );
     }
     if (_totalAmount < _activeProfile.credit.minimumChargeAmount) {
       return _replaceTemplate(
@@ -430,6 +434,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
     _pollTimer?.cancel();
     await _stopCheckoutRealtime();
     await LisansServisi().dogrula();
+    await LisansServisi().senkronizeLosPayBakiyesiBestEffort(force: true);
     await LosPayKrediServisi.odemeSayfasiniKapat();
 
     _successCloseTimer?.cancel();
@@ -451,9 +456,9 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
     return switch (normalizedStatus) {
       'completed' => _dialog.eventLabelOrderCreated,
       'pending' => _dialog.checkoutTimelineWaitingTitle,
-      'failed' => 'failed',
-      'cancelled' => 'cancelled',
-      'refunded' => 'refunded',
+      'failed' => _dialog.eventLabelFailed,
+      'cancelled' => _dialog.eventLabelCancelled,
+      'refunded' => _dialog.eventLabelRefunded,
       _ => _dialog.eventLabelOrderCreated,
     };
   }
@@ -508,17 +513,12 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
 
       final opened =
           await LosPayKrediServisi.odemeSayfasiniAc(checkout.checkoutUri);
-      final host = checkout.checkoutUri.host.trim();
-
       if (!mounted) return;
 
       setState(() {
         _step = _CreditStep.checkout;
         _checkoutUri = checkout.checkoutUri;
         _requestKey = checkout.requestKey;
-        _checkoutDisplayHost = host.isEmpty
-            ? _dialog.checkoutTimelineOpenedSubtitle
-            : host;
         _checkoutEventLabel = null;
         _checkoutEventAt = null;
         _checkoutState = _CheckoutState.waiting;
@@ -605,6 +605,9 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
   Widget _buildContent(bool compact) {
     final dialog = _dialog;
     final banner = _buildStatusBanner();
+    final showInlineInfoBanner =
+        _infoMessage != null &&
+        !(_step == _CreditStep.checkout && banner != null);
 
     return Column(
       children: [
@@ -627,7 +630,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
                   ),
                   const SizedBox(height: 12),
                 ],
-                if (_infoMessage != null) ...[
+                if (showInlineInfoBanner) ...[
                   _buildBanner(
                     icon: Icons.check_circle_outline_rounded,
                     color: _success,
@@ -1365,7 +1368,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Mevcut Bakiye',
+                    _dialog.currentBalanceLabel,
                     style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
@@ -1419,8 +1422,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
   }
 
   Widget _buildCheckoutStatusCard() {
-    final checkoutHost =
-        _checkoutDisplayHost ?? _dialog.checkoutTimelineOpenedSubtitle;
+    final checkoutSubtitle = _dialog.checkoutTimelineOpenedSubtitle;
 
     return Container(
       decoration: BoxDecoration(
@@ -1475,7 +1477,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        checkoutHost,
+                        checkoutSubtitle,
                         style: const TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -1540,7 +1542,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
                 const SizedBox(height: 16),
                 _buildCheckoutTimelineItem(
                   title: _dialog.checkoutTimelineOpenedTitle,
-                  subtitle: checkoutHost,
+                  subtitle: checkoutSubtitle,
                   done: true,
                   active: _checkoutState == _CheckoutState.waiting,
                 ),

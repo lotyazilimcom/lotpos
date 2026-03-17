@@ -155,13 +155,19 @@ class LisansServisi extends ChangeNotifier {
       }
       _losPayBalance = prefs.getDouble(_prefsLosPayBalanceKey) ?? 0;
 
+      // Lite başlangıç ayarlarını ilk doğrulamadan önce canlıdan çek.
+      // Böylece ilk kurulum hediyesi ilk cihaz kaydına doğru yansır.
+      await LiteAyarlarServisi().baslat();
+      await LiteAyarlarServisi().senkronizeBestEffort(force: true);
+
       // Açılışta lisansı doğrula:
       // - Online erişilebiliyorsa: sadece online kayıt belirleyicidir (yerel lisansa bakılmaz).
       // - Online erişilemiyorsa: yerel lisans (vault/prefs) ile devam edilir.
       await dogrula(onlineTimeout: const Duration(seconds: 4));
 
-      // Lite ayar cache'ini yükle (offline-first)
-      await LiteAyarlarServisi().baslat();
+      // İlk kurulumda cihaz kaydı ve başlangıç LosPay bakiyesi UI açılmadan hazır olsun.
+      await _ensureProgramDenemeRowExistsBestEffort(forceLiteSettingsSync: true);
+      await _syncLosPayBalanceFromServerBestEffort(force: true);
 
       _startKasasiDokunmaTimer();
       unawaited(_persistKasasiBestEffort());
@@ -875,11 +881,15 @@ class LisansServisi extends ChangeNotifier {
       await _checkLicenseStatus();
       return _isLicensed;
     } finally {
-      unawaited(_ensureProgramDenemeRowExistsBestEffort());
+      if (_isInitialized) {
+        unawaited(_ensureProgramDenemeRowExistsBestEffort());
+      }
     }
   }
 
-  Future<void> _ensureProgramDenemeRowExistsBestEffort() async {
+  Future<void> _ensureProgramDenemeRowExistsBestEffort({
+    bool forceLiteSettingsSync = false,
+  }) async {
     if (_hardwareId == null) return;
 
     final supabase = Supabase.instance.client;
@@ -888,7 +898,9 @@ class LisansServisi extends ChangeNotifier {
     final desiredStatus = isLicensed ? 'converted' : 'active';
     final hid = _hardwareId!;
     await LiteAyarlarServisi().baslat();
-    await LiteAyarlarServisi().senkronizeBestEffort();
+    await LiteAyarlarServisi().senkronizeBestEffort(
+      force: forceLiteSettingsSync,
+    );
     final initialLosPayCredit = desiredStatus == 'active'
         ? LiteAyarlarServisi().initialLosPayCredit
         : 0.0;
@@ -1041,11 +1053,19 @@ class LisansServisi extends ChangeNotifier {
     _losPayLastSyncUtc = now;
 
     final supabase = Supabase.instance.client;
+    bool isMissingLosPayColumn(PostgrestException error) {
+      final msg = error.message.toLowerCase();
+      return msg.contains('lospay_credit') &&
+          (msg.contains('column') || msg.contains('schema'));
+    }
 
     try {
       final rawCustomerId = licenseData?['customer_id']?.toString().trim();
+      double? customerBalance;
+      bool hasCustomerBalance = false;
+      double? programBalance;
+      bool hasProgramBalance = false;
 
-      Map<String, dynamic>? customerData;
       if (rawCustomerId != null && rawCustomerId.isNotEmpty) {
         try {
           final result = await supabase
@@ -1055,41 +1075,30 @@ class LisansServisi extends ChangeNotifier {
               .maybeSingle()
               .timeout(timeout);
           if (result is Map<String, dynamic>) {
-            customerData = result;
+            customerBalance = _toDouble(result['lospay_credit']);
+            hasCustomerBalance = true;
           }
         } on PostgrestException catch (e) {
-          final msg = e.message.toLowerCase();
-          final missingLosPayColumn =
-              msg.contains('lospay_credit') &&
-              (msg.contains('column') || msg.contains('schema'));
-          if (!missingLosPayColumn) rethrow;
+          if (!isMissingLosPayColumn(e)) rethrow;
         }
       } else {
         try {
-          final result = await supabase
+          final rowsRaw = await supabase
               .from('customers')
               .select('lospay_credit')
               .eq('hardware_id', hid)
-              .maybeSingle()
               .timeout(timeout);
-          if (result is Map<String, dynamic>) {
-            customerData = result;
+          final rows = List<Map<String, dynamic>>.from(rowsRaw as List);
+          for (final row in rows) {
+            final value = _toDouble(row['lospay_credit']);
+            if (!hasCustomerBalance || value > (customerBalance ?? 0)) {
+              customerBalance = value;
+              hasCustomerBalance = true;
+            }
           }
         } on PostgrestException catch (e) {
-          final msg = e.message.toLowerCase();
-          final missingLosPayColumn =
-              msg.contains('lospay_credit') &&
-              (msg.contains('column') || msg.contains('schema'));
-          if (!missingLosPayColumn) rethrow;
+          if (!isMissingLosPayColumn(e)) rethrow;
         }
-      }
-
-      if (customerData != null) {
-        await _setLosPayBalanceLocal(
-          _toDouble(customerData['lospay_credit']),
-          notify: notify,
-        );
-        return;
       }
 
       try {
@@ -1100,33 +1109,50 @@ class LisansServisi extends ChangeNotifier {
             .maybeSingle()
             .timeout(timeout);
         if (demoData is Map<String, dynamic>) {
-          await _setLosPayBalanceLocal(
-            _toDouble(demoData['lospay_credit']),
-            notify: notify,
-          );
-          return;
+          programBalance = _toDouble(demoData['lospay_credit']);
+          hasProgramBalance = true;
         }
       } on PostgrestException catch (e) {
-        final msg = e.message.toLowerCase();
-        final missingLosPayColumn =
-            msg.contains('lospay_credit') &&
-            (msg.contains('column') || msg.contains('schema'));
-        if (!missingLosPayColumn) rethrow;
+        if (!isMissingLosPayColumn(e)) rethrow;
+      }
+
+      if (hasCustomerBalance || hasProgramBalance) {
+        var resolvedBalance = 0.0;
+        if (hasCustomerBalance) {
+          resolvedBalance = customerBalance ?? 0;
+        }
+        if (hasProgramBalance &&
+            (!hasCustomerBalance || (programBalance ?? 0) > resolvedBalance)) {
+          resolvedBalance = programBalance ?? 0;
+        }
+        await _setLosPayBalanceLocal(resolvedBalance, notify: notify);
+        return;
       }
 
       if (clearOnMissing) {
         await _setLosPayBalanceLocal(0, notify: notify);
       }
     } on PostgrestException catch (e) {
-      final msg = e.message.toLowerCase();
-      final missingLosPayColumn =
-          msg.contains('lospay_credit') &&
-          (msg.contains('column') || msg.contains('schema'));
-      if (missingLosPayColumn) return;
+      if (isMissingLosPayColumn(e)) return;
       debugPrint('Lisans Servisi: LosPay senkron hatası: $e');
     } catch (e) {
       debugPrint('Lisans Servisi: LosPay senkron hatası: $e');
     }
+  }
+
+  Future<void> senkronizeLosPayBakiyesiBestEffort({
+    Map<String, dynamic>? licenseData,
+    Duration timeout = const Duration(seconds: 4),
+    bool force = false,
+    bool clearOnMissing = false,
+  }) {
+    return _syncLosPayBalanceFromServerBestEffort(
+      licenseData: licenseData,
+      timeout: timeout,
+      force: force,
+      notify: true,
+      clearOnMissing: clearOnMissing,
+    );
   }
 
   /// Cihazı verilen Lisans Kimliği'ne (License ID) bağlar.
