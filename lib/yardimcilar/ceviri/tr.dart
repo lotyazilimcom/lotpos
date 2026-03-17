@@ -478,6 +478,12 @@ const Map<String, String> trCeviriler = {
       'Aktif lisans bilgileriniz, cihaz kayıt eşleşmeniz ve Lite referans limitleri tek yerde görünür.',
   'settings.account.feedback.refresh_success':
       'Lisans durumu ve Lite ayarları güncellendi.',
+  'settings.account.feedback.cancel_success':
+      'Pro lisans iptal edildi. İade işlendi ve cihaz Lite sürüme alındı.',
+  'settings.account.feedback.cancel_success_with_channel':
+      'Pro lisans iptal edildi. İade işlendi ve ödeme kaydı {channel} üzerinden Lite dönüşüyle senkronlandı.',
+  'settings.account.feedback.cancel_error':
+      'Pro iptal ve iade işlemi tamamlanamadı. Lütfen tekrar deneyin.',
   'settings.account.ids.title': 'Kimlik ve Eşleştirme',
   'settings.account.ids.subtitle':
       'Yönetici paylaşımı için gerekli lisans ve cihaz kodları burada hazırdır.',
@@ -509,6 +515,19 @@ const Map<String, String> trCeviriler = {
       'Bu cihaz aktif Pro lisans ile çalışıyor. Sistem lisans durumunu çevrim içi olarak doğrulamaya devam eder.',
   'settings.account.plan.expiry_label': 'Lisans Bitiş Tarihi',
   'settings.account.plan.expiry_unknown': 'Bilgi bekleniyor',
+  'settings.account.cancel.title': 'Pro iptal ve otomatik iade',
+  'settings.account.cancel.body':
+      'İptal istediğinizde sistem son ödenen Lemon abonelik faturasına tam iade dener ve cihazı anında Lite sürüme alır.',
+  'settings.account.cancel.action': 'Proyu İptal Et',
+  'settings.account.cancel.processing': 'İptal ve iade işleniyor',
+  'settings.account.cancel.confirm_title': 'Pro lisansı iptal et',
+  'settings.account.cancel.confirm_body':
+      'Bu işlem cihazın Pro lisansını kapatır ve hesabı anında Lite profile geri döndürür.',
+  'settings.account.cancel.confirm_refund':
+      'Lemon üzerinde son ödenen abonelik faturası için tam iade denenir.',
+  'settings.account.cancel.confirm_downgrade':
+      'İşlem tamamlanınca lisans, müşteri ve cihaz kayıtları Lite olarak senkronlanır.',
+  'settings.account.cancel.confirm_action': 'İptal Et ve İade Başlat',
   'settings.account.limits.title': 'Lite Limit Referansı',
   'settings.account.limits.subtitle':
       'Aşağıdaki değerler Lite profildeki güncel sınırları gösterir.',

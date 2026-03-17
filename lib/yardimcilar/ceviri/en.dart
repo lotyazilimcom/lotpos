@@ -470,6 +470,12 @@ const Map<String, String> enCeviriler = {
       'Active license data, device registration match, and Lite reference limits are visible in one place.',
   'settings.account.feedback.refresh_success':
       'License status and Lite settings were refreshed.',
+  'settings.account.feedback.cancel_success':
+      'The Pro license was cancelled. The refund was processed and the device was moved back to Lite.',
+  'settings.account.feedback.cancel_success_with_channel':
+      'The Pro license was cancelled. The refund was processed and the payment record from {channel} was synchronized with the Lite downgrade.',
+  'settings.account.feedback.cancel_error':
+      'The Pro cancellation and refund could not be completed. Please try again.',
   'settings.account.ids.title': 'Identity & Pairing',
   'settings.account.ids.subtitle':
       'The license and device codes required for administrator sharing are ready here.',
@@ -501,6 +507,19 @@ const Map<String, String> enCeviriler = {
       'This device is running with an active Pro license. The system continues to verify the license online.',
   'settings.account.plan.expiry_label': 'License Expiry Date',
   'settings.account.plan.expiry_unknown': 'Waiting for data',
+  'settings.account.cancel.title': 'Cancel Pro and refund automatically',
+  'settings.account.cancel.body':
+      'When you cancel, the system attempts a full refund for the latest paid Lemon subscription invoice and immediately moves the device back to Lite.',
+  'settings.account.cancel.action': 'Cancel Pro',
+  'settings.account.cancel.processing': 'Processing cancellation and refund',
+  'settings.account.cancel.confirm_title': 'Cancel the Pro license',
+  'settings.account.cancel.confirm_body':
+      'This action closes the Pro license for the device and immediately returns the account to the Lite profile.',
+  'settings.account.cancel.confirm_refund':
+      'A full refund is attempted for the latest paid Lemon subscription invoice.',
+  'settings.account.cancel.confirm_downgrade':
+      'After completion, license, customer, and device records are synchronized back to Lite.',
+  'settings.account.cancel.confirm_action': 'Cancel and Start Refund',
   'settings.account.limits.title': 'Lite Reference Limits',
   'settings.account.limits.subtitle':
       'The values below show the current restrictions applied in Lite mode.',
@@ -568,14 +587,11 @@ const Map<String, String> enCeviriler = {
   'settings.account.upgrade.field.tax_id': 'Tax ID / National ID',
   'settings.account.upgrade.form.invoice_note':
       'This information is sent to LemonSqueezy as checkout prefill data and is also used to create or update the customer record in the admin panel after payment.',
-  'settings.account.upgrade.validation.required':
-      'This field is required.',
-  'settings.account.upgrade.validation.email':
-      'Enter a valid email address.',
+  'settings.account.upgrade.validation.required': 'This field is required.',
+  'settings.account.upgrade.validation.email': 'Enter a valid email address.',
   'settings.account.upgrade.checkout.browser_opened':
       'The checkout page opened in your browser. This window will update automatically after the purchase completes.',
-  'settings.account.upgrade.checkout.copy_success':
-      'Checkout link copied.',
+  'settings.account.upgrade.checkout.copy_success': 'Checkout link copied.',
   'settings.account.upgrade.checkout.waiting_title':
       'You can keep this window open until the payment is complete',
   'settings.account.upgrade.checkout.waiting_body':

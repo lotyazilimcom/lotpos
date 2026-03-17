@@ -7,6 +7,7 @@ import '../../../bilesenler/standart_alt_aksiyon_bar.dart';
 import '../../../servisler/lisans_servisi.dart';
 import '../../../servisler/lite_ayarlar_servisi.dart';
 import '../../../servisler/lite_kisitlari.dart';
+import '../../../servisler/pro_satin_alma_servisi.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
 import 'pro_satin_alma_dialog.dart';
@@ -24,8 +25,11 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
   static const Color _proColor = Color(0xFFF39C12);
   static const Color _surfaceColor = Color(0xFFF8F9FA);
   static const Color _mutedColor = Color(0xFF6B7280);
+  static const Duration _proCancelWindow = Duration(days: 15);
 
   bool _refreshing = false;
+  bool _cancellingSubscription = false;
+  bool _canCancelPro = false;
   String? _errorMessage;
   String? _successMessage;
 
@@ -49,16 +53,19 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
     try {
       await LisansServisi().dogrula();
       await LiteAyarlarServisi().senkronizeBestEffort(force: true);
+      final canCancelPro = await _loadCancelAvailability();
 
       if (!mounted) return;
-      if (showFeedback) {
-        setState(() {
+      setState(() {
+        _canCancelPro = canCancelPro;
+        if (showFeedback) {
           _successMessage = tr('settings.account.feedback.refresh_success');
-        });
-      }
+        }
+      });
     } catch (_) {
       if (!mounted) return;
       setState(() {
+        _canCancelPro = false;
         _errorMessage = tr('login.license.error.connection');
       });
     } finally {
@@ -109,7 +116,219 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
     return '$formatted ${tr('settings.account.lospay.unit')}';
   }
 
+  bool _isLitePackageName(String? packageName) {
+    final value = (packageName ?? '').trim().toUpperCase();
+    if (value.isEmpty) return true;
+    return value.contains('LITE');
+  }
+
+  bool _canCancelFromLicenseData(Map<String, dynamic>? data) {
+    if (data == null) return false;
+
+    final key = (data['license_key'] ?? '').toString().trim().toUpperCase();
+    final packageName = data['package_name']?.toString();
+    if (_isLitePackageName(packageName) ||
+        key.isEmpty ||
+        key.startsWith('CANCELLED')) {
+      return false;
+    }
+
+    final startDateRaw = data['start_date'];
+    if (startDateRaw == null) return false;
+
+    final parsed = DateTime.tryParse(startDateRaw.toString());
+    if (parsed == null) return false;
+
+    final startDate = DateTime(parsed.year, parsed.month, parsed.day);
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final elapsedDays = today.difference(startDate).inDays;
+
+    return elapsedDays < _proCancelWindow.inDays;
+  }
+
+  Future<bool> _loadCancelAvailability() async {
+    final data = await LisansServisi().lisansBilgisiGetir();
+    return _canCancelFromLicenseData(data);
+  }
+
   Color _statusColor(bool isLite) => isLite ? _accentColor : _proColor;
+
+  Future<bool> _confirmCancelPro() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: !_cancellingSubscription,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(24),
+          ),
+          titlePadding: const EdgeInsets.fromLTRB(24, 22, 24, 0),
+          contentPadding: const EdgeInsets.fromLTRB(24, 18, 24, 0),
+          actionsPadding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+          title: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: _accentColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: const Icon(
+                  Icons.undo_rounded,
+                  color: _accentColor,
+                  size: 20,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  tr('settings.account.cancel.confirm_title'),
+                  style: const TextStyle(
+                    color: _primaryColor,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                tr('settings.account.cancel.confirm_body'),
+                style: const TextStyle(
+                  color: _mutedColor,
+                  height: 1.5,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _accentColor.withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: _accentColor.withValues(alpha: 0.16),
+                  ),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _DialogBullet(
+                      icon: Icons.payments_outlined,
+                      text: tr('settings.account.cancel.confirm_refund'),
+                    ),
+                    const SizedBox(height: 10),
+                    _DialogBullet(
+                      icon: Icons.verified_user_outlined,
+                      text: tr('settings.account.cancel.confirm_downgrade'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(tr('common.cancel')),
+            ),
+            FilledButton.icon(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: _accentColor,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+              icon: const Icon(Icons.undo_rounded, size: 18),
+              label: Text(
+                tr('settings.account.cancel.confirm_action'),
+                style: const TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return confirmed == true;
+  }
+
+  Future<void> _handleCancelPro() async {
+    if (_refreshing || _cancellingSubscription) return;
+
+    final lisans = LisansServisi();
+    final hardwareId = (lisans.hardwareId ?? '').trim().toUpperCase();
+    final licenseId = (lisans.licenseId ?? '').trim().toUpperCase();
+
+    if (hardwareId.isEmpty || licenseId.isEmpty) {
+      setState(() {
+        _errorMessage = tr('settings.account.feedback.cancel_error');
+        _successMessage = null;
+      });
+      return;
+    }
+
+    final confirmed = await _confirmCancelPro();
+    if (!mounted || !confirmed) return;
+
+    setState(() {
+      _cancellingSubscription = true;
+      _errorMessage = null;
+      _successMessage = null;
+    });
+
+    try {
+      final sonuc = await ProSatinAlmaServisi.proAboneliginiIptalEt(
+        hardwareId: hardwareId,
+        licenseId: licenseId,
+      );
+
+      try {
+        await LisansServisi().dogrula();
+        await LiteAyarlarServisi().senkronizeBestEffort(force: true);
+      } catch (_) {}
+
+      if (!mounted) return;
+
+      final successMessage = sonuc.paymentChannel.isNotEmpty
+          ? tr(
+              'settings.account.feedback.cancel_success_with_channel',
+              args: {'channel': sonuc.paymentChannel},
+            )
+          : tr('settings.account.feedback.cancel_success');
+
+      setState(() {
+        _successMessage = successMessage;
+      });
+    } on ProSatinAlmaHatasi catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = error.mesaj;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _errorMessage = tr('settings.account.feedback.cancel_error');
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _cancellingSubscription = false;
+        });
+      }
+    }
+  }
 
   Future<void> _handlePrimaryAction(bool isLite) async {
     if (isLite) {
@@ -128,6 +347,8 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
       builder: (context, _) {
         final lisans = LisansServisi();
         final isLite = lisans.isLiteMode;
+        final showCancelCard = !isLite && _canCancelPro;
+        final busy = _refreshing || _cancellingSubscription;
         final accent = _statusColor(isLite);
         final hardwareId = _safeIdentity(lisans.hardwareId);
         final masterLicenseId = _safeIdentity(lisans.licenseId);
@@ -195,6 +416,7 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
                                     const SizedBox(height: 16),
                                     _buildPlanSection(
                                       isLite: isLite,
+                                      showCancelCard: showCancelCard,
                                       accent: accent,
                                       licenseDate: licenseDate,
                                       losPayBalance: losPayBalance,
@@ -218,6 +440,7 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
                                           flex: 5,
                                           child: _buildPlanSection(
                                             isLite: isLite,
+                                            showCancelCard: showCancelCard,
                                             accent: accent,
                                             licenseDate: licenseDate,
                                             losPayBalance: losPayBalance,
@@ -237,13 +460,13 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
                         StandartAltAksiyonBar(
                           isCompact: isCompact,
                           secondaryText: tr('settings.account.actions.refresh'),
-                          onSecondaryPressed: _refreshing
+                          onSecondaryPressed: busy
                               ? null
                               : () => _refreshStatus(showFeedback: true),
                           primaryText: isLite
                               ? tr('settings.account.actions.upgrade')
                               : tr('settings.account.actions.verify'),
-                          onPrimaryPressed: _refreshing
+                          onPrimaryPressed: busy
                               ? null
                               : () => _handlePrimaryAction(isLite),
                           primaryLoading: _refreshing,
@@ -591,6 +814,7 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
 
   Widget _buildPlanSection({
     required bool isLite,
+    required bool showCancelCard,
     required Color accent,
     required DateTime? licenseDate,
     required double losPayBalance,
@@ -664,6 +888,96 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
               ],
             ),
           ),
+          if (showCancelCard) ...[
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: _accentColor.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: _accentColor.withValues(alpha: 0.16)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: const Icon(
+                          Icons.undo_rounded,
+                          color: _accentColor,
+                          size: 20,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          tr('settings.account.cancel.title'),
+                          style: const TextStyle(
+                            color: _primaryColor,
+                            fontWeight: FontWeight.w800,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    tr('settings.account.cancel.body'),
+                    style: const TextStyle(
+                      color: _mutedColor,
+                      fontWeight: FontWeight.w600,
+                      height: 1.5,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  FilledButton.tonalIcon(
+                    onPressed: _cancellingSubscription
+                        ? null
+                        : () => _handleCancelPro(),
+                    style: FilledButton.styleFrom(
+                      backgroundColor: _accentColor.withValues(alpha: 0.12),
+                      foregroundColor: _accentColor,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    icon: _cancellingSubscription
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.2,
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                _accentColor,
+                              ),
+                            ),
+                          )
+                        : const Icon(Icons.undo_rounded, size: 18),
+                    label: Text(
+                      tr(
+                        _cancellingSubscription
+                            ? 'settings.account.cancel.processing'
+                            : 'settings.account.cancel.action',
+                      ),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           _InlineHelpCard(
             icon: Icons.support_agent_rounded,
@@ -1133,6 +1447,34 @@ class _InlineHelpCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _DialogBullet extends StatelessWidget {
+  const _DialogBullet({required this.icon, required this.text});
+
+  final IconData icon;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Icon(icon, size: 18, color: _HesapAyarlariSayfasiState._accentColor),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Text(
+            text,
+            style: const TextStyle(
+              color: Color(0xFF2C3E50),
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

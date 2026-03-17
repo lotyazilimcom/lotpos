@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 
 import 'package:http/http.dart' as http;
@@ -12,10 +13,7 @@ class ProPlanOzelligi {
   final String id;
   final String text;
 
-  const ProPlanOzelligi({
-    required this.id,
-    required this.text,
-  });
+  const ProPlanOzelligi({required this.id, required this.text});
 
   factory ProPlanOzelligi.fromJson(Map<String, dynamic> json) {
     return ProPlanOzelligi(
@@ -52,9 +50,11 @@ class ProPlanPaketi {
     final rawFeatures = (json['features'] as List?) ?? const [];
     final features = rawFeatures
         .whereType<Map>()
-        .map((entry) => ProPlanOzelligi.fromJson(
-              Map<String, dynamic>.from(entry.cast<String, dynamic>()),
-            ))
+        .map(
+          (entry) => ProPlanOzelligi.fromJson(
+            Map<String, dynamic>.from(entry.cast<String, dynamic>()),
+          ),
+        )
         .where((feature) => feature.text.isNotEmpty)
         .toList();
 
@@ -166,31 +166,45 @@ class ProOdemeDialogMetinleri {
       planStepLabel: read('planStepLabel', fallback.planStepLabel),
       formStepLabel: read('formStepLabel', fallback.formStepLabel),
       planSectionTitle: read('planSectionTitle', fallback.planSectionTitle),
-      planSectionSubtitle:
-          read('planSectionSubtitle', fallback.planSectionSubtitle),
+      planSectionSubtitle: read(
+        'planSectionSubtitle',
+        fallback.planSectionSubtitle,
+      ),
       planInfoText: read('planInfoText', fallback.planInfoText),
       formSectionTitle: read('formSectionTitle', fallback.formSectionTitle),
-      existingCustomerNote:
-          read('existingCustomerNote', fallback.existingCustomerNote),
+      existingCustomerNote: read(
+        'existingCustomerNote',
+        fallback.existingCustomerNote,
+      ),
       newCustomerNote: read('newCustomerNote', fallback.newCustomerNote),
       invoiceNote: read('invoiceNote', fallback.invoiceNote),
       footerNote: read('footerNote', fallback.footerNote),
-      checkoutWaitingTitle:
-          read('checkoutWaitingTitle', fallback.checkoutWaitingTitle),
-      checkoutWaitingBody:
-          read('checkoutWaitingBody', fallback.checkoutWaitingBody),
-      checkoutCopyLinkLabel:
-          read('checkoutCopyLinkLabel', fallback.checkoutCopyLinkLabel),
-      checkoutOpenAgainLabel:
-          read('checkoutOpenAgainLabel', fallback.checkoutOpenAgainLabel),
+      checkoutWaitingTitle: read(
+        'checkoutWaitingTitle',
+        fallback.checkoutWaitingTitle,
+      ),
+      checkoutWaitingBody: read(
+        'checkoutWaitingBody',
+        fallback.checkoutWaitingBody,
+      ),
+      checkoutCopyLinkLabel: read(
+        'checkoutCopyLinkLabel',
+        fallback.checkoutCopyLinkLabel,
+      ),
+      checkoutOpenAgainLabel: read(
+        'checkoutOpenAgainLabel',
+        fallback.checkoutOpenAgainLabel,
+      ),
       changePlanLabel: read('changePlanLabel', fallback.changePlanLabel),
       continueLabel: read('continueLabel', fallback.continueLabel),
       cancelLabel: read('cancelLabel', fallback.cancelLabel),
       backLabel: read('backLabel', fallback.backLabel),
       chooseLabel: read('chooseLabel', fallback.chooseLabel),
       selectedLabel: read('selectedLabel', fallback.selectedLabel),
-      purchaseButtonTemplate:
-          read('purchaseButtonTemplate', fallback.purchaseButtonTemplate),
+      purchaseButtonTemplate: read(
+        'purchaseButtonTemplate',
+        fallback.purchaseButtonTemplate,
+      ),
       licenseIdLabel: read('licenseIdLabel', fallback.licenseIdLabel),
       hardwareIdLabel: read('hardwareIdLabel', fallback.hardwareIdLabel),
     );
@@ -280,6 +294,46 @@ class ProCheckoutSonucu {
   });
 }
 
+class ProCheckoutIzlemeDurumu {
+  final String? customerId;
+  final String? lastEvent;
+  final DateTime? lastEventAt;
+  final String? subscriptionStatus;
+  final String? variantName;
+  final bool odemeAlindi;
+
+  const ProCheckoutIzlemeDurumu({
+    required this.customerId,
+    required this.lastEvent,
+    required this.lastEventAt,
+    required this.subscriptionStatus,
+    required this.variantName,
+    required this.odemeAlindi,
+  });
+
+  const ProCheckoutIzlemeDurumu.bos()
+    : customerId = null,
+      lastEvent = null,
+      lastEventAt = null,
+      subscriptionStatus = null,
+      variantName = null,
+      odemeAlindi = false;
+}
+
+class ProIptalSonucu {
+  final double refundAmount;
+  final String paymentChannel;
+  final String planTitle;
+  final String refundStatus;
+
+  const ProIptalSonucu({
+    required this.refundAmount,
+    required this.paymentChannel,
+    required this.planTitle,
+    required this.refundStatus,
+  });
+}
+
 class ProSatinAlmaHatasi implements Exception {
   final String mesaj;
   const ProSatinAlmaHatasi(this.mesaj);
@@ -316,7 +370,8 @@ class ProOdemeProfili {
 class ProSatinAlmaServisi {
   ProSatinAlmaServisi._();
 
-  static String odemeProfiliLocale(String locale) => locale == 'tr' ? 'tr' : 'en';
+  static String odemeProfiliLocale(String locale) =>
+      locale == 'tr' ? 'tr' : 'en';
 
   static ProOdemeDialogMetinleri _varsayilanDialog(String locale) {
     if (locale == 'tr') {
@@ -433,18 +488,30 @@ class ProSatinAlmaServisi {
         note: isTurkish ? 'Esnek başlangıç' : 'Flexible start',
         highlighted: false,
         features: [
-          ProPlanOzelligi(id: 'device', text: isTurkish
-              ? '5 cihaza kadar Pro cihaz bağlantısı'
-              : 'Up to 5 Pro device connections'),
-          ProPlanOzelligi(id: 'ai', text: isTurkish
-              ? 'Los AI, belge tarama ve hızlı ürün çözümleri'
-              : 'Los AI, document scan, and quick product workflows'),
-          ProPlanOzelligi(id: 'cloud', text: isTurkish
-              ? 'Çevrim içi doğrulama ve bulut odaklı çalışma'
-              : 'Online validation and cloud-focused operations'),
-          ProPlanOzelligi(id: 'support', text: isTurkish
-              ? 'Öncelikli destek ve lisans takibi'
-              : 'Priority support and license tracking'),
+          ProPlanOzelligi(
+            id: 'device',
+            text: isTurkish
+                ? '5 cihaza kadar Pro cihaz bağlantısı'
+                : 'Up to 5 Pro device connections',
+          ),
+          ProPlanOzelligi(
+            id: 'ai',
+            text: isTurkish
+                ? 'Los AI, belge tarama ve hızlı ürün çözümleri'
+                : 'Los AI, document scan, and quick product workflows',
+          ),
+          ProPlanOzelligi(
+            id: 'cloud',
+            text: isTurkish
+                ? 'Çevrim içi doğrulama ve bulut odaklı çalışma'
+                : 'Online validation and cloud-focused operations',
+          ),
+          ProPlanOzelligi(
+            id: 'support',
+            text: isTurkish
+                ? 'Öncelikli destek ve lisans takibi'
+                : 'Priority support and license tracking',
+          ),
         ],
       ),
       ProPlanPaketi(
@@ -457,18 +524,30 @@ class ProSatinAlmaServisi {
         note: isTurkish ? 'Aylığa göre avantajlı' : 'Better than monthly',
         highlighted: true,
         features: [
-          ProPlanOzelligi(id: 'device', text: isTurkish
-              ? '5 cihaza kadar Pro cihaz bağlantısı'
-              : 'Up to 5 Pro device connections'),
-          ProPlanOzelligi(id: 'ai', text: isTurkish
-              ? 'Los AI, belge tarama ve hızlı ürün çözümleri'
-              : 'Los AI, document scan, and quick product workflows'),
-          ProPlanOzelligi(id: 'cloud', text: isTurkish
-              ? 'Çevrim içi doğrulama ve bulut odaklı çalışma'
-              : 'Online validation and cloud-focused operations'),
-          ProPlanOzelligi(id: 'support', text: isTurkish
-              ? 'Öncelikli destek ve lisans takibi'
-              : 'Priority support and license tracking'),
+          ProPlanOzelligi(
+            id: 'device',
+            text: isTurkish
+                ? '5 cihaza kadar Pro cihaz bağlantısı'
+                : 'Up to 5 Pro device connections',
+          ),
+          ProPlanOzelligi(
+            id: 'ai',
+            text: isTurkish
+                ? 'Los AI, belge tarama ve hızlı ürün çözümleri'
+                : 'Los AI, document scan, and quick product workflows',
+          ),
+          ProPlanOzelligi(
+            id: 'cloud',
+            text: isTurkish
+                ? 'Çevrim içi doğrulama ve bulut odaklı çalışma'
+                : 'Online validation and cloud-focused operations',
+          ),
+          ProPlanOzelligi(
+            id: 'support',
+            text: isTurkish
+                ? 'Öncelikli destek ve lisans takibi'
+                : 'Priority support and license tracking',
+          ),
         ],
       ),
       ProPlanPaketi(
@@ -481,18 +560,30 @@ class ProSatinAlmaServisi {
         note: isTurkish ? 'En yüksek fiyat avantajı' : 'Best annual value',
         highlighted: false,
         features: [
-          ProPlanOzelligi(id: 'device', text: isTurkish
-              ? '5 cihaza kadar Pro cihaz bağlantısı'
-              : 'Up to 5 Pro device connections'),
-          ProPlanOzelligi(id: 'ai', text: isTurkish
-              ? 'Los AI, belge tarama ve hızlı ürün çözümleri'
-              : 'Los AI, document scan, and quick product workflows'),
-          ProPlanOzelligi(id: 'cloud', text: isTurkish
-              ? 'Çevrim içi doğrulama ve bulut odaklı çalışma'
-              : 'Online validation and cloud-focused operations'),
-          ProPlanOzelligi(id: 'support', text: isTurkish
-              ? 'Öncelikli destek ve lisans takibi'
-              : 'Priority support and license tracking'),
+          ProPlanOzelligi(
+            id: 'device',
+            text: isTurkish
+                ? '5 cihaza kadar Pro cihaz bağlantısı'
+                : 'Up to 5 Pro device connections',
+          ),
+          ProPlanOzelligi(
+            id: 'ai',
+            text: isTurkish
+                ? 'Los AI, belge tarama ve hızlı ürün çözümleri'
+                : 'Los AI, document scan, and quick product workflows',
+          ),
+          ProPlanOzelligi(
+            id: 'cloud',
+            text: isTurkish
+                ? 'Çevrim içi doğrulama ve bulut odaklı çalışma'
+                : 'Online validation and cloud-focused operations',
+          ),
+          ProPlanOzelligi(
+            id: 'support',
+            text: isTurkish
+                ? 'Öncelikli destek ve lisans takibi'
+                : 'Priority support and license tracking',
+          ),
         ],
       ),
     ];
@@ -515,9 +606,15 @@ class ProSatinAlmaServisi {
   }) async {
     final normalizedLocale = odemeProfiliLocale(locale);
     final fallback = varsayilanOdemeProfili(normalizedLocale);
-    final endpoint = Uri.parse(
-      '${LisansServisi.u}/functions/v1/get-pro-payment-profile?locale=$normalizedLocale',
-    );
+    final endpoint =
+        Uri.parse(
+          '${LisansServisi.u}/functions/v1/get-pro-payment-profile',
+        ).replace(
+          queryParameters: {
+            'locale': normalizedLocale,
+            'ts': DateTime.now().millisecondsSinceEpoch.toString(),
+          },
+        );
 
     try {
       final response = await http.get(
@@ -527,6 +624,8 @@ class ProSatinAlmaServisi {
           'Accept': 'application/json',
           'apikey': LisansServisi.k,
           'Authorization': 'Bearer ${LisansServisi.k}',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache',
         },
       );
 
@@ -538,13 +637,17 @@ class ProSatinAlmaServisi {
       final rawPackages = (payload['packages'] as List?) ?? const [];
       final parsedPackages = rawPackages
           .whereType<Map>()
-          .map((entry) => ProPlanPaketi.fromJson(
-                Map<String, dynamic>.from(entry.cast<String, dynamic>()),
-              ))
+          .map(
+            (entry) => ProPlanPaketi.fromJson(
+              Map<String, dynamic>.from(entry.cast<String, dynamic>()),
+            ),
+          )
           .where((plan) => plan.code.isNotEmpty && plan.title.isNotEmpty)
           .toList();
 
-      final plans = parsedPackages.isNotEmpty ? parsedPackages : fallback.planlar;
+      final plans = parsedPackages.isNotEmpty
+          ? parsedPackages
+          : fallback.planlar;
       final highlightedExists = plans.any((plan) => plan.highlighted);
       final normalizedPlans = [
         for (var i = 0; i < plans.length; i += 1)
@@ -556,11 +659,14 @@ class ProSatinAlmaServisi {
             ? fallback.locale
             : (payload['locale'] ?? fallback.locale).toString().trim(),
         currencyCode:
-            (payload['currencyCode'] ?? fallback.currencyCode).toString().trim().isEmpty
-                ? fallback.currencyCode
-                : (payload['currencyCode'] ?? fallback.currencyCode)
-                    .toString()
-                    .trim(),
+            (payload['currencyCode'] ?? fallback.currencyCode)
+                .toString()
+                .trim()
+                .isEmpty
+            ? fallback.currencyCode
+            : (payload['currencyCode'] ?? fallback.currencyCode)
+                  .toString()
+                  .trim(),
         configured: payload['configured'] == true,
         dialog: ProOdemeDialogMetinleri.fromJson(
           Map<String, dynamic>.from(
@@ -570,7 +676,8 @@ class ProSatinAlmaServisi {
         ),
         formLabels: ProOdemeFormEtiketleri.fromJson(
           Map<String, dynamic>.from(
-            ((payload['formLabels'] as Map?) ?? const {}).cast<String, dynamic>(),
+            ((payload['formLabels'] as Map?) ?? const {})
+                .cast<String, dynamic>(),
           ),
           fallback.formLabels,
         ),
@@ -585,8 +692,9 @@ class ProSatinAlmaServisi {
     await LisansServisi().baslat();
 
     final hardwareId = (LisansServisi().hardwareId ?? '').trim().toUpperCase();
-    final licenseId =
-        (LisansServisi().licenseId ?? hardwareId).trim().toUpperCase();
+    final licenseId = (LisansServisi().licenseId ?? hardwareId)
+        .trim()
+        .toUpperCase();
 
     if (hardwareId.isEmpty) {
       throw const ProSatinAlmaHatasi(
@@ -638,28 +746,33 @@ class ProSatinAlmaServisi {
 
           if (licenseRows.isNotEmpty) {
             licenseRows.sort((left, right) {
-              final leftEnd = DateTime.tryParse(
+              final leftEnd =
+                  DateTime.tryParse(
                     left['end_date']?.toString() ?? '',
                   )?.millisecondsSinceEpoch ??
                   0;
-              final rightEnd = DateTime.tryParse(
+              final rightEnd =
+                  DateTime.tryParse(
                     right['end_date']?.toString() ?? '',
                   )?.millisecondsSinceEpoch ??
                   0;
               if (rightEnd != leftEnd) return rightEnd.compareTo(leftEnd);
-              final leftCreated = DateTime.tryParse(
+              final leftCreated =
+                  DateTime.tryParse(
                     left['created_at']?.toString() ?? '',
                   )?.millisecondsSinceEpoch ??
                   0;
-              final rightCreated = DateTime.tryParse(
+              final rightCreated =
+                  DateTime.tryParse(
                     right['created_at']?.toString() ?? '',
                   )?.millisecondsSinceEpoch ??
                   0;
               return rightCreated.compareTo(leftCreated);
             });
 
-            final existingCustomerId =
-                (licenseRows.first['customer_id'] ?? '').toString().trim();
+            final existingCustomerId = (licenseRows.first['customer_id'] ?? '')
+                .toString()
+                .trim();
             if (existingCustomerId.isNotEmpty) {
               final matched = await client
                   .from('customers')
@@ -707,9 +820,7 @@ class ProSatinAlmaServisi {
         customerRow?['company_name']?.toString(),
         mergedCompany?.ad,
       ]),
-      fullName: mergeValue([
-        customerRow?['contact_name']?.toString(),
-      ]),
+      fullName: mergeValue([customerRow?['contact_name']?.toString()]),
       phone: mergeValue([
         customerRow?['phone']?.toString(),
         mergedCompany?.telefon,
@@ -762,6 +873,8 @@ class ProSatinAlmaServisi {
         'Accept': 'application/json',
         'apikey': LisansServisi.k,
         'Authorization': 'Bearer ${LisansServisi.k}',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
       },
       body: jsonEncode({
         'plan_code': planCode.trim(),
@@ -786,7 +899,16 @@ class ProSatinAlmaServisi {
     } catch (_) {}
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      final rawMessage = (payload['error'] ?? '').toString().trim();
+      final rawMessage =
+          [
+                payload['error'],
+                payload['message'],
+                payload['details'] is Map
+                    ? (payload['details'] as Map)['error']
+                    : null,
+              ]
+              .map((value) => (value ?? '').toString().trim())
+              .firstWhere((value) => value.isNotEmpty, orElse: () => '');
       if (rawMessage.contains('LEMON_SQUEEZY_')) {
         throw const ProSatinAlmaHatasi(
           'Satış altyapısı henüz tamamlanmamış. Yönetici ödeme ayarlarını tamamladıktan sonra tekrar deneyin.',
@@ -819,7 +941,167 @@ class ProSatinAlmaServisi {
     );
   }
 
+  static Future<ProCheckoutIzlemeDurumu> odemeDurumunuGetir({
+    required String hardwareId,
+    String? customerId,
+  }) async {
+    final normalizedHardwareId = hardwareId.trim().toUpperCase();
+    final normalizedCustomerId = (customerId ?? '').trim();
+    final client = Supabase.instance.client;
+
+    Map<String, dynamic>? customerRow;
+
+    if (normalizedHardwareId.isNotEmpty) {
+      final row = await client
+          .from('customers')
+          .select(
+            'id, hardware_id, lemon_last_event, lemon_last_event_at, lemon_subscription_status, lemon_variant_name',
+          )
+          .eq('hardware_id', normalizedHardwareId)
+          .maybeSingle();
+      if (row != null) {
+        customerRow = Map<String, dynamic>.from(row);
+      }
+    }
+
+    if (customerRow == null && normalizedCustomerId.isNotEmpty) {
+      final row = await client
+          .from('customers')
+          .select(
+            'id, hardware_id, lemon_last_event, lemon_last_event_at, lemon_subscription_status, lemon_variant_name',
+          )
+          .eq('id', normalizedCustomerId)
+          .maybeSingle();
+      if (row != null) {
+        customerRow = Map<String, dynamic>.from(row);
+      }
+    }
+
+    if (customerRow == null) {
+      return const ProCheckoutIzlemeDurumu.bos();
+    }
+
+    final lastEvent = (customerRow['lemon_last_event'] ?? '').toString().trim();
+    final subscriptionStatus = (customerRow['lemon_subscription_status'] ?? '')
+        .toString()
+        .trim();
+    final lastEventAtRaw = (customerRow['lemon_last_event_at'] ?? '')
+        .toString()
+        .trim();
+
+    final odemeAlindi =
+        const {
+          'order_created',
+          'subscription_created',
+          'subscription_updated',
+          'subscription_plan_changed',
+          'subscription_payment_success',
+          'subscription_payment_recovered',
+        }.contains(lastEvent) ||
+        const {
+          'paid',
+          'active',
+          'on_trial',
+          'past_due',
+          'unpaid',
+          'paused',
+          'cancelled',
+        }.contains(subscriptionStatus.toLowerCase());
+
+    return ProCheckoutIzlemeDurumu(
+      customerId: (customerRow['id'] ?? '').toString().trim(),
+      lastEvent: lastEvent.isEmpty ? null : lastEvent,
+      lastEventAt: DateTime.tryParse(lastEventAtRaw),
+      subscriptionStatus: subscriptionStatus.isEmpty
+          ? null
+          : subscriptionStatus,
+      variantName:
+          (customerRow['lemon_variant_name'] ?? '').toString().trim().isEmpty
+          ? null
+          : (customerRow['lemon_variant_name'] ?? '').toString().trim(),
+      odemeAlindi: odemeAlindi,
+    );
+  }
+
+  static Future<ProIptalSonucu> proAboneliginiIptalEt({
+    required String hardwareId,
+    required String licenseId,
+  }) async {
+    final endpoint = Uri.parse(
+      '${LisansServisi.u}/functions/v1/cancel-pro-subscription',
+    );
+
+    final response = await http.post(
+      endpoint,
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'apikey': LisansServisi.k,
+        'Authorization': 'Bearer ${LisansServisi.k}',
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache',
+      },
+      body: jsonEncode({
+        'hardware_id': hardwareId.trim().toUpperCase(),
+        'license_id': licenseId.trim().toUpperCase(),
+      }),
+    );
+
+    Map<String, dynamic> payload = <String, dynamic>{};
+    try {
+      payload = jsonDecode(response.body) as Map<String, dynamic>;
+    } catch (_) {}
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      final rawMessage =
+          [
+                payload['error'],
+                payload['message'],
+                payload['details'] is Map
+                    ? (payload['details'] as Map)['error']
+                    : null,
+              ]
+              .map((value) => (value ?? '').toString().trim())
+              .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+      throw ProSatinAlmaHatasi(
+        rawMessage.isNotEmpty
+            ? rawMessage
+            : 'Pro iptal ve iade işlemi tamamlanamadı. Lütfen tekrar deneyin.',
+      );
+    }
+
+    return ProIptalSonucu(
+      refundAmount: (payload['refund_amount'] as num?)?.toDouble() ?? 0,
+      paymentChannel: (payload['payment_channel'] ?? '').toString().trim(),
+      planTitle: (payload['plan_title'] ?? '').toString().trim(),
+      refundStatus: (payload['refund_status'] ?? '').toString().trim(),
+    );
+  }
+
+  static Future<bool> odemeSayfasiniAc(Uri uri) {
+    if (kIsWeb) {
+      return launchUrl(uri, webOnlyWindowName: '_blank');
+    }
+
+    final launchMode = switch (defaultTargetPlatform) {
+      TargetPlatform.android ||
+      TargetPlatform.iOS => LaunchMode.inAppBrowserView,
+      _ => LaunchMode.externalApplication,
+    };
+
+    return launchUrl(uri, mode: launchMode);
+  }
+
+  static Future<void> odemeSayfasiniKapat() async {
+    try {
+      await closeInAppWebView();
+    } catch (_) {}
+  }
+
   static Future<bool> disTarayicidaAc(Uri uri) {
+    if (kIsWeb) {
+      return launchUrl(uri, webOnlyWindowName: '_blank');
+    }
     return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 }

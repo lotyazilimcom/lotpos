@@ -464,6 +464,12 @@ const Map<String, String> arCeviriler = {
       'تظهر بيانات الترخيص النشط، وتطابق تسجيل الجهاز، وحدود Lite المرجعية في مكان واحد.',
   'settings.account.feedback.refresh_success':
       'تم تحديث حالة الترخيص وإعدادات Lite.',
+  'settings.account.feedback.cancel_success':
+      'تم إلغاء ترخيص Pro، ومعالجة الاسترداد، وإرجاع الجهاز إلى وضع Lite.',
+  'settings.account.feedback.cancel_success_with_channel':
+      'تم إلغاء ترخيص Pro، ومعالجة الاسترداد، ومزامنة سجل الدفع من {channel} مع العودة إلى Lite.',
+  'settings.account.feedback.cancel_error':
+      'تعذر إكمال إلغاء Pro والاسترداد. يرجى المحاولة مرة أخرى.',
   'settings.account.ids.title': 'الهوية والربط',
   'settings.account.ids.subtitle':
       'أكواد الترخيص والجهاز المطلوبة للمشاركة مع المسؤول جاهزة هنا.',
@@ -495,6 +501,19 @@ const Map<String, String> arCeviriler = {
       'يعمل هذا الجهاز بترخيص Pro نشط. يواصل النظام التحقق من الترخيص عبر الإنترنت.',
   'settings.account.plan.expiry_label': 'تاريخ انتهاء الترخيص',
   'settings.account.plan.expiry_unknown': 'بانتظار البيانات',
+  'settings.account.cancel.title': 'إلغاء Pro واسترداد تلقائي',
+  'settings.account.cancel.body':
+      'عند الإلغاء، يحاول النظام تنفيذ استرداد كامل لآخر فاتورة اشتراك Lemon مدفوعة ويعيد الجهاز مباشرة إلى وضع Lite.',
+  'settings.account.cancel.action': 'إلغاء Pro',
+  'settings.account.cancel.processing': 'جارٍ تنفيذ الإلغاء والاسترداد',
+  'settings.account.cancel.confirm_title': 'إلغاء ترخيص Pro',
+  'settings.account.cancel.confirm_body':
+      'سيؤدي هذا الإجراء إلى إيقاف ترخيص Pro لهذا الجهاز وإرجاع الحساب فوراً إلى ملف Lite.',
+  'settings.account.cancel.confirm_refund':
+      'ستتم محاولة استرداد كامل لآخر فاتورة اشتراك Lemon مدفوعة.',
+  'settings.account.cancel.confirm_downgrade':
+      'بعد الاكتمال، ستتم مزامنة سجلات الترخيص والعميل والجهاز مرة أخرى إلى Lite.',
+  'settings.account.cancel.confirm_action': 'إلغاء وبدء الاسترداد',
   'settings.account.limits.title': 'حدود Lite المرجعية',
   'settings.account.limits.subtitle':
       'القيم التالية تعرض القيود الحالية المطبقة في وضع Lite.',
@@ -520,8 +539,7 @@ const Map<String, String> arCeviriler = {
       'اختر خطة Pro الشهرية أو 6 أشهر أو السنوية، أكمل البيانات الناقصة، ثم انتقل إلى صفحة الدفع الآمنة.',
   'settings.account.upgrade.hero.badge': 'دفع آمن',
   'settings.account.upgrade.hero.billing_badge': '+ ضريبة',
-  'settings.account.upgrade.hero.title':
-      'حوّل نسخة Lite إلى Pro خلال دقائق.',
+  'settings.account.upgrade.hero.title': 'حوّل نسخة Lite إلى Pro خلال دقائق.',
   'settings.account.upgrade.hero.body':
       'بعد إتمام الدفع يتم تحديث سجل العميل ومجموعة الترخيص وربط الأجهزة تلقائياً. يبقى جهاز Lite الحالي محفوظاً وينتقل مباشرة إلى تدفق عميل Pro.',
   'settings.account.upgrade.hero.autopilot':
@@ -535,16 +553,12 @@ const Map<String, String> arCeviriler = {
   'settings.account.upgrade.plan.semiannual.badge': 'الأكثر شيوعاً',
   'settings.account.upgrade.plan.yearly.title': 'Pro سنوي',
   'settings.account.upgrade.plan.yearly.badge': 'أفضل قيمة',
-  'settings.account.upgrade.feature.device_limit':
-      'حتى 5 أجهزة على خطة Pro',
+  'settings.account.upgrade.feature.device_limit': 'حتى 5 أجهزة على خطة Pro',
   'settings.account.upgrade.feature.ai':
       'Los AI ومسح المستندات والحلول السريعة للمنتجات',
-  'settings.account.upgrade.feature.cloud':
-      'تحقق عبر الإنترنت وتشغيل سحابي',
-  'settings.account.upgrade.feature.support':
-      'دعم أولوية ومتابعة للترخيص',
-  'settings.account.upgrade.selected.title':
-      'ماذا تفتح هذه الخطة؟',
+  'settings.account.upgrade.feature.cloud': 'تحقق عبر الإنترنت وتشغيل سحابي',
+  'settings.account.upgrade.feature.support': 'دعم أولوية ومتابعة للترخيص',
+  'settings.account.upgrade.selected.title': 'ماذا تفتح هذه الخطة؟',
   'settings.account.upgrade.selected.note':
       'عند نجاح الدفع يتم تحديث حالة ترخيص جهازك تلقائياً، كما يتم إنشاء أو تحديث سجل العميل وصفوف التراخيص وربط الأجهزة داخل لوحة الإدارة.',
   'settings.account.upgrade.form.title': 'بيانات الفوترة والتواصل',
@@ -563,12 +577,10 @@ const Map<String, String> arCeviriler = {
   'settings.account.upgrade.form.invoice_note':
       'يتم إرسال هذه المعلومات إلى LemonSqueezy كبيانات جاهزة في صفحة الدفع، وتُستخدم أيضاً لإنشاء أو تحديث سجل العميل في لوحة الإدارة بعد الدفع.',
   'settings.account.upgrade.validation.required': 'هذا الحقل مطلوب.',
-  'settings.account.upgrade.validation.email':
-      'أدخل بريداً إلكترونياً صحيحاً.',
+  'settings.account.upgrade.validation.email': 'أدخل بريداً إلكترونياً صحيحاً.',
   'settings.account.upgrade.checkout.browser_opened':
       'تم فتح صفحة الدفع في المتصفح. ستتحدث هذه النافذة تلقائياً بعد اكتمال الشراء.',
-  'settings.account.upgrade.checkout.copy_success':
-      'تم نسخ رابط الدفع.',
+  'settings.account.upgrade.checkout.copy_success': 'تم نسخ رابط الدفع.',
   'settings.account.upgrade.checkout.waiting_title':
       'يمكنك إبقاء هذه النافذة مفتوحة حتى يكتمل الدفع',
   'settings.account.upgrade.checkout.waiting_body':
