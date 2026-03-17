@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../bilesenler/standart_alt_aksiyon_bar.dart';
+import '../../../bilesenler/lisans_diyalog.dart';
 import '../../../servisler/lisans_servisi.dart';
 import '../../../servisler/lite_ayarlar_servisi.dart';
 import '../../../servisler/lite_kisitlari.dart';
@@ -349,6 +350,17 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
     await _refreshStatus(showFeedback: true);
   }
 
+  Future<void> _handleOpenLicenseDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      barrierDismissible: true,
+      builder: (context) => const LisansDiyalog(),
+    );
+
+    if (!mounted || result != true) return;
+    await _refreshStatus(showFeedback: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
@@ -358,6 +370,8 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
         final isLite = lisans.isLiteMode;
         final showCancelCard = !isLite && _canCancelPro;
         final busy = _refreshing || _cancellingSubscription;
+        final canUseOnlineActions =
+            lisans.serverReachabilityKnown && lisans.serverReachable;
         final accent = _statusColor(isLite);
         final hardwareId = _safeIdentity(lisans.hardwareId);
         final masterLicenseId = _safeIdentity(lisans.licenseId);
@@ -429,6 +443,7 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
                                       accent: accent,
                                       licenseDate: licenseDate,
                                       losPayBalance: losPayBalance,
+                                      canUseOnlineActions: canUseOnlineActions,
                                     ),
                                   ] else
                                     Row(
@@ -453,6 +468,8 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
                                             accent: accent,
                                             licenseDate: licenseDate,
                                             losPayBalance: losPayBalance,
+                                            canUseOnlineActions:
+                                                canUseOnlineActions,
                                           ),
                                         ),
                                       ],
@@ -469,13 +486,13 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
                         StandartAltAksiyonBar(
                           isCompact: isCompact,
                           secondaryText: tr('settings.account.actions.refresh'),
-                          onSecondaryPressed: busy
+                          onSecondaryPressed: busy || !canUseOnlineActions
                               ? null
                               : () => _refreshStatus(showFeedback: true),
                           primaryText: isLite
                               ? tr('settings.account.actions.upgrade')
                               : tr('settings.account.actions.verify'),
-                          onPrimaryPressed: busy
+                          onPrimaryPressed: busy || !canUseOnlineActions
                               ? null
                               : () => _handlePrimaryAction(isLite),
                           primaryLoading: _refreshing,
@@ -500,6 +517,9 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
     required double losPayBalance,
   }) {
     final accent = _statusColor(isLite);
+    final lisans = LisansServisi();
+    final canUseOnlineActions =
+        lisans.serverReachabilityKnown && lisans.serverReachable;
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
@@ -542,7 +562,8 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
             runSpacing: 10,
             children: [
               TextButton.icon(
-                onPressed: (_refreshing || _cancellingSubscription)
+                onPressed:
+                    (_refreshing || _cancellingSubscription || !canUseOnlineActions)
                     ? null
                     : _handleLoadLosPayCredit,
                 style: TextButton.styleFrom(
@@ -854,6 +875,7 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
     required Color accent,
     required DateTime? licenseDate,
     required double losPayBalance,
+    required bool canUseOnlineActions,
   }) {
     return _SectionCard(
       title: tr('settings.account.plan.title'),
@@ -919,7 +941,88 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
                   label: tr('settings.account.summary.connectivity'),
                   value: _refreshing
                       ? tr('settings.account.summary.connectivity.checking')
-                      : tr('settings.account.summary.connectivity.synced'),
+                      : canUseOnlineActions
+                      ? tr('settings.account.summary.connectivity.synced')
+                      : tr('settings.account.summary.connectivity.offline'),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF39C12).withValues(alpha: 0.05),
+              borderRadius: BorderRadius.circular(18),
+              border: Border.all(
+                color: const Color(0xFFF39C12).withValues(alpha: 0.18),
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: const Icon(
+                        Icons.security_rounded,
+                        color: Color(0xFFF39C12),
+                        size: 20,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        tr('settings.account.manual.title'),
+                        style: const TextStyle(
+                          color: _primaryColor,
+                          fontWeight: FontWeight.w800,
+                          height: 1.3,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  canUseOnlineActions
+                      ? tr('settings.account.manual.body_online')
+                      : tr('settings.account.manual.body_offline'),
+                  style: const TextStyle(
+                    color: _mutedColor,
+                    fontWeight: FontWeight.w600,
+                    height: 1.5,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                FilledButton.tonalIcon(
+                  onPressed: _refreshing || _cancellingSubscription
+                      ? null
+                      : _handleOpenLicenseDialog,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: const Color(0xFFF39C12).withValues(
+                      alpha: 0.12,
+                    ),
+                    foregroundColor: const Color(0xFFB45309),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  icon: const Icon(Icons.vpn_key_rounded, size: 18),
+                  label: Text(
+                    tr('settings.account.actions.manual_license'),
+                    style: const TextStyle(fontWeight: FontWeight.w800),
+                  ),
                 ),
               ],
             ),

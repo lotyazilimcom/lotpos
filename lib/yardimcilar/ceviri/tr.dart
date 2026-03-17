@@ -502,6 +502,7 @@ const Map<String, String> trCeviriler = {
   'settings.account.summary.connectivity': 'Senkron',
   'settings.account.summary.connectivity.synced': 'Güncel',
   'settings.account.summary.connectivity.checking': 'Kontrol ediliyor',
+  'settings.account.summary.connectivity.offline': 'Cevrimdışı',
   'settings.account.lospay.label': 'LosPay',
   'settings.account.lospay.unit': 'kredi',
   'settings.account.plan.title': 'Sürüm Özeti',
@@ -515,6 +516,11 @@ const Map<String, String> trCeviriler = {
       'Bu cihaz aktif Pro lisans ile çalışıyor. Sistem lisans durumunu çevrim içi olarak doğrulamaya devam eder.',
   'settings.account.plan.expiry_label': 'Lisans Bitiş Tarihi',
   'settings.account.plan.expiry_unknown': 'Bilgi bekleniyor',
+  'settings.account.manual.title': 'Manuel Lisanslama',
+  'settings.account.manual.body_online':
+      'Internet varken satin alma ve senkron islemleri kullanabilirsiniz. Isterseniz ayni ekrandan manuel aktivasyon kodu da uygulayabilirsiniz.',
+  'settings.account.manual.body_offline':
+      'Su anda internet gerektiren butonlar pasif. Yoneticinizin verdigi manuel lisans kodunu bu cihazda buradan uygulayabilirsiniz.',
   'settings.account.cancel.title': 'Pro iptal ve otomatik iade',
   'settings.account.cancel.body':
       'İptal istediğinizde sistem son ödenen Lemon abonelik faturasına tam iade dener ve cihazı anında Lite sürüme alır.',
@@ -1077,11 +1083,28 @@ const Map<String, String> trCeviriler = {
   'login.license.help':
       '* Lisansınızı aktif etmek için yukarıdaki ID\'yi yöneticinize iletin.',
   'login.license.button': 'Pro Sürüme Geç',
+  'settings.account.actions.manual_license': 'Lisanslama ve Aktivasyon',
   'login.license.success': 'LİSANS BAŞARIYLA AKTİF EDİLDİ!',
   'login.license.error.not_found':
       'Henüz lisans kaydınız oluşturulmadı. Lütfen yönetici ile iletişime geçin.',
   'login.license.error.connection':
       'Bağlantı hatası: Lütfen internetinizi kontrol edin.',
+  'login.license.manual_title': 'Manuel Lisans Kodu',
+  'login.license.manual_hint':
+      'Yonetici tarafindan uretilen manuel lisans kodunu bu alana yapistirarak internet olmasa bile Pro aktivasyonu yapabilirsiniz.',
+  'login.license.manual_offline_hint':
+      'Internet bulunamadi. Sunucu dogrulamasi pasif durumda; manuel lisans kodu ile yerel Pro aktivasyon yapabilirsiniz.',
+  'login.license.manual_placeholder':
+      'Yoneticinizden aldiginiz manuel lisans kodunu buraya yapistirin.',
+  'login.license.manual_button': 'Manuel Kodu Uygula',
+  'login.license.manual_empty': 'Manuel lisans kodu bos olamaz.',
+  'login.license.manual_invalid': 'Manuel lisans kodu gecersiz veya bozuk.',
+  'login.license.manual_wrong_device':
+      'Bu manuel lisans kodu bu cihaza ait degil.',
+  'login.license.manual_expired':
+      'Bu manuel lisans kodunun suresi dolmus.',
+  'login.license.offline_verify_disabled':
+      'Sunucuya baglanilamiyor',
   'login.license.copy_success': 'ID Kopyalandı',
   'login.license.info_btn': 'Lisans Bilgileri',
   'login.license.act_btn': 'Lisanslama ve Aktivasyon',

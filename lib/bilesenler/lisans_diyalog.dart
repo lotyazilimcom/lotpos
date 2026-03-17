@@ -17,6 +17,7 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
   bool _yukleniyor = false;
   String? _hataMesaji;
   bool _basarili = false;
+  final TextEditingController _manuelKodController = TextEditingController();
 
   @override
   void initState() {
@@ -24,6 +25,12 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
     // Dialog açıldığında online ise server state'i çek (Lite/Pro durumu).
     // UI ListenableBuilder ile otomatik güncellenecek.
     unawaited(LisansServisi().dogrula());
+  }
+
+  @override
+  void dispose() {
+    _manuelKodController.dispose();
+    super.dispose();
   }
 
   Future<void> _lisansAktifEt() async {
@@ -55,6 +62,63 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
           _hataMesaji = tr('login.license.error.connection');
         });
       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _yukleniyor = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _manuelKoduUygula() async {
+    setState(() {
+      _yukleniyor = true;
+      _hataMesaji = null;
+    });
+
+    try {
+      final sonuc = await LisansServisi().manuelLisansKoduUygula(
+        _manuelKodController.text,
+      );
+
+      if (!mounted) return;
+
+      switch (sonuc) {
+        case ManualLisansUygulamaSonucu.basarili:
+          setState(() {
+            _basarili = true;
+          });
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) Navigator.of(context).pop(true);
+          });
+          break;
+        case ManualLisansUygulamaSonucu.bosKod:
+          setState(() {
+            _hataMesaji = tr('login.license.manual_empty');
+          });
+          break;
+        case ManualLisansUygulamaSonucu.gecersizKod:
+          setState(() {
+            _hataMesaji = tr('login.license.manual_invalid');
+          });
+          break;
+        case ManualLisansUygulamaSonucu.farkliCihaz:
+          setState(() {
+            _hataMesaji = tr('login.license.manual_wrong_device');
+          });
+          break;
+        case ManualLisansUygulamaSonucu.suresiDolmus:
+          setState(() {
+            _hataMesaji = tr('login.license.manual_expired');
+          });
+          break;
+      }
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _hataMesaji = tr('login.license.manual_invalid');
+      });
     } finally {
       if (mounted) {
         setState(() {
@@ -372,6 +436,93 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
                 fontStyle: FontStyle.italic,
               ),
             ),
+            const SizedBox(height: 20),
+            ListenableBuilder(
+              listenable: LisansServisi(),
+              builder: (context, _) {
+                final lisans = LisansServisi();
+                final onlineReady = lisans.serverReachable;
+                final isLite = lisans.isLiteMode;
+
+                if (!isLite) {
+                  return const SizedBox.shrink();
+                }
+
+                return Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF39C12).withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: const Color(0xFFF39C12).withValues(alpha: 0.18),
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        tr('login.license.manual_title'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.1,
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF1A1F38),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        onlineReady
+                            ? tr('login.license.manual_hint')
+                            : tr('login.license.manual_offline_hint'),
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          height: 1.4,
+                          color: isDark
+                              ? Colors.white.withValues(alpha: 0.85)
+                              : const Color(0xFF2C3E50),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _manuelKodController,
+                        minLines: 4,
+                        maxLines: 6,
+                        onChanged: (_) => setState(() {}),
+                        enabled: !_yukleniyor && !_basarili,
+                        decoration: InputDecoration(
+                          hintText: tr('login.license.manual_placeholder'),
+                          filled: true,
+                          fillColor: isDark
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : const Color(0xFFF8F9FA),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(14),
+                            borderSide: BorderSide(color: Colors.grey[200]!),
+                          ),
+                          contentPadding: const EdgeInsets.all(14),
+                        ),
+                        style: TextStyle(
+                          fontSize: 11,
+                          height: 1.4,
+                          fontFamily: 'monospace',
+                          color: isDark
+                              ? Colors.white
+                              : const Color(0xFF1A1F38),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 32),
             if (_hataMesaji != null)
               Container(
@@ -423,41 +574,121 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
               ),
             SizedBox(
               width: double.infinity,
-              height: 54,
               child: ListenableBuilder(
                 listenable: LisansServisi(),
                 builder: (context, _) {
                   final lisans = LisansServisi();
                   final isLite = lisans.isLiteMode;
+                  final onlineReady = lisans.serverReachable;
 
-                  return FilledButton(
-                    onPressed: _yukleniyor || _basarili
-                        ? null
-                        : (isLite ? _lisansAktifEt : () => Navigator.of(context).pop()),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFFEA4335),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                  if (!isLite) {
+                    return SizedBox(
+                      height: 54,
+                      child: FilledButton(
+                        onPressed: _yukleniyor || _basarili
+                            ? null
+                            : () => Navigator.of(context).pop(),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: const Color(0xFFEA4335),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: _yukleniyor
+                            ? const SizedBox(
+                                height: 20,
+                                width: 20,
+                                child: CircularProgressIndicator(
+                                  color: Colors.white,
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(
+                                tr('common.ok'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w900,
+                                  fontSize: 13,
+                                  letterSpacing: 1,
+                                ),
+                              ),
                       ),
-                      elevation: 0,
-                    ),
-                    child: _yukleniyor
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(
-                              color: Colors.white,
-                              strokeWidth: 2,
+                    );
+                  }
+
+                  return Column(
+                    children: [
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: OutlinedButton(
+                          onPressed:
+                              _yukleniyor || _basarili || !onlineReady
+                              ? null
+                              : _lisansAktifEt,
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: const Color(0xFF2C3E50),
+                            side: BorderSide(
+                              color: onlineReady
+                                  ? const Color(0xFF2C3E50).withValues(
+                                      alpha: 0.18,
+                                    )
+                                  : Colors.grey.shade300,
                             ),
-                          )
-                        : Text(
-                            isLite ? tr('login.license.button') : tr('common.ok'),
-                            style: const TextStyle(
-                              fontWeight: FontWeight.w900,
-                              fontSize: 13,
-                              letterSpacing: 1,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
                             ),
                           ),
+                          child: Text(
+                            onlineReady
+                                ? tr('login.license.button')
+                                : tr('login.license.offline_verify_disabled'),
+                            textAlign: TextAlign.center,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w900,
+                              fontSize: 12,
+                              letterSpacing: 0.6,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 54,
+                        child: FilledButton(
+                          onPressed: _yukleniyor ||
+                                  _basarili ||
+                                  _manuelKodController.text.trim().isEmpty
+                              ? null
+                              : _manuelKoduUygula,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: const Color(0xFFEA4335),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _yukleniyor
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    color: Colors.white,
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  tr('login.license.manual_button'),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w900,
+                                    fontSize: 13,
+                                    letterSpacing: 0.8,
+                                  ),
+                                ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),

@@ -56,6 +56,7 @@ class LisansServisi extends ChangeNotifier {
   double _losPayBalance = 0;
   bool _isInitialized = false;
   bool? _lastOnlineStatus; // Durum önbelleği (Caching)
+  bool? _serverReachable;
   bool _inheritedPro = false; // Sunucudan devralınan lisans durumu
   bool _noOnlineLicenseLogged = false;
   DateTime? _licenseIdLastSyncUtc;
@@ -66,6 +67,8 @@ class LisansServisi extends ChangeNotifier {
   bool get isLicensed => _isLicensed || _inheritedPro;
   bool get isLiteMode => !isLicensed;
   bool get inheritedPro => _inheritedPro;
+  bool get serverReachable => _serverReachable ?? false;
+  bool get serverReachabilityKnown => _serverReachable != null;
   DateTime? get licenseEndDate => _licenseEndDate;
   double get losPayBalance => _losPayBalance;
   String? _licenseKey;
@@ -664,6 +667,14 @@ class LisansServisi extends ChangeNotifier {
     }
   }
 
+  void _setServerReachable(bool value, {bool notify = true}) {
+    if (_serverReachable == value) return;
+    _serverReachable = value;
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
   bool _isLitePackageName(String? packageName) {
     final value = (packageName ?? '').trim().toUpperCase();
     if (value.isEmpty) return false;
@@ -817,6 +828,7 @@ class LisansServisi extends ChangeNotifier {
         timeout: onlineTimeout,
         groupLicenseIdOverride: serverLicenseId,
       );
+      _setServerReachable(true, notify: false);
       await _syncLosPayBalanceFromServerBestEffort(
         licenseData: data,
         timeout: onlineTimeout,
@@ -875,6 +887,7 @@ class LisansServisi extends ChangeNotifier {
       return _isLicensed;
     } catch (e) {
       // Online doğrulama başarısız; yerel lisans ile devam.
+      _setServerReachable(false, notify: false);
       debugPrint(
         'Lisans Servisi: Online doğrulama başarısız, yerel lisansa düşülüyor: $e',
       );
@@ -1234,6 +1247,7 @@ class LisansServisi extends ChangeNotifier {
       if (decoded is! Map) return null;
 
       final hardwareId = decoded['hardware_id']?.toString();
+      final licenseId = decoded['license_id']?.toString();
       final expiryStr = decoded['expiry_date']?.toString();
       if (hardwareId == null || expiryStr == null) return null;
 
@@ -1243,6 +1257,7 @@ class LisansServisi extends ChangeNotifier {
       final expiryDateOnly = DateTime(expiry.year, expiry.month, expiry.day);
       return _LicenseTokenInfo(
         hardwareId: hardwareId,
+        licenseId: licenseId,
         expiryDate: expiryDateOnly,
       );
     } catch (_) {
@@ -1366,6 +1381,55 @@ class LisansServisi extends ChangeNotifier {
       debugPrint('Lisans Bilgisi Sorgulama Hatası: $e');
       return null;
     }
+  }
+
+  Future<ManualLisansUygulamaSonucu> manuelLisansKoduUygula(
+    String rawToken,
+  ) async {
+    if (_hardwareId == null || _hardwareId!.trim().isEmpty) {
+      _hardwareId = await _generateHardwareId();
+    }
+
+    final token = rawToken.trim();
+    if (token.isEmpty) {
+      return ManualLisansUygulamaSonucu.bosKod;
+    }
+
+    final tokenInfo = _verifyAndParseLicenseToken(token);
+    if (tokenInfo == null) {
+      return ManualLisansUygulamaSonucu.gecersizKod;
+    }
+
+    final hardwareId = _hardwareId?.trim().toUpperCase() ?? '';
+    if (hardwareId.isEmpty ||
+        tokenInfo.hardwareId.trim().toUpperCase() != hardwareId) {
+      return ManualLisansUygulamaSonucu.farkliCihaz;
+    }
+
+    if (_isExpiredByDate(tokenInfo.expiryDate)) {
+      return ManualLisansUygulamaSonucu.suresiDolmus;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsLicenseKeyKey);
+
+    _licenseKey = token;
+    _isLicensed = true;
+    _noOnlineLicenseLogged = false;
+
+    await _setInheritedProLocal(false, notify: false);
+    await _setLicenseEndDate(tokenInfo.expiryDate);
+    await _setLicenseIdLocal(
+      tokenInfo.licenseId?.trim().toUpperCase().isNotEmpty == true
+          ? tokenInfo.licenseId
+          : (_licenseId ?? hardwareId),
+    );
+
+    unawaited(_persistKasasiBestEffort());
+    unawaited(_ensureProgramDenemeRowExistsBestEffort());
+    notifyListeners();
+
+    return ManualLisansUygulamaSonucu.basarili;
   }
 
   /// Lisans aktivasyonunu gerçekleştirir
@@ -1548,11 +1612,24 @@ class LisansServisi extends ChangeNotifier {
   }
 }
 
+enum ManualLisansUygulamaSonucu {
+  basarili,
+  bosKod,
+  gecersizKod,
+  farkliCihaz,
+  suresiDolmus,
+}
+
 class _LicenseTokenInfo {
   final String hardwareId;
+  final String? licenseId;
   final DateTime expiryDate;
 
-  const _LicenseTokenInfo({required this.hardwareId, required this.expiryDate});
+  const _LicenseTokenInfo({
+    required this.hardwareId,
+    required this.licenseId,
+    required this.expiryDate,
+  });
 }
 
 class _ProgramLisansDurumu {

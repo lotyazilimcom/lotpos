@@ -488,6 +488,7 @@ const Map<String, String> arCeviriler = {
   'settings.account.summary.connectivity': 'المزامنة',
   'settings.account.summary.connectivity.synced': 'محدّث',
   'settings.account.summary.connectivity.checking': 'جارٍ التحقق',
+  'settings.account.summary.connectivity.offline': 'غير متصل',
   'settings.account.lospay.label': 'LosPay',
   'settings.account.lospay.unit': 'رصيد',
   'settings.account.plan.title': 'ملخص الخطة',
@@ -501,6 +502,11 @@ const Map<String, String> arCeviriler = {
       'يعمل هذا الجهاز بترخيص Pro نشط. يواصل النظام التحقق من الترخيص عبر الإنترنت.',
   'settings.account.plan.expiry_label': 'تاريخ انتهاء الترخيص',
   'settings.account.plan.expiry_unknown': 'بانتظار البيانات',
+  'settings.account.manual.title': 'الترخيص اليدوي',
+  'settings.account.manual.body_online':
+      'يمكنك استخدام الشراء والمزامنة أثناء الاتصال. وإذا لزم الأمر يمكنك أيضاً تطبيق رمز التفعيل اليدوي من نفس المنطقة.',
+  'settings.account.manual.body_offline':
+      'أزرار الإنترنت معطلة حالياً. ما زال بإمكانك تطبيق رمز الترخيص اليدوي الذي يقدمه المسؤول على هذا الجهاز.',
   'settings.account.cancel.title': 'إلغاء Pro واسترداد تلقائي',
   'settings.account.cancel.body':
       'عند الإلغاء، يحاول النظام تنفيذ استرداد كامل لآخر فاتورة اشتراك Lemon مدفوعة ويعيد الجهاز مباشرة إلى وضع Lite.',
@@ -1010,10 +1016,26 @@ const Map<String, String> arCeviriler = {
   'login.license.hardware_id': 'معرّف الجهاز (HARDWARE ID)',
   'login.license.help': '* لتفعيل الترخيص، شارك المعرّف أعلاه مع المسؤول.',
   'login.license.button': 'تحقق وفعّل الترخيص',
+  'settings.account.actions.manual_license': 'الترخيص والتفعيل',
   'login.license.success': 'تم تفعيل الترخيص بنجاح!',
   'login.license.error.not_found':
       'لم يتم إنشاء سجل الترخيص بعد. يرجى التواصل مع المسؤول.',
   'login.license.error.connection': 'خطأ في الاتصال: يرجى التحقق من الإنترنت.',
+  'login.license.manual_title': 'رمز الترخيص اليدوي',
+  'login.license.manual_hint':
+      'ألصق رمز الترخيص اليدوي الذي أنشأه المسؤول لتفعيل Pro حتى بدون إنترنت.',
+  'login.license.manual_offline_hint':
+      'الإنترنت غير متاح. تم تعطيل التحقق من الخادم ويمكنك تفعيل Pro المحلي باستخدام الرمز اليدوي.',
+  'login.license.manual_placeholder':
+      'ألصق رمز الترخيص اليدوي الذي استلمته من المسؤول.',
+  'login.license.manual_button': 'تطبيق الرمز اليدوي',
+  'login.license.manual_empty': 'لا يمكن أن يكون رمز الترخيص اليدوي فارغاً.',
+  'login.license.manual_invalid': 'رمز الترخيص اليدوي غير صالح أو تالف.',
+  'login.license.manual_wrong_device':
+      'رمز الترخيص اليدوي هذا لا يخص هذا الجهاز.',
+  'login.license.manual_expired':
+      'انتهت صلاحية رمز الترخيص اليدوي هذا.',
+  'login.license.offline_verify_disabled': 'الخادم غير متاح',
   'login.license.copy_success': 'تم نسخ المعرّف',
   'login.license.info_btn': 'معلومات الترخيص',
   'login.license.act_btn': 'الترخيص والتفعيل',
