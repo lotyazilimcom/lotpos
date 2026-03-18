@@ -121,6 +121,54 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
         : 'terminal';
   }
 
+  Future<Set<String>> _masaustuYerelMakineAnahtarlari() async {
+    final keys = <String>{};
+    try {
+      final hostname = Platform.localHostname.trim().toLowerCase();
+      if (hostname.isNotEmpty) {
+        keys.add(hostname);
+        keys.add('$hostname.local');
+      }
+    } catch (_) {}
+
+    try {
+      final interfaces = await NetworkInterface.list(
+        type: InternetAddressType.IPv4,
+        includeLoopback: true,
+      );
+      for (final iface in interfaces) {
+        for (final addr in iface.addresses) {
+          final ip = addr.address.trim().toLowerCase();
+          if (ip.isNotEmpty) {
+            keys.add(ip);
+          }
+        }
+      }
+    } catch (_) {}
+
+    keys.add('127.0.0.1');
+    keys.add('localhost');
+    keys.add('::1');
+    return keys;
+  }
+
+  bool _serviceBuMasaustuMu(Service service, Set<String> localKeys) {
+    final host = (service.host ?? '').trim().toLowerCase();
+    if (host.isNotEmpty && localKeys.contains(host)) {
+      return true;
+    }
+
+    final addresses = service.addresses ?? const <InternetAddress>[];
+    for (final address in addresses) {
+      final ip = address.address.trim().toLowerCase();
+      if (ip.isNotEmpty && localKeys.contains(ip)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
   Future<void> _yerelSunuculariTara({bool showError = true}) async {
     if (!_masaustuYerelSunucuSecimiDestekleniyor || _yerelSunucularYukleniyor) {
       return;
@@ -133,9 +181,12 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     });
 
     try {
-      final servers = await LocalNetworkDiscoveryService().sunuculariBul(
-        timeout: const Duration(seconds: 3),
-      );
+      final discoveredServers = await LocalNetworkDiscoveryService()
+          .sunuculariBul(timeout: const Duration(seconds: 3));
+      final localKeys = await _masaustuYerelMakineAnahtarlari();
+      final servers = discoveredServers
+          .where((service) => !_serviceBuMasaustuMu(service, localKeys))
+          .toList();
       servers.sort((a, b) {
         final titleA = (a.name ?? a.host ?? '').trim().toLowerCase();
         final titleB = (b.name ?? b.host ?? '').trim().toLowerCase();

@@ -49,6 +49,10 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
 
   void _durumDinleyici() {
     final yonetici = BaglantiYoneticisi();
+    final mobileMi =
+        !kIsWeb &&
+        (defaultTargetPlatform == TargetPlatform.android ||
+            defaultTargetPlatform == TargetPlatform.iOS);
 
     if (!mounted) return;
 
@@ -60,7 +64,11 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
       );
     } else if (yonetici.durum == BaglantiDurumu.kurulumGerekli ||
         yonetici.durum == BaglantiDurumu.sunucuBulunamadi) {
-      unawaited(_minimumBeklemeIleYonlendir(const MobilKurulumSayfasi()));
+      if (mobileMi) {
+        unawaited(_minimumBeklemeIleYonlendir(const MobilKurulumSayfasi()));
+      } else {
+        setState(() {});
+      }
     } else if (yonetici.durum == BaglantiDurumu.hata ||
         yonetici.durum == BaglantiDurumu.bulutErisimHatasi) {
       setState(() {});
@@ -222,13 +230,24 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
   Widget build(BuildContext context) {
     final yonetici = BaglantiYoneticisi();
     final bulutHatasi = yonetici.durum == BaglantiDurumu.bulutErisimHatasi;
-    final hataDurumu = yonetici.durum == BaglantiDurumu.hata || bulutHatasi;
-    final hataMesaji = yonetici.hataMesaji ?? 'Bilinmeyen bağlantı hatası.';
     final mobileMi =
         !kIsWeb &&
         (defaultTargetPlatform == TargetPlatform.android ||
             defaultTargetPlatform == TargetPlatform.iOS);
     final masaustuMu = !kIsWeb && !mobileMi;
+    final masaustuYerelKurulumSorunu =
+        masaustuMu &&
+        (yonetici.durum == BaglantiDurumu.kurulumGerekli ||
+            yonetici.durum == BaglantiDurumu.sunucuBulunamadi);
+    final hataDurumu =
+        yonetici.durum == BaglantiDurumu.hata ||
+        bulutHatasi ||
+        masaustuYerelKurulumSorunu;
+    final hataMesaji =
+        yonetici.hataMesaji ??
+        (masaustuYerelKurulumSorunu
+            ? tr('setup.local.server_not_found_open_app')
+            : 'Bilinmeyen bağlantı hatası.');
 
     return Scaffold(
       body: Stack(

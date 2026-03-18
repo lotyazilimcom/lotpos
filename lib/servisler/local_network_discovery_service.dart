@@ -202,7 +202,10 @@ class LocalNetworkDiscoveryService {
           if (host.isEmpty) return;
 
           final ipv4 = _ipv4FromAddresses(resolved.addresses);
-          final normalizedHost = (ipv4 ?? host).trim();
+          final normalizedHost = await _canonicalHostBestEffort(
+            host: (ipv4 ?? host).trim(),
+            addresses: resolved.addresses,
+          );
 
           final revName = await _reverseLookupBestEffort(normalizedHost);
           final displayName = (revName != null && revName.trim().isNotEmpty)
@@ -350,7 +353,10 @@ class LocalNetworkDiscoveryService {
 
         // Bazı platformlarda host hostname dönebilir; IPv4 varsa onu tercih et.
         final ipv4 = _ipv4FromAddresses(r.addresses);
-        final normalizedHost = (ipv4 ?? host).trim();
+        final normalizedHost = await _canonicalHostBestEffort(
+          host: (ipv4 ?? host).trim(),
+          addresses: r.addresses,
+        );
 
         final revName = await _reverseLookupBestEffort(normalizedHost);
         final displayName = (revName != null && revName.trim().isNotEmpty)
@@ -408,6 +414,48 @@ class LocalNetworkDiscoveryService {
       if (a.type == InternetAddressType.IPv4) return a.address;
     }
     return null;
+  }
+
+  Future<String> _canonicalHostBestEffort({
+    required String host,
+    List<InternetAddress>? addresses,
+  }) async {
+    final normalized = host.trim();
+    if (normalized.isEmpty) return normalized;
+
+    final fromAddresses = _ipv4FromAddresses(addresses);
+    if (fromAddresses != null && fromAddresses.trim().isNotEmpty) {
+      return fromAddresses.trim();
+    }
+
+    if (_isIpv4Literal(normalized)) {
+      return normalized;
+    }
+
+    try {
+      final lookedUp = await InternetAddress.lookup(
+        normalized,
+        type: InternetAddressType.IPv4,
+      ).timeout(const Duration(milliseconds: 400));
+      for (final address in lookedUp) {
+        final ip = address.address.trim();
+        if (ip.isNotEmpty && _isIpv4Literal(ip)) {
+          return ip;
+        }
+      }
+    } catch (_) {}
+
+    return normalized;
+  }
+
+  bool _isIpv4Literal(String value) {
+    final parts = value.trim().split('.');
+    if (parts.length != 4) return false;
+    for (final part in parts) {
+      final n = int.tryParse(part);
+      if (n == null || n < 0 || n > 255) return false;
+    }
+    return true;
   }
 
   Future<List<Service>> _portVeDbTaramaIleSunuculariBul({
