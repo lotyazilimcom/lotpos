@@ -225,9 +225,12 @@ class YerelAgYazdirmaServisi {
     try {
       await _poolGuncelle();
       if (_pool == null) return;
+      if (!VeritabaniYapilandirma.masaustuAnaServerSecili ||
+          VeritabaniYapilandirma.connectionMode == 'cloud') {
+        return;
+      }
 
       final ayarlar = await AyarlarVeritabaniServisi().genelAyarlariGetir();
-      if (ayarlar.sunucuModu != 'server') return;
 
       final rows = await _pool!.execute(
         Sql.named('''

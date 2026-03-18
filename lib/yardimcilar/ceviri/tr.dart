@@ -308,6 +308,8 @@ const Map<String, String> trCeviriler = {
       '⚠️ Yedekleme kapalı. Veri kaybı durumunda kurtarma yapılamaz!',
   'settings.backup.confirm.off':
       'Yedeklemeyi kapatmak veri güvenliğinizi tehlikeye atabilir. Emin misiniz?',
+  'settings.database.requires_main_server_note':
+      'Bu alan sadece ana server üzerinde yönetilir. Devam etmek için Genel Ayarlar > Bağlantı Ayarları bölümünden Sunucu (Server) seçin.',
   'settings.database.confirm.change':
       'Veritabanı modunu değiştirmek veri aktarımı gerektirir. Devam edilsin mi?',
   'settings.database.mobile_local_requires_server':
@@ -1977,6 +1979,22 @@ const Map<String, String> trCeviriler = {
       'İstemci bilgisayar (Sunucuya bağlanır)',
   'settings.connection.mode.description':
       'Bilgisayarın ağdaki rolünü belirler. Sunucu modu ana veritabanını barındırır, terminal modu ise sunucuya bağlanır.',
+  'settings.connection.server_list_title': 'Yerel ağdaki ana serverlar',
+  'settings.connection.server_list_help':
+      'İstemci modunda bağlanacağınız ana bilgisayarı seçin. Seçim kaydedildiğinde bağlantı bu sunucuya yönlendirilir.',
+  'settings.connection.server_searching':
+      'Yerel ağdaki uygun serverlar aranıyor...',
+  'settings.connection.server_list_empty':
+      'Yerel ağda erişilebilir bir ana server bulunamadı.',
+  'settings.connection.server_list_empty_hint':
+      'Ana bilgisayarda Patisyo v10 açıkken tekrar tarayın.',
+  'settings.connection.server_list_error_hint':
+      'Ağ taraması tamamlanamadı. Bağlantınızı kontrol edip yeniden deneyin.',
+  'settings.connection.current_server_label': 'Kayıtlı seçim: {host}',
+  'settings.connection.select_server_required':
+      'İstemci moduna geçmek için listeden bir ana server seçin.',
+  'settings.connection.server_search_error':
+      'Yerel ağ taraması tamamlanamadı. Lütfen tekrar deneyin.',
   'settings.connection.printer.title': 'Yazıcı Ayarları',
   'settings.connection.printer.description':
       'Masaüstünde yüklü yazıcılardan, mobil ve tablet cihazların kullanacağı varsayılan yazıcıyı seçin.',

@@ -1,13 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:nsd/nsd.dart' show Service;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'modeller/genel_ayarlar_model.dart';
 import 'package:patisyov10/sayfalar/ayarlar/genel_ayarlar/modeller/para_birimleri_data.dart';
+import 'package:patisyov10/sayfalar/baslangic/bootstrap_sayfasi.dart';
 import 'veri_kaynagi/genel_ayarlar_veri_kaynagi.dart';
 import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
 import 'modeller/doviz_kuru_model.dart';
@@ -16,6 +19,10 @@ import 'package:patisyov10/servisler/doviz_guncelleme_servisi.dart';
 import 'package:patisyov10/servisler/bankalar_veritabani_servisi.dart';
 import 'package:patisyov10/servisler/kasalar_veritabani_servisi.dart';
 import 'package:patisyov10/servisler/kredi_kartlari_veritabani_servisi.dart';
+import 'package:patisyov10/servisler/lisans_servisi.dart';
+import 'package:patisyov10/servisler/local_network_discovery_service.dart';
+import 'package:patisyov10/servisler/veritabani_baglanti_sifirlayici.dart';
+import 'package:patisyov10/servisler/veritabani_yapilandirma.dart';
 import 'package:patisyov10/bilesenler/standart_alt_aksiyon_bar.dart';
 import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import 'package:intl/intl.dart';
@@ -65,6 +72,13 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
   List<Printer> _sistemYazicilari = [];
   bool _sistemYazicilariYukleniyor = false;
   String? _sistemYazicilariHatasi;
+  String _baglantiRolu = 'server';
+  String _kayitliBaglantiRolu = 'server';
+  List<Service> _yerelSunucular = [];
+  bool _yerelSunucularYukleniyor = false;
+  bool _yerelSunucularTarandi = false;
+  String? _seciliYerelSunucuHost;
+  String? _yerelSunucularHatasi;
 
   @override
   void initState() {
@@ -93,18 +107,126 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     super.dispose();
   }
 
+  bool get _masaustuYerelSunucuSecimiDestekleniyor =>
+      !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
+
+  String _aktifBaglantiRolu() {
+    final currentMode = VeritabaniYapilandirma.connectionMode;
+    if (currentMode == 'cloud') {
+      return _ayarlar.sunucuModu == 'terminal' ? 'terminal' : 'server';
+    }
+    final discoveredHost = (VeritabaniYapilandirma.discoveredHost ?? '').trim();
+    return discoveredHost.isEmpty ? 'server' : 'terminal';
+  }
+
+  Future<void> _yerelSunuculariTara({bool showError = true}) async {
+    if (!_masaustuYerelSunucuSecimiDestekleniyor || _yerelSunucularYukleniyor) {
+      return;
+    }
+
+    setState(() {
+      _yerelSunucularYukleniyor = true;
+      _yerelSunucularTarandi = true;
+      _yerelSunucularHatasi = null;
+    });
+
+    try {
+      final servers = await LocalNetworkDiscoveryService().sunuculariBul(
+        timeout: const Duration(seconds: 3),
+      );
+      servers.sort((a, b) {
+        final titleA = (a.name ?? a.host ?? '').trim().toLowerCase();
+        final titleB = (b.name ?? b.host ?? '').trim().toLowerCase();
+        return titleA.compareTo(titleB);
+      });
+
+      if (!mounted) return;
+
+      final savedHost =
+          (_seciliYerelSunucuHost ??
+                  VeritabaniYapilandirma.discoveredHost ??
+                  '')
+              .trim();
+      String? selectedHost = savedHost.isEmpty ? null : savedHost;
+      if (servers.isNotEmpty) {
+        final hasSavedMatch =
+            selectedHost != null &&
+            servers.any((s) => (s.host ?? '').trim() == selectedHost);
+        selectedHost = hasSavedMatch
+            ? selectedHost
+            : (servers.first.host ?? '').trim();
+      }
+
+      setState(() {
+        _yerelSunucular = servers;
+        _seciliYerelSunucuHost = selectedHost;
+        _yerelSunucularYukleniyor = false;
+      });
+
+      if (showError && servers.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('settings.database.mobile_local_requires_server')),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _yerelSunucular = [];
+        _yerelSunucularYukleniyor = false;
+        _yerelSunucularHatasi = e.toString();
+      });
+      if (showError) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('settings.connection.server_search_error')),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _uygulaYerelSunucuLisansBestEffort(Service? service) async {
+    if (service == null) return;
+    try {
+      final txt = service.txt;
+      if (txt == null || txt['isPro'] == null) return;
+      final inherited = utf8.decode(txt['isPro']!) == 'true';
+      await LisansServisi().setInheritedPro(inherited);
+    } catch (_) {
+      // Sessiz: keşif lisans bilgisi opsiyonel.
+    }
+  }
+
   Future<void> _ayarlariYukle() async {
     setState(() => _yukleniyor = true);
     try {
       final ayarlar = await _veriKaynagi.ayarlariGetir();
       await _kurlariYukle();
+      final currentRole = _aktifBaglantiRolu();
+      final currentHost = (VeritabaniYapilandirma.discoveredHost ?? '').trim();
       setState(() {
         _ayarlar = ayarlar;
         _kayitliAyarlar = _cloneAyarlar(ayarlar);
+        _baglantiRolu = currentRole;
+        _kayitliBaglantiRolu = currentRole;
+        _seciliYerelSunucuHost = currentHost.isEmpty ? null : currentHost;
         _initControllers();
         _yukleniyor = false;
       });
       await _perakendeHesaplariYukle();
+      if (_masaustuYerelSunucuSecimiDestekleniyor &&
+          currentRole == 'terminal') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          _yerelSunuculariTara(showError: false);
+        });
+      }
     } catch (e) {
       debugPrint('Ayarlar yüklenirken hata: $e');
       setState(() => _yukleniyor = false);
@@ -160,8 +282,17 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
 
     setState(() {
       _ayarlar = _cloneAyarlar(kayitli);
+      _baglantiRolu = _kayitliBaglantiRolu;
+      final savedHost = (VeritabaniYapilandirma.discoveredHost ?? '').trim();
+      _seciliYerelSunucuHost = savedHost.isEmpty ? null : savedHost;
       _controllersFromModel(_ayarlar);
     });
+
+    if (_masaustuYerelSunucuSecimiDestekleniyor &&
+        _baglantiRolu == 'terminal' &&
+        !_yerelSunucularYukleniyor) {
+      _yerelSunuculariTara(showError: false);
+    }
   }
 
   Future<void> _kurlariYukle() async {
@@ -199,7 +330,42 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     _kopyaSayisiController = TextEditingController(text: _ayarlar.kopyaSayisi);
   }
 
+  Service? _seciliYerelSunucuServisi() {
+    final selectedHost = (_seciliYerelSunucuHost ?? '').trim();
+    if (selectedHost.isEmpty) return null;
+    for (final server in _yerelSunucular) {
+      if ((server.host ?? '').trim() == selectedHost) {
+        return server;
+      }
+    }
+    return null;
+  }
+
   Future<void> _kaydet() async {
+    final bool masaustuBaglantiAkisi = _masaustuYerelSunucuSecimiDestekleniyor;
+    final String oncekiRolu = _kayitliBaglantiRolu;
+    final String oncekiHost = (VeritabaniYapilandirma.discoveredHost ?? '')
+        .trim();
+    final String? hedefHost =
+        masaustuBaglantiAkisi && _baglantiRolu == 'terminal'
+        ? (_seciliYerelSunucuHost ?? '').trim()
+        : null;
+
+    if (masaustuBaglantiAkisi &&
+        _baglantiRolu == 'terminal' &&
+        (hedefHost == null || hedefHost.isEmpty)) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(tr('settings.connection.select_server_required')),
+            backgroundColor: Colors.redAccent,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() {
       _ayarlar.nakit1 = _nakit1Controller.text;
       _ayarlar.nakit2 = _nakit2Controller.text;
@@ -211,8 +377,45 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     });
 
     try {
-      await _veriKaynagi.ayarlariKaydet(_ayarlar);
-      _kayitliAyarlar = _cloneAyarlar(_ayarlar);
+      final kaydedilecekAyarlar = _cloneAyarlar(_ayarlar);
+      if (masaustuBaglantiAkisi) {
+        final bool uzakIstemciUzerindenCalisiyor =
+            oncekiHost.isNotEmpty &&
+            VeritabaniYapilandirma.connectionMode != 'cloud';
+        if (!uzakIstemciUzerindenCalisiyor) {
+          kaydedilecekAyarlar.sunucuModu = _baglantiRolu;
+        } else {
+          kaydedilecekAyarlar.sunucuModu =
+              _kayitliAyarlar?.sunucuModu ?? _ayarlar.sunucuModu;
+        }
+      }
+
+      await _veriKaynagi.ayarlariKaydet(kaydedilecekAyarlar);
+      _ayarlar = _cloneAyarlar(kaydedilecekAyarlar);
+      _kayitliAyarlar = _cloneAyarlar(kaydedilecekAyarlar);
+      _kayitliBaglantiRolu = _baglantiRolu;
+
+      final String normalizedTargetHost = (hedefHost ?? '').trim();
+      final bool baglantiDegisti =
+          masaustuBaglantiAkisi &&
+          (oncekiRolu != _baglantiRolu || oncekiHost != normalizedTargetHost);
+
+      if (baglantiDegisti) {
+        await VeritabaniYapilandirma.saveConnectionPreferences(
+          VeritabaniYapilandirma.connectionMode,
+          normalizedTargetHost.isEmpty ? null : normalizedTargetHost,
+        );
+        await _uygulaYerelSunucuLisansBestEffort(_seciliYerelSunucuServisi());
+        await VeritabaniBaglantiSifirlayici().tumunuKapat();
+        await VeritabaniYapilandirma.loadPersistedConfig(force: true);
+        if (!mounted) return;
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const BootstrapSayfasi()),
+          (_) => false,
+        );
+        return;
+      }
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -1967,7 +2170,266 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
           mode: 'terminal',
           icon: Icons.computer_rounded,
         ),
+        if (_masaustuYerelSunucuSecimiDestekleniyor &&
+            _baglantiRolu == 'terminal') ...[
+          const SizedBox(height: 16),
+          _buildYerelSunucuSecimPaneli(),
+        ],
       ],
+    );
+  }
+
+  Widget _buildYerelSunucuSecimPaneli() {
+    final hasServers = _yerelSunucular.isNotEmpty;
+    final selectedHost = (_seciliYerelSunucuHost ?? '').trim();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: _actionPrimary.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: _actionPrimary.withValues(alpha: 0.10)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 28,
+                height: 28,
+                decoration: BoxDecoration(
+                  color: _actionPrimary.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(
+                  Icons.router_rounded,
+                  size: 15,
+                  color: _actionPrimary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  tr('settings.connection.server_list_title'),
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: _primaryColor,
+                  ),
+                ),
+              ),
+              OutlinedButton.icon(
+                onPressed: _yerelSunucularYukleniyor
+                    ? null
+                    : () => _yerelSunuculariTara(showError: true),
+                icon: _yerelSunucularYukleniyor
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: _actionPrimary.withValues(alpha: 0.8),
+                        ),
+                      )
+                    : const Icon(Icons.refresh_rounded, size: 16),
+                label: Text(tr('common.search_again')),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: _actionPrimary,
+                  side: BorderSide(
+                    color: _actionPrimary.withValues(alpha: 0.2),
+                  ),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          Text(
+            tr('settings.connection.server_list_help'),
+            style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+          ),
+          const SizedBox(height: 14),
+          if (_yerelSunucularYukleniyor && !hasServers)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Row(
+                children: [
+                  SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: _actionPrimary.withValues(alpha: 0.8),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      tr('settings.connection.server_searching'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade700,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          else if (!hasServers)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    tr('settings.connection.server_list_empty'),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: _primaryColor,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    _yerelSunucularHatasi?.trim().isNotEmpty == true
+                        ? tr('settings.connection.server_list_error_hint')
+                        : tr('settings.connection.server_list_empty_hint'),
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
+                  if (selectedHost.isNotEmpty) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      tr(
+                        'settings.connection.current_server_label',
+                        args: {'host': selectedHost},
+                      ),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: _actionPrimary,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            )
+          else
+            Container(
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: Colors.grey.shade200),
+              ),
+              child: RadioGroup<String>(
+                groupValue: selectedHost.isEmpty ? null : selectedHost,
+                onChanged: (value) {
+                  if (value == null) return;
+                  setState(() => _seciliYerelSunucuHost = value);
+                },
+                child: Column(
+                  children: _yerelSunucular.asMap().entries.map((entry) {
+                    final index = entry.key;
+                    final server = entry.value;
+                    final host = (server.host ?? '').trim();
+                    final title = (server.name ?? host).trim();
+                    final isSelected = selectedHost == host;
+
+                    return InkWell(
+                      mouseCursor: WidgetStateMouseCursor.clickable,
+                      onTap: () =>
+                          setState(() => _seciliYerelSunucuHost = host),
+                      borderRadius: BorderRadius.vertical(
+                        top: index == 0
+                            ? const Radius.circular(12)
+                            : Radius.zero,
+                        bottom: index == _yerelSunucular.length - 1
+                            ? const Radius.circular(12)
+                            : Radius.zero,
+                      ),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 12,
+                        ),
+                        decoration: BoxDecoration(
+                          border: index == _yerelSunucular.length - 1
+                              ? null
+                              : Border(
+                                  bottom: BorderSide(
+                                    color: Colors.grey.shade100,
+                                  ),
+                                ),
+                          color: isSelected
+                              ? _actionPrimary.withValues(alpha: 0.05)
+                              : Colors.transparent,
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    title.isEmpty ? host : title,
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w800,
+                                      color: isSelected
+                                          ? _actionPrimary
+                                          : _primaryColor,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    host,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            Radio<String>(
+                              value: host,
+                              activeColor: _actionPrimary,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -2627,10 +3089,18 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     required String mode,
     required IconData icon,
   }) {
-    final isSelected = _ayarlar.sunucuModu == mode;
+    final isSelected = _baglantiRolu == mode;
     return InkWell(
       mouseCursor: WidgetStateMouseCursor.clickable,
-      onTap: () => setState(() => _ayarlar.sunucuModu = mode),
+      onTap: () {
+        setState(() => _baglantiRolu = mode);
+        if (mode == 'terminal' &&
+            _masaustuYerelSunucuSecimiDestekleniyor &&
+            !_yerelSunucularYukleniyor &&
+            (!_yerelSunucularTarandi || _yerelSunucular.isEmpty)) {
+          _yerelSunuculariTara(showError: false);
+        }
+      },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),

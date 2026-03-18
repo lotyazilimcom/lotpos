@@ -302,6 +302,8 @@ const Map<String, String> enCeviriler = {
       '⚠️ Backup disabled. Data cannot be recovered in case of loss!',
   'settings.backup.confirm.off':
       'Disabling backup may endanger your data. Are you sure?',
+  'settings.database.requires_main_server_note':
+      'This area is managed only on the main server. To continue, choose Server in General Settings > Connection Settings.',
   'settings.database.confirm.change':
       'Changing database mode requires data migration. Continue?',
   'settings.database.mobile_local_requires_server':
@@ -1924,6 +1926,22 @@ const Map<String, String> enCeviriler = {
       'Client computer (Connects to the server)',
   'settings.connection.mode.description':
       'Determines the role of the computer in the network. Server mode hosts the main database, while terminal mode connects to the server.',
+  'settings.connection.server_list_title': 'Main servers on the local network',
+  'settings.connection.server_list_help':
+      'Choose the main computer this client will connect to. The connection is redirected to the selected server when saved.',
+  'settings.connection.server_searching':
+      'Searching for available servers on the local network...',
+  'settings.connection.server_list_empty':
+      'No reachable main server was found on the local network.',
+  'settings.connection.server_list_empty_hint':
+      'Open Patisyo v10 on the main computer and scan again.',
+  'settings.connection.server_list_error_hint':
+      'The network scan could not be completed. Check the connection and try again.',
+  'settings.connection.current_server_label': 'Saved selection: {host}',
+  'settings.connection.select_server_required':
+      'Select a main server from the list to switch to client mode.',
+  'settings.connection.server_search_error':
+      'The local network scan could not be completed. Please try again.',
   'settings.connection.printer.title': 'Printer Settings',
   'settings.connection.printer.description':
       'Choose the default printer that mobile and tablet devices will use from the printers installed on this desktop.',

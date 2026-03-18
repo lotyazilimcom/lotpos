@@ -296,6 +296,8 @@ const Map<String, String> arCeviriler = {
       '⚠️ النسخ الاحتياطي معطل. لا يمكن استعادة البيانات في حالة الفقدان!',
   'settings.backup.confirm.off':
       'قد يؤدي تعطيل النسخ الاحتياطي إلى تعريض بياناتك للخطر. هل أنت متأكد؟',
+  'settings.database.requires_main_server_note':
+      'تُدار هذه المنطقة فقط على الخادم الرئيسي. للمتابعة اختر الخادم من الإعدادات العامة > إعدادات الاتصال.',
   'settings.database.confirm.change':
       'تغيير وضع قاعدة البيانات يتطلب نقل البيانات. هل تستمر؟',
   'settings.database.mobile_local_requires_server':
@@ -1874,6 +1876,23 @@ const Map<String, String> arCeviriler = {
   'settings.connection.mode.terminal.subtitle': 'جهاز العميل (يتصل بالخادم)',
   'settings.connection.mode.description':
       'يحدد دور الكمبيوتر في الشبكة. يستضيف وضع الخادم قاعدة البيانات الرئيسية، بينما يتصل وضع المحطة بالخادم.',
+  'settings.connection.server_list_title':
+      'الخوادم الرئيسية على الشبكة المحلية',
+  'settings.connection.server_list_help':
+      'اختر الكمبيوتر الرئيسي الذي سيتصل به هذا الجهاز العميل. عند الحفظ سيتم توجيه الاتصال إلى الخادم المحدد.',
+  'settings.connection.server_searching':
+      'جارٍ البحث عن خوادم متاحة على الشبكة المحلية...',
+  'settings.connection.server_list_empty':
+      'لم يتم العثور على خادم رئيسي متاح على الشبكة المحلية.',
+  'settings.connection.server_list_empty_hint':
+      'افتح Patisyo v10 على الكمبيوتر الرئيسي ثم أعد الفحص.',
+  'settings.connection.server_list_error_hint':
+      'تعذر إكمال فحص الشبكة. تحقق من الاتصال ثم حاول مرة أخرى.',
+  'settings.connection.current_server_label': 'الاختيار المحفوظ: {host}',
+  'settings.connection.select_server_required':
+      'اختر خادمًا رئيسيًا من القائمة للتبديل إلى وضع العميل.',
+  'settings.connection.server_search_error':
+      'تعذر إكمال فحص الشبكة المحلية. يرجى المحاولة مرة أخرى.',
   'settings.connection.printer.title': 'إعدادات الطابعة',
   'settings.connection.printer.description':
       'اختر الطابعة الافتراضية التي ستستخدمها الأجهزة المحمولة والأجهزة اللوحية من بين الطابعات المثبتة على هذا الجهاز المكتبي.',

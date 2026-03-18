@@ -273,11 +273,13 @@ class BaglantiYoneticisi extends ChangeNotifier {
     await _standartBaslatma();
     await YerelAgYazdirmaServisi().masaustuKuyrugunuBaslat();
 
-    // Sunucu modundaysa mDNS yayını başlat
+    // Yerelde ana server seçiliyse mDNS yayını başlat.
     try {
-      final ayarlar = await AyarlarVeritabaniServisi().genelAyarlariGetir();
-      if (ayarlar.sunucuModu == 'server') {
+      if (VeritabaniYapilandirma.masaustuAnaServerSecili &&
+          VeritabaniYapilandirma.connectionMode != 'cloud') {
         LocalNetworkDiscoveryService().yayiniBaslat();
+      } else {
+        await LocalNetworkDiscoveryService().yayiniDurdur();
       }
     } catch (e) {
       debugPrint('mDNS Yayını hatası: $e');

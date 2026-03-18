@@ -286,6 +286,14 @@ class VeritabaniYapilandirma {
     return host;
   }
 
+  static bool get masaustuAnaServerSecili {
+    if (kIsWeb) return false;
+    if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
+      return false;
+    }
+    return (discoveredHost ?? '').trim().isEmpty;
+  }
+
   static bool get cloudCredentialsReady {
     final host = _cloudHost?.trim() ?? '';
     final db = _cloudDatabase?.trim() ?? '';

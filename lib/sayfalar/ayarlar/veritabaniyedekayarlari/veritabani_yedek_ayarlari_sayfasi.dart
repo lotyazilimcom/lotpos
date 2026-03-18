@@ -155,9 +155,7 @@ class _VeritabaniYedekAyarlariSayfasiState
     return '5828486';
   }
 
-  Future<bool> _guardClusterIdUyumsuzlugu({
-    required String localHost,
-  }) async {
+  Future<bool> _guardClusterIdUyumsuzlugu({required String localHost}) async {
     final cloudDb = VeritabaniYapilandirma.cloudDatabase;
     if (cloudDb == null || cloudDb.trim().isEmpty) return true;
 
@@ -388,13 +386,16 @@ class _VeritabaniYedekAyarlariSayfasiState
   Future<void> _loadPersistedBackupPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final enabled =
-          prefs.getBool(KarmaBulutYedeklemeServisi.prefBackupEnabledKey);
-      final period =
-          prefs.getString(KarmaBulutYedeklemeServisi.prefBackupPeriodKey);
+      final enabled = prefs.getBool(
+        KarmaBulutYedeklemeServisi.prefBackupEnabledKey,
+      );
+      final period = prefs.getString(
+        KarmaBulutYedeklemeServisi.prefBackupPeriodKey,
+      );
 
       final normalizedPeriod = (period ?? '').trim();
-      final safePeriod = (normalizedPeriod == '15days' ||
+      final safePeriod =
+          (normalizedPeriod == '15days' ||
               normalizedPeriod == 'monthly' ||
               normalizedPeriod == '3months' ||
               normalizedPeriod == '6months')
@@ -448,6 +449,9 @@ class _VeritabaniYedekAyarlariSayfasiState
             (defaultTargetPlatform == TargetPlatform.windows ||
                 defaultTargetPlatform == TargetPlatform.macOS ||
                 defaultTargetPlatform == TargetPlatform.linux);
+        final bool anaServerSecili =
+            !isDesktopPlatform ||
+            VeritabaniYapilandirma.masaustuAnaServerSecili;
 
         final content = _buildIcerik(
           primaryColor,
@@ -455,6 +459,7 @@ class _VeritabaniYedekAyarlariSayfasiState
           isMobile: isMobile,
           isMobilePlatform: isMobilePlatform,
           isDesktopPlatform: isDesktopPlatform,
+          anaServerSecili: anaServerSecili,
           showSaveButton: false,
         );
 
@@ -475,7 +480,11 @@ class _VeritabaniYedekAyarlariSayfasiState
                       ),
                     ),
                   ),
-                  _buildMenuActionBar(primaryColor, isCompact: isCompactLayout),
+                  _buildMenuActionBar(
+                    primaryColor,
+                    isCompact: isCompactLayout,
+                    anaServerSecili: anaServerSecili,
+                  ),
                 ],
               ),
             ),
@@ -540,6 +549,7 @@ class _VeritabaniYedekAyarlariSayfasiState
                 _buildStandaloneActionBar(
                   primaryColor,
                   isCompact: isCompactLayout,
+                  anaServerSecili: anaServerSecili,
                 ),
               ],
             ),
@@ -555,6 +565,7 @@ class _VeritabaniYedekAyarlariSayfasiState
     required bool isMobile,
     required bool isMobilePlatform,
     required bool isDesktopPlatform,
+    required bool anaServerSecili,
     required bool showSaveButton,
   }) {
     return Column(
@@ -585,54 +596,99 @@ class _VeritabaniYedekAyarlariSayfasiState
             ),
           ),
         ],
-        SizedBox(height: isMobile ? 24 : 32),
-        _buildSectionTitle(
-          tr('settings.database.title'),
-          Icons.storage_rounded,
-          primaryColor,
-          isMobile: isMobile,
-        ),
-        const SizedBox(height: 16),
-        _buildDatabaseModes(
-          primaryColor,
-          isLite: isLiteBackupKapali,
-          isMobile: isMobile,
-          isMobilePlatform: isMobilePlatform,
-          showHybridMode: !isMobilePlatform,
-        ),
-        const SizedBox(height: 12),
-        _buildClusterIdCard(primaryColor, isMobile: isMobile),
-        SizedBox(height: isMobile ? 24 : 32),
-        _buildSectionTitle(
-          tr('settings.backup.title'),
-          Icons.cloud_upload_rounded,
-          primaryColor,
-          isMobile: isMobile,
-        ),
-        const SizedBox(height: 16),
-        _buildBackupSettings(
-          primaryColor,
-          isLite: isLiteBackupKapali,
-          isMobile: isMobile,
-        ),
-        if (isDesktopPlatform) ...[
-          SizedBox(height: isMobile ? 24 : 32),
-          _buildSectionTitle(
-            tr('settings.database.schema_export.title'),
-            Icons.download_rounded,
-            primaryColor,
-            isMobile: isMobile,
-          ),
+        if (!anaServerSecili) ...[
           const SizedBox(height: 16),
-          _buildYerelSemaIndirmeCard(primaryColor, isMobile: isMobile),
+          _buildAnaServerBilgiNotu(primaryColor),
         ],
-        if (showSaveButton) ...[
-          SizedBox(height: isMobile ? 32 : 48),
-          _buildSaveButton(),
-        ] else ...[
-          const SizedBox(height: 24),
-        ],
+        SizedBox(height: isMobile ? 24 : 32),
+        Opacity(
+          opacity: anaServerSecili ? 1.0 : 0.48,
+          child: IgnorePointer(
+            ignoring: !anaServerSecili,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildSectionTitle(
+                  tr('settings.database.title'),
+                  Icons.storage_rounded,
+                  primaryColor,
+                  isMobile: isMobile,
+                ),
+                const SizedBox(height: 16),
+                _buildDatabaseModes(
+                  primaryColor,
+                  isLite: isLiteBackupKapali,
+                  isMobile: isMobile,
+                  isMobilePlatform: isMobilePlatform,
+                  showHybridMode: !isMobilePlatform,
+                ),
+                const SizedBox(height: 12),
+                _buildClusterIdCard(primaryColor, isMobile: isMobile),
+                SizedBox(height: isMobile ? 24 : 32),
+                _buildSectionTitle(
+                  tr('settings.backup.title'),
+                  Icons.cloud_upload_rounded,
+                  primaryColor,
+                  isMobile: isMobile,
+                ),
+                const SizedBox(height: 16),
+                _buildBackupSettings(
+                  primaryColor,
+                  isLite: isLiteBackupKapali,
+                  isMobile: isMobile,
+                ),
+                if (isDesktopPlatform) ...[
+                  SizedBox(height: isMobile ? 24 : 32),
+                  _buildSectionTitle(
+                    tr('settings.database.schema_export.title'),
+                    Icons.download_rounded,
+                    primaryColor,
+                    isMobile: isMobile,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildYerelSemaIndirmeCard(primaryColor, isMobile: isMobile),
+                ],
+                if (showSaveButton) ...[
+                  SizedBox(height: isMobile ? 32 : 48),
+                  _buildSaveButton(),
+                ] else ...[
+                  const SizedBox(height: 24),
+                ],
+              ],
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildAnaServerBilgiNotu(Color primaryColor) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: primaryColor.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: primaryColor.withValues(alpha: 0.16)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.info_outline_rounded, color: primaryColor, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              tr('settings.database.requires_main_server_note'),
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: primaryColor.withValues(alpha: 0.95),
+                height: 1.45,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -736,13 +792,17 @@ class _VeritabaniYedekAyarlariSayfasiState
     });
   }
 
-  Widget _buildMenuActionBar(Color primaryColor, {required bool isCompact}) {
+  Widget _buildMenuActionBar(
+    Color primaryColor, {
+    required bool isCompact,
+    required bool anaServerSecili,
+  }) {
     return StandartAltAksiyonBar(
       isCompact: isCompact,
       secondaryText: tr('common.cancel'),
       onSecondaryPressed: _iptalEt,
       primaryText: tr('common.save'),
-      onPrimaryPressed: _buildSaveButtonOnPressed,
+      onPrimaryPressed: anaServerSecili ? _buildSaveButtonOnPressed : null,
       textColor: primaryColor,
       alignment: Alignment.centerRight,
     );
@@ -751,13 +811,14 @@ class _VeritabaniYedekAyarlariSayfasiState
   Widget _buildStandaloneActionBar(
     Color primaryColor, {
     required bool isCompact,
+    required bool anaServerSecili,
   }) {
     return StandartAltAksiyonBar(
       isCompact: isCompact,
       secondaryText: tr('common.cancel'),
       onSecondaryPressed: _handleCancel,
       primaryText: tr('common.save'),
-      onPrimaryPressed: _buildSaveButtonOnPressed,
+      onPrimaryPressed: anaServerSecili ? _buildSaveButtonOnPressed : null,
       textColor: primaryColor,
     );
   }
@@ -1262,8 +1323,10 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     Widget syncTrailing;
     if (isLite || !isHybridMode || !_yedeklemeAcik) {
-      syncTrailing =
-          Icon(Icons.sync_disabled_rounded, color: Colors.grey.shade400);
+      syncTrailing = Icon(
+        Icons.sync_disabled_rounded,
+        color: Colors.grey.shade400,
+      );
     } else {
       syncTrailing = IconButton(
         tooltip: tr('settings.database.sync.now'),
@@ -1318,7 +1381,8 @@ class _VeritabaniYedekAyarlariSayfasiState
                   ),
                   child: DropdownButton<String>(
                     mouseCursor: WidgetStateMouseCursor.clickable,
-                    dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
+                    dropdownMenuItemMouseCursor:
+                        WidgetStateMouseCursor.clickable,
                     value: _yedeklemePeriyodu,
                     underline: const SizedBox(),
                     icon: const Icon(Icons.keyboard_arrow_down_rounded),
@@ -1698,7 +1762,8 @@ class _VeritabaniYedekAyarlariSayfasiState
                       const SizedBox(height: 8),
                       DropdownButtonFormField<int>(
                         mouseCursor: WidgetStateMouseCursor.clickable,
-                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
+                        dropdownMenuItemMouseCursor:
+                            WidgetStateMouseCursor.clickable,
                         initialValue: selectedIndex,
                         isExpanded: true,
                         decoration: InputDecoration(
@@ -1971,7 +2036,8 @@ class _VeritabaniYedekAyarlariSayfasiState
 
     final String oncekiMod = VeritabaniYapilandirma.connectionMode;
     final String? oncekiYerelHost = VeritabaniYapilandirma.discoveredHost;
-    final bool oncekiModLocalLike = oncekiMod == 'local' || oncekiMod == 'hybrid';
+    final bool oncekiModLocalLike =
+        oncekiMod == 'local' || oncekiMod == 'hybrid';
     final String? oncekiYerelCompanyDb = oncekiModLocalLike
         ? OturumServisi().aktifVeritabaniAdi
         : null;
@@ -2065,7 +2131,9 @@ class _VeritabaniYedekAyarlariSayfasiState
         final localHostForCheck =
             (oncekiYerelHost ?? yerelHostKaydi ?? '127.0.0.1').trim();
         final ok = await _guardClusterIdUyumsuzlugu(
-          localHost: localHostForCheck.isEmpty ? '127.0.0.1' : localHostForCheck,
+          localHost: localHostForCheck.isEmpty
+              ? '127.0.0.1'
+              : localHostForCheck,
         );
         if (!ok) {
           if (mounted) setState(() => _seciliMod = previousUiMode);
@@ -2116,9 +2184,12 @@ class _VeritabaniYedekAyarlariSayfasiState
     );
 
     if (modDegisti && (localCloudSwitch || localToHybrid)) {
-      final String fromMode =
-          localToCloudSeed ? 'local' : (cloudToLocal ? 'cloud' : '');
-      final String toMode = localToCloudSeed ? 'cloud' : (cloudToLocal ? 'local' : '');
+      final String fromMode = localToCloudSeed
+          ? 'local'
+          : (cloudToLocal ? 'cloud' : '');
+      final String toMode = localToCloudSeed
+          ? 'cloud'
+          : (cloudToLocal ? 'local' : '');
       if (transferSecim == null) {
         // Cloud seçildi ama kimlikler hazır değil: veri aktarımı ekranını gösterme.
         await _clearPendingTransferChoice();
@@ -2286,7 +2357,9 @@ class _VeritabaniYedekAyarlariSayfasiState
         : oncekiMod;
 
     // Desktop: Yerel / Karma / Bulut akışı (Bulut: sadece internet).
-    if (_seciliMod != 'local' && _seciliMod != 'hybrid' && _seciliMod != 'cloud') {
+    if (_seciliMod != 'local' &&
+        _seciliMod != 'hybrid' &&
+        _seciliMod != 'cloud') {
       if (!mounted) return;
       _kayitliDegerleriGuncelle();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2908,7 +2981,7 @@ class _VeritabaniYedekAyarlariSayfasiState
           content: Text(
             tr(
               'common.success.export_path',
-            args: {'name': tr('common.sql'), 'path': outputPath},
+              args: {'name': tr('common.sql'), 'path': outputPath},
             ),
           ),
           backgroundColor: Colors.green.shade700,
