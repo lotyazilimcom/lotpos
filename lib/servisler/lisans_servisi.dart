@@ -657,6 +657,82 @@ class LisansServisi extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<_LocalManualActivation?> _readValidLocalManualActivation() async {
+    final hardwareId = _hardwareId?.trim().toUpperCase() ?? '';
+    if (hardwareId.isEmpty) return null;
+
+    String? rawToken = (_licenseKey != null && _licenseKey!.trim().isNotEmpty)
+        ? _licenseKey!.trim()
+        : null;
+
+    if (rawToken == null) {
+      final prefs = await SharedPreferences.getInstance();
+      final legacyToken = prefs.getString(_prefsLicenseKeyKey);
+      if (legacyToken != null && legacyToken.trim().isNotEmpty) {
+        rawToken = legacyToken.trim();
+      }
+    }
+
+    if (rawToken == null) {
+      final vaultRecord = await _readKasasiBestEffort();
+      final vaultToken = vaultRecord?.licenseKey;
+      if (vaultToken != null && vaultToken.trim().isNotEmpty) {
+        rawToken = vaultToken.trim();
+      }
+    }
+
+    if (rawToken == null || rawToken.isEmpty) return null;
+
+    final tokenInfo = _verifyAndParseManualActivationCode(rawToken);
+    if (tokenInfo == null) return null;
+
+    if (tokenInfo.hardwareId.trim().toUpperCase() != hardwareId) {
+      return null;
+    }
+
+    if (_isLitePackageName(tokenInfo.packageName) ||
+        _isExpiredByDate(tokenInfo.expiryDate)) {
+      return null;
+    }
+
+    return _LocalManualActivation(rawToken: rawToken, tokenInfo: tokenInfo);
+  }
+
+  Future<void> _applyManualActivationLocally(
+    _LocalManualActivation activation, {
+    bool notify = true,
+    bool persist = true,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_prefsLicenseKeyKey);
+
+    _licenseKey = activation.rawToken;
+    _isLicensed = true;
+    _noOnlineLicenseLogged = false;
+
+    await _setInheritedProLocal(false, notify: false);
+    await _setLicenseEndDate(activation.tokenInfo.expiryDate);
+
+    final normalizedLicenseId =
+        activation.tokenInfo.licenseId?.trim().toUpperCase();
+    final currentLicenseId = _licenseId?.trim().toUpperCase();
+    await _setLicenseIdLocal(
+      (normalizedLicenseId != null && normalizedLicenseId.isNotEmpty)
+          ? normalizedLicenseId
+          : ((currentLicenseId != null && currentLicenseId.isNotEmpty)
+                ? currentLicenseId
+                : (_hardwareId ?? '')),
+    );
+
+    if (persist) {
+      await _persistKasasiBestEffort();
+    }
+
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
   double _toDouble(dynamic value) {
     if (value is num) return value.toDouble();
     if (value is String) {
@@ -859,6 +935,7 @@ class LisansServisi extends ChangeNotifier {
   }) async {
     try {
       bool forceLiteByLifecycle = false;
+      final localManualActivation = await _readValidLocalManualActivation();
       final lifecycle = await _programDurumuGetirOnlineOrThrow(
         timeout: onlineTimeout,
       );
@@ -889,12 +966,11 @@ class LisansServisi extends ChangeNotifier {
         clearOnMissing: true,
       );
 
-      if (forceLiteByLifecycle) {
-        await _clearOnlineLicenseState(notify: true);
-        return _isLicensed;
-      }
-
       if (data == null) {
+        if (localManualActivation != null) {
+          await _applyManualActivationLocally(localManualActivation);
+          return _isLicensed;
+        }
         await _clearOnlineLicenseState(notify: true);
         if (!_noOnlineLicenseLogged) {
           _noOnlineLicenseLogged = true;
@@ -907,6 +983,21 @@ class LisansServisi extends ChangeNotifier {
 
       // Online lisans bulundu (veya kayıt var): tekrar log basabilmek için sıfırla.
       _noOnlineLicenseLogged = false;
+
+      final currentHardwareId = _hardwareId?.trim().toUpperCase() ?? '';
+      final dataHardwareId =
+          data['hardware_id']?.toString().trim().toUpperCase() ?? '';
+      final hasDirectOnlineLicense =
+          currentHardwareId.isNotEmpty && dataHardwareId == currentHardwareId;
+
+      if (forceLiteByLifecycle && !hasDirectOnlineLicense) {
+        if (localManualActivation != null) {
+          await _applyManualActivationLocally(localManualActivation);
+          return _isLicensed;
+        }
+        await _clearOnlineLicenseState(notify: true);
+        return _isLicensed;
+      }
 
       final key = data['license_key']?.toString() ?? '';
       final packageName = data['package_name']?.toString();
@@ -1622,20 +1713,24 @@ class LisansServisi extends ChangeNotifier {
 
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_prefsLicenseKeyKey);
-
-    _licenseKey = token;
-    _isLicensed = true;
-    _noOnlineLicenseLogged = false;
-
-    await _setInheritedProLocal(false, notify: false);
-    await _setLicenseEndDate(tokenInfo.expiryDate);
-    await _setLicenseIdLocal(
-      tokenInfo.licenseId?.trim().toUpperCase().isNotEmpty == true
-          ? tokenInfo.licenseId
-          : (_licenseId ?? hardwareId),
+    final normalizedLicenseId = tokenInfo.licenseId?.trim().toUpperCase();
+    await _applyManualActivationLocally(
+      _LocalManualActivation(
+        rawToken: token,
+        tokenInfo: _LicenseTokenInfo(
+          hardwareId: tokenInfo.hardwareId,
+          licenseId:
+              (normalizedLicenseId != null && normalizedLicenseId.isNotEmpty)
+                  ? normalizedLicenseId
+                  : (_licenseId ?? hardwareId),
+          expiryDate: tokenInfo.expiryDate,
+          packageName: tokenInfo.packageName,
+          planCode: tokenInfo.planCode,
+        ),
+      ),
+      notify: false,
+      persist: true,
     );
-
-    unawaited(_persistKasasiBestEffort());
     unawaited(_ensureProgramDenemeRowExistsBestEffort());
     notifyListeners();
 
@@ -1844,6 +1939,16 @@ class _LicenseTokenInfo {
     required this.expiryDate,
     required this.packageName,
     required this.planCode,
+  });
+}
+
+class _LocalManualActivation {
+  final String rawToken;
+  final _LicenseTokenInfo tokenInfo;
+
+  const _LocalManualActivation({
+    required this.rawToken,
+    required this.tokenInfo,
   });
 }
 

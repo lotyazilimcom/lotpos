@@ -20,6 +20,7 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
   String? _hataMesaji;
   bool _basarili = false;
   final TextEditingController _manuelKodController = TextEditingController();
+  final FocusNode _manuelKodFocusNode = FocusNode();
 
   int get _manuelKodRakamSayisi =>
       _manuelKodController.text.replaceAll(RegExp(r'[^0-9]'), '').length;
@@ -36,11 +37,17 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
   void initState() {
     super.initState();
     unawaited(LisansServisi().dogrula());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _manuelKodFocusNode.requestFocus();
+      }
+    });
   }
 
   @override
   void dispose() {
     _manuelKodController.dispose();
+    _manuelKodFocusNode.dispose();
     super.dispose();
   }
 
@@ -232,31 +239,12 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
                   ListenableBuilder(
                     listenable: LisansServisi(),
                     builder: (context, _) {
-                      final masterLicenseId =
-                          LisansServisi().licenseId ?? 'TANIMSIZ';
-                      return Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: _KimlikBilgiKart(
-                              label: tr('login.license.master_id'),
-                              value: masterLicenseId,
-                              icon: Icons.vpn_key_rounded,
-                              isDark: isDark,
-                              onCopy: () => _kopyala(masterLicenseId),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _KimlikBilgiKart(
-                              label: tr('login.license.hardware_id'),
-                              value: hardwareId,
-                              icon: Icons.computer,
-                              isDark: isDark,
-                              onCopy: () => _kopyala(hardwareId),
-                            ),
-                          ),
-                        ],
+                      return _KimlikBilgiKart(
+                        label: tr('login.license.hardware_id'),
+                        value: hardwareId,
+                        icon: Icons.computer,
+                        isDark: isDark,
+                        onCopy: () => _kopyala(hardwareId),
                       );
                     },
                   ),
@@ -439,6 +427,8 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
                                   Expanded(
                                     child: TextField(
                                       controller: _manuelKodController,
+                                      focusNode: _manuelKodFocusNode,
+                                      autofocus: true,
                                       onChanged: (_) => setState(() {}),
                                       keyboardType: TextInputType.number,
                                       textInputAction: TextInputAction.done,
@@ -449,6 +439,19 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
                                       decoration: InputDecoration(
                                         hintText: tr(
                                           'login.license.manual_placeholder',
+                                        ),
+                                        hintStyle: TextStyle(
+                                          fontSize: 15,
+                                          fontFamily: 'monospace',
+                                          fontWeight: FontWeight.w700,
+                                          letterSpacing: 1.0,
+                                          color: isDark
+                                              ? Colors.white.withValues(
+                                                  alpha: 0.18,
+                                                )
+                                              : const Color(
+                                                  0xFF1A1F38,
+                                                ).withValues(alpha: 0.22),
                                         ),
                                         border: InputBorder.none,
                                         isDense: true,
