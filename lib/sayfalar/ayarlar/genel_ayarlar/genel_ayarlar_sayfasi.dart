@@ -394,6 +394,26 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     return null;
   }
 
+  bool _ipGibiGorunuyorMu(String value) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return false;
+    final parts = trimmed.split('.');
+    if (parts.length != 4) return false;
+    for (final part in parts) {
+      final n = int.tryParse(part);
+      if (n == null || n < 0 || n > 255) return false;
+    }
+    return true;
+  }
+
+  String _yerelSunucuBasligi(Service server, int index) {
+    final rawName = (server.name ?? '').trim();
+    if (rawName.isNotEmpty && !_ipGibiGorunuyorMu(rawName)) {
+      return rawName;
+    }
+    return index == 0 ? 'Patisyo POS Server' : 'Patisyo POS Server (${index + 1})';
+  }
+
   Future<void> _kaydet() async {
     final bool masaustuBaglantiAkisi = _masaustuYerelSunucuSecimiDestekleniyor;
     final String oncekiRolu = _kayitliBaglantiRolu;
@@ -2416,7 +2436,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                     final index = entry.key;
                     final server = entry.value;
                     final host = (server.host ?? '').trim();
-                    final title = (server.name ?? host).trim();
+                    final title = _yerelSunucuBasligi(server, index);
                     final isSelected = selectedHost == host;
 
                     return InkWell(
@@ -2455,7 +2475,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Text(
-                                    title.isEmpty ? host : title,
+                                    title,
                                     style: TextStyle(
                                       fontSize: 13,
                                       fontWeight: FontWeight.w800,
