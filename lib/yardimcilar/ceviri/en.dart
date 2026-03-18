@@ -1040,8 +1040,8 @@ const Map<String, String> enCeviriler = {
   'login.company.placeholder': 'Select a company',
   'login.license.title': 'License & Activation',
   'login.license.subtitle': 'Device Registration',
-  'login.license.master_id': 'MASTER LICENSE CODE (LICENSE ID)',
-  'login.license.hardware_id': 'HARDWARE ID',
+  'login.license.master_id': 'Master license code (License ID)',
+  'login.license.hardware_id': 'Hardware ID',
   'login.license.help':
       '* To activate your license, share the above ID with your administrator.',
   'login.license.button': 'VERIFY & ACTIVATE LICENSE',
@@ -1057,7 +1057,7 @@ const Map<String, String> enCeviriler = {
   'login.license.manual_offline_hint':
       'Internet is unavailable. Server verification is disabled; you can activate the local Pro license with the manual code.',
   'login.license.manual_placeholder':
-      'Paste the manual license code you received from your administrator.',
+      'Paste the ALI1234-5678-9012 code here.',
   'login.license.manual_button': 'Apply Manual Code',
   'login.license.manual_empty': 'Manual license code cannot be empty.',
   'login.license.manual_invalid':

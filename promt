@@ -248,3 +248,38 @@ Hey şimdi reis bak https://app.lemonsqueezy.com/dashboard buraya kayıt oldum b
 3. İstersen sıradaki adımda aynı dialog için admindeki dil bazlı ödeme ayarlarını görsel metinlerle birebir bağlayıp TRY/USD ayrımını da tamamlayayım. bunuda yap artık dile göre yüklensin herşey ve artık tamamlayalım hey yeter artık
 
 4. Çok önemli kural yukardaki talimatların tamamını hiç bozmadan sakın ha biryeri bozmadan hiç düzelteceksin çok dikaktli ol çok en ufak zerre kadar hata istemiyorum hatasız eksiksiz yapacaksın 
+
+
+
+
+
+
+
+
+
+Şİmdi bak reis aşağıdaki dosyaların tamamını eksiksiz incele ve ödeme işlemi lisans işlemini tam olarka anla ve bak müşteri profilinde lisans uzatmayı paket yükseltmeyi ve iptal etmeyi aktif hale getireceğiz aynı proje styleinde diğer dialoglar gibi dialoglar tasarlayacaksın açılacak ve aşağıdaki talimatları yerine getireceksin
+
+1. Lisans Uzatma ve paket yükseltmeyi birleştir ismi Lisasn İşlemleri olsun dialog açılacak ödemesini falan seçeceksin ödeme id bilgilerini girecek kullanıcı eksiksiz paketi seçebilecek ve uzatacak sistemi zaten biliyorsun hangi bilgi isteyeceğini iyice incele ve düşün ve bil bak çok profesyonelce tüm bilgiler girilerek lisanslama yapılsın otomatik olarak nasıl yapıyorsa tam öğren be manuel olarak uygula eksiksiz hatasız olarka çok dikaktli ool
+
+2. Lisans iptalinde lemon için geri ödeme butonu olsun admin 15 gün geçsede iade edebilsin bak flutter ı admini aşağıdaki dosyaları otomatik iptal sistemini iyice öğren bunu adminde burada yapabilsin 
+
+
+
+3. çok önemli kural önce aşağıdkai dosyaları incel eve otomaitk satın alma otomatik iptal etmeyi satır satır en ince ayrıntısına kadar öğren ezberle resim ekledim iyice incele ve eksiksiz hatasız yukardaki tüm talimatları yerine getir sakın ha sakın başk ayeir bozma çok dikaktli ol çok sakın mevcut sistemleri bozma çok dikaktlice heryeri öğren
+
+/Users/nasip/Desktop/lotyazilim çok önemli kural ve emir bu klasör içindeki tüm dosyaları satır satır incele ve kırmızı çizgi net emir /Users/nasip/Desktop/lotpos/lib/sayfalar/ayarlar/hesap_ayarlari/pro_satin_alma_dialog.dart
+/Users/nasip/Desktop/lotpos/lib/sayfalar/ayarlar/hesap_ayarlari/hesap_ayarlari_sayfasi.dart bunları incele öğren ezberle tüm sistemi çok dikaktli ol supabase e falan nasıl bağlanıyor lemondan bilgiler nasıl geliyor tam öğren 
+
+/Users/nasip/Desktop/lotpos/promt çok önemli kural ve emir bu klasör içindeki tüm dosyaları satır satır incele ve kırmızı çizgi net emir /Users/nasip/Desktop/lotpos/lib/sayfalar/ayarlar/hesap_ayarlari/pro_satin_alma_dialog.dart
+/Users/nasip/Desktop/lotpos/lib/sayfalar/ayarlar/hesap_ayarlari/hesap_ayarlari_sayfasi.dart bunları incele öğren ezberle tüm sistemi çok dikaktli ol supabase e falan nasıl bağlanıyor lemondan bilgiler nasıl geliyor tam öğren 
+
+
+
+
+
+
+
+
+Şİmdi reis beni iyi dinle bak lospay yüklerken hata aldık lite lisansta proyu daha denemedik ama onuda kontrol et bak ilk reismi incele hataya bak Request functions was not found hatası verdi acaba formlarmı kayıt olmuyor incele şimdi sistem şöyle çalışır kullanıcı programı ilk defa kurduğunda lite kullanıcı olarak sisteme düşer ikinci resmi incele sonra eğer lospay satın alamk isterse kayıt olmalı kayıt olup alım yaptığında müşteriler sayfasına düşer şu anda pro lisans sipariş dialoğu satın alma dediğim gibi dört dörtlük çalışıyor şimdi bu lospay hem lite versiyonda hep pro versiyonda tam oalrak çalışıp çalışmadını incele hata neden kaynaklanıyor bul çok dikaktli ol çok sakın ha sakın başk ayeir bozma skaın 
+
+Çok önemli kural önce mevcut pro lisans satın alma incelenecek en zerre kadar detayın akadar sonra lospay incelenecek bak admin kısmının supabase veritabanını sql olarka aşğıda atıyrum tam oarak incele başk ayeir bozmadan çok dikaktli olarak düzelt skaın ha skaın başk ayeri bozma

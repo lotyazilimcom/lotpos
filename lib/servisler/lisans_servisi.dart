@@ -46,6 +46,16 @@ class LisansServisi extends ChangeNotifier {
   static const Duration _kasasiTouchInterval = Duration(minutes: 15);
   static const Duration _licenseIdSyncInterval = Duration(minutes: 10);
   static const Duration _losPaySyncInterval = Duration(minutes: 10);
+  static const String _manualCodePrefix = 'ALI';
+  static const int _manualCodeVersion = 1;
+  static const int _manualCodeDayBits = 13;
+  static const int _manualCodeVersionBits = 2;
+  static const int _manualCodeMacBits = 24;
+  static const int _manualCodeShift =
+      _manualCodeVersionBits + _manualCodeMacBits;
+  static const int _manualCodeVersionShift = _manualCodeMacBits;
+  static const int _manualCodeMacMask = (1 << _manualCodeMacBits) - 1;
+  static const int _manualCodeMaxDayOffset = (1 << _manualCodeDayBits) - 1;
 
   String get _vaultSecret => '$_licenseSecret|$_secKey|LOT-LICENSE-VAULT-V1';
 
@@ -748,7 +758,7 @@ class LisansServisi extends ChangeNotifier {
       return;
     }
 
-    final tokenInfo = _verifyAndParseLicenseToken(localKey);
+    final tokenInfo = _parseLicenseProof(localKey);
     if (tokenInfo == null) {
       await prefs.remove(_prefsLicenseKeyKey);
       _licenseKey = null;
@@ -1226,6 +1236,77 @@ class LisansServisi extends ChangeNotifier {
     }
   }
 
+  DateTime get _manualCodeEpochUtc => DateTime.utc(2024, 1, 1);
+
+  String _normalizeManualActivationCode(String rawCode) {
+    final compact = rawCode
+        .trim()
+        .toUpperCase()
+        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    if (compact.startsWith(_manualCodePrefix)) {
+      return compact.substring(_manualCodePrefix.length);
+    }
+    return compact;
+  }
+
+  int _computeManualCodeMac(String hardwareId, String expiryDate) {
+    final payload =
+        '$_manualCodePrefix$_manualCodeVersion|${hardwareId.toUpperCase()}|$expiryDate';
+    final digest = Hmac(
+      sha256,
+      utf8.encode(_licenseSecret),
+    ).convert(utf8.encode(payload));
+
+    return ((digest.bytes[0] << 16) | (digest.bytes[1] << 8) | digest.bytes[2]) &
+        _manualCodeMacMask;
+  }
+
+  _LicenseTokenInfo? _verifyAndParseManualActivationCode(String rawCode) {
+    try {
+      final normalized = _normalizeManualActivationCode(rawCode);
+      if (!RegExp(r'^\d{12}$').hasMatch(normalized)) return null;
+
+      final numericValue = int.tryParse(normalized);
+      if (numericValue == null) return null;
+
+      final dayOffset = numericValue >> _manualCodeShift;
+      final version =
+          (numericValue >> _manualCodeVersionShift) &
+          ((1 << _manualCodeVersionBits) - 1);
+      final mac = numericValue & _manualCodeMacMask;
+
+      if (version != _manualCodeVersion) return null;
+      if (dayOffset < 0 || dayOffset > _manualCodeMaxDayOffset) return null;
+
+      final expiryUtc = _manualCodeEpochUtc.add(Duration(days: dayOffset));
+      final expiryDate = DateTime(expiryUtc.year, expiryUtc.month, expiryUtc.day);
+      final hardwareId = (_hardwareId ?? '').trim().toUpperCase();
+      if (hardwareId.isEmpty) return null;
+
+      final expiryText =
+          '${expiryUtc.year.toString().padLeft(4, '0')}-'
+          '${expiryUtc.month.toString().padLeft(2, '0')}-'
+          '${expiryUtc.day.toString().padLeft(2, '0')}';
+      final expectedMac = _computeManualCodeMac(hardwareId, expiryText);
+      if (expectedMac != mac) return null;
+
+      return _LicenseTokenInfo(
+        hardwareId: hardwareId,
+        licenseId: null,
+        expiryDate: expiryDate,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  _LicenseTokenInfo? _parseLicenseProof(String rawValue) {
+    final normalized = rawValue.trim();
+    if (normalized.isEmpty) return null;
+    return _verifyAndParseLicenseToken(normalized) ??
+        _verifyAndParseManualActivationCode(normalized);
+  }
+
   _LicenseTokenInfo? _verifyAndParseLicenseToken(String token) {
     try {
       final parts = token.split('.');
@@ -1395,7 +1476,7 @@ class LisansServisi extends ChangeNotifier {
       return ManualLisansUygulamaSonucu.bosKod;
     }
 
-    final tokenInfo = _verifyAndParseLicenseToken(token);
+    final tokenInfo = _parseLicenseProof(token);
     if (tokenInfo == null) {
       return ManualLisansUygulamaSonucu.gecersizKod;
     }

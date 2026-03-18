@@ -135,24 +135,29 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
 
     return Dialog(
       backgroundColor: Colors.transparent,
-      child: Container(
-        constraints: const BoxConstraints(maxWidth: 400),
-        padding: const EdgeInsets.all(32),
-        decoration: BoxDecoration(
-          color: isDark ? const Color(0xFF1A1F38) : Colors.white,
-          borderRadius: BorderRadius.circular(24),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.2),
-              blurRadius: 20,
-              offset: const Offset(0, 10),
-            ),
-          ],
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: 400,
+          maxHeight: MediaQuery.of(context).size.height * 0.88,
         ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+        child: Container(
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF1A1F38) : Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
             Row(
               children: [
                 Container(
@@ -363,8 +368,8 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
                           ),
                           const SizedBox(width: 10),
                           Expanded(
-                            child: Text(
-                              isLite ? 'LITE SÜRÜM' : 'PRO SÜRÜM',
+                          child: Text(
+                              isLite ? 'Lite sürüm' : 'Pro sürüm',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w900,
@@ -489,9 +494,16 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
                       const SizedBox(height: 12),
                       TextField(
                         controller: _manuelKodController,
-                        minLines: 4,
-                        maxLines: 6,
+                        minLines: 1,
+                        maxLines: 2,
                         onChanged: (_) => setState(() {}),
+                        textCapitalization: TextCapitalization.characters,
+                        keyboardType: TextInputType.visiblePassword,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(
+                            RegExp(r'[A-Za-z0-9\-\s]'),
+                          ),
+                        ],
                         enabled: !_yukleniyor && !_basarili,
                         decoration: InputDecoration(
                           hintText: tr('login.license.manual_placeholder'),
@@ -510,9 +522,11 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
                           contentPadding: const EdgeInsets.all(14),
                         ),
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 14,
                           height: 1.4,
                           fontFamily: 'monospace',
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 0.8,
                           color: isDark
                               ? Colors.white
                               : const Color(0xFF1A1F38),
@@ -693,7 +707,9 @@ class _LisansDiyalogState extends State<LisansDiyalog> {
                 },
               ),
             ),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );

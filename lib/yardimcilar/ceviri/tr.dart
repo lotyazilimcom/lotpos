@@ -1078,8 +1078,8 @@ const Map<String, String> trCeviriler = {
   'login.company.placeholder': 'Şirket seçin',
   'login.license.title': 'Lisans ve Aktivasyon',
   'login.license.subtitle': 'Cihaz Kayıt İşlemleri',
-  'login.license.master_id': 'ANA LİSANS KODU (LİSANS ID)',
-  'login.license.hardware_id': 'DONANIM KİMLİĞİ (HARDWARE ID)',
+  'login.license.master_id': 'Ana lisans kodu (Lisans ID)',
+  'login.license.hardware_id': 'Donanım kimliği (Hardware ID)',
   'login.license.help':
       '* Lisansınızı aktif etmek için yukarıdaki ID\'yi yöneticinize iletin.',
   'login.license.button': 'Pro Sürüme Geç',
@@ -1095,7 +1095,7 @@ const Map<String, String> trCeviriler = {
   'login.license.manual_offline_hint':
       'Internet bulunamadi. Sunucu dogrulamasi pasif durumda; manuel lisans kodu ile yerel Pro aktivasyon yapabilirsiniz.',
   'login.license.manual_placeholder':
-      'Yoneticinizden aldiginiz manuel lisans kodunu buraya yapistirin.',
+      'ALI1234-5678-9012 kodunu buraya yapistirin.',
   'login.license.manual_button': 'Manuel Kodu Uygula',
   'login.license.manual_empty': 'Manuel lisans kodu bos olamaz.',
   'login.license.manual_invalid': 'Manuel lisans kodu gecersiz veya bozuk.',
