@@ -116,7 +116,9 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
       return _ayarlar.sunucuModu == 'terminal' ? 'terminal' : 'server';
     }
     final discoveredHost = (VeritabaniYapilandirma.discoveredHost ?? '').trim();
-    return discoveredHost.isEmpty ? 'server' : 'terminal';
+    return VeritabaniYapilandirma.yerelAnaSunucuHostMu(discoveredHost)
+        ? 'server'
+        : 'terminal';
   }
 
   Future<void> _yerelSunuculariTara({bool showError = true}) async {
@@ -346,10 +348,16 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     final String oncekiRolu = _kayitliBaglantiRolu;
     final String oncekiHost = (VeritabaniYapilandirma.discoveredHost ?? '')
         .trim();
-    final String? hedefHost =
-        masaustuBaglantiAkisi && _baglantiRolu == 'terminal'
+    String? hedefHost = masaustuBaglantiAkisi && _baglantiRolu == 'terminal'
         ? (_seciliYerelSunucuHost ?? '').trim()
         : null;
+
+    if (masaustuBaglantiAkisi &&
+        _baglantiRolu == 'terminal' &&
+        (hedefHost == null || hedefHost.isEmpty)) {
+      await _yerelSunuculariTara(showError: false);
+      hedefHost = (_seciliYerelSunucuHost ?? '').trim();
+    }
 
     if (masaustuBaglantiAkisi &&
         _baglantiRolu == 'terminal' &&

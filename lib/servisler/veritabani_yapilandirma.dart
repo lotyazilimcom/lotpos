@@ -271,6 +271,8 @@ class VeritabaniYapilandirma {
     await prefs.setString(_prefConnectionMode, mode);
     if (_discoveredHost != null) {
       await prefs.setString(_prefLastDiscoveredHost, _discoveredHost!);
+    } else {
+      await prefs.remove(_prefLastDiscoveredHost);
     }
     _syncDesktopCloudPendingWatcher();
     debugPrint(
@@ -286,12 +288,20 @@ class VeritabaniYapilandirma {
     return host;
   }
 
+  static bool yerelAnaSunucuHostMu(String? host) {
+    final normalized = (host ?? '').trim().toLowerCase();
+    if (normalized.isEmpty) return true;
+    return normalized == '127.0.0.1' ||
+        normalized == 'localhost' ||
+        normalized == '::1';
+  }
+
   static bool get masaustuAnaServerSecili {
     if (kIsWeb) return false;
     if (!(Platform.isWindows || Platform.isMacOS || Platform.isLinux)) {
       return false;
     }
-    return (discoveredHost ?? '').trim().isEmpty;
+    return yerelAnaSunucuHostMu(discoveredHost);
   }
 
   static bool get cloudCredentialsReady {

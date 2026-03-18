@@ -26,8 +26,7 @@ class LocalNetworkDiscoveryService {
 
   Registration? _registration;
 
-  bool get _isMobilePlatform =>
-      !kIsWeb && (Platform.isAndroid || Platform.isIOS);
+  bool get _canUsePortAndDbFallback => !kIsWeb;
 
   /// Masaüstü uygulaması için yayına başlar.
   Future<void> yayiniBaslat() async {
@@ -96,7 +95,7 @@ class LocalNetworkDiscoveryService {
       _mdnsSunuculariBul(timeout: mdnsTimeout),
     ];
 
-    if (_isMobilePlatform) {
+    if (_canUsePortAndDbFallback) {
       tasks.add(_portVeDbTaramaIleSunuculariBul(timeout: scanTimeout));
     }
 
@@ -161,8 +160,8 @@ class LocalNetworkDiscoveryService {
     final mdns = await _mdnsIlkSunucuBul(timeout: timeout);
     if (mdns != null) return mdns;
 
-    // Mobilde, program açık olmasa da PostgreSQL üzerinden bulmaya çalış.
-    if (_isMobilePlatform) {
+    // Program açık değilse veya mDNS görünmüyorsa PostgreSQL üzerinden bulmaya çalış.
+    if (_canUsePortAndDbFallback) {
       return await _portVeDbTaramaIleIlkSunucuBul(timeout: timeout);
     }
 
@@ -287,11 +286,7 @@ class LocalNetworkDiscoveryService {
       final hit = await _firstNonNull<Service>(
         batch.map((ip) async {
           for (final port in portCandidates) {
-            final open = await _tcpPortAcikMi(
-              ip,
-              port,
-              timeout: socketTimeout,
-            );
+            final open = await _tcpPortAcikMi(ip, port, timeout: socketTimeout);
             if (!open) continue;
 
             final serverMi = await _patisyoServerMi(
@@ -342,7 +337,8 @@ class LocalNetworkDiscoveryService {
     final List<Service> resolved = [];
     for (final s in services) {
       try {
-        final Service r = (s.host != null &&
+        final Service r =
+            (s.host != null &&
                 s.host!.trim().isNotEmpty &&
                 s.port != null &&
                 (s.port ?? 0) > 0)
@@ -385,16 +381,18 @@ class LocalNetworkDiscoveryService {
 
     for (final f in futures) {
       remaining++;
-      f.then((value) {
-        if (value != null && !completer.isCompleted) {
-          completer.complete(value);
-        }
-      }).whenComplete(() {
-        remaining--;
-        if (remaining == 0 && !completer.isCompleted) {
-          completer.complete(null);
-        }
-      });
+      f
+          .then((value) {
+            if (value != null && !completer.isCompleted) {
+              completer.complete(value);
+            }
+          })
+          .whenComplete(() {
+            remaining--;
+            if (remaining == 0 && !completer.isCompleted) {
+              completer.complete(null);
+            }
+          });
     }
 
     if (remaining == 0 && !completer.isCompleted) {
@@ -453,11 +451,7 @@ class LocalNetworkDiscoveryService {
       final batchResults = await Future.wait(
         batch.map((ip) async {
           for (final port in portCandidates) {
-            final open = await _tcpPortAcikMi(
-              ip,
-              port,
-              timeout: socketTimeout,
-            );
+            final open = await _tcpPortAcikMi(ip, port, timeout: socketTimeout);
             if (!open) continue;
 
             final serverMi = await _patisyoServerMi(
@@ -612,9 +606,9 @@ class LocalNetworkDiscoveryService {
 
   Future<String?> _reverseLookupBestEffort(String ip) async {
     try {
-      final reversed = await InternetAddress(ip)
-          .reverse()
-          .timeout(const Duration(milliseconds: 250));
+      final reversed = await InternetAddress(
+        ip,
+      ).reverse().timeout(const Duration(milliseconds: 250));
       final name = reversed.host.trim();
       if (name.isEmpty) return null;
       if (name == ip) return null;

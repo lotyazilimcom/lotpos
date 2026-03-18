@@ -270,6 +270,66 @@ class BaglantiYoneticisi extends ChangeNotifier {
 
   /// Masaüstü başlatma
   Future<void> _masaustuBaslatma() async {
+    final mode = VeritabaniYapilandirma.connectionMode;
+    final savedHost = (VeritabaniYapilandirma.discoveredHost ?? '').trim();
+    final istemciModu =
+        (mode == 'local' || mode == 'hybrid') &&
+        !VeritabaniYapilandirma.yerelAnaSunucuHostMu(savedHost);
+
+    if (istemciModu) {
+      debugPrint(
+        'BaglantiYoneticisi: Masaüstü istemci modu için kayıtlı host deneniyor: $savedHost',
+      );
+      bool bagli = await _baglantiTestEt(
+        savedHost,
+        timeout: const Duration(milliseconds: 900),
+      );
+
+      if (!bagli) {
+        debugPrint(
+          'BaglantiYoneticisi: Masaüstü istemci host yanıt vermiyor, otomatik yeniden arama başlatılıyor...',
+        );
+        final service = await LocalNetworkDiscoveryService().hizliSunucuBul(
+          timeout: const Duration(milliseconds: 2200),
+        );
+
+        if (service != null &&
+            service.host != null &&
+            service.host!.trim().isNotEmpty) {
+          final yeniHost = service.host!.trim();
+          final yeniHostCanli = await _baglantiTestEt(
+            yeniHost,
+            timeout: const Duration(milliseconds: 1200),
+          );
+          if (!yeniHostCanli) {
+            debugPrint(
+              'BaglantiYoneticisi: Masaüstü için keşfedilen host canlı değil ($yeniHost).',
+            );
+            _durum = BaglantiDurumu.sunucuBulunamadi;
+            notifyListeners();
+            return;
+          }
+
+          debugPrint(
+            'BaglantiYoneticisi: Masaüstü istemci yeni ana server buldu: $yeniHost',
+          );
+          await VeritabaniYapilandirma.saveConnectionPreferences(
+            mode,
+            yeniHost,
+          );
+          VeritabaniYapilandirma.setDiscoveredHost(yeniHost);
+          await _mdnsLisansBilgisiniUygula(service);
+        } else {
+          debugPrint(
+            'BaglantiYoneticisi: Masaüstü için ağda ana server bulunamadı.',
+          );
+          _durum = BaglantiDurumu.sunucuBulunamadi;
+          notifyListeners();
+          return;
+        }
+      }
+    }
+
     await _standartBaslatma();
     await YerelAgYazdirmaServisi().masaustuKuyrugunuBaslat();
 
