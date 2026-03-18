@@ -186,8 +186,14 @@ class LisansServisi extends ChangeNotifier {
       await dogrula(onlineTimeout: const Duration(seconds: 4));
 
       // İlk kurulumda cihaz kaydı ve başlangıç LosPay bakiyesi UI açılmadan hazır olsun.
-      await _ensureProgramDenemeRowExistsBestEffort(forceLiteSettingsSync: true);
-      await _syncLosPayBalanceFromServerBestEffort(force: true);
+      await _ensureProgramDenemeRowExistsBestEffort(
+        forceLiteSettingsSync: true,
+      );
+      await _syncOnlineRecoveryBestEffort(
+        forceLiteSettingsSync: true,
+        refreshGeo: true,
+        forceStatusPush: true,
+      );
 
       _startKasasiDokunmaTimer();
       unawaited(_persistKasasiBestEffort());
@@ -209,13 +215,15 @@ class LisansServisi extends ChangeNotifier {
     // Lite ayarları (best-effort): internet varsa Supabase'ten çek
     unawaited(LiteAyarlarServisi().senkronizeBestEffort(force: true));
 
-    // Admin panel görünürlüğü için cihaz kaydı (best-effort) + geo (best-effort)
-    unawaited(_ensureProgramDenemeRowExistsBestEffort());
+    // Admin panel görünürlüğü için cihaz kaydı + geo + ilk hediye kredi toparlaması.
     unawaited(_syncLicenseIdFromServerBestEffort(force: true));
-    unawaited(_updateGeoInfo());
-
-    // Online işareti (best-effort)
-    unawaited(durumGuncelle(true));
+    unawaited(
+      _syncOnlineRecoveryBestEffort(
+        forceLiteSettingsSync: true,
+        refreshGeo: true,
+        forceStatusPush: true,
+      ),
+    );
 
     // Periyodik heartbeat: her 60 saniyede bir durumGuncelle(true)
     // Bu sayede uygulama force-kill olduğunda admin panelde 2 dk içinde offline olarak algılanır.
@@ -381,7 +389,8 @@ class LisansServisi extends ChangeNotifier {
       return cachedHardwareId;
     }
 
-    final fallbackRawId = 'ERROR-DEVICE-${DateTime.now().millisecondsSinceEpoch}';
+    final fallbackRawId =
+        'ERROR-DEVICE-${DateTime.now().millisecondsSinceEpoch}';
     return _computeHardwareIdFromRawId(fallbackRawId);
   }
 
@@ -713,8 +722,9 @@ class LisansServisi extends ChangeNotifier {
     await _setInheritedProLocal(false, notify: false);
     await _setLicenseEndDate(activation.tokenInfo.expiryDate);
 
-    final normalizedLicenseId =
-        activation.tokenInfo.licenseId?.trim().toUpperCase();
+    final normalizedLicenseId = activation.tokenInfo.licenseId
+        ?.trim()
+        .toUpperCase();
     final currentLicenseId = _licenseId?.trim().toUpperCase();
     await _setLicenseIdLocal(
       (normalizedLicenseId != null && normalizedLicenseId.isNotEmpty)
@@ -936,6 +946,7 @@ class LisansServisi extends ChangeNotifier {
     try {
       bool forceLiteByLifecycle = false;
       final localManualActivation = await _readValidLocalManualActivation();
+      final wasServerReachable = _serverReachable == true;
       final lifecycle = await _programDurumuGetirOnlineOrThrow(
         timeout: onlineTimeout,
       );
@@ -965,6 +976,15 @@ class LisansServisi extends ChangeNotifier {
         notify: false,
         clearOnMissing: true,
       );
+      final shouldRunOnlineRecovery =
+          !wasServerReachable || _losPayBalance <= 0.0001;
+      if (shouldRunOnlineRecovery) {
+        await _syncOnlineRecoveryBestEffort(
+          forceLiteSettingsSync: true,
+          refreshGeo: true,
+          forceStatusPush: !wasServerReachable,
+        );
+      }
 
       if (data == null) {
         if (localManualActivation != null) {
@@ -1053,13 +1073,10 @@ class LisansServisi extends ChangeNotifier {
     final now = _nowUtc().toIso8601String();
     final desiredStatus = isLicensed ? 'converted' : 'active';
     final hid = _hardwareId!;
-    await LiteAyarlarServisi().baslat();
-    await LiteAyarlarServisi().senkronizeBestEffort(
-      force: forceLiteSettingsSync,
-    );
-    final initialLosPayCredit = desiredStatus == 'active'
-        ? LiteAyarlarServisi().initialLosPayCredit
-        : 0.0;
+    if (forceLiteSettingsSync) {
+      await LiteAyarlarServisi().baslat();
+      await LiteAyarlarServisi().senkronizeBestEffort(force: true);
+    }
 
     bool isMissingColumn(PostgrestException error, String columnName) {
       final msg = error.message.toLowerCase();
@@ -1067,24 +1084,17 @@ class LisansServisi extends ChangeNotifier {
           (msg.contains('column') || msg.contains('schema'));
     }
 
-    Future<bool> insertProgramDeneme(Map<String, dynamic> payload) async {
+    Future<void> insertProgramDeneme(Map<String, dynamic> payload) async {
       final nextPayload = Map<String, dynamic>.from(payload);
-      var losPayApplied = nextPayload.containsKey('lospay_credit');
 
       while (true) {
         try {
           await supabase.from('program_deneme').insert(nextPayload);
-          return losPayApplied;
+          return;
         } on PostgrestException catch (e) {
           if (isMissingColumn(e, 'status') &&
               nextPayload.containsKey('status')) {
             nextPayload.remove('status');
-            continue;
-          }
-          if (isMissingColumn(e, 'lospay_credit') &&
-              nextPayload.containsKey('lospay_credit')) {
-            nextPayload.remove('lospay_credit');
-            losPayApplied = false;
             continue;
           }
           rethrow;
@@ -1122,13 +1132,9 @@ class LisansServisi extends ChangeNotifier {
         'is_online': true,
         'last_heartbeat': now,
         'status': desiredStatus,
-        'lospay_credit': initialLosPayCredit,
       };
 
-      final losPayApplied = await insertProgramDeneme(payload);
-      if (losPayApplied) {
-        await _setLosPayBalanceLocal(initialLosPayCredit);
-      }
+      await insertProgramDeneme(payload);
       debugPrint('Lisans Servisi: program_deneme cihaz kaydı oluşturuldu.');
     } on PostgrestException catch (e) {
       final msg = (e.message).toLowerCase();
@@ -1151,6 +1157,70 @@ class LisansServisi extends ChangeNotifier {
       }
     } catch (e) {
       debugPrint('program_deneme ensure hatası: $e');
+    }
+  }
+
+  String? _normalizeGeoSyncValue(String? value) {
+    final normalized = value?.trim();
+    if (normalized == null || normalized.isEmpty) return null;
+    if (normalized.toLowerCase() == 'unknown') return null;
+    return normalized;
+  }
+
+  Future<void> _ensureLiteInstallBenefitsBestEffort({
+    String? ipAddress,
+    String? city,
+  }) async {
+    final hid = _hardwareId;
+    if (hid == null || hid.trim().isEmpty) return;
+
+    final normalizedLicenseId = _licenseId?.trim().toUpperCase();
+    final normalizedIpAddress = _normalizeGeoSyncValue(ipAddress);
+    final normalizedCity = _normalizeGeoSyncValue(city);
+    final bodyPayload = <String, dynamic>{
+      'hardware_id': hid,
+      if (normalizedLicenseId != null && normalizedLicenseId.isNotEmpty)
+        'license_id': normalizedLicenseId,
+    };
+    if (normalizedIpAddress != null) {
+      bodyPayload['ip_address'] = normalizedIpAddress;
+    }
+    if (normalizedCity != null) {
+      bodyPayload['city'] = normalizedCity;
+    }
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse(
+              '${LisansServisi.u}/functions/v1/ensure-lite-install-benefits',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': LisansServisi.k,
+              'Authorization': 'Bearer ${LisansServisi.k}',
+            },
+            body: jsonEncode(bodyPayload),
+          )
+          .timeout(const Duration(seconds: 6));
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        debugPrint(
+          'Lisans Servisi: Lite kurulum hediyesi senkron hatası '
+          '(${response.statusCode}): ${response.body}',
+        );
+        return;
+      }
+
+      final body = jsonDecode(response.body);
+      if (body is Map<String, dynamic>) {
+        final currentBalance = _toDouble(body['current_balance']);
+        if (currentBalance >= 0) {
+          await _setLosPayBalanceLocal(currentBalance, notify: false);
+        }
+      }
+    } catch (e) {
+      debugPrint('Lisans Servisi: Lite kurulum hediyesi senkron hatası: $e');
     }
   }
 
@@ -1349,23 +1419,79 @@ class LisansServisi extends ChangeNotifier {
     }
   }
 
-  Future<void> _updateGeoInfo() async {
-    if (_hardwareId == null) return;
+  Future<void> _updateGeoInfo({
+    String? ipOverride,
+    String? cityOverride,
+  }) async {
+    final hid = _hardwareId;
+    if (hid == null) return;
     try {
-      final geoInfo = await _getGeoInfo();
-      if (geoInfo['ip'] == null || geoInfo['city'] == null) return;
+      String? ip = _normalizeGeoSyncValue(ipOverride);
+      String? city = _normalizeGeoSyncValue(cityOverride);
 
-      final ip = geoInfo['ip']!;
-      final city = geoInfo['city']!;
-      if (ip == 'Unknown' && city == 'Unknown') return;
+      if (ip == null && city == null) {
+        final geoInfo = await _getGeoInfo();
+        ip = _normalizeGeoSyncValue(geoInfo['ip']);
+        city = _normalizeGeoSyncValue(geoInfo['city']);
+      }
+
+      if (ip == null && city == null) return;
+
+      final payload = <String, dynamic>{};
+      if (ip != null) payload['ip_address'] = ip;
+      if (city != null) payload['city'] = city;
+      if (payload.isEmpty) return;
 
       final supabase = Supabase.instance.client;
       await supabase
           .from('program_deneme')
-          .update({'ip_address': ip, 'city': city})
-          .eq('hardware_id', _hardwareId!);
+          .update(payload)
+          .eq('hardware_id', hid);
+      await supabase.from('customers').update(payload).eq('hardware_id', hid);
     } catch (e) {
       debugPrint('Geo Info Güncelleme Hatası: $e');
+    }
+  }
+
+  Future<void> _syncOnlineRecoveryBestEffort({
+    bool forceLiteSettingsSync = false,
+    bool refreshGeo = false,
+    bool forceStatusPush = false,
+  }) async {
+    final hid = _hardwareId;
+    if (hid == null || hid.trim().isEmpty) return;
+
+    String? ipAddress;
+    String? city;
+
+    try {
+      await _ensureProgramDenemeRowExistsBestEffort(
+        forceLiteSettingsSync: forceLiteSettingsSync,
+      );
+
+      if (refreshGeo) {
+        final geoInfo = await _getGeoInfo();
+        ipAddress = _normalizeGeoSyncValue(geoInfo['ip']);
+        city = _normalizeGeoSyncValue(geoInfo['city']);
+      }
+
+      if (forceStatusPush) {
+        _lastOnlineStatus = null;
+      }
+      await durumGuncelle(true);
+
+      if (ipAddress != null || city != null) {
+        await _updateGeoInfo(ipOverride: ipAddress, cityOverride: city);
+      }
+
+      await _ensureLiteInstallBenefitsBestEffort(
+        ipAddress: ipAddress,
+        city: city,
+      );
+      await _syncLicenseIdFromServerBestEffort(force: true);
+      await _syncLosPayBalanceFromServerBestEffort(force: true, notify: true);
+    } catch (e) {
+      debugPrint('Lisans Servisi: Online toparlama senkronu hatası: $e');
     }
   }
 
@@ -1402,10 +1528,10 @@ class LisansServisi extends ChangeNotifier {
   }
 
   String _normalizeManualActivationCode(String rawCode) {
-    final compact = rawCode
-        .trim()
-        .toUpperCase()
-        .replaceAll(RegExp(r'[^A-Z0-9]'), '');
+    final compact = rawCode.trim().toUpperCase().replaceAll(
+      RegExp(r'[^A-Z0-9]'),
+      '',
+    );
     if (compact.startsWith(_manualCodePrefix)) {
       return compact.substring(_manualCodePrefix.length);
     }
@@ -1427,7 +1553,9 @@ class LisansServisi extends ChangeNotifier {
       utf8.encode(_licenseSecret),
     ).convert(utf8.encode(payload));
 
-    return ((digest.bytes[0] << 16) | (digest.bytes[1] << 8) | digest.bytes[2]) &
+    return ((digest.bytes[0] << 16) |
+            (digest.bytes[1] << 8) |
+            digest.bytes[2]) &
         macMask;
   }
 
@@ -1721,8 +1849,8 @@ class LisansServisi extends ChangeNotifier {
           hardwareId: tokenInfo.hardwareId,
           licenseId:
               (normalizedLicenseId != null && normalizedLicenseId.isNotEmpty)
-                  ? normalizedLicenseId
-                  : (_licenseId ?? hardwareId),
+              ? normalizedLicenseId
+              : (_licenseId ?? hardwareId),
           expiryDate: tokenInfo.expiryDate,
           packageName: tokenInfo.packageName,
           planCode: tokenInfo.planCode,
@@ -1732,6 +1860,15 @@ class LisansServisi extends ChangeNotifier {
       persist: true,
     );
     unawaited(_ensureProgramDenemeRowExistsBestEffort());
+    if (_serverReachable == true) {
+      unawaited(
+        _syncOnlineRecoveryBestEffort(
+          forceLiteSettingsSync: true,
+          refreshGeo: true,
+          forceStatusPush: true,
+        ),
+      );
+    }
     notifyListeners();
 
     return ManualLisansUygulamaSonucu.basarili;
@@ -1962,7 +2099,5 @@ class _ProgramLisansDurumu {
 class _HardwareIdentityResolution {
   final String rawId;
 
-  const _HardwareIdentityResolution({
-    required this.rawId,
-  });
+  const _HardwareIdentityResolution({required this.rawId});
 }
