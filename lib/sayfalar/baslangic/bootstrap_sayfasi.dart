@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import '../../servisler/baglanti_yoneticisi.dart';
+import '../../servisler/veritabani_yapilandirma.dart';
 import '../mobil_kurulum/mobil_kurulum_sayfasi.dart';
 import '../mobil_kurulum/online_veritabani_bekleniyor_sayfasi.dart';
 import '../giris/giris_sayfasi.dart';
@@ -69,6 +70,8 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
       } else {
         setState(() {});
       }
+    } else if (yonetici.durum == BaglantiDurumu.baglaniyor) {
+      setState(() {});
     } else if (yonetici.durum == BaglantiDurumu.hata ||
         yonetici.durum == BaglantiDurumu.bulutErisimHatasi) {
       setState(() {});
@@ -239,6 +242,12 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
         masaustuMu &&
         (yonetici.durum == BaglantiDurumu.kurulumGerekli ||
             yonetici.durum == BaglantiDurumu.sunucuBulunamadi);
+    final masaustuIstemciYerelDevamGoster =
+        masaustuMu &&
+        !bulutHatasi &&
+        !VeritabaniYapilandirma.masaustuAnaServerSecili &&
+        !yonetici.clusterUyumsuz &&
+        (masaustuYerelKurulumSorunu || yonetici.durum == BaglantiDurumu.hata);
     final hataDurumu =
         yonetici.durum == BaglantiDurumu.hata ||
         bulutHatasi ||
@@ -499,6 +508,32 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
                             child: OutlinedButton.icon(
                               onPressed: _yereleGecOnay,
                               icon: const Icon(Icons.home_rounded, size: 18),
+                              label: Text(
+                                tr('bootstrap.local_fallback.button'),
+                              ),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: BorderSide(
+                                  color: Colors.white.withValues(alpha: 0.4),
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 14,
+                                ),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+
+                        if (masaustuIstemciYerelDevamGoster) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: 260,
+                            child: OutlinedButton.icon(
+                              onPressed: _yereleGecOnay,
+                              icon: const Icon(Icons.storage_rounded, size: 18),
                               label: Text(
                                 tr('bootstrap.local_fallback.button'),
                               ),

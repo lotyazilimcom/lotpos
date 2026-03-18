@@ -112,6 +112,8 @@ class AyarlarVeritabaniServisi {
         return;
       }
 
+      await _anaServerYerelAgErisiminiHazirlaBestEffort();
+
       // Supabase/Neon pooler (özellikle transaction pooling) bazı ortamlarda
       // prepared statement/extended query kullanımını kısıtlayabilir.
       // LotPOS ise parametreli sorgular kullandığı için bu uyumluluğu erken doğrula.
@@ -348,6 +350,16 @@ class AyarlarVeritabaniServisi {
     if (kIsWeb) return false;
     final host = _config.host.trim().toLowerCase();
     return host == '127.0.0.1' || host == 'localhost' || host == '::1';
+  }
+
+  bool _anaServerYerelAgErisimiGerekliMi() {
+    if (!_desktopPlatformMi() || !_baglantiLocalMakineMi()) return false;
+    if (_bulutModundaMi()) return false;
+    return VeritabaniYapilandirma.masaustuAnaServerSecili;
+  }
+
+  String _postgresqlDinlemeAdresi() {
+    return _anaServerYerelAgErisimiGerekliMi() ? '*' : '127.0.0.1';
   }
 
   /// Cloud (Supabase) modunda mıyız?
@@ -615,11 +627,11 @@ class AyarlarVeritabaniServisi {
     }
   }
 
-  Future<void> _postgresqlConfGuncelle({required String dataDir}) async {
+  Future<bool> _postgresqlConfGuncelle({required String dataDir}) async {
     try {
       final sep = Platform.pathSeparator;
       final conf = File('$dataDir${sep}postgresql.conf');
-      if (!await conf.exists()) return;
+      if (!await conf.exists()) return false;
 
       const marker = '# patisyov10 auto-config';
       final profile = await PostgresTuningProfile.detect(
@@ -628,35 +640,291 @@ class AyarlarVeritabaniServisi {
       final managedLines = <String>[
         '# detected_memory_mb = ${profile.totalMemoryMb}',
         '# detected_cpu_count = ${profile.cpuCount}',
-        "listen_addresses = '127.0.0.1'",
+        "listen_addresses = '${_postgresqlDinlemeAdresi()}'",
         'port = ${_config.port}',
         ...profile.settings.map((setting) => setting.confLine),
       ];
 
-      final content = await conf.readAsString();
-      final lines = content.split(RegExp(r'\r?\n')).toList();
-
-      final markerIndex = lines.indexWhere((l) => l.trim() == marker);
-      if (markerIndex == -1) {
-        lines
-          ..add('')
-          ..add(marker)
-          ..addAll(managedLines);
-      } else {
-        var end = markerIndex + 1;
-        while (end < lines.length && lines[end].trim().isNotEmpty) {
-          end++;
-        }
-
-        lines.removeRange(markerIndex + 1, end);
-        lines.insertAll(markerIndex + 1, managedLines);
-      }
-
-      await conf.writeAsString(lines.join('\n'), flush: true);
+      return await _yapilandirmaBlogunuYaz(
+        file: conf,
+        marker: marker,
+        managedLines: managedLines,
+      );
     } catch (e) {
       debugPrint(
         'AyarlarVeritabaniServisi: postgresql.conf update warning: $e',
       );
+      return false;
+    }
+  }
+
+  Future<bool> _postgresqlHbaGuncelle({required String dataDir}) async {
+    try {
+      final sep = Platform.pathSeparator;
+      final hba = File('$dataDir${sep}pg_hba.conf');
+      if (!await hba.exists()) return false;
+
+      const marker = '# patisyov10 lan hba auto-config';
+      final managedLines = <String>[
+        'host    all             all             10.0.0.0/8              md5',
+        'host    all             all             172.16.0.0/12           md5',
+        'host    all             all             192.168.0.0/16          md5',
+      ];
+
+      return await _yapilandirmaBlogunuYaz(
+        file: hba,
+        marker: marker,
+        managedLines: managedLines,
+      );
+    } catch (e) {
+      debugPrint('AyarlarVeritabaniServisi: pg_hba.conf update warning: $e');
+      return false;
+    }
+  }
+
+  Future<bool> _yapilandirmaBlogunuYaz({
+    required File file,
+    required String marker,
+    required List<String> managedLines,
+  }) async {
+    final original = await file.readAsString();
+    final lines = original.split(RegExp(r'\r?\n')).toList();
+
+    final markerIndex = lines.indexWhere((l) => l.trim() == marker);
+    if (markerIndex == -1) {
+      lines
+        ..add('')
+        ..add(marker)
+        ..addAll(managedLines);
+    } else {
+      var end = markerIndex + 1;
+      while (end < lines.length && lines[end].trim().isNotEmpty) {
+        end++;
+      }
+      lines.removeRange(markerIndex + 1, end);
+      lines.insertAll(markerIndex + 1, managedLines);
+    }
+
+    final updated = lines.join('\n');
+    if (updated == original) return false;
+    await file.writeAsString(updated, flush: true);
+    return true;
+  }
+
+  Future<void> _anaServerYerelAgErisiminiHazirlaBestEffort() async {
+    if (!_anaServerYerelAgErisimiGerekliMi()) return;
+
+    try {
+      final dataDir = await _aktifPostgresqlDataDiziniGetir();
+      if (dataDir == null || dataDir.trim().isEmpty) return;
+
+      final confChanged = await _postgresqlConfGuncelle(dataDir: dataDir);
+      final hbaChanged = await _postgresqlHbaGuncelle(dataDir: dataDir);
+      await _windowsFirewallKuraliAcBestEffort();
+
+      if (!confChanged && !hbaChanged) return;
+
+      if (confChanged) {
+        debugPrint(
+          'AyarlarVeritabaniServisi: LAN erişimi için PostgreSQL yeniden başlatılıyor...',
+        );
+        final restarted = await _postgresqlYenidenBaslat(dataDir: dataDir);
+        if (!restarted) return;
+
+        await VeritabaniHavuzu().kapatDatabase(_config.database);
+        _pool = await _poolOlustur();
+        await _baglantiyiDogrulaVeGerekirseKur();
+      } else if (hbaChanged) {
+        await _postgresqlReloadBestEffort();
+      }
+    } catch (e) {
+      debugPrint(
+        'AyarlarVeritabaniServisi: Ana server LAN hazırlığı warning: $e',
+      );
+    }
+  }
+
+  Future<String?> _aktifPostgresqlDataDiziniGetir() async {
+    final cached = _cachedDataDir?.trim();
+    if (cached != null && cached.isNotEmpty) return cached;
+
+    try {
+      final pool = _pool;
+      if (pool != null) {
+        final result = await pool.execute('SHOW data_directory');
+        final value = result.isNotEmpty
+            ? (result.first[0]?.toString().trim() ?? '')
+            : '';
+        if (value.isNotEmpty) {
+          _cachedDataDir = value;
+          return value;
+        }
+      }
+    } catch (_) {}
+
+    final appDataDir = _postgresqlUygulamaDataDizini();
+    if (appDataDir.trim().isNotEmpty) {
+      _cachedDataDir = appDataDir;
+      return appDataDir;
+    }
+
+    return null;
+  }
+
+  Future<void> _postgresqlReloadBestEffort() async {
+    try {
+      final pool = _pool;
+      if (pool == null) return;
+      await pool.execute('SELECT pg_reload_conf()');
+    } catch (e) {
+      debugPrint('AyarlarVeritabaniServisi: pg_reload_conf warning: $e');
+    }
+  }
+
+  Future<void> _windowsFirewallKuraliAcBestEffort() async {
+    if (!Platform.isWindows || !_anaServerYerelAgErisimiGerekliMi()) return;
+
+    final ruleName = 'Patisyo PostgreSQL ${_config.port}';
+    try {
+      final show = await Process.run('netsh', [
+        'advfirewall',
+        'firewall',
+        'show',
+        'rule',
+        'name=$ruleName',
+      ]);
+      if (show.exitCode == 0 &&
+          show.stdout.toString().toLowerCase().contains(ruleName.toLowerCase())) {
+        return;
+      }
+
+      await Process.run('netsh', [
+        'advfirewall',
+        'firewall',
+        'add',
+        'rule',
+        'name=$ruleName',
+        'dir=in',
+        'action=allow',
+        'protocol=TCP',
+        'localport=${_config.port}',
+      ]);
+    } catch (e) {
+      debugPrint('AyarlarVeritabaniServisi: Windows firewall warning: $e');
+    }
+  }
+
+  Future<bool> _postgresqlYenidenBaslat({required String dataDir}) async {
+    if (!_desktopPlatformMi() || !_baglantiLocalMakineMi()) return false;
+    if (Platform.isWindows) {
+      return await _pgCtlIleYenidenBaslatWindows(dataDir: dataDir);
+    }
+    if (Platform.isMacOS || Platform.isLinux) {
+      return await _pgCtlIleYenidenBaslatUnix(dataDir: dataDir);
+    }
+    return false;
+  }
+
+  Future<bool> _pgCtlIleYenidenBaslatUnix({required String dataDir}) async {
+    try {
+      final sep = Platform.pathSeparator;
+      final binDir = await _unixPgBinDiziniBul();
+      if (binDir == null) return false;
+      final pgCtlCandidate = '$binDir${sep}pg_ctl';
+      final pgCtl = (await File(pgCtlCandidate).exists())
+          ? pgCtlCandidate
+          : 'pg_ctl';
+      final logFile = '${Directory.systemTemp.path}${sep}pg_restart.log';
+      final hostArg = _postgresqlDinlemeAdresi();
+
+      final result = await Process.run(pgCtl, [
+        'restart',
+        '-D',
+        dataDir,
+        '-w',
+        '-t',
+        '20',
+        '-l',
+        logFile,
+        '-o',
+        '-p ${_config.port} -h $hostArg',
+      ]);
+      if (result.exitCode != 0) {
+        debugPrint(
+          'AyarlarVeritabaniServisi: pg_ctl restart (Unix) warning: ${result.stderr}',
+        );
+        return false;
+      }
+
+      _postgresqlBaslatildiMi = await _postgresqlHazirOlanaKadarBekle(
+        timeout: const Duration(seconds: 20),
+        interval: const Duration(milliseconds: 250),
+      );
+      return _postgresqlBaslatildiMi;
+    } catch (e) {
+      debugPrint(
+        'AyarlarVeritabaniServisi: pg_ctl restart (Unix) error: $e',
+      );
+      return false;
+    }
+  }
+
+  Future<bool> _pgCtlIleYenidenBaslatWindows({required String dataDir}) async {
+    try {
+      String? pgPath = _cachedPgPath;
+      if (pgPath == null) {
+        final possiblePaths = [
+          'C:\\Program Files\\PostgreSQL\\18',
+          'C:\\Program Files\\PostgreSQL\\17',
+          'C:\\Program Files\\PostgreSQL\\16',
+          'C:\\Program Files\\PostgreSQL\\15',
+          'C:\\Program Files\\PostgreSQL\\14',
+          'C:\\Program Files (x86)\\PostgreSQL\\17',
+        ];
+        for (final path in possiblePaths) {
+          if (await File('$path\\bin\\pg_ctl.exe').exists()) {
+            pgPath = path;
+            _cachedPgPath = path;
+            break;
+          }
+        }
+      }
+      if (pgPath == null) return false;
+
+      final pgCtl = '$pgPath\\bin\\pg_ctl.exe';
+      final tempDir = Platform.environment['TEMP'] ?? 'C:\\Windows\\Temp';
+      final logFile = '$tempDir\\pg_restart.log';
+      final hostArg = _postgresqlDinlemeAdresi();
+
+      final result = await Process.run(pgCtl, [
+        'restart',
+        '-D',
+        dataDir,
+        '-w',
+        '-t',
+        '20',
+        '-l',
+        logFile,
+        '-o',
+        '-p ${_config.port} -h $hostArg',
+      ]);
+      if (result.exitCode != 0) {
+        debugPrint(
+          'AyarlarVeritabaniServisi: pg_ctl restart (Windows) warning: ${result.stderr}',
+        );
+        return false;
+      }
+
+      _postgresqlBaslatildiMi = await _postgresqlHazirOlanaKadarBekle(
+        timeout: const Duration(seconds: 20),
+        interval: const Duration(milliseconds: 250),
+      );
+      return _postgresqlBaslatildiMi;
+    } catch (e) {
+      debugPrint(
+        'AyarlarVeritabaniServisi: pg_ctl restart (Windows) error: $e',
+      );
+      return false;
     }
   }
 
@@ -850,6 +1118,7 @@ class AyarlarVeritabaniServisi {
         'AyarlarVeritabaniServisi: Launching pg_ctl (Unix) in background...',
       );
 
+      final hostArg = _postgresqlDinlemeAdresi();
       final process = await Process.start(pgCtl, [
         'start',
         '-D',
@@ -857,7 +1126,7 @@ class AyarlarVeritabaniServisi {
         '-l',
         logFile,
         '-o',
-        '-p ${_config.port} -h 127.0.0.1',
+        '-p ${_config.port} -h $hostArg',
       ]);
 
       await process.exitCode.timeout(
@@ -936,6 +1205,7 @@ class AyarlarVeritabaniServisi {
       debugPrint('AyarlarVeritabaniServisi: Launching pg_ctl in background...');
 
       // Process.run yerine Process.start kullanarak kilitlemeyi önlüyoruz
+      final hostArg = _postgresqlDinlemeAdresi();
       final process = await Process.start(pgCtl, [
         'start',
         '-D',
@@ -943,7 +1213,7 @@ class AyarlarVeritabaniServisi {
         '-l',
         logFile,
         '-o',
-        '-p ${_config.port} -h 127.0.0.1',
+        '-p ${_config.port} -h $hostArg',
       ]);
 
       // Çıkışını beklemiyoruz ama logları bir süre takip etmek istersen process handle elimizde
