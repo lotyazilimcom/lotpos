@@ -46,16 +46,22 @@ class LisansServisi extends ChangeNotifier {
   static const Duration _kasasiTouchInterval = Duration(minutes: 15);
   static const Duration _licenseIdSyncInterval = Duration(minutes: 10);
   static const Duration _losPaySyncInterval = Duration(minutes: 10);
+  static const Duration _periodicLicenseValidationTimeout = Duration(
+    seconds: 3,
+  );
   static const String _manualCodePrefix = 'ALI';
-  static const int _manualCodeVersion = 1;
-  static const int _manualCodeDayBits = 13;
+  static const int _manualCodeVersion = 2;
+  static const int _manualCodeDayBits = 11;
   static const int _manualCodeVersionBits = 2;
+  static const int _manualCodePackageBits = 2;
   static const int _manualCodeMacBits = 24;
-  static const int _manualCodeShift =
-      _manualCodeVersionBits + _manualCodeMacBits;
-  static const int _manualCodeVersionShift = _manualCodeMacBits;
-  static const int _manualCodeMacMask = (1 << _manualCodeMacBits) - 1;
-  static const int _manualCodeMaxDayOffset = (1 << _manualCodeDayBits) - 1;
+  static const int _legacyManualCodeVersion = 1;
+  static const int _legacyManualCodeDayBits = 13;
+  static const int _legacyManualCodeMacBits = 22;
+  static const int _manualPackageLite = 0;
+  static const int _manualPackageMonthly = 1;
+  static const int _manualPackageSemiannual = 2;
+  static const int _manualPackageYearly = 3;
 
   String get _vaultSecret => '$_licenseSecret|$_secKey|LOT-LICENSE-VAULT-V1';
 
@@ -71,6 +77,7 @@ class LisansServisi extends ChangeNotifier {
   bool _noOnlineLicenseLogged = false;
   DateTime? _licenseIdLastSyncUtc;
   DateTime? _losPayLastSyncUtc;
+  bool _periodicLicenseValidationRunning = false;
 
   String? get hardwareId => _hardwareId;
   String? get licenseId => _licenseId;
@@ -216,10 +223,24 @@ class LisansServisi extends ChangeNotifier {
     _heartbeatTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       // Cache bypass: heartbeat her zaman gönderilmeli
       _lastOnlineStatus = null;
+      unawaited(_periodicLicenseValidationBestEffort());
       unawaited(durumGuncelle(true));
       unawaited(_syncLicenseIdFromServerBestEffort());
       unawaited(_syncLosPayBalanceFromServerBestEffort());
     });
+  }
+
+  Future<void> _periodicLicenseValidationBestEffort() async {
+    if (_periodicLicenseValidationRunning) return;
+
+    _periodicLicenseValidationRunning = true;
+    try {
+      await dogrula(onlineTimeout: _periodicLicenseValidationTimeout);
+    } catch (_) {
+      // dogrula() zaten online/offline fallback'i kendi içinde yönetiyor.
+    } finally {
+      _periodicLicenseValidationRunning = false;
+    }
   }
 
   /// Online/Offline durumunu günceller
@@ -331,36 +352,55 @@ class LisansServisi extends ChangeNotifier {
 
   /// Donanım bilgilerinden (Anakart/Cihaz ID) 8 haneli benzersiz ID üretir
   Future<String> _generateHardwareId() async {
-    // Perf: Donanım ID üretimi (device_info_plus/android_id) bazı cihazlarda pahalı olabiliyor.
-    // Cache'lenmiş 8 haneli ID varsa direkt kullan (özellik/akış değiştirmeden).
+    String? cachedHardwareId;
     try {
       final prefs = await SharedPreferences.getInstance();
       final cached = prefs.getString(_prefsHardwareIdKey);
       if (cached != null) {
         final normalized = cached.trim().toUpperCase();
         final isValid = RegExp(r'^[0-9A-F]{8}$').hasMatch(normalized);
-        if (isValid) return normalized;
+        if (isValid) {
+          cachedHardwareId = normalized;
+        }
       }
     } catch (_) {
-      // Cache okunamadıysa devam et.
+      cachedHardwareId = null;
     }
 
-    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
-    String rawId = '';
-    bool cacheable = true;
+    final identity = await _resolveRawHardwareIdentity();
+    if (identity != null) {
+      final hardwareId = _computeHardwareIdFromRawId(identity.rawId);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString(_prefsHardwareIdKey, hardwareId);
+      } catch (_) {}
+      return hardwareId;
+    }
 
+    if (cachedHardwareId != null) {
+      return cachedHardwareId;
+    }
+
+    final fallbackRawId = 'ERROR-DEVICE-${DateTime.now().millisecondsSinceEpoch}';
+    return _computeHardwareIdFromRawId(fallbackRawId);
+  }
+
+  Future<_HardwareIdentityResolution?> _resolveRawHardwareIdentity() async {
+    final DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     try {
       if (Platform.isWindows) {
         final windowsInfo = await deviceInfo.windowsInfo;
-        // Windows için en benzersiz ve değişmeyen kimlik deviceId (GUID) dir.
-        // Bilgisayar adı değişse bile bu ID değişmez.
-        rawId = windowsInfo.deviceId;
+        return _HardwareIdentityResolution(rawId: windowsInfo.deviceId);
       } else if (Platform.isMacOS) {
         final macOsInfo = await deviceInfo.macOsInfo;
-        rawId = macOsInfo.systemGUID ?? macOsInfo.computerName;
+        return _HardwareIdentityResolution(
+          rawId: macOsInfo.systemGUID ?? macOsInfo.computerName,
+        );
       } else if (Platform.isLinux) {
         final linuxInfo = await deviceInfo.linuxInfo;
-        rawId = linuxInfo.machineId ?? linuxInfo.name;
+        return _HardwareIdentityResolution(
+          rawId: linuxInfo.machineId ?? linuxInfo.name,
+        );
       } else if (Platform.isAndroid) {
         final androidInfo = await deviceInfo.androidInfo;
         final androidId = await const AndroidId().getId();
@@ -373,36 +413,27 @@ class LisansServisi extends ChangeNotifier {
                   ? androidInfo.fingerprint
                   : '${androidInfo.manufacturer}-${androidInfo.model}-${androidInfo.device}');
 
-        rawId = 'ANDROID:${androidId ?? fallbackId}';
+        return _HardwareIdentityResolution(
+          rawId: 'ANDROID:${androidId ?? fallbackId}',
+        );
       } else if (Platform.isIOS) {
         final iosInfo = await deviceInfo.iosInfo;
         final idfv = iosInfo.identifierForVendor;
         final machine = iosInfo.utsname.machine;
-        rawId = 'IOS:${idfv ?? machine}';
+        return _HardwareIdentityResolution(rawId: 'IOS:${idfv ?? machine}');
       } else {
-        rawId = 'GENERIC-DEVICE';
+        return const _HardwareIdentityResolution(rawId: 'GENERIC-DEVICE');
       }
     } catch (e) {
       debugPrint('Hardware ID Üretim Hatası: $e');
-      rawId = 'ERROR-DEVICE-${DateTime.now().millisecondsSinceEpoch}';
-      cacheable = false;
+      return null;
     }
+  }
 
+  String _computeHardwareIdFromRawId(String rawId) {
     var bytes = utf8.encode(rawId);
     var digest = sha256.convert(bytes);
-    // 8 haneli ID çakışma ihtimalini trilyonda bire düşürür
-    final hardwareId = digest.toString().substring(0, 8).toUpperCase();
-
-    if (cacheable) {
-      try {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString(_prefsHardwareIdKey, hardwareId);
-      } catch (_) {
-        // Cache yazılamazsa sorun değil.
-      }
-    }
-
-    return hardwareId;
+    return digest.toString().substring(0, 8).toUpperCase();
   }
 
   /// Cihaz adını alır (Supabase'de görünmesi için)
@@ -781,6 +812,17 @@ class LisansServisi extends ChangeNotifier {
       unawaited(_persistKasasiBestEffort(includeLicenseKey: false));
       notifyListeners();
       debugPrint('Lisans Servisi: Yerel lisans bu cihaz için değil.');
+      return;
+    }
+
+    if (_isLitePackageName(tokenInfo.packageName)) {
+      await prefs.remove(_prefsLicenseKeyKey);
+      _licenseKey = null;
+      _isLicensed = false;
+      await _setLicenseEndDate(null);
+      unawaited(_persistKasasiBestEffort(includeLicenseKey: false));
+      notifyListeners();
+      debugPrint('Lisans Servisi: Yerel paket Lite olarak işaretlendi.');
       return;
     }
 
@@ -1238,6 +1280,36 @@ class LisansServisi extends ChangeNotifier {
 
   DateTime get _manualCodeEpochUtc => DateTime.utc(2024, 1, 1);
 
+  String? _manualPackageNameFromCode(int packageCode) {
+    switch (packageCode) {
+      case _manualPackageLite:
+        return 'LOT LITE - Sınırlı';
+      case _manualPackageMonthly:
+        return 'LOT PRO - Aylık Plan';
+      case _manualPackageSemiannual:
+        return 'LOT PRO - 6 Aylık Plan';
+      case _manualPackageYearly:
+        return 'LOT PRO - Yıllık Plan';
+      default:
+        return null;
+    }
+  }
+
+  String? _manualPlanCodeFromCode(int packageCode) {
+    switch (packageCode) {
+      case _manualPackageLite:
+        return 'lite';
+      case _manualPackageMonthly:
+        return 'monthly';
+      case _manualPackageSemiannual:
+        return 'semiannual';
+      case _manualPackageYearly:
+        return 'yearly';
+      default:
+        return null;
+    }
+  }
+
   String _normalizeManualActivationCode(String rawCode) {
     final compact = rawCode
         .trim()
@@ -1249,52 +1321,92 @@ class LisansServisi extends ChangeNotifier {
     return compact;
   }
 
-  int _computeManualCodeMac(String hardwareId, String expiryDate) {
+  int _computeManualCodeMac(
+    String hardwareId,
+    String expiryDate,
+    int packageCode, {
+    required int version,
+    required int macBits,
+  }) {
+    final macMask = (1 << macBits) - 1;
     final payload =
-        '$_manualCodePrefix$_manualCodeVersion|${hardwareId.toUpperCase()}|$expiryDate';
+        '$_manualCodePrefix$version|${hardwareId.toUpperCase()}|$expiryDate|$packageCode';
     final digest = Hmac(
       sha256,
       utf8.encode(_licenseSecret),
     ).convert(utf8.encode(payload));
 
     return ((digest.bytes[0] << 16) | (digest.bytes[1] << 8) | digest.bytes[2]) &
-        _manualCodeMacMask;
+        macMask;
+  }
+
+  _LicenseTokenInfo? _tryParseManualActivationCodeLayout(
+    String normalized, {
+    required int version,
+    required int dayBits,
+    required int macBits,
+  }) {
+    final shift = _manualCodeVersionBits + _manualCodePackageBits + macBits;
+    final versionShift = _manualCodePackageBits + macBits;
+    final packageShift = macBits;
+    final packageMask = (1 << _manualCodePackageBits) - 1;
+    final macMask = (1 << macBits) - 1;
+    final maxDayOffset = (1 << dayBits) - 1;
+    final numericValue = int.tryParse(normalized);
+    if (numericValue == null) return null;
+
+    final dayOffset = numericValue >> shift;
+    final parsedVersion =
+        (numericValue >> versionShift) & ((1 << _manualCodeVersionBits) - 1);
+    final packageCode = (numericValue >> packageShift) & packageMask;
+    final mac = numericValue & macMask;
+
+    if (parsedVersion != version) return null;
+    if (dayOffset < 0 || dayOffset > maxDayOffset) return null;
+
+    final expiryUtc = _manualCodeEpochUtc.add(Duration(days: dayOffset));
+    final expiryDate = DateTime(expiryUtc.year, expiryUtc.month, expiryUtc.day);
+    final hardwareId = (_hardwareId ?? '').trim().toUpperCase();
+    if (hardwareId.isEmpty) return null;
+
+    final expiryText =
+        '${expiryUtc.year.toString().padLeft(4, '0')}-'
+        '${expiryUtc.month.toString().padLeft(2, '0')}-'
+        '${expiryUtc.day.toString().padLeft(2, '0')}';
+    final expectedMac = _computeManualCodeMac(
+      hardwareId,
+      expiryText,
+      packageCode,
+      version: version,
+      macBits: macBits,
+    );
+    if (expectedMac != mac) return null;
+
+    return _LicenseTokenInfo(
+      hardwareId: hardwareId,
+      licenseId: null,
+      expiryDate: expiryDate,
+      packageName: _manualPackageNameFromCode(packageCode),
+      planCode: _manualPlanCodeFromCode(packageCode),
+    );
   }
 
   _LicenseTokenInfo? _verifyAndParseManualActivationCode(String rawCode) {
     try {
       final normalized = _normalizeManualActivationCode(rawCode);
       if (!RegExp(r'^\d{12}$').hasMatch(normalized)) return null;
-
-      final numericValue = int.tryParse(normalized);
-      if (numericValue == null) return null;
-
-      final dayOffset = numericValue >> _manualCodeShift;
-      final version =
-          (numericValue >> _manualCodeVersionShift) &
-          ((1 << _manualCodeVersionBits) - 1);
-      final mac = numericValue & _manualCodeMacMask;
-
-      if (version != _manualCodeVersion) return null;
-      if (dayOffset < 0 || dayOffset > _manualCodeMaxDayOffset) return null;
-
-      final expiryUtc = _manualCodeEpochUtc.add(Duration(days: dayOffset));
-      final expiryDate = DateTime(expiryUtc.year, expiryUtc.month, expiryUtc.day);
-      final hardwareId = (_hardwareId ?? '').trim().toUpperCase();
-      if (hardwareId.isEmpty) return null;
-
-      final expiryText =
-          '${expiryUtc.year.toString().padLeft(4, '0')}-'
-          '${expiryUtc.month.toString().padLeft(2, '0')}-'
-          '${expiryUtc.day.toString().padLeft(2, '0')}';
-      final expectedMac = _computeManualCodeMac(hardwareId, expiryText);
-      if (expectedMac != mac) return null;
-
-      return _LicenseTokenInfo(
-        hardwareId: hardwareId,
-        licenseId: null,
-        expiryDate: expiryDate,
-      );
+      return _tryParseManualActivationCodeLayout(
+            normalized,
+            version: _manualCodeVersion,
+            dayBits: _manualCodeDayBits,
+            macBits: _manualCodeMacBits,
+          ) ??
+          _tryParseManualActivationCodeLayout(
+            normalized,
+            version: _legacyManualCodeVersion,
+            dayBits: _legacyManualCodeDayBits,
+            macBits: _legacyManualCodeMacBits,
+          );
     } catch (_) {
       return null;
     }
@@ -1330,6 +1442,8 @@ class LisansServisi extends ChangeNotifier {
       final hardwareId = decoded['hardware_id']?.toString();
       final licenseId = decoded['license_id']?.toString();
       final expiryStr = decoded['expiry_date']?.toString();
+      final packageName = decoded['package_name']?.toString();
+      final planCode = decoded['plan_code']?.toString();
       if (hardwareId == null || expiryStr == null) return null;
 
       final expiry = DateTime.tryParse(expiryStr);
@@ -1340,6 +1454,8 @@ class LisansServisi extends ChangeNotifier {
         hardwareId: hardwareId,
         licenseId: licenseId,
         expiryDate: expiryDateOnly,
+        packageName: packageName,
+        planCode: planCode,
       );
     } catch (_) {
       return null;
@@ -1485,6 +1601,19 @@ class LisansServisi extends ChangeNotifier {
     if (hardwareId.isEmpty ||
         tokenInfo.hardwareId.trim().toUpperCase() != hardwareId) {
       return ManualLisansUygulamaSonucu.farkliCihaz;
+    }
+
+    if (_isLitePackageName(tokenInfo.packageName)) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_prefsLicenseKeyKey);
+      _licenseKey = null;
+      _isLicensed = false;
+      _noOnlineLicenseLogged = false;
+      await _setInheritedProLocal(false, notify: false);
+      await _setLicenseEndDate(null);
+      unawaited(_persistKasasiBestEffort(includeLicenseKey: false));
+      notifyListeners();
+      return ManualLisansUygulamaSonucu.litePaketeGecildi;
     }
 
     if (_isExpiredByDate(tokenInfo.expiryDate)) {
@@ -1695,6 +1824,7 @@ class LisansServisi extends ChangeNotifier {
 
 enum ManualLisansUygulamaSonucu {
   basarili,
+  litePaketeGecildi,
   bosKod,
   gecersizKod,
   farkliCihaz,
@@ -1705,11 +1835,15 @@ class _LicenseTokenInfo {
   final String hardwareId;
   final String? licenseId;
   final DateTime expiryDate;
+  final String? packageName;
+  final String? planCode;
 
   const _LicenseTokenInfo({
     required this.hardwareId,
     required this.licenseId,
     required this.expiryDate,
+    required this.packageName,
+    required this.planCode,
   });
 }
 
@@ -1718,4 +1852,12 @@ class _ProgramLisansDurumu {
   final String? licenseId;
 
   const _ProgramLisansDurumu({required this.status, required this.licenseId});
+}
+
+class _HardwareIdentityResolution {
+  final String rawId;
+
+  const _HardwareIdentityResolution({
+    required this.rawId,
+  });
 }

@@ -1026,15 +1026,15 @@ const Map<String, String> arCeviriler = {
       'ألصق رمز الترخيص اليدوي الذي أنشأه المسؤول لتفعيل Pro حتى بدون إنترنت.',
   'login.license.manual_offline_hint':
       'الإنترنت غير متاح. تم تعطيل التحقق من الخادم ويمكنك تفعيل Pro المحلي باستخدام الرمز اليدوي.',
-  'login.license.manual_placeholder':
-      'ألصق رمز الترخيص اليدوي الذي استلمته من المسؤول.',
+  'login.license.lite_summary_body':
+      'يتضمن وضع Lite بعض حدود الاستخدام. للحصول على استخدام كامل ومتواصل، يوصى بالترقية إلى إصدار Pro.',
+  'login.license.manual_placeholder': '1234-5678-9012',
   'login.license.manual_button': 'تطبيق الرمز اليدوي',
   'login.license.manual_empty': 'لا يمكن أن يكون رمز الترخيص اليدوي فارغاً.',
   'login.license.manual_invalid': 'رمز الترخيص اليدوي غير صالح أو تالف.',
   'login.license.manual_wrong_device':
       'رمز الترخيص اليدوي هذا لا يخص هذا الجهاز.',
-  'login.license.manual_expired':
-      'انتهت صلاحية رمز الترخيص اليدوي هذا.',
+  'login.license.manual_expired': 'انتهت صلاحية رمز الترخيص اليدوي هذا.',
   'login.license.offline_verify_disabled': 'الخادم غير متاح',
   'login.license.copy_success': 'تم نسخ المعرّف',
   'login.license.info_btn': 'معلومات الترخيص',

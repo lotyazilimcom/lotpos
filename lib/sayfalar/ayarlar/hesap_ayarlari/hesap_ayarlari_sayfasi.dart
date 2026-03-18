@@ -516,10 +516,81 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
     required bool isLite,
     required double losPayBalance,
   }) {
-    final accent = _statusColor(isLite);
     final lisans = LisansServisi();
     final canUseOnlineActions =
         lisans.serverReachabilityKnown && lisans.serverReachable;
+    final busy = _refreshing || _cancellingSubscription;
+
+    final titleBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          tr('settings.account.title'),
+          style: TextStyle(
+            fontSize: isCompact ? 20 : 22,
+            fontWeight: FontWeight.bold,
+            color: _primaryColor,
+            letterSpacing: -0.5,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          tr('settings.account.subtitle'),
+          style: const TextStyle(fontSize: 13, color: _mutedColor),
+        ),
+      ],
+    );
+
+    final actions = Wrap(
+      spacing: 10,
+      runSpacing: 10,
+      alignment: WrapAlignment.end,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _buildHeaderActionPill(
+          icon: Icons.add_card_rounded,
+          label: tr('settings.account.actions.load_credit'),
+          color: const Color(0xFF9CA3AF),
+          backgroundColor: Colors.white,
+          borderColor: const Color(0xFFF2C88E),
+          onPressed: (!busy && canUseOnlineActions)
+              ? _handleLoadLosPayCredit
+              : null,
+        ),
+        _buildHeaderStatusPill(
+          icon: Icons.account_balance_wallet_outlined,
+          label:
+              '${tr('settings.account.lospay.label')} ${_formattedLosPay(losPayBalance)}',
+          color: const Color(0xFFC66A12),
+          backgroundColor: const Color(0xFFFFF6EC),
+          borderColor: const Color(0xFFF2C88E),
+        ),
+        _buildHeaderStatusPill(
+          icon: isLite
+              ? Icons.shield_outlined
+              : Icons.workspace_premium_outlined,
+          label: isLite
+              ? tr('settings.account.plan.lite_badge')
+              : tr('settings.account.plan.pro_badge'),
+          color: const Color(0xFF5C6DDC),
+          backgroundColor: isLite
+              ? const Color(0xFFF4F6FF)
+              : const Color(0xFF2F8DE4),
+          borderColor: const Color(0xFFC9D5FF),
+          filled: !isLite,
+        ),
+        if (isLite)
+          _buildHeaderActionPill(
+            icon: Icons.vpn_key_outlined,
+            label: tr('settings.account.actions.manual_license'),
+            color: _accentColor,
+            backgroundColor: const Color(0xFFFFF1F0),
+            borderColor: _accentColor.withValues(alpha: 0.24),
+            onPressed: busy ? null : _handleOpenLicenseDialog,
+          ),
+      ],
+    );
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(
@@ -532,102 +603,104 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
         color: Colors.white,
         border: Border(bottom: BorderSide(color: Colors.grey.shade200)),
       ),
-      child: Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                tr('settings.account.title'),
-                style: TextStyle(
-                  fontSize: isCompact ? 20 : 22,
-                  fontWeight: FontWeight.bold,
-                  color: _primaryColor,
-                  letterSpacing: -0.5,
+      child: isCompact
+          ? Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                titleBlock,
+                const SizedBox(height: 14),
+                Align(alignment: Alignment.centerRight, child: actions),
+              ],
+            )
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(child: titleBlock),
+                const SizedBox(width: 16),
+                Flexible(
+                  child: Align(alignment: Alignment.topRight, child: actions),
                 ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                tr('settings.account.subtitle'),
-                style: const TextStyle(fontSize: 13, color: _mutedColor),
-              ),
-            ],
+              ],
+            ),
+    );
+  }
+
+  Widget _buildHeaderActionPill({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color backgroundColor,
+    required Color borderColor,
+    required VoidCallback? onPressed,
+  }) {
+    final disabled = onPressed == null;
+    final foreground = disabled ? color.withValues(alpha: 0.42) : color;
+    final background = disabled
+        ? backgroundColor.withValues(alpha: 0.76)
+        : backgroundColor;
+    final border = disabled ? borderColor.withValues(alpha: 0.45) : borderColor;
+
+    return SizedBox(
+      height: 42,
+      child: OutlinedButton.icon(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          foregroundColor: foreground,
+          backgroundColor: background,
+          disabledForegroundColor: foreground,
+          disabledBackgroundColor: background,
+          elevation: 0,
+          side: BorderSide(color: border),
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
           ),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            children: [
-              TextButton.icon(
-                onPressed:
-                    (_refreshing || _cancellingSubscription || !canUseOnlineActions)
-                    ? null
-                    : _handleLoadLosPayCredit,
-                style: TextButton.styleFrom(
-                  foregroundColor: const Color(0xFFB7791F),
-                  backgroundColor: const Color(0xFFFFF8EE),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 14,
-                    vertical: 10,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(999),
-                    side: BorderSide(
-                      color: const Color(0xFFF59E0B).withValues(alpha: 0.28),
-                    ),
-                  ),
-                ),
-                icon: const Icon(Icons.add_card_rounded, size: 18),
-                label: Text(
-                  tr('settings.account.actions.load_credit'),
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.4,
-                  ),
-                ),
-              ),
-              _buildLosPayBadge(
-                value: _formattedLosPay(losPayBalance),
-                compact: isCompact,
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 14,
-                  vertical: 10,
-                ),
-                decoration: BoxDecoration(
-                  color: accent.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(color: accent.withValues(alpha: 0.18)),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      isLite
-                          ? Icons.verified_user_outlined
-                          : Icons.workspace_premium_outlined,
-                      color: accent,
-                      size: 18,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      isLite
-                          ? tr('settings.account.plan.lite_badge')
-                          : tr('settings.account.plan.pro_badge'),
-                      style: TextStyle(
-                        color: accent,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          visualDensity: VisualDensity.compact,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+        icon: Icon(icon, size: 17),
+        label: Text(
+          label,
+          style: const TextStyle(
+            fontWeight: FontWeight.w800,
+            fontSize: 13,
+            letterSpacing: 0.15,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeaderStatusPill({
+    required IconData icon,
+    required String label,
+    required Color color,
+    required Color backgroundColor,
+    required Color borderColor,
+    bool filled = false,
+  }) {
+    final foreground = filled ? Colors.white : color;
+    return Container(
+      height: 42,
+      padding: const EdgeInsets.symmetric(horizontal: 14),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: filled ? backgroundColor : borderColor),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: foreground, size: 17),
+          const SizedBox(width: 8),
+          Text(
+            label,
+            style: TextStyle(
+              color: foreground,
+              fontWeight: FontWeight.w800,
+              fontSize: 13,
+              letterSpacing: 0.15,
+            ),
           ),
         ],
       ),
@@ -1006,9 +1079,9 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
                       ? null
                       : _handleOpenLicenseDialog,
                   style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFFF39C12).withValues(
-                      alpha: 0.12,
-                    ),
+                    backgroundColor: const Color(
+                      0xFFF39C12,
+                    ).withValues(alpha: 0.12),
                     foregroundColor: const Color(0xFFB45309),
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
@@ -1122,41 +1195,6 @@ class _HesapAyarlariSayfasiState extends State<HesapAyarlariSayfasi> {
             icon: Icons.support_agent_rounded,
             title: tr('settings.account.help.title'),
             body: tr('settings.account.help.body'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLosPayBadge({required String value, required bool compact}) {
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: compact ? 12 : 14,
-        vertical: compact ? 9 : 10,
-      ),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF59E0B).withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: const Color(0xFFF59E0B).withValues(alpha: 0.22),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(
-            Icons.account_balance_wallet_outlined,
-            color: Color(0xFFB45309),
-            size: 18,
-          ),
-          const SizedBox(width: 8),
-          Text(
-            '${tr('settings.account.lospay.label')} $value',
-            style: const TextStyle(
-              color: Color(0xFFB45309),
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.3,
-            ),
           ),
         ],
       ),

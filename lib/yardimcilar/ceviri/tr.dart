@@ -1094,17 +1094,16 @@ const Map<String, String> trCeviriler = {
       'Yonetici tarafindan uretilen manuel lisans kodunu bu alana yapistirarak internet olmasa bile Pro aktivasyonu yapabilirsiniz.',
   'login.license.manual_offline_hint':
       'Internet bulunamadi. Sunucu dogrulamasi pasif durumda; manuel lisans kodu ile yerel Pro aktivasyon yapabilirsiniz.',
-  'login.license.manual_placeholder':
-      'ALI1234-5678-9012 kodunu buraya yapistirin.',
+  'login.license.lite_summary_body':
+      'Lite surum bazi kullanim sinirlari icerir. Kesintisiz ve tam kapasite kullanim icin Pro versiyona gecmeniz onerilir.',
+  'login.license.manual_placeholder': '1234-5678-9012',
   'login.license.manual_button': 'Manuel Kodu Uygula',
   'login.license.manual_empty': 'Manuel lisans kodu bos olamaz.',
   'login.license.manual_invalid': 'Manuel lisans kodu gecersiz veya bozuk.',
   'login.license.manual_wrong_device':
       'Bu manuel lisans kodu bu cihaza ait degil.',
-  'login.license.manual_expired':
-      'Bu manuel lisans kodunun suresi dolmus.',
-  'login.license.offline_verify_disabled':
-      'Sunucuya baglanilamiyor',
+  'login.license.manual_expired': 'Bu manuel lisans kodunun suresi dolmus.',
+  'login.license.offline_verify_disabled': 'Sunucuya baglanilamiyor',
   'login.license.copy_success': 'ID Kopyalandı',
   'login.license.info_btn': 'Lisans Bilgileri',
   'login.license.act_btn': 'Lisanslama ve Aktivasyon',
