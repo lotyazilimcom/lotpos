@@ -195,7 +195,14 @@ class VeritabaniYapilandirma {
           _connectionMode = 'cloud';
         }
       }
-      _discoveredHost = prefs.getString(_prefLastDiscoveredHost);
+      _discoveredHost = await _normalizeDiscoveredHostBestEffort(
+        prefs.getString(_prefLastDiscoveredHost),
+      );
+      if (_discoveredHost != null) {
+        await prefs.setString(_prefLastDiscoveredHost, _discoveredHost!);
+      } else {
+        await prefs.remove(_prefLastDiscoveredHost);
+      }
       _cloudHost = prefs.getString(_prefCloudHost);
       _cloudPort = prefs.getInt(_prefCloudPort);
       _cloudUsername = prefs.getString(_prefCloudUsername);
@@ -263,10 +270,7 @@ class VeritabaniYapilandirma {
     String? host,
   ) async {
     _connectionMode = mode;
-    final normalizedHost = host?.trim();
-    _discoveredHost = (normalizedHost != null && normalizedHost.isNotEmpty)
-        ? normalizedHost
-        : null;
+    _discoveredHost = await _normalizeDiscoveredHostBestEffort(host);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefConnectionMode, mode);
     if (_discoveredHost != null) {
@@ -283,7 +287,7 @@ class VeritabaniYapilandirma {
   static String get connectionMode => _connectionMode;
   static bool get isCloudPending => _connectionMode == cloudPendingMode;
   static String? get discoveredHost {
-    final host = _discoveredHost?.trim();
+    final host = _temizHost(_discoveredHost);
     if (host == null || host.isEmpty) return null;
     return host;
   }
@@ -509,8 +513,9 @@ class VeritabaniYapilandirma {
     }
 
     // 1. Manuel keşif veya yüklenen host
-    if (_discoveredHost != null && _discoveredHost!.isNotEmpty) {
-      return _discoveredHost!;
+    final resolvedDiscoveredHost = VeritabaniYapilandirma.discoveredHost;
+    if (resolvedDiscoveredHost != null && resolvedDiscoveredHost.isNotEmpty) {
+      return resolvedDiscoveredHost;
     }
 
     // 2. Çevresel değişken
@@ -1359,11 +1364,50 @@ COMMIT;
 
   /// Dinamik keşif sonrası host'u günceller
   static void setDiscoveredHost(String? newHost) {
-    final normalizedHost = newHost?.trim();
-    _discoveredHost = (normalizedHost != null && normalizedHost.isNotEmpty)
-        ? normalizedHost
-        : null;
+    _discoveredHost = _temizHost(newHost);
     debugPrint('VeritabaniYapilandirma: Host güncellendi -> $_discoveredHost');
+  }
+
+  static String? _temizHost(String? host) {
+    final trimmed = host?.trim();
+    if (trimmed == null || trimmed.isEmpty) return null;
+    final noTrailingDot = trimmed.endsWith('.')
+        ? trimmed.substring(0, trimmed.length - 1).trim()
+        : trimmed;
+    return noTrailingDot.isEmpty ? null : noTrailingDot;
+  }
+
+  static bool _isIpv4Literal(String value) {
+    final parts = value.trim().split('.');
+    if (parts.length != 4) return false;
+    for (final part in parts) {
+      final n = int.tryParse(part);
+      if (n == null || n < 0 || n > 255) return false;
+    }
+    return true;
+  }
+
+  static Future<String?> _normalizeDiscoveredHostBestEffort(String? host) async {
+    final cleaned = _temizHost(host);
+    if (cleaned == null) return null;
+    if (yerelAnaSunucuHostMu(cleaned) || _isIpv4Literal(cleaned)) {
+      return cleaned;
+    }
+
+    try {
+      final lookedUp = await InternetAddress.lookup(
+        cleaned,
+        type: InternetAddressType.IPv4,
+      ).timeout(const Duration(milliseconds: 600));
+      for (final address in lookedUp) {
+        final ip = _temizHost(address.address);
+        if (ip != null && _isIpv4Literal(ip)) {
+          return ip;
+        }
+      }
+    } catch (_) {}
+
+    return cleaned;
   }
 
   static void _syncDesktopCloudPendingWatcher() {

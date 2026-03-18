@@ -669,6 +669,8 @@ class AyarlarVeritabaniServisi {
         'host    all             all             10.0.0.0/8              md5',
         'host    all             all             172.16.0.0/12           md5',
         'host    all             all             192.168.0.0/16          md5',
+        'host    all             all             fc00::/7                md5',
+        'host    all             all             fe80::/10               md5',
       ];
 
       return await _yapilandirmaBlogunuYaz(
