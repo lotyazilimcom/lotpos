@@ -32,6 +32,7 @@ import '../../servisler/veritabani_aktarim_servisi.dart';
 import '../../servisler/veritabani_baglanti_sifirlayici.dart';
 import '../../servisler/veritabani_yapilandirma.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
+import '../../bilesenler/lospos_logo.dart';
 import '../../bilesenler/veritabani_aktarim_secim_dialog.dart';
 import '../mobil_kurulum/mobil_kurulum_sayfasi.dart';
 import '../ayarlar/veritabaniyedekayarlari/veritabani_yedek_ayarlari_sayfasi.dart';
@@ -1145,21 +1146,13 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Container(
-                                    padding: const EdgeInsets.all(
-                                      12,
-                                    ), // Reduced from 16
-                                    decoration: BoxDecoration(
-                                      color: const Color(
-                                        0xFF2C3E50,
-                                      ).withValues(alpha: 0.12),
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
-                                    child: const Icon(
-                                      Icons.inventory_2_outlined,
-                                      size: 40, // Reduced from 48
-                                      color: Colors.white,
-                                    ),
+                                  const LosposLogo(
+                                    darkBackground: true,
+                                    showFullLogo: true,
+                                    iconSize: 56,
+                                    fontSize: 42,
+                                    gap: 14,
+                                    logoHeight: 72,
                                   ),
                                   const SizedBox(height: 24), // Reduced from 32
                                   Text(
@@ -1311,7 +1304,8 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
                                                 child: Text(sirket.ad),
                                               );
                                             }).toList(),
-                                            onChanged: _sirketlerYukleniyor ||
+                                            onChanged:
+                                                _sirketlerYukleniyor ||
                                                     OturumServisi()
                                                         .uzakSunucuAktifSirketKilidiVar
                                                 ? null

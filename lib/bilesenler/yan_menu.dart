@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'lospos_logo.dart';
 import '../ayarlar/menu_ayarlari.dart';
 import '../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../sayfalar/ayarlar/kullanicilar/modeller/kullanici_model.dart';
@@ -152,27 +153,14 @@ class _YanMenuState extends State<YanMenu> {
                 child: effectiveExpanded
                     ? Row(
                         children: [
-                          Container(
-                            width: 32,
-                            height: 32,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(10),
-                            ),
-                            child: const Icon(
-                              Icons.inventory_2_rounded,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Text(
-                              tr('nav.app.shortTitle'),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w600,
+                          const Expanded(
+                            child: Align(
+                              alignment: Alignment.centerLeft,
+                              child: LosposLogo(
+                                darkBackground: true,
+                                iconSize: 30,
+                                fontSize: 24,
+                                gap: 10,
                               ),
                             ),
                           ),
@@ -191,17 +179,10 @@ class _YanMenuState extends State<YanMenu> {
                         ],
                       )
                     : Center(
-                        child: Container(
+                        child: const SizedBox(
                           width: 32,
                           height: 32,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.inventory_2_rounded,
-                            color: Colors.white,
-                            size: 20,
-                          ),
+                          child: LosposLogo(compact: true, iconSize: 32),
                         ),
                       ),
               ),

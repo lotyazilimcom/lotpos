@@ -7,7 +7,7 @@ const Map<String, String> enCeviriler = {
   'notes.detail.type': 'Transaction Type',
   'notes.detail.contact': 'Contact/Account',
   // Common
-  'app.title': 'Lospos v10',
+  'app.title': 'Los Pos V1.0',
   'common.edit': 'Edit',
   'common.delete': 'Delete',
   'common.add': 'Add',
@@ -309,7 +309,7 @@ const Map<String, String> enCeviriler = {
   'settings.database.mobile_local_requires_server':
       'To use a local server, connect to the main computer first (from the setup screen).',
   'setup.local.server_not_found_open_app':
-      'The local main server is not reachable. Please open Lospos v10 on the main computer and try again.',
+      'The local main server is not reachable. Please open Los Pos V1.0 on the main computer and try again.',
   'setup.local.company_database_missing':
       'The selected company database was not found on the server. Please make sure the company database is created on the main computer or select a different company.',
   'setup.cloud.preparing_title': 'Online Database Preparing',
@@ -1934,7 +1934,7 @@ const Map<String, String> enCeviriler = {
   'settings.connection.server_list_empty':
       'No reachable main server was found on the local network.',
   'settings.connection.server_list_empty_hint':
-      'Open Lospos v10 on the main computer and scan again.',
+      'Open Los Pos V1.0 on the main computer and scan again.',
   'settings.connection.server_list_error_hint':
       'The network scan could not be completed. Check the connection and try again.',
   'settings.connection.current_server_label': 'Saved selection: {host}',
@@ -2121,7 +2121,7 @@ const Map<String, String> enCeviriler = {
   'common.upload': 'Upload',
 
   // Navigation / App
-  'nav.app.shortTitle': 'Lospos',
+  'nav.app.shortTitle': 'Los Pos',
 
   // Generic pages
   'page.placeholder': 'The "{title}" page is coming soon.',
@@ -2130,7 +2130,7 @@ const Map<String, String> enCeviriler = {
   'sidebar.collapse': 'Collapse',
 
   // Login
-  'login.brand.title': 'Manage your business with Lospos',
+  'login.brand.title': 'Manage your business with Los Pos',
   'login.brand.description':
       'Modern sales and inventory management for retail and hospitality.',
   'login.brand.optimized': 'Optimized for desktop and touch screens.',

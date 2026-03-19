@@ -65,7 +65,8 @@ class KasalarVeritabaniServisi {
     final normalizedType = type?.trim();
     if (normalizedType == null || normalizedType.isEmpty) return null;
 
-    if (normalizedType == 'Satış Yapıldı' || normalizedType == 'Satis Yapildi') {
+    if (normalizedType == 'Satış Yapıldı' ||
+        normalizedType == 'Satis Yapildi') {
       return "($alias.integration_ref LIKE 'SALE-%' OR $alias.integration_ref LIKE 'RETAIL-%')";
     }
     if (normalizedType == 'Alış Yapıldı' || normalizedType == 'Alis Yapildi') {
@@ -101,12 +102,14 @@ class KasalarVeritabaniServisi {
     }
 
     if (baslangicTarihi != null) {
-      params[startParam] =
-          _normalizeDateStart(baslangicTarihi).toIso8601String();
+      params[startParam] = _normalizeDateStart(
+        baslangicTarihi,
+      ).toIso8601String();
     }
     if (bitisTarihi != null) {
-      params[endParam] =
-          _normalizeDateEndExclusive(bitisTarihi).toIso8601String();
+      params[endParam] = _normalizeDateEndExclusive(
+        bitisTarihi,
+      ).toIso8601String();
     }
 
     final List<String> txConds = <String>[
@@ -132,7 +135,8 @@ class KasalarVeritabaniServisi {
       txConds.add(typeCondition);
     }
 
-    final String txExists = '''
+    final String txExists =
+        '''
       EXISTS (
         SELECT 1 FROM cash_register_transactions $islemAlias
         WHERE ${txConds.join(' AND ')}
@@ -261,6 +265,7 @@ class KasalarVeritabaniServisi {
           'KasalarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
         );
       }
+      await _ensureCashRegisterCreatedAtColumn();
       if (initToken != _initToken) {
         if (!initCompleter.isCompleted) {
           initCompleter.completeError(StateError('Bağlantı kapatıldı'));
@@ -510,6 +515,32 @@ class KasalarVeritabaniServisi {
     }
   }
 
+  Future<void> _ensureCashRegisterCreatedAtColumn() async {
+    final pool = _pool;
+    if (pool == null) return;
+
+    try {
+      await pool.execute('''
+        ALTER TABLE cash_registers
+        ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ''');
+      await pool.execute('''
+        UPDATE cash_registers
+        SET created_at = CURRENT_TIMESTAMP
+        WHERE created_at IS NULL
+      ''');
+    } on ServerException catch (e) {
+      if (e.code == '42P01') return;
+      debugPrint(
+        'KasalarVeritabaniServisi: created_at kolonu hazirlama hatasi: ${e.code} ${e.message}',
+      );
+    } catch (e) {
+      debugPrint(
+        'KasalarVeritabaniServisi: created_at kolonu hazirlama hatasi: $e',
+      );
+    }
+  }
+
   /// Bakım Modu: İndeksleri manuel günceller
   Future<void> bakimModuCalistir() async {
     await verileriIndeksle(forceUpdate: true);
@@ -568,6 +599,7 @@ class KasalarVeritabaniServisi {
         is_active INTEGER DEFAULT 1,
         is_default INTEGER DEFAULT 0,
         is_protected INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         search_tags TEXT NOT NULL DEFAULT '',
         matched_in_hidden INTEGER DEFAULT 0
       )

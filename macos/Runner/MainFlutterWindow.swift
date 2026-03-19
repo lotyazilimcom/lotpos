@@ -8,6 +8,7 @@ class MainFlutterWindow: NSWindow {
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
     self.contentViewController = flutterViewController
+    self.title = "Los Pos V1.0"
 
     let windowFrame = initialWindowFrame()
     self.setFrame(windowFrame, display: true)

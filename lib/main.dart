@@ -97,7 +97,7 @@ void main() async {
       center: usesMacOsNativeFirstLaunchFrame ? null : true,
       backgroundColor: desktopWindowBackgroundColor,
       skipTaskbar: false,
-      title: Platform.isWindows ? 'Lospos' : null,
+      title: 'Los Pos V1.0',
       titleBarStyle: TitleBarStyle.normal,
     );
 
@@ -121,6 +121,7 @@ void main() async {
       await windowManager.show();
       await windowManager.focus();
     });
+    await windowManager.setTitle('Los Pos V1.0');
 
     await PencereDurumuServisi().dinlemeyiBaslat();
   }

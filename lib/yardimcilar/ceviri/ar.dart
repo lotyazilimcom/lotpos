@@ -1,6 +1,6 @@
 const Map<String, String> arCeviriler = {
   // Common
-  'app.title': 'Lospos v10',
+  'app.title': 'Los Pos V1.0',
   'common.edit': 'تعديل',
   'common.delete': 'حذف',
   'common.add': 'إضافة',
@@ -303,7 +303,7 @@ const Map<String, String> arCeviriler = {
   'settings.database.mobile_local_requires_server':
       'لاستخدام خادم محلي، اتصل أولاً بالكمبيوتر الرئيسي (من شاشة الإعداد).',
   'setup.local.server_not_found_open_app':
-      'تعذر الاتصال بالخادم المحلي. يرجى فتح Lospos v10 على الكمبيوتر الرئيسي ثم إعادة المحاولة.',
+      'تعذر الاتصال بالخادم المحلي. يرجى فتح Los Pos V1.0 على الكمبيوتر الرئيسي ثم إعادة المحاولة.',
   'setup.local.company_database_missing':
       'لم يتم العثور على قاعدة بيانات الشركة المحددة على الخادم. يرجى التأكد من إنشاء قاعدة بيانات الشركة على الكمبيوتر الرئيسي أو اختيار شركة أخرى.',
   'setup.cloud.preparing_title': 'يتم إعداد قاعدة البيانات عبر الإنترنت',
@@ -1885,7 +1885,7 @@ const Map<String, String> arCeviriler = {
   'settings.connection.server_list_empty':
       'لم يتم العثور على خادم رئيسي متاح على الشبكة المحلية.',
   'settings.connection.server_list_empty_hint':
-      'افتح Lospos v10 على الكمبيوتر الرئيسي ثم أعد الفحص.',
+      'افتح Los Pos V1.0 على الكمبيوتر الرئيسي ثم أعد الفحص.',
   'settings.connection.server_list_error_hint':
       'تعذر إكمال فحص الشبكة. تحقق من الاتصال ثم حاول مرة أخرى.',
   'settings.connection.current_server_label': 'الاختيار المحفوظ: {host}',
@@ -2059,7 +2059,7 @@ const Map<String, String> arCeviriler = {
   'common.upload': 'رفع',
 
   // Navigation / App
-  'nav.app.shortTitle': 'باتيسيو',
+  'nav.app.shortTitle': 'Los Pos',
 
   // Generic pages
   'page.placeholder': 'صفحة "{title}" ستكون متاحة قريبًا.',
@@ -2068,7 +2068,7 @@ const Map<String, String> arCeviriler = {
   'sidebar.collapse': 'طي القائمة',
 
   // Login
-  'login.brand.title': 'إدارة عملك مع باتيسيو',
+  'login.brand.title': 'قم بإدارة أعمالك مع Los Pos',
   'login.brand.description':
       'نظام حديث لإدارة المبيعات والمخزون للمتاجر والمطاعم.',
   'login.brand.optimized': 'محسّن لأجهزة سطح المكتب والشاشات اللمسية.',

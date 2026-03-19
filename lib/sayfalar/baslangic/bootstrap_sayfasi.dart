@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
+import '../../bilesenler/lospos_logo.dart';
 import '../../servisler/baglanti_yoneticisi.dart';
 import '../../servisler/veritabani_yapilandirma.dart';
 import '../mobil_kurulum/mobil_kurulum_sayfasi.dart';
@@ -578,10 +579,13 @@ class _BootstrapSayfasiState extends State<BootstrapSayfasi> {
                           color: Colors.white.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(32),
                         ),
-                        child: const Icon(
-                          Icons.inventory_2_rounded,
-                          size: 80,
-                          color: Colors.white,
+                        child: const LosposLogo(
+                          darkBackground: true,
+                          showFullLogo: true,
+                          iconSize: 64,
+                          fontSize: 42,
+                          gap: 14,
+                          logoHeight: 76,
                         ),
                       ),
                       const SizedBox(height: 32),

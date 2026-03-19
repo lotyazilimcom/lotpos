@@ -1,11 +1,11 @@
 {
-    "name": "lospos",
-    "short_name": "lospos",
+    "name": "Los Pos V1.0",
+    "short_name": "Los Pos",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#2C3E50",
+    "theme_color": "#2C3E50",
+    "description": "Los Pos V1.0 ticari otomasyon uygulamasi.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

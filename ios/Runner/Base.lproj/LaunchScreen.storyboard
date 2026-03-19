@@ -17,26 +17,17 @@
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
                         <subviews>
                             <imageView opaque="NO" clipsSubviews="YES" contentMode="scaleAspectFit" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="n4O-fQ-3nA">
-                                <rect key="frame" x="245" y="245" width="110" height="110"/>
+                                <rect key="frame" x="176" y="284" width="248" height="60"/>
                                 <constraints>
-                                    <constraint firstAttribute="width" constant="110" id="fEw-rv-9kT"/>
-                                    <constraint firstAttribute="height" constant="110" id="kS1-BO-Bp7"/>
+                                    <constraint firstAttribute="width" constant="248" id="fEw-rv-9kT"/>
+                                    <constraint firstAttribute="height" constant="60" id="kS1-BO-Bp7"/>
                                 </constraints>
                             </imageView>
-                            <label opaque="NO" userInteractionEnabled="NO" contentMode="left" text="Sistem Hazırlanıyor..." textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" adjustsFontSizeToFit="NO" translatesAutoresizingMaskIntoConstraints="NO" id="m5Z-4V-7pR">
-                                <rect key="frame" x="0.0" y="365" width="600" height="20"/>
-                                <fontDescription key="fontDescription" type="system" weight="semibold" pointSize="16"/>
-                                <color key="textColor" red="1" green="1" blue="1" alpha="0.85" colorSpace="custom" customColorSpace="sRGB"/>
-                                <nil key="highlightedColor"/>
-                            </label>
                         </subviews>
                         <color key="backgroundColor" red="0.11764705882352941" green="0.37254901960784315" blue="0.45490196078431372" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="n4O-fQ-3nA" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="GkS-4c-2oX"/>
-                            <constraint firstItem="n4O-fQ-3nA" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" constant="-18" id="Wb6-6T-0mB"/>
-                            <constraint firstItem="m5Z-4V-7pR" firstAttribute="top" secondItem="n4O-fQ-3nA" secondAttribute="bottom" constant="18" id="l4l-9d-gJg"/>
-                            <constraint firstItem="m5Z-4V-7pR" firstAttribute="leading" secondItem="Ze5-6b-2t3" secondAttribute="leading" constant="24" id="mVQ-09-fmB"/>
-                            <constraint firstAttribute="trailing" secondItem="m5Z-4V-7pR" secondAttribute="trailing" constant="24" id="p5o-wu-fJt"/>
+                            <constraint firstItem="n4O-fQ-3nA" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="Wb6-6T-0mB"/>
                         </constraints>
                     </view>
                 </viewController>
@@ -46,6 +37,6 @@
         </scene>
     </scenes>
     <resources>
-        <image name="LaunchImage" width="168" height="185"/>
+        <image name="LaunchImage" width="248" height="60"/>
     </resources>
 </document>

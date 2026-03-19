@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:nsd/nsd.dart' show Service;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../bilesenler/lospos_logo.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../baslangic/bootstrap_sayfasi.dart';
 import '../../servisler/local_network_discovery_service.dart';
@@ -149,10 +150,13 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                               width: 1.5,
                             ),
                           ),
-                          child: const Icon(
-                            Icons.inventory_2_rounded,
-                            size: 72,
-                            color: Colors.white,
+                          child: const LosposLogo(
+                            darkBackground: true,
+                            showFullLogo: true,
+                            iconSize: 60,
+                            fontSize: 40,
+                            gap: 14,
+                            logoHeight: 72,
                           ),
                         ),
                         const SizedBox(height: 32),

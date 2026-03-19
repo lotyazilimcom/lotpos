@@ -1,6 +1,6 @@
 const Map<String, String> trCeviriler = {
   // Common
-  'app.title': 'Lospos v10',
+  'app.title': 'Los Pos V1.0',
   'common.edit': 'Düzenle',
   'common.delete': 'Sil',
   'common.add': 'Ekle',
@@ -315,7 +315,7 @@ const Map<String, String> trCeviriler = {
   'settings.database.mobile_local_requires_server':
       'Yerel sunucuyu kullanmak için önce ana bilgisayara bağlanın (Kurulum ekranından sunucu bulun).',
   'setup.local.server_not_found_open_app':
-      'Yerel ana sunucuya ulaşılamadı. Lütfen ana bilgisayarda Lospos v10 uygulamasını açın ve tekrar deneyin.',
+      'Yerel ana sunucuya ulaşılamadı. Lütfen ana bilgisayarda Los Pos V1.0 uygulamasını açın ve tekrar deneyin.',
   'setup.local.company_database_missing':
       'Seçili şirket veritabanı sunucuda bulunamadı. Lütfen ana bilgisayarda şirket veritabanının oluşturulduğundan emin olun veya başka bir şirket seçin.',
   'setup.cloud.preparing_title': 'Online Veritabanı Hazırlanıyor',
@@ -1987,7 +1987,7 @@ const Map<String, String> trCeviriler = {
   'settings.connection.server_list_empty':
       'Yerel ağda erişilebilir bir ana server bulunamadı.',
   'settings.connection.server_list_empty_hint':
-      'Ana bilgisayarda Lospos v10 açıkken tekrar tarayın.',
+      'Ana bilgisayarda Los Pos V1.0 açıkken tekrar tarayın.',
   'settings.connection.server_list_error_hint':
       'Ağ taraması tamamlanamadı. Bağlantınızı kontrol edip yeniden deneyin.',
   'settings.connection.current_server_label': 'Kayıtlı seçim: {host}',
@@ -2176,7 +2176,7 @@ const Map<String, String> trCeviriler = {
   'common.upload': 'Yükle',
 
   // Navigation / App
-  'nav.app.shortTitle': 'Lospos',
+  'nav.app.shortTitle': 'Los Pos',
 
   // Generic pages
   'page.placeholder': '"{title}" sayfası yakında hazır olacak.',
@@ -2185,7 +2185,7 @@ const Map<String, String> trCeviriler = {
   'sidebar.collapse': 'Daralt',
 
   // Login
-  'login.brand.title': 'Lospos ile işinizi yönetin',
+  'login.brand.title': 'Los Pos ile işinizi yönetin',
   'login.brand.description':
       'Perakende ve restoran işletmeleri için modern satış ve stok yönetimi.',
   'login.brand.optimized':
