@@ -51,6 +51,113 @@ class BankalarVeritabaniServisi {
         .replaceAll('i̇', 'i');
   }
 
+  DateTime _normalizeDateStart(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  DateTime _normalizeDateEndExclusive(DateTime date) =>
+      DateTime(date.year, date.month, date.day).add(const Duration(days: 1));
+
+  String? _buildBankaIslemTuruKosulu({
+    required String alias,
+    required String? type,
+    required Map<String, dynamic> params,
+    String paramName = 'islemTuru',
+  }) {
+    final normalizedType = type?.trim();
+    if (normalizedType == null || normalizedType.isEmpty) return null;
+
+    if (normalizedType == 'Satış Yapıldı' || normalizedType == 'Satis Yapildi') {
+      return "($alias.integration_ref LIKE 'SALE-%' OR $alias.integration_ref LIKE 'RETAIL-%')";
+    }
+    if (normalizedType == 'Alış Yapıldı' || normalizedType == 'Alis Yapildi') {
+      return "$alias.integration_ref LIKE 'PURCHASE-%'";
+    }
+
+    params[paramName] = normalizedType;
+    return '$alias.type = @$paramName';
+  }
+
+  String? _buildBankaTarihVeyaIslemKosulu({
+    required String bankaIdExpr,
+    required String bankaCreatedAtExpr,
+    required Map<String, dynamic> params,
+    DateTime? baslangicTarihi,
+    DateTime? bitisTarihi,
+    String? kullanici,
+    String? islemTuru,
+    String islemAlias = 'bt',
+    String startParam = 'startDate',
+    String endParam = 'endDate',
+    bool includeCreatedAtFallback = true,
+  }) {
+    final String? trimmedUser = kullanici?.trim();
+    final String? trimmedType = islemTuru?.trim();
+    final bool hasDate = baslangicTarihi != null || bitisTarihi != null;
+    final bool hasTxSpecificFilter =
+        (trimmedUser != null && trimmedUser.isNotEmpty) ||
+        (trimmedType != null && trimmedType.isNotEmpty);
+
+    if (!hasDate && !hasTxSpecificFilter) {
+      return null;
+    }
+
+    if (baslangicTarihi != null) {
+      params[startParam] =
+          _normalizeDateStart(baslangicTarihi).toIso8601String();
+    }
+    if (bitisTarihi != null) {
+      params[endParam] =
+          _normalizeDateEndExclusive(bitisTarihi).toIso8601String();
+    }
+
+    final List<String> txConds = <String>[
+      '$islemAlias.bank_id = $bankaIdExpr',
+      "COALESCE($islemAlias.company_id, '$_defaultCompanyId') = @companyId",
+    ];
+    if (baslangicTarihi != null) {
+      txConds.add('$islemAlias.date >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      txConds.add('$islemAlias.date < @$endParam');
+    }
+    if (trimmedUser != null && trimmedUser.isNotEmpty) {
+      txConds.add('$islemAlias.user_name = @kullanici');
+      params['kullanici'] = trimmedUser;
+    }
+    final typeCondition = _buildBankaIslemTuruKosulu(
+      alias: islemAlias,
+      type: trimmedType,
+      params: params,
+    );
+    if (typeCondition != null && typeCondition.isNotEmpty) {
+      txConds.add(typeCondition);
+    }
+
+    final String txExists = '''
+      EXISTS (
+        SELECT 1 FROM bank_transactions $islemAlias
+        WHERE ${txConds.join(' AND ')}
+      )
+    ''';
+
+    if (!hasDate || hasTxSpecificFilter || !includeCreatedAtFallback) {
+      return txExists;
+    }
+
+    final List<String> createdAtConds = <String>[];
+    if (baslangicTarihi != null) {
+      createdAtConds.add('$bankaCreatedAtExpr >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      createdAtConds.add('$bankaCreatedAtExpr < @$endParam');
+    }
+    if (createdAtConds.isEmpty) {
+      return txExists;
+    }
+
+    return '((${createdAtConds.join(' AND ')}) OR $txExists)';
+  }
+
   Future<List<int>> _eslesenBankaIslemIdleriniGetir({
     required Session executor,
     required String normalizedSearch,
@@ -1194,82 +1301,17 @@ class BankalarVeritabaniServisi {
       params['idArray'] = sadeceIdler;
     }
 
-    // Kullanıcı Filtresi
-    if (kullanici != null && kullanici.isNotEmpty) {
-      conditions.add('''
-        EXISTS (
-          SELECT 1 FROM bank_transactions bt
-          WHERE bt.bank_id = b.id
-          AND bt.user_name = @kullanici
-          AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-        )
-      ''');
-      params['kullanici'] = kullanici;
-    }
-
-    // İşlem Türü Filtresi
-    if (islemTuru != null && islemTuru.isNotEmpty) {
-      final normalized = islemTuru.trim();
-      if (normalized == 'Satış Yapıldı' || normalized == 'Satis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM bank_transactions bt
-            WHERE bt.bank_id = b.id
-            AND (bt.integration_ref LIKE 'SALE-%' OR bt.integration_ref LIKE 'RETAIL-%')
-            AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else if (normalized == 'Alış Yapıldı' || normalized == 'Alis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM bank_transactions bt
-            WHERE bt.bank_id = b.id
-            AND bt.integration_ref LIKE 'PURCHASE-%'
-            AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM bank_transactions bt
-            WHERE bt.bank_id = b.id
-            AND bt.type = @islemTuru
-            AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-        params['islemTuru'] = normalized;
-      }
-    }
-
-    // Tarih Filtresi
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      String existsQuery =
-          '''
-        EXISTS (
-          SELECT 1 FROM bank_transactions bt
-          WHERE bt.bank_id = b.id
-          AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-      ''';
-
-      if (baslangicTarihi != null) {
-        existsQuery += " AND bt.date >= @startDate";
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        existsQuery += " AND bt.date < @endDate";
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      existsQuery += ')';
-      conditions.add(existsQuery);
+    final bankaGecmisKosulu = _buildBankaTarihVeyaIslemKosulu(
+      bankaIdExpr: 'b.id',
+      bankaCreatedAtExpr: 'b.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      kullanici: kullanici,
+      islemTuru: islemTuru,
+    );
+    if (bankaGecmisKosulu != null && bankaGecmisKosulu.trim().isNotEmpty) {
+      conditions.add(bankaGecmisKosulu);
     }
 
     // Sorting (stable for keyset)
@@ -1432,82 +1474,17 @@ class BankalarVeritabaniServisi {
       params['bankaId'] = bankaId;
     }
 
-    // Kullanıcı Filtresi
-    if (kullanici != null && kullanici.isNotEmpty) {
-      conditions.add('''
-        EXISTS (
-          SELECT 1 FROM bank_transactions bt
-          WHERE bt.bank_id = b.id
-          AND bt.user_name = @kullanici
-          AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-        )
-      ''');
-      params['kullanici'] = kullanici;
-    }
-
-    // İşlem Türü Filtresi
-    if (islemTuru != null && islemTuru.isNotEmpty) {
-      final normalized = islemTuru.trim();
-      if (normalized == 'Satış Yapıldı' || normalized == 'Satis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM bank_transactions bt
-            WHERE bt.bank_id = b.id
-            AND (bt.integration_ref LIKE 'SALE-%' OR bt.integration_ref LIKE 'RETAIL-%')
-            AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else if (normalized == 'Alış Yapıldı' || normalized == 'Alis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM bank_transactions bt
-            WHERE bt.bank_id = b.id
-            AND bt.integration_ref LIKE 'PURCHASE-%'
-            AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM bank_transactions bt
-            WHERE bt.bank_id = b.id
-            AND bt.type = @islemTuru
-            AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-        params['islemTuru'] = normalized;
-      }
-    }
-
-    // Tarih Filtresi
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      String existsQuery =
-          '''
-        EXISTS (
-          SELECT 1 FROM bank_transactions bt
-          WHERE bt.bank_id = b.id
-          AND COALESCE(bt.company_id, '$_defaultCompanyId') = @companyId
-      ''';
-
-      if (baslangicTarihi != null) {
-        existsQuery += " AND bt.date >= @startDate";
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        existsQuery += " AND bt.date < @endDate";
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      existsQuery += ')';
-      conditions.add(existsQuery);
+    final bankaGecmisKosulu = _buildBankaTarihVeyaIslemKosulu(
+      bankaIdExpr: 'b.id',
+      bankaCreatedAtExpr: 'b.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      kullanici: kullanici,
+      islemTuru: islemTuru,
+    );
+    if (bankaGecmisKosulu != null && bankaGecmisKosulu.trim().isNotEmpty) {
+      conditions.add(bankaGecmisKosulu);
     }
 
     return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
@@ -1583,14 +1560,18 @@ class BankalarVeritabaniServisi {
       ).add(const Duration(days: 1)).toIso8601String();
     }
 
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      baseConditions.add('''
-        EXISTS (
-          SELECT 1 FROM bank_transactions bt 
-          WHERE bt.bank_id = banks.id 
-          $transactionFilters
-        )
-      ''');
+    final bankaFacetTarihKosulu = _buildBankaTarihVeyaIslemKosulu(
+      bankaIdExpr: 'banks.id',
+      bankaCreatedAtExpr: 'banks.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      startParam: 'start',
+      endParam: 'end',
+    );
+    if (bankaFacetTarihKosulu != null &&
+        bankaFacetTarihKosulu.trim().isNotEmpty) {
+      baseConditions.add(bankaFacetTarihKosulu);
     }
 
     String buildQuery(String selectAndGroup, List<String> facetConds) {

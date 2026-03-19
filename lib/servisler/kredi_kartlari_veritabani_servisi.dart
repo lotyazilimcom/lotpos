@@ -51,6 +51,113 @@ class KrediKartlariVeritabaniServisi {
         .replaceAll('i̇', 'i');
   }
 
+  DateTime _normalizeDateStart(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  DateTime _normalizeDateEndExclusive(DateTime date) =>
+      DateTime(date.year, date.month, date.day).add(const Duration(days: 1));
+
+  String? _buildKrediKartiIslemTuruKosulu({
+    required String alias,
+    required String? type,
+    required Map<String, dynamic> params,
+    String paramName = 'islemTuru',
+  }) {
+    final normalizedType = type?.trim();
+    if (normalizedType == null || normalizedType.isEmpty) return null;
+
+    if (normalizedType == 'Satış Yapıldı' || normalizedType == 'Satis Yapildi') {
+      return "($alias.integration_ref LIKE 'SALE-%' OR $alias.integration_ref LIKE 'RETAIL-%')";
+    }
+    if (normalizedType == 'Alış Yapıldı' || normalizedType == 'Alis Yapildi') {
+      return "$alias.integration_ref LIKE 'PURCHASE-%'";
+    }
+
+    params[paramName] = normalizedType;
+    return '$alias.type = @$paramName';
+  }
+
+  String? _buildKrediKartiTarihVeyaIslemKosulu({
+    required String krediKartiIdExpr,
+    required String krediKartiCreatedAtExpr,
+    required Map<String, dynamic> params,
+    DateTime? baslangicTarihi,
+    DateTime? bitisTarihi,
+    String? kullanici,
+    String? islemTuru,
+    String islemAlias = 'cct',
+    String startParam = 'startDate',
+    String endParam = 'endDate',
+    bool includeCreatedAtFallback = true,
+  }) {
+    final String? trimmedUser = kullanici?.trim();
+    final String? trimmedType = islemTuru?.trim();
+    final bool hasDate = baslangicTarihi != null || bitisTarihi != null;
+    final bool hasTxSpecificFilter =
+        (trimmedUser != null && trimmedUser.isNotEmpty) ||
+        (trimmedType != null && trimmedType.isNotEmpty);
+
+    if (!hasDate && !hasTxSpecificFilter) {
+      return null;
+    }
+
+    if (baslangicTarihi != null) {
+      params[startParam] =
+          _normalizeDateStart(baslangicTarihi).toIso8601String();
+    }
+    if (bitisTarihi != null) {
+      params[endParam] =
+          _normalizeDateEndExclusive(bitisTarihi).toIso8601String();
+    }
+
+    final List<String> txConds = <String>[
+      '$islemAlias.credit_card_id = $krediKartiIdExpr',
+      "COALESCE($islemAlias.company_id, '$_defaultCompanyId') = @companyId",
+    ];
+    if (baslangicTarihi != null) {
+      txConds.add('$islemAlias.date >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      txConds.add('$islemAlias.date < @$endParam');
+    }
+    if (trimmedUser != null && trimmedUser.isNotEmpty) {
+      txConds.add('$islemAlias.user_name = @kullanici');
+      params['kullanici'] = trimmedUser;
+    }
+    final typeCondition = _buildKrediKartiIslemTuruKosulu(
+      alias: islemAlias,
+      type: trimmedType,
+      params: params,
+    );
+    if (typeCondition != null && typeCondition.isNotEmpty) {
+      txConds.add(typeCondition);
+    }
+
+    final String txExists = '''
+      EXISTS (
+        SELECT 1 FROM credit_card_transactions $islemAlias
+        WHERE ${txConds.join(' AND ')}
+      )
+    ''';
+
+    if (!hasDate || hasTxSpecificFilter || !includeCreatedAtFallback) {
+      return txExists;
+    }
+
+    final List<String> createdAtConds = <String>[];
+    if (baslangicTarihi != null) {
+      createdAtConds.add('$krediKartiCreatedAtExpr >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      createdAtConds.add('$krediKartiCreatedAtExpr < @$endParam');
+    }
+    if (createdAtConds.isEmpty) {
+      return txExists;
+    }
+
+    return '((${createdAtConds.join(' AND ')}) OR $txExists)';
+  }
+
   Future<List<int>> _eslesenKrediKartiIslemIdleriniGetir({
     required Session executor,
     required String normalizedSearch,
@@ -1237,82 +1344,18 @@ class KrediKartlariVeritabaniServisi {
       params['idArray'] = sadeceIdler;
     }
 
-    // Kullanıcı Filtresi
-    if (kullanici != null && kullanici.isNotEmpty) {
-      conditions.add('''
-        EXISTS (
-          SELECT 1 FROM credit_card_transactions cct
-          WHERE cct.credit_card_id = cc.id
-          AND cct.user_name = @kullanici
-          AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-        )
-      ''');
-      params['kullanici'] = kullanici;
-    }
-
-    // İşlem Türü Filtresi
-    if (islemTuru != null && islemTuru.isNotEmpty) {
-      final normalized = islemTuru.trim();
-      if (normalized == 'Satış Yapıldı' || normalized == 'Satis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM credit_card_transactions cct
-            WHERE cct.credit_card_id = cc.id
-            AND (cct.integration_ref LIKE 'SALE-%' OR cct.integration_ref LIKE 'RETAIL-%')
-            AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else if (normalized == 'Alış Yapıldı' || normalized == 'Alis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM credit_card_transactions cct
-            WHERE cct.credit_card_id = cc.id
-            AND cct.integration_ref LIKE 'PURCHASE-%'
-            AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM credit_card_transactions cct
-            WHERE cct.credit_card_id = cc.id
-            AND cct.type = @islemTuru
-            AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-        params['islemTuru'] = normalized;
-      }
-    }
-
-    // Tarih Filtresi
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      String existsQuery =
-          '''
-        EXISTS (
-          SELECT 1 FROM credit_card_transactions cct
-          WHERE cct.credit_card_id = cc.id
-          AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-      ''';
-
-      if (baslangicTarihi != null) {
-        existsQuery += " AND cct.date >= @startDate";
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        existsQuery += " AND cct.date < @endDate";
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      existsQuery += ')';
-      conditions.add(existsQuery);
+    final krediKartiGecmisKosulu = _buildKrediKartiTarihVeyaIslemKosulu(
+      krediKartiIdExpr: 'cc.id',
+      krediKartiCreatedAtExpr: 'cc.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      kullanici: kullanici,
+      islemTuru: islemTuru,
+    );
+    if (krediKartiGecmisKosulu != null &&
+        krediKartiGecmisKosulu.trim().isNotEmpty) {
+      conditions.add(krediKartiGecmisKosulu);
     }
 
     // Sorting (stable for keyset)
@@ -1477,82 +1520,18 @@ class KrediKartlariVeritabaniServisi {
       params['krediKartiId'] = krediKartiId;
     }
 
-    // Kullanıcı Filtresi
-    if (kullanici != null && kullanici.isNotEmpty) {
-      conditions.add('''
-        EXISTS (
-          SELECT 1 FROM credit_card_transactions cct
-          WHERE cct.credit_card_id = cc.id
-          AND cct.user_name = @kullanici
-          AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-        )
-      ''');
-      params['kullanici'] = kullanici;
-    }
-
-    // İşlem Türü Filtresi
-    if (islemTuru != null && islemTuru.isNotEmpty) {
-      final normalized = islemTuru.trim();
-      if (normalized == 'Satış Yapıldı' || normalized == 'Satis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM credit_card_transactions cct
-            WHERE cct.credit_card_id = cc.id
-            AND (cct.integration_ref LIKE 'SALE-%' OR cct.integration_ref LIKE 'RETAIL-%')
-            AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else if (normalized == 'Alış Yapıldı' || normalized == 'Alis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM credit_card_transactions cct
-            WHERE cct.credit_card_id = cc.id
-            AND cct.integration_ref LIKE 'PURCHASE-%'
-            AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM credit_card_transactions cct
-            WHERE cct.credit_card_id = cc.id
-            AND cct.type = @islemTuru
-            AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-        params['islemTuru'] = normalized;
-      }
-    }
-
-    // Tarih Filtresi
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      String existsQuery =
-          '''
-        EXISTS (
-          SELECT 1 FROM credit_card_transactions cct
-          WHERE cct.credit_card_id = cc.id
-          AND COALESCE(cct.company_id, '$_defaultCompanyId') = @companyId
-      ''';
-
-      if (baslangicTarihi != null) {
-        existsQuery += " AND cct.date >= @startDate";
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        existsQuery += " AND cct.date < @endDate";
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      existsQuery += ')';
-      conditions.add(existsQuery);
+    final krediKartiGecmisKosulu = _buildKrediKartiTarihVeyaIslemKosulu(
+      krediKartiIdExpr: 'cc.id',
+      krediKartiCreatedAtExpr: 'cc.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      kullanici: kullanici,
+      islemTuru: islemTuru,
+    );
+    if (krediKartiGecmisKosulu != null &&
+        krediKartiGecmisKosulu.trim().isNotEmpty) {
+      conditions.add(krediKartiGecmisKosulu);
     }
 
     return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
@@ -1628,14 +1607,18 @@ class KrediKartlariVeritabaniServisi {
       ).add(const Duration(days: 1)).toIso8601String();
     }
 
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      baseConditions.add('''
-        EXISTS (
-          SELECT 1 FROM credit_card_transactions cct 
-          WHERE cct.credit_card_id = credit_cards.id 
-          $transactionFilters
-        )
-      ''');
+    final krediKartiFacetTarihKosulu = _buildKrediKartiTarihVeyaIslemKosulu(
+      krediKartiIdExpr: 'credit_cards.id',
+      krediKartiCreatedAtExpr: 'credit_cards.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      startParam: 'start',
+      endParam: 'end',
+    );
+    if (krediKartiFacetTarihKosulu != null &&
+        krediKartiFacetTarihKosulu.trim().isNotEmpty) {
+      baseConditions.add(krediKartiFacetTarihKosulu);
     }
 
     String buildQuery(String selectAndGroup, List<String> facetConds) {

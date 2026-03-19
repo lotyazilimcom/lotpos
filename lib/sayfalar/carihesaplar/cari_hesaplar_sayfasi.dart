@@ -391,7 +391,9 @@ class _CariHesaplarSayfasiState extends State<CariHesaplarSayfasi> {
       List<CariHesapModel> cariHesaplar = [];
       bool hasMore = false;
       String? nextCursor;
-      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
+      final bool hasDateFilter = _startDate != null || _endDate != null;
+      final bool usePrimarySearch =
+          _searchQuery.trim().length >= 2 && !hasDateFilter;
 
       if (usePrimarySearch) {
         final primary = await AramaPrimaryPath.fetchPageIndexFirst<CariHesapModel>(

@@ -337,7 +337,9 @@ class _DepolarSayfasiState extends State<DepolarSayfasi> {
       List<DepoModel> depolar = [];
       bool hasMore = false;
       String? nextCursor;
-      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
+      final bool hasDateFilter = _startDate != null || _endDate != null;
+      final bool usePrimarySearch =
+          _searchQuery.trim().length >= 2 && !hasDateFilter;
 
       if (usePrimarySearch) {
         final primary = await AramaPrimaryPath.fetchPageIndexFirst<DepoModel>(

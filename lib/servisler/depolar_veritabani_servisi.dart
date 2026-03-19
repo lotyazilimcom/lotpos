@@ -1604,10 +1604,12 @@ class DepolarVeritabaniServisi {
       }
     }
 
+    final bool hasShipmentSpecificFilter =
+        (trimmedUser != null && trimmedUser.isNotEmpty) ||
+        typeCondition != null;
     if (baslangicTarihi != null ||
         bitisTarihi != null ||
-        (trimmedUser != null && trimmedUser.isNotEmpty) ||
-        typeCondition != null) {
+        hasShipmentSpecificFilter) {
       String existsQuery = '''
         EXISTS (
           SELECT 1 FROM shipments s
@@ -1643,7 +1645,21 @@ class DepolarVeritabaniServisi {
       }
 
       existsQuery += ')';
-      whereConditions.add(existsQuery);
+      final bool hasDateOnlyShipmentFilter =
+          (baslangicTarihi != null || bitisTarihi != null) &&
+          !hasShipmentSpecificFilter;
+      if (hasDateOnlyShipmentFilter) {
+        final createdAtConds = <String>[];
+        if (baslangicTarihi != null) {
+          createdAtConds.add('depots.created_at >= @startDate');
+        }
+        if (bitisTarihi != null) {
+          createdAtConds.add('depots.created_at <= @endDate');
+        }
+        whereConditions.add('((${createdAtConds.join(' AND ')}) OR $existsQuery)');
+      } else {
+        whereConditions.add(existsQuery);
+      }
     }
 
     if (depoId != null) {
@@ -1839,10 +1855,12 @@ class DepolarVeritabaniServisi {
       }
     }
 
+    final bool hasShipmentSpecificFilter =
+        (trimmedUser != null && trimmedUser.isNotEmpty) ||
+        typeCondition != null;
     if (baslangicTarihi != null ||
         bitisTarihi != null ||
-        (trimmedUser != null && trimmedUser.isNotEmpty) ||
-        typeCondition != null) {
+        hasShipmentSpecificFilter) {
       String existsQuery = '''
         EXISTS (
           SELECT 1 FROM shipments s
@@ -1878,7 +1896,21 @@ class DepolarVeritabaniServisi {
       }
 
       existsQuery += ')';
-      whereConditions.add(existsQuery);
+      final bool hasDateOnlyShipmentFilter =
+          (baslangicTarihi != null || bitisTarihi != null) &&
+          !hasShipmentSpecificFilter;
+      if (hasDateOnlyShipmentFilter) {
+        final createdAtConds = <String>[];
+        if (baslangicTarihi != null) {
+          createdAtConds.add('depots.created_at >= @startDate');
+        }
+        if (bitisTarihi != null) {
+          createdAtConds.add('depots.created_at <= @endDate');
+        }
+        whereConditions.add('((${createdAtConds.join(' AND ')}) OR $existsQuery)');
+      } else {
+        whereConditions.add(existsQuery);
+      }
     }
 
     if (depoId != null) {
@@ -1978,12 +2010,20 @@ class DepolarVeritabaniServisi {
           params['endDate'] = endOfDay(bitisTarihi)!.toIso8601String();
         }
 
-        conds.add('''
+        final shipmentExists = '''
           EXISTS (
             SELECT 1 FROM shipments s
             WHERE ${shipmentConds.join(' AND ')}
           )
-        ''');
+        ''';
+        final createdAtConds = <String>[];
+        if (baslangicTarihi != null) {
+          createdAtConds.add('depots.created_at >= @startDate');
+        }
+        if (bitisTarihi != null) {
+          createdAtConds.add('depots.created_at <= @endDate');
+        }
+        conds.add('((${createdAtConds.join(' AND ')}) OR $shipmentExists)');
       }
     }
 

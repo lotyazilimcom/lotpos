@@ -48,6 +48,89 @@ class SenetlerVeritabaniServisi {
         .replaceAll('i̇', 'i');
   }
 
+  DateTime _normalizeDateStart(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  DateTime _normalizeDateEndExclusive(DateTime date) =>
+      DateTime(date.year, date.month, date.day).add(const Duration(days: 1));
+
+  String? _buildSenetTarihVeyaHareketKosulu({
+    required String senetIdExpr,
+    required String senetCreatedAtExpr,
+    required Map<String, dynamic> params,
+    DateTime? baslangicTarihi,
+    DateTime? bitisTarihi,
+    String? islemTuru,
+    String? kullanici,
+    String hareketAlias = 'nt',
+    String startParam = 'startDate',
+    String endParam = 'endDate',
+    bool includeCreatedAtFallback = true,
+  }) {
+    final String? trimmedType = islemTuru?.trim();
+    final String? trimmedUser = kullanici?.trim();
+    final bool hasDate = baslangicTarihi != null || bitisTarihi != null;
+    final bool hasTxSpecificFilter =
+        (trimmedType != null && trimmedType.isNotEmpty) ||
+        (trimmedUser != null && trimmedUser.isNotEmpty);
+
+    if (!hasDate && !hasTxSpecificFilter) {
+      return null;
+    }
+
+    if (baslangicTarihi != null) {
+      params[startParam] =
+          _normalizeDateStart(baslangicTarihi).toIso8601String();
+    }
+    if (bitisTarihi != null) {
+      params[endParam] =
+          _normalizeDateEndExclusive(bitisTarihi).toIso8601String();
+    }
+
+    final List<String> txConds = <String>[
+      '$hareketAlias.note_id = $senetIdExpr',
+      "COALESCE($hareketAlias.company_id, '$_defaultCompanyId') = @companyId",
+    ];
+    if (baslangicTarihi != null) {
+      txConds.add('$hareketAlias.date >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      txConds.add('$hareketAlias.date < @$endParam');
+    }
+    if (trimmedType != null && trimmedType.isNotEmpty) {
+      txConds.add('$hareketAlias.type = @islemTuru');
+      params['islemTuru'] = trimmedType;
+    }
+    if (trimmedUser != null && trimmedUser.isNotEmpty) {
+      txConds.add('$hareketAlias.user_name = @kullanici');
+      params['kullanici'] = trimmedUser;
+    }
+
+    final txExists = '''
+      EXISTS (
+        SELECT 1 FROM note_transactions $hareketAlias
+        WHERE ${txConds.join(' AND ')}
+      )
+    ''';
+
+    if (!hasDate || hasTxSpecificFilter || !includeCreatedAtFallback) {
+      return txExists;
+    }
+
+    final List<String> createdAtConds = <String>[];
+    if (baslangicTarihi != null) {
+      createdAtConds.add('$senetCreatedAtExpr >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      createdAtConds.add('$senetCreatedAtExpr < @$endParam');
+    }
+    if (createdAtConds.isEmpty) {
+      return txExists;
+    }
+
+    return '((${createdAtConds.join(' AND ')}) OR $txExists)';
+  }
+
   String _buildNoteSearchTags(
     SenetModel senet, {
     required String integrationRef,
@@ -677,44 +760,18 @@ class SenetlerVeritabaniServisi {
       params['banka'] = banka;
     }
 
-    // [2026 FACET FILTER] Tarih aralığı + işlem türü filtreleri transaction tablosundan uygulanır.
-    // Bu sayede "Senet Alındı / Tahsil Edildi / Ciro Edildi" gibi gerçek hareket türleriyle filtreleme yapılır.
-    if ((baslangicTarihi != null || bitisTarihi != null) ||
-        (islemTuru != null && islemTuru.isNotEmpty) ||
-        (kullanici != null && kullanici.isNotEmpty)) {
-      String existsQuery =
-          "promissory_notes.id IN (SELECT nt.note_id FROM note_transactions nt WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId";
-
-      if (baslangicTarihi != null) {
-        existsQuery += ' AND nt.date >= @startDate';
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-
-      if (bitisTarihi != null) {
-        existsQuery += ' AND nt.date < @endDate';
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      if (islemTuru != null && islemTuru.isNotEmpty) {
-        existsQuery += ' AND nt.type = @islemTuru';
-        params['islemTuru'] = islemTuru;
-      }
-
-      if (kullanici != null && kullanici.isNotEmpty) {
-        existsQuery += ' AND nt.user_name = @kullanici';
-        params['kullanici'] = kullanici;
-      }
-
-      existsQuery += ' GROUP BY nt.note_id)';
-      conditions.add(existsQuery);
+    final senetHareketKosulu = _buildSenetTarihVeyaHareketKosulu(
+      senetIdExpr: 'promissory_notes.id',
+      senetCreatedAtExpr: 'promissory_notes.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemTuru: islemTuru,
+      kullanici: kullanici,
+    );
+    if (senetHareketKosulu != null &&
+        senetHareketKosulu.trim().isNotEmpty) {
+      conditions.add(senetHareketKosulu);
     }
 
     if (senetId != null) {
@@ -877,42 +934,18 @@ class SenetlerVeritabaniServisi {
       params['banka'] = banka;
     }
 
-    if ((baslangicTarihi != null || bitisTarihi != null) ||
-        (islemTuru != null && islemTuru.isNotEmpty) ||
-        (kullanici != null && kullanici.isNotEmpty)) {
-      String existsQuery =
-          "promissory_notes.id IN (SELECT nt.note_id FROM note_transactions nt WHERE COALESCE(nt.company_id, '$_defaultCompanyId') = @companyId";
-
-      if (baslangicTarihi != null) {
-        existsQuery += ' AND nt.date >= @startDate';
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-
-      if (bitisTarihi != null) {
-        existsQuery += ' AND nt.date < @endDate';
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      if (islemTuru != null && islemTuru.isNotEmpty) {
-        existsQuery += ' AND nt.type = @islemTuru';
-        params['islemTuru'] = islemTuru;
-      }
-
-      if (kullanici != null && kullanici.isNotEmpty) {
-        existsQuery += ' AND nt.user_name = @kullanici';
-        params['kullanici'] = kullanici;
-      }
-
-      existsQuery += ' GROUP BY nt.note_id)';
-      conditions.add(existsQuery);
+    final senetHareketKosulu = _buildSenetTarihVeyaHareketKosulu(
+      senetIdExpr: 'promissory_notes.id',
+      senetCreatedAtExpr: 'promissory_notes.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemTuru: islemTuru,
+      kullanici: kullanici,
+    );
+    if (senetHareketKosulu != null &&
+        senetHareketKosulu.trim().isNotEmpty) {
+      conditions.add(senetHareketKosulu);
     }
 
     if (senetId != null) {
@@ -989,14 +1022,18 @@ class SenetlerVeritabaniServisi {
       ).add(const Duration(days: 1)).toIso8601String();
     }
 
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      baseConditions.add('''
-        EXISTS (
-          SELECT 1 FROM note_transactions nt 
-          WHERE nt.note_id = promissory_notes.id 
-          $transactionFilters
-        )
-      ''');
+    final senetFacetTarihKosulu = _buildSenetTarihVeyaHareketKosulu(
+      senetIdExpr: 'promissory_notes.id',
+      senetCreatedAtExpr: 'promissory_notes.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      startParam: 'start',
+      endParam: 'end',
+    );
+    if (senetFacetTarihKosulu != null &&
+        senetFacetTarihKosulu.trim().isNotEmpty) {
+      baseConditions.add(senetFacetTarihKosulu);
     }
 
     String buildQuery(String selectAndGroup, List<String> facetConds) {

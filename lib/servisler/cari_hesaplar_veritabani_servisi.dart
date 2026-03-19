@@ -194,6 +194,93 @@ class CariHesaplarVeritabaniServisi {
         .replaceAll('i̇', 'i');
   }
 
+  DateTime _normalizeDateStart(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  DateTime _normalizeDateEndExclusive(DateTime date) =>
+      DateTime(date.year, date.month, date.day).add(const Duration(days: 1));
+
+  String? _buildCariHareketKosulu({
+    required String hesapIdExpr,
+    required String hesapCreatedAtExpr,
+    required Map<String, dynamic> params,
+    DateTime? baslangicTarihi,
+    DateTime? bitisTarihi,
+    String? islemTuru,
+    String? kullanici,
+    String hareketAlias = 'cat',
+    String startParam = 'start',
+    String endParam = 'end',
+    bool includeCreatedAtFallback = true,
+  }) {
+    final String? trimmedUser = kullanici?.trim();
+    final String? trimmedType = islemTuru?.trim();
+    final bool hasDate = baslangicTarihi != null || bitisTarihi != null;
+    final bool hasTxSpecificFilter =
+        (trimmedUser != null && trimmedUser.isNotEmpty) ||
+        (trimmedType != null && trimmedType.isNotEmpty);
+
+    if (!hasDate && !hasTxSpecificFilter) {
+      return null;
+    }
+
+    if (baslangicTarihi != null) {
+      params[startParam] =
+          _normalizeDateStart(baslangicTarihi).toIso8601String();
+    }
+    if (bitisTarihi != null) {
+      params[endParam] =
+          _normalizeDateEndExclusive(bitisTarihi).toIso8601String();
+    }
+
+    final List<String> txConds = <String>[];
+    if (trimmedType != null && trimmedType.isNotEmpty) {
+      txConds.add('''
+        (
+          $hareketAlias.source_type = @islemTuru OR
+          get_professional_label($hareketAlias.source_type, 'cari', $hareketAlias.type) = @islemTuru
+        )
+      ''');
+      params['islemTuru'] = trimmedType;
+    }
+    if (trimmedUser != null && trimmedUser.isNotEmpty) {
+      txConds.add('$hareketAlias.user_name = @kullanici');
+      params['kullanici'] = trimmedUser;
+    }
+    if (baslangicTarihi != null) {
+      txConds.add('$hareketAlias.date >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      txConds.add('$hareketAlias.date < @$endParam');
+    }
+
+    final String txMembership = '''
+      $hesapIdExpr IN (
+        SELECT $hareketAlias.current_account_id
+        FROM current_account_transactions $hareketAlias
+        WHERE ${txConds.join(' AND ')}
+        GROUP BY $hareketAlias.current_account_id
+      )
+    ''';
+
+    if (!hasDate || hasTxSpecificFilter || !includeCreatedAtFallback) {
+      return txMembership;
+    }
+
+    final List<String> createdAtConds = <String>[];
+    if (baslangicTarihi != null) {
+      createdAtConds.add('$hesapCreatedAtExpr >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      createdAtConds.add('$hesapCreatedAtExpr < @$endParam');
+    }
+    if (createdAtConds.isEmpty) {
+      return txMembership;
+    }
+
+    return '((${createdAtConds.join(' AND ')}) OR $txMembership)';
+  }
+
   // PostgreSQL Bağlantı Ayarları (Merkezi Yapılandırma)
   final _yapilandirma = VeritabaniYapilandirma();
 
@@ -1682,92 +1769,17 @@ class CariHesaplarVeritabaniServisi {
       params['sehir'] = sehir;
     }
 
-    if (kullanici != null) {
-      params['kullanici'] = kullanici;
-    }
-
-    if (islemTuru != null) {
-      whereConditions.add('''
-        id IN (
-          SELECT cat.current_account_id
-          FROM current_account_transactions cat
-          WHERE 1=1
-          AND (
-            cat.source_type = @islemTuru OR 
-            get_professional_label(cat.source_type, 'cari', cat.type) = @islemTuru
-          )
-          ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
-          ${baslangicTarihi != null ? 'AND cat.date >= @start' : ''}
-          ${bitisTarihi != null ? 'AND cat.date < @end' : ''}
-          GROUP BY cat.current_account_id
-        )
-      ''');
-      params['islemTuru'] = islemTuru;
-    }
-
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      if (baslangicTarihi != null) {
-        params['start'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        params['end'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      if (islemTuru == null) {
-        if (baslangicTarihi != null && bitisTarihi != null) {
-          whereConditions.add('''
-            id IN (
-              SELECT cat.current_account_id
-              FROM current_account_transactions cat 
-              WHERE cat.date >= @start AND cat.date < @end
-              ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
-              GROUP BY cat.current_account_id
-            )
-          ''');
-        } else if (baslangicTarihi != null) {
-          whereConditions.add('''
-            id IN (
-              SELECT cat.current_account_id
-              FROM current_account_transactions cat 
-              WHERE cat.date >= @start
-              ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
-              GROUP BY cat.current_account_id
-            )
-          ''');
-        } else if (bitisTarihi != null) {
-          whereConditions.add('''
-            id IN (
-              SELECT cat.current_account_id
-              FROM current_account_transactions cat 
-              WHERE cat.date < @end
-              ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
-              GROUP BY cat.current_account_id
-            )
-          ''');
-        }
-      }
-    }
-
-    if (kullanici != null &&
-        islemTuru == null &&
-        baslangicTarihi == null &&
-        bitisTarihi == null) {
-      whereConditions.add('''
-        id IN (
-          SELECT cat.current_account_id
-          FROM current_account_transactions cat 
-          WHERE cat.user_name = @kullanici
-          GROUP BY cat.current_account_id
-        )
-      ''');
+    final cariHareketKosulu = _buildCariHareketKosulu(
+      hesapIdExpr: 'id',
+      hesapCreatedAtExpr: 'current_accounts.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemTuru: islemTuru,
+      kullanici: kullanici,
+    );
+    if (cariHareketKosulu != null && cariHareketKosulu.trim().isNotEmpty) {
+      whereConditions.add(cariHareketKosulu);
     }
 
     // [2026 KEYSET PAGINATION LOGIC]
@@ -1899,92 +1911,17 @@ class CariHesaplarVeritabaniServisi {
       params['sehir'] = sehir;
     }
 
-    if (kullanici != null) {
-      params['kullanici'] = kullanici;
-    }
-
-    if (islemTuru != null) {
-      whereConditions.add('''
-        id IN (
-          SELECT cat.current_account_id
-          FROM current_account_transactions cat 
-          WHERE 1=1
-          AND (
-            cat.source_type = @islemTuru OR 
-            get_professional_label(cat.source_type, 'cari', cat.type) = @islemTuru
-          )
-          ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
-          ${baslangicTarihi != null ? 'AND cat.date >= @start' : ''}
-          ${bitisTarihi != null ? 'AND cat.date < @end' : ''}
-          GROUP BY cat.current_account_id
-        )
-      ''');
-      params['islemTuru'] = islemTuru;
-    }
-
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      if (baslangicTarihi != null) {
-        params['start'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        params['end'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      if (islemTuru == null) {
-        if (baslangicTarihi != null && bitisTarihi != null) {
-          whereConditions.add('''
-            id IN (
-              SELECT cat.current_account_id
-              FROM current_account_transactions cat 
-              WHERE cat.date >= @start AND cat.date < @end
-              ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
-              GROUP BY cat.current_account_id
-            )
-          ''');
-        } else if (baslangicTarihi != null) {
-          whereConditions.add('''
-            id IN (
-              SELECT cat.current_account_id
-              FROM current_account_transactions cat 
-              WHERE cat.date >= @start
-              ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
-              GROUP BY cat.current_account_id
-            )
-          ''');
-        } else if (bitisTarihi != null) {
-          whereConditions.add('''
-            id IN (
-              SELECT cat.current_account_id
-              FROM current_account_transactions cat 
-              WHERE cat.date < @end
-              ${kullanici != null ? 'AND cat.user_name = @kullanici' : ''}
-              GROUP BY cat.current_account_id
-            )
-          ''');
-        }
-      }
-    }
-
-    if (kullanici != null &&
-        islemTuru == null &&
-        baslangicTarihi == null &&
-        bitisTarihi == null) {
-      whereConditions.add('''
-        id IN (
-          SELECT cat.current_account_id
-          FROM current_account_transactions cat 
-          WHERE cat.user_name = @kullanici
-          GROUP BY cat.current_account_id
-        )
-      ''');
+    final cariHareketKosulu = _buildCariHareketKosulu(
+      hesapIdExpr: 'id',
+      hesapCreatedAtExpr: 'current_accounts.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemTuru: islemTuru,
+      kullanici: kullanici,
+    );
+    if (cariHareketKosulu != null && cariHareketKosulu.trim().isNotEmpty) {
+      whereConditions.add(cariHareketKosulu);
     }
 
     return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
@@ -2033,53 +1970,16 @@ class CariHesaplarVeritabaniServisi {
       );
     }
 
-    if (baslangicTarihi != null && bitisTarihi != null) {
-      baseConditions.add('''
-        id IN (
-          SELECT cat.current_account_id
-          FROM current_account_transactions cat 
-          WHERE cat.date >= @start AND cat.date < @end
-          GROUP BY cat.current_account_id
-        )
-      ''');
-      params['start'] = DateTime(
-        baslangicTarihi.year,
-        baslangicTarihi.month,
-        baslangicTarihi.day,
-      ).toIso8601String();
-      params['end'] = DateTime(
-        bitisTarihi.year,
-        bitisTarihi.month,
-        bitisTarihi.day,
-      ).add(const Duration(days: 1)).toIso8601String();
-    } else if (baslangicTarihi != null) {
-      baseConditions.add('''
-        id IN (
-          SELECT cat.current_account_id
-          FROM current_account_transactions cat 
-          WHERE cat.date >= @start
-          GROUP BY cat.current_account_id
-        )
-      ''');
-      params['start'] = DateTime(
-        baslangicTarihi.year,
-        baslangicTarihi.month,
-        baslangicTarihi.day,
-      ).toIso8601String();
-    } else if (bitisTarihi != null) {
-      baseConditions.add('''
-        id IN (
-          SELECT cat.current_account_id
-          FROM current_account_transactions cat 
-          WHERE cat.date < @end
-          GROUP BY cat.current_account_id
-        )
-      ''');
-      params['end'] = DateTime(
-        bitisTarihi.year,
-        bitisTarihi.month,
-        bitisTarihi.day,
-      ).add(const Duration(days: 1)).toIso8601String();
+    final cariTarihKosulu = _buildCariHareketKosulu(
+      hesapIdExpr: 'id',
+      hesapCreatedAtExpr: 'current_accounts.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      includeCreatedAtFallback: true,
+    );
+    if (cariTarihKosulu != null && cariTarihKosulu.trim().isNotEmpty) {
+      baseConditions.add(cariTarihKosulu);
     }
 
     // [FACETED SEARCH 2026] Each query applies all OTHER filters.

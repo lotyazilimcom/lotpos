@@ -1306,11 +1306,13 @@ class UretimlerVeritabaniServisi {
       params['idArray'] = sadeceIdler;
     }
 
-    if (baslangicTarihi != null ||
-        bitisTarihi != null ||
+    final bool hasMovementSpecificFilter =
         (depoIds != null && depoIds.isNotEmpty) ||
         (islemTuru != null && islemTuru.trim().isNotEmpty) ||
-        (kullanici != null && kullanici.trim().isNotEmpty)) {
+        (kullanici != null && kullanici.trim().isNotEmpty);
+    if (baslangicTarihi != null ||
+        bitisTarihi != null ||
+        hasMovementSpecificFilter) {
       String existsQuery = '''
         productions.id IN (
           SELECT DISTINCT psm.production_id
@@ -1387,7 +1389,21 @@ class UretimlerVeritabaniServisi {
       }
 
       existsQuery += ')';
-      whereConditions.add(existsQuery);
+      final bool hasDateOnlyMovementFilter =
+          (baslangicTarihi != null || bitisTarihi != null) &&
+          !hasMovementSpecificFilter;
+      if (hasDateOnlyMovementFilter) {
+        final createdAtConds = <String>[];
+        if (baslangicTarihi != null) {
+          createdAtConds.add('productions.created_at >= @startDate');
+        }
+        if (bitisTarihi != null) {
+          createdAtConds.add('productions.created_at <= @endDate');
+        }
+        whereConditions.add('((${createdAtConds.join(' AND ')}) OR $existsQuery)');
+      } else {
+        whereConditions.add(existsQuery);
+      }
     }
 
     // [KEYSET FILTER]
@@ -1525,11 +1541,13 @@ class UretimlerVeritabaniServisi {
       params['kdvOrani'] = kdvOrani;
     }
 
-    if (baslangicTarihi != null ||
-        bitisTarihi != null ||
+    final bool hasMovementSpecificFilter =
         (depoIds != null && depoIds.isNotEmpty) ||
         (islemTuru != null && islemTuru.trim().isNotEmpty) ||
-        (kullanici != null && kullanici.trim().isNotEmpty)) {
+        (kullanici != null && kullanici.trim().isNotEmpty);
+    if (baslangicTarihi != null ||
+        bitisTarihi != null ||
+        hasMovementSpecificFilter) {
       String existsQuery = '''
         productions.id IN (
           SELECT DISTINCT psm.production_id
@@ -1606,7 +1624,21 @@ class UretimlerVeritabaniServisi {
       }
 
       existsQuery += ')';
-      whereConditions.add(existsQuery);
+      final bool hasDateOnlyMovementFilter =
+          (baslangicTarihi != null || bitisTarihi != null) &&
+          !hasMovementSpecificFilter;
+      if (hasDateOnlyMovementFilter) {
+        final createdAtConds = <String>[];
+        if (baslangicTarihi != null) {
+          createdAtConds.add('productions.created_at >= @startDate');
+        }
+        if (bitisTarihi != null) {
+          createdAtConds.add('productions.created_at <= @endDate');
+        }
+        whereConditions.add('((${createdAtConds.join(' AND ')}) OR $existsQuery)');
+      } else {
+        whereConditions.add(existsQuery);
+      }
     }
 
     if (whereConditions.isNotEmpty) {
@@ -1784,6 +1816,9 @@ class UretimlerVeritabaniServisi {
     }) {
       final String? trimmedUser = user?.trim();
       final String? trimmedType = type?.trim();
+      final bool hasDate = start != null || end != null;
+      final bool hasMovementSpecificFilter =
+          useShipments || (depolar != null && depolar.isNotEmpty);
       final psmConds = <String>[];
 
       if (start != null) {
@@ -1810,13 +1845,25 @@ class UretimlerVeritabaniServisi {
       }
       if (psmConds.isEmpty) return;
 
-      conds.add('''
+      final movementMembership = '''
         productions.id IN (
           SELECT DISTINCT psm.production_id
           FROM production_stock_movements psm
           WHERE ${psmConds.join(' AND ')}
         )
-      ''');
+      ''';
+      if (hasDate && !hasMovementSpecificFilter) {
+        final createdAtConds = <String>[];
+        if (start != null) {
+          createdAtConds.add('productions.created_at >= @startDate');
+        }
+        if (end != null) {
+          createdAtConds.add('productions.created_at <= @endDate');
+        }
+        conds.add('((${createdAtConds.join(' AND ')}) OR $movementMembership)');
+      } else {
+        conds.add(movementMembership);
+      }
     }
 
     // [GENEL TOPLAM] Cari ile aynı mantık: sadece arama + tarih (diğer facetler hariç)

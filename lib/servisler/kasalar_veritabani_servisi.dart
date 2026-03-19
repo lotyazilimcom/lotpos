@@ -50,6 +50,113 @@ class KasalarVeritabaniServisi {
         .replaceAll('i̇', 'i');
   }
 
+  DateTime _normalizeDateStart(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  DateTime _normalizeDateEndExclusive(DateTime date) =>
+      DateTime(date.year, date.month, date.day).add(const Duration(days: 1));
+
+  String? _buildKasaIslemTuruKosulu({
+    required String alias,
+    required String? type,
+    required Map<String, dynamic> params,
+    String paramName = 'islemTuru',
+  }) {
+    final normalizedType = type?.trim();
+    if (normalizedType == null || normalizedType.isEmpty) return null;
+
+    if (normalizedType == 'Satış Yapıldı' || normalizedType == 'Satis Yapildi') {
+      return "($alias.integration_ref LIKE 'SALE-%' OR $alias.integration_ref LIKE 'RETAIL-%')";
+    }
+    if (normalizedType == 'Alış Yapıldı' || normalizedType == 'Alis Yapildi') {
+      return "$alias.integration_ref LIKE 'PURCHASE-%'";
+    }
+
+    params[paramName] = normalizedType;
+    return '$alias.type = @$paramName';
+  }
+
+  String? _buildKasaTarihVeyaIslemKosulu({
+    required String kasaIdExpr,
+    required String kasaCreatedAtExpr,
+    required Map<String, dynamic> params,
+    DateTime? baslangicTarihi,
+    DateTime? bitisTarihi,
+    String? kullanici,
+    String? islemTuru,
+    String islemAlias = 'crt',
+    String startParam = 'startDate',
+    String endParam = 'endDate',
+    bool includeCreatedAtFallback = true,
+  }) {
+    final String? trimmedUser = kullanici?.trim();
+    final String? trimmedType = islemTuru?.trim();
+    final bool hasDate = baslangicTarihi != null || bitisTarihi != null;
+    final bool hasTxSpecificFilter =
+        (trimmedUser != null && trimmedUser.isNotEmpty) ||
+        (trimmedType != null && trimmedType.isNotEmpty);
+
+    if (!hasDate && !hasTxSpecificFilter) {
+      return null;
+    }
+
+    if (baslangicTarihi != null) {
+      params[startParam] =
+          _normalizeDateStart(baslangicTarihi).toIso8601String();
+    }
+    if (bitisTarihi != null) {
+      params[endParam] =
+          _normalizeDateEndExclusive(bitisTarihi).toIso8601String();
+    }
+
+    final List<String> txConds = <String>[
+      '$islemAlias.cash_register_id = $kasaIdExpr',
+      "COALESCE($islemAlias.company_id, '$_defaultCompanyId') = @companyId",
+    ];
+    if (baslangicTarihi != null) {
+      txConds.add('$islemAlias.date >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      txConds.add('$islemAlias.date < @$endParam');
+    }
+    if (trimmedUser != null && trimmedUser.isNotEmpty) {
+      txConds.add('$islemAlias.user_name = @kullanici');
+      params['kullanici'] = trimmedUser;
+    }
+    final typeCondition = _buildKasaIslemTuruKosulu(
+      alias: islemAlias,
+      type: trimmedType,
+      params: params,
+    );
+    if (typeCondition != null && typeCondition.isNotEmpty) {
+      txConds.add(typeCondition);
+    }
+
+    final String txExists = '''
+      EXISTS (
+        SELECT 1 FROM cash_register_transactions $islemAlias
+        WHERE ${txConds.join(' AND ')}
+      )
+    ''';
+
+    if (!hasDate || hasTxSpecificFilter || !includeCreatedAtFallback) {
+      return txExists;
+    }
+
+    final List<String> createdAtConds = <String>[];
+    if (baslangicTarihi != null) {
+      createdAtConds.add('$kasaCreatedAtExpr >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      createdAtConds.add('$kasaCreatedAtExpr < @$endParam');
+    }
+    if (createdAtConds.isEmpty) {
+      return txExists;
+    }
+
+    return '((${createdAtConds.join(' AND ')}) OR $txExists)';
+  }
+
   Future<List<int>> _eslesenKasaIslemIdleriniGetir({
     required Session executor,
     required String normalizedSearch,
@@ -1245,82 +1352,17 @@ class KasalarVeritabaniServisi {
       params['idArray'] = sadeceIdler;
     }
 
-    // Kullanıcı Filtresi
-    if (kullanici != null && kullanici.isNotEmpty) {
-      conditions.add('''
-        EXISTS (
-          SELECT 1 FROM cash_register_transactions crt
-          WHERE crt.cash_register_id = cr.id
-          AND crt.user_name = @kullanici
-          AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-        )
-      ''');
-      params['kullanici'] = kullanici;
-    }
-
-    // İşlem Türü Filtresi: İşlem geçmişinde belirtilen tür varsa getir
-    if (islemTuru != null && islemTuru.isNotEmpty) {
-      final normalized = islemTuru.trim();
-      if (normalized == 'Satış Yapıldı' || normalized == 'Satis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM cash_register_transactions crt
-            WHERE crt.cash_register_id = cr.id
-            AND (crt.integration_ref LIKE 'SALE-%' OR crt.integration_ref LIKE 'RETAIL-%')
-            AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else if (normalized == 'Alış Yapıldı' || normalized == 'Alis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM cash_register_transactions crt
-            WHERE crt.cash_register_id = cr.id
-            AND crt.integration_ref LIKE 'PURCHASE-%'
-            AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM cash_register_transactions crt
-            WHERE crt.cash_register_id = cr.id
-            AND crt.type = @islemTuru
-            AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-        params['islemTuru'] = normalized;
-      }
-    }
-
-    // Tarih Filtresi: Belirtilen tarih aralığında işlemi olan kasaları getir
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      String existsQuery =
-          '''
-        EXISTS (
-          SELECT 1 FROM cash_register_transactions crt
-          WHERE crt.cash_register_id = cr.id
-          AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-      ''';
-
-      if (baslangicTarihi != null) {
-        existsQuery += " AND crt.date >= @startDate";
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        existsQuery += " AND crt.date < @endDate";
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      existsQuery += ')';
-      conditions.add(existsQuery);
+    final kasaGecmisKosulu = _buildKasaTarihVeyaIslemKosulu(
+      kasaIdExpr: 'cr.id',
+      kasaCreatedAtExpr: 'cr.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      kullanici: kullanici,
+      islemTuru: islemTuru,
+    );
+    if (kasaGecmisKosulu != null && kasaGecmisKosulu.trim().isNotEmpty) {
+      conditions.add(kasaGecmisKosulu);
     }
 
     // Sorting (stable for keyset)
@@ -1492,82 +1534,17 @@ class KasalarVeritabaniServisi {
       params['kasaId'] = kasaId;
     }
 
-    // Kullanıcı Filtresi
-    if (kullanici != null && kullanici.isNotEmpty) {
-      conditions.add('''
-        EXISTS (
-          SELECT 1 FROM cash_register_transactions crt
-          WHERE crt.cash_register_id = cr.id
-          AND crt.user_name = @kullanici
-          AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-        )
-      ''');
-      params['kullanici'] = kullanici;
-    }
-
-    // İşlem Türü Filtresi
-    if (islemTuru != null && islemTuru.isNotEmpty) {
-      final normalized = islemTuru.trim();
-      if (normalized == 'Satış Yapıldı' || normalized == 'Satis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM cash_register_transactions crt
-            WHERE crt.cash_register_id = cr.id
-            AND (crt.integration_ref LIKE 'SALE-%' OR crt.integration_ref LIKE 'RETAIL-%')
-            AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else if (normalized == 'Alış Yapıldı' || normalized == 'Alis Yapildi') {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM cash_register_transactions crt
-            WHERE crt.cash_register_id = cr.id
-            AND crt.integration_ref LIKE 'PURCHASE-%'
-            AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-      } else {
-        conditions.add('''
-          EXISTS (
-            SELECT 1 FROM cash_register_transactions crt
-            WHERE crt.cash_register_id = cr.id
-            AND crt.type = @islemTuru
-            AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-          )
-        ''');
-        params['islemTuru'] = normalized;
-      }
-    }
-
-    // Tarih Filtresi
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      String existsQuery =
-          '''
-        EXISTS (
-          SELECT 1 FROM cash_register_transactions crt
-          WHERE crt.cash_register_id = cr.id
-          AND COALESCE(crt.company_id, '$_defaultCompanyId') = @companyId
-      ''';
-
-      if (baslangicTarihi != null) {
-        existsQuery += " AND crt.date >= @startDate";
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        existsQuery += " AND crt.date < @endDate";
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      existsQuery += ')';
-      conditions.add(existsQuery);
+    final kasaGecmisKosulu = _buildKasaTarihVeyaIslemKosulu(
+      kasaIdExpr: 'cr.id',
+      kasaCreatedAtExpr: 'cr.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      kullanici: kullanici,
+      islemTuru: islemTuru,
+    );
+    if (kasaGecmisKosulu != null && kasaGecmisKosulu.trim().isNotEmpty) {
+      conditions.add(kasaGecmisKosulu);
     }
 
     return HizliSayimYardimcisi.tahminiVeyaKesinSayim(
@@ -1643,15 +1620,19 @@ class KasalarVeritabaniServisi {
       ).add(const Duration(days: 1)).toIso8601String();
     }
 
-    // Date facet: only add EXISTS when user selected a range
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      baseConditions.add('''
-        EXISTS (
-          SELECT 1 FROM cash_register_transactions cat 
-          WHERE cat.cash_register_id = cash_registers.id 
-          $transactionFilters
-        )
-      ''');
+    final kasaFacetTarihKosulu = _buildKasaTarihVeyaIslemKosulu(
+      kasaIdExpr: 'cash_registers.id',
+      kasaCreatedAtExpr: 'cash_registers.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemAlias: 'cat',
+      startParam: 'start',
+      endParam: 'end',
+    );
+    if (kasaFacetTarihKosulu != null &&
+        kasaFacetTarihKosulu.trim().isNotEmpty) {
+      baseConditions.add(kasaFacetTarihKosulu);
     }
 
     // Helper to generate query with specific filters applied (excluding the facet itself)

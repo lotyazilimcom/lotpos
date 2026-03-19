@@ -48,6 +48,89 @@ class CeklerVeritabaniServisi {
         .replaceAll('i̇', 'i');
   }
 
+  DateTime _normalizeDateStart(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  DateTime _normalizeDateEndExclusive(DateTime date) =>
+      DateTime(date.year, date.month, date.day).add(const Duration(days: 1));
+
+  String? _buildCekTarihVeyaHareketKosulu({
+    required String cekIdExpr,
+    required String cekCreatedAtExpr,
+    required Map<String, dynamic> params,
+    DateTime? baslangicTarihi,
+    DateTime? bitisTarihi,
+    String? islemTuru,
+    String? kullanici,
+    String hareketAlias = 'ct',
+    String startParam = 'startDate',
+    String endParam = 'endDate',
+    bool includeCreatedAtFallback = true,
+  }) {
+    final String? trimmedType = islemTuru?.trim();
+    final String? trimmedUser = kullanici?.trim();
+    final bool hasDate = baslangicTarihi != null || bitisTarihi != null;
+    final bool hasTxSpecificFilter =
+        (trimmedType != null && trimmedType.isNotEmpty) ||
+        (trimmedUser != null && trimmedUser.isNotEmpty);
+
+    if (!hasDate && !hasTxSpecificFilter) {
+      return null;
+    }
+
+    if (baslangicTarihi != null) {
+      params[startParam] =
+          _normalizeDateStart(baslangicTarihi).toIso8601String();
+    }
+    if (bitisTarihi != null) {
+      params[endParam] =
+          _normalizeDateEndExclusive(bitisTarihi).toIso8601String();
+    }
+
+    final List<String> txConds = <String>[
+      '$hareketAlias.cheque_id = $cekIdExpr',
+      "COALESCE($hareketAlias.company_id, '$_defaultCompanyId') = @companyId",
+    ];
+    if (baslangicTarihi != null) {
+      txConds.add('$hareketAlias.date >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      txConds.add('$hareketAlias.date < @$endParam');
+    }
+    if (trimmedType != null && trimmedType.isNotEmpty) {
+      txConds.add('$hareketAlias.type = @islemTuru');
+      params['islemTuru'] = trimmedType;
+    }
+    if (trimmedUser != null && trimmedUser.isNotEmpty) {
+      txConds.add('$hareketAlias.user_name = @kullanici');
+      params['kullanici'] = trimmedUser;
+    }
+
+    final txExists = '''
+      EXISTS (
+        SELECT 1 FROM cheque_transactions $hareketAlias
+        WHERE ${txConds.join(' AND ')}
+      )
+    ''';
+
+    if (!hasDate || hasTxSpecificFilter || !includeCreatedAtFallback) {
+      return txExists;
+    }
+
+    final List<String> createdAtConds = <String>[];
+    if (baslangicTarihi != null) {
+      createdAtConds.add('$cekCreatedAtExpr >= @$startParam');
+    }
+    if (bitisTarihi != null) {
+      createdAtConds.add('$cekCreatedAtExpr < @$endParam');
+    }
+    if (createdAtConds.isEmpty) {
+      return txExists;
+    }
+
+    return '((${createdAtConds.join(' AND ')}) OR $txExists)';
+  }
+
   String _buildChequeSearchTags(
     CekModel cek, {
     required String integrationRef,
@@ -684,44 +767,17 @@ class CeklerVeritabaniServisi {
       params['banka'] = banka;
     }
 
-    // [2026 FACET FILTER] Tarih aralığı + işlem türü filtreleri transaction tablosundan uygulanır.
-    // Bu sayede "Çek Alındı / Tahsil Edildi / Ciro Edildi" gibi gerçek hareket türleriyle filtreleme yapılır.
-    if ((baslangicTarihi != null || bitisTarihi != null) ||
-        (islemTuru != null && islemTuru.isNotEmpty) ||
-        (kullanici != null && kullanici.isNotEmpty)) {
-      String existsQuery =
-          "cheques.id IN (SELECT ct.cheque_id FROM cheque_transactions ct WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId";
-
-      if (baslangicTarihi != null) {
-        existsQuery += ' AND ct.date >= @startDate';
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-
-      if (bitisTarihi != null) {
-        existsQuery += ' AND ct.date < @endDate';
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      if (islemTuru != null && islemTuru.isNotEmpty) {
-        existsQuery += ' AND ct.type = @islemTuru';
-        params['islemTuru'] = islemTuru;
-      }
-
-      if (kullanici != null && kullanici.isNotEmpty) {
-        existsQuery += ' AND ct.user_name = @kullanici';
-        params['kullanici'] = kullanici;
-      }
-
-      existsQuery += ' GROUP BY ct.cheque_id)';
-      conditions.add(existsQuery);
+    final cekHareketKosulu = _buildCekTarihVeyaHareketKosulu(
+      cekIdExpr: 'cheques.id',
+      cekCreatedAtExpr: 'cheques.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemTuru: islemTuru,
+      kullanici: kullanici,
+    );
+    if (cekHareketKosulu != null && cekHareketKosulu.trim().isNotEmpty) {
+      conditions.add(cekHareketKosulu);
     }
 
     if (cekId != null) {
@@ -877,42 +933,17 @@ class CeklerVeritabaniServisi {
       params['banka'] = banka;
     }
 
-    if ((baslangicTarihi != null || bitisTarihi != null) ||
-        (islemTuru != null && islemTuru.isNotEmpty) ||
-        (kullanici != null && kullanici.isNotEmpty)) {
-      String existsQuery =
-          "cheques.id IN (SELECT ct.cheque_id FROM cheque_transactions ct WHERE COALESCE(ct.company_id, '$_defaultCompanyId') = @companyId";
-
-      if (baslangicTarihi != null) {
-        existsQuery += ' AND ct.date >= @startDate';
-        params['startDate'] = DateTime(
-          baslangicTarihi.year,
-          baslangicTarihi.month,
-          baslangicTarihi.day,
-        ).toIso8601String();
-      }
-
-      if (bitisTarihi != null) {
-        existsQuery += ' AND ct.date < @endDate';
-        params['endDate'] = DateTime(
-          bitisTarihi.year,
-          bitisTarihi.month,
-          bitisTarihi.day,
-        ).add(const Duration(days: 1)).toIso8601String();
-      }
-
-      if (islemTuru != null && islemTuru.isNotEmpty) {
-        existsQuery += ' AND ct.type = @islemTuru';
-        params['islemTuru'] = islemTuru;
-      }
-
-      if (kullanici != null && kullanici.isNotEmpty) {
-        existsQuery += ' AND ct.user_name = @kullanici';
-        params['kullanici'] = kullanici;
-      }
-
-      existsQuery += ' GROUP BY ct.cheque_id)';
-      conditions.add(existsQuery);
+    final cekHareketKosulu = _buildCekTarihVeyaHareketKosulu(
+      cekIdExpr: 'cheques.id',
+      cekCreatedAtExpr: 'cheques.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemTuru: islemTuru,
+      kullanici: kullanici,
+    );
+    if (cekHareketKosulu != null && cekHareketKosulu.trim().isNotEmpty) {
+      conditions.add(cekHareketKosulu);
     }
 
     if (cekId != null) {
@@ -989,14 +1020,18 @@ class CeklerVeritabaniServisi {
       ).add(const Duration(days: 1)).toIso8601String();
     }
 
-    if (baslangicTarihi != null || bitisTarihi != null) {
-      baseConditions.add('''
-        EXISTS (
-          SELECT 1 FROM cheque_transactions ct 
-          WHERE ct.cheque_id = cheques.id 
-          $transactionFilters
-        )
-      ''');
+    final cekFacetTarihKosulu = _buildCekTarihVeyaHareketKosulu(
+      cekIdExpr: 'cheques.id',
+      cekCreatedAtExpr: 'cheques.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      startParam: 'start',
+      endParam: 'end',
+    );
+    if (cekFacetTarihKosulu != null &&
+        cekFacetTarihKosulu.trim().isNotEmpty) {
+      baseConditions.add(cekFacetTarihKosulu);
     }
 
     String buildQuery(String selectAndGroup, List<String> facetConds) {
