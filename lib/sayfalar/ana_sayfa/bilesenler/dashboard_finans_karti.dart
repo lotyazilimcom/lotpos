@@ -79,11 +79,7 @@ class _DashboardFinansKartiState extends State<DashboardFinansKarti> {
                   color: widget.renk.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  widget.ikon,
-                  color: widget.renk,
-                  size: 22,
-                ),
+                child: Icon(widget.ikon, color: widget.renk, size: 22),
               ),
               const SizedBox(width: 14),
               Expanded(

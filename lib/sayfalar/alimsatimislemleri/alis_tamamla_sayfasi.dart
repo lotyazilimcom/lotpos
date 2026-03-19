@@ -14,7 +14,7 @@ import '../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import 'modeller/transaction_item.dart';
 import '../../servisler/alisyap_veritabani_servisleri.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 import '../../servisler/kasalar_veritabani_servisi.dart';
 import '../../servisler/bankalar_veritabani_servisi.dart';
 import '../../servisler/kredi_kartlari_veritabani_servisi.dart';
@@ -1125,7 +1125,7 @@ class _AlisTamamlaSayfasiState extends State<AlisTamamlaSayfasi> {
             const SizedBox(height: 4),
             LayoutBuilder(
               builder: (context, constraints) {
-                return PatisyoRawAutocomplete<CariHesapModel>(
+                return LosposRawAutocomplete<CariHesapModel>(
                   focusNode: _cariAramaFocusNode,
                   textEditingController: _cariAramaController,
                   optionsBuilder: (TextEditingValue textEditingValue) async {
@@ -1260,7 +1260,8 @@ class _AlisTamamlaSayfasiState extends State<AlisTamamlaSayfasi> {
                                 itemBuilder: (BuildContext context, int index) {
                                   final option = options.elementAt(index);
                                   return InkWell(
-                                    mouseCursor: WidgetStateMouseCursor.clickable,
+                                    mouseCursor:
+                                        WidgetStateMouseCursor.clickable,
                                     onTap: () => onSelected(option),
                                     child: Padding(
                                       padding: const EdgeInsets.all(12.0),
@@ -1846,7 +1847,7 @@ class _AlisTamamlaSayfasiState extends State<AlisTamamlaSayfasi> {
           ],
         ),
         const SizedBox(height: 4),
-        PatisyoRawAutocomplete<Map<String, String>>(
+        LosposRawAutocomplete<Map<String, String>>(
           focusNode: focusNode,
           textEditingController: controller,
           optionsBuilder: (TextEditingValue textEditingValue) async {
@@ -2162,16 +2163,21 @@ class _AlisTamamlaSayfasiState extends State<AlisTamamlaSayfasi> {
                 controller: controller,
                 focusNode: focusNode,
                 readOnly: readOnly,
-                mouseCursor: ((readOnly) && ((selectAllOnTap
-                    ? () {
-                        if (controller.text.isNotEmpty) {
-                          controller.selection = TextSelection(
-                            baseOffset: 0,
-                            extentOffset: controller.text.length,
-                          );
-                        }
-                      }
-                    : null) != null)) ? SystemMouseCursors.click : SystemMouseCursors.text,
+                mouseCursor:
+                    ((readOnly) &&
+                        ((selectAllOnTap
+                                ? () {
+                                    if (controller.text.isNotEmpty) {
+                                      controller.selection = TextSelection(
+                                        baseOffset: 0,
+                                        extentOffset: controller.text.length,
+                                      );
+                                    }
+                                  }
+                                : null) !=
+                            null))
+                    ? SystemMouseCursors.click
+                    : SystemMouseCursors.text,
                 textAlign: TextAlign.right,
                 keyboardType: const TextInputType.numberWithOptions(
                   decimal: true,

@@ -241,14 +241,18 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                               ],
                               MouseRegion(
                                 cursor: SystemMouseCursors.click,
-                                child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                                  onTap: () => Navigator.of(context).pop(),
-                                  child: const Icon(
-                                    Icons.close,
-                                    size: 24,
-                                    color: _textColor,
+                                child: MouseRegion(
+                                  cursor: SystemMouseCursors.click,
+                                  hitTestBehavior: HitTestBehavior.deferToChild,
+                                  child: GestureDetector(
+                                    onTap: () => Navigator.of(context).pop(),
+                                    child: const Icon(
+                                      Icons.close,
+                                      size: 24,
+                                      color: _textColor,
+                                    ),
                                   ),
-                                )),
+                                ),
                               ),
                             ],
                           ),
@@ -496,39 +500,45 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                       cursor: _antetSatirControllers.length >= 3
                                           ? SystemMouseCursors.basic
                                           : SystemMouseCursors.click,
-                                      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                                        onTap:
-                                            _antetSatirControllers.length >= 3
-                                            ? null
-                                            : _antetSatirEkle,
-                                        child: Opacity(
-                                          opacity:
+                                      child: MouseRegion(
+                                        cursor: SystemMouseCursors.click,
+                                        hitTestBehavior:
+                                            HitTestBehavior.deferToChild,
+                                        child: GestureDetector(
+                                          onTap:
                                               _antetSatirControllers.length >= 3
-                                              ? 0.5
-                                              : 1.0,
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              const Icon(
-                                                Icons.add,
-                                                size: 18,
-                                                color: _primaryColor,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                tr(
-                                                  'settings.company.dialog.add_header_line',
-                                                ),
-                                                style: const TextStyle(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w700,
+                                              ? null
+                                              : _antetSatirEkle,
+                                          child: Opacity(
+                                            opacity:
+                                                _antetSatirControllers.length >=
+                                                    3
+                                                ? 0.5
+                                                : 1.0,
+                                            child: Row(
+                                              mainAxisSize: MainAxisSize.min,
+                                              children: [
+                                                const Icon(
+                                                  Icons.add,
+                                                  size: 18,
                                                   color: _primaryColor,
                                                 ),
-                                              ),
-                                            ],
+                                                const SizedBox(width: 4),
+                                                Text(
+                                                  tr(
+                                                    'settings.company.dialog.add_header_line',
+                                                  ),
+                                                  style: const TextStyle(
+                                                    fontSize: 14,
+                                                    fontWeight: FontWeight.w700,
+                                                    color: _primaryColor,
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
                                           ),
                                         ),
-                                      )),
+                                      ),
                                     ),
                                   ],
                                 )
@@ -568,42 +578,48 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                               _antetSatirControllers.length >= 3
                                               ? SystemMouseCursors.basic
                                               : SystemMouseCursors.click,
-                                          child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                                            onTap:
-                                                _antetSatirControllers.length >=
-                                                    3
-                                                ? null
-                                                : _antetSatirEkle,
-                                            child: Opacity(
-                                              opacity:
+                                          child: MouseRegion(
+                                            cursor: SystemMouseCursors.click,
+                                            hitTestBehavior:
+                                                HitTestBehavior.deferToChild,
+                                            child: GestureDetector(
+                                              onTap:
                                                   _antetSatirControllers
                                                           .length >=
                                                       3
-                                                  ? 0.5
-                                                  : 1.0,
-                                              child: Row(
-                                                children: [
-                                                  const Icon(
-                                                    Icons.add,
-                                                    size: 18,
-                                                    color: _primaryColor,
-                                                  ),
-                                                  const SizedBox(width: 4),
-                                                  Text(
-                                                    tr(
-                                                      'settings.company.dialog.add_header_line',
-                                                    ),
-                                                    style: const TextStyle(
-                                                      fontSize: 14,
-                                                      fontWeight:
-                                                          FontWeight.w700,
+                                                  ? null
+                                                  : _antetSatirEkle,
+                                              child: Opacity(
+                                                opacity:
+                                                    _antetSatirControllers
+                                                            .length >=
+                                                        3
+                                                    ? 0.5
+                                                    : 1.0,
+                                                child: Row(
+                                                  children: [
+                                                    const Icon(
+                                                      Icons.add,
+                                                      size: 18,
                                                       color: _primaryColor,
                                                     ),
-                                                  ),
-                                                ],
+                                                    const SizedBox(width: 4),
+                                                    Text(
+                                                      tr(
+                                                        'settings.company.dialog.add_header_line',
+                                                      ),
+                                                      style: const TextStyle(
+                                                        fontSize: 14,
+                                                        fontWeight:
+                                                            FontWeight.w700,
+                                                        color: _primaryColor,
+                                                      ),
+                                                    ),
+                                                  ],
+                                                ),
                                               ),
                                             ),
-                                          )),
+                                          ),
                                         ),
                                       ],
                                     ),
@@ -628,15 +644,20 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                       const SizedBox(width: 12),
                                       MouseRegion(
                                         cursor: SystemMouseCursors.click,
-                                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                                          onTap: () =>
-                                              _antetSatirSil(entry.key),
-                                          child: const Icon(
-                                            Icons.delete_outline,
-                                            color: Color(0xFFEA4335),
-                                            size: 24,
+                                        child: MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          hitTestBehavior:
+                                              HitTestBehavior.deferToChild,
+                                          child: GestureDetector(
+                                            onTap: () =>
+                                                _antetSatirSil(entry.key),
+                                            child: const Icon(
+                                              Icons.delete_outline,
+                                              color: Color(0xFFEA4335),
+                                              size: 24,
+                                            ),
                                           ),
-                                        )),
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -683,29 +704,34 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                                       right: 8,
                                       child: MouseRegion(
                                         cursor: SystemMouseCursors.click,
-                                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                                          onTap: _logoSil,
-                                          child: Container(
-                                            padding: const EdgeInsets.all(6),
-                                            decoration: BoxDecoration(
-                                              color: Colors.white,
-                                              shape: BoxShape.circle,
-                                              boxShadow: [
-                                                BoxShadow(
-                                                  color: Colors.black
-                                                      .withValues(alpha: 0.1),
-                                                  blurRadius: 4,
-                                                  offset: const Offset(0, 2),
-                                                ),
-                                              ],
-                                            ),
-                                            child: const Icon(
-                                              Icons.delete_outline,
-                                              color: Color(0xFFEA4335),
-                                              size: 20,
+                                        child: MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          hitTestBehavior:
+                                              HitTestBehavior.deferToChild,
+                                          child: GestureDetector(
+                                            onTap: _logoSil,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(6),
+                                              decoration: BoxDecoration(
+                                                color: Colors.white,
+                                                shape: BoxShape.circle,
+                                                boxShadow: [
+                                                  BoxShadow(
+                                                    color: Colors.black
+                                                        .withValues(alpha: 0.1),
+                                                    blurRadius: 4,
+                                                    offset: const Offset(0, 2),
+                                                  ),
+                                                ],
+                                              ),
+                                              child: const Icon(
+                                                Icons.delete_outline,
+                                                color: Color(0xFFEA4335),
+                                                size: 20,
+                                              ),
                                             ),
                                           ),
-                                        )),
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -713,55 +739,62 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
                               else
                                 MouseRegion(
                                   cursor: SystemMouseCursors.click,
-                                  child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                                    onTap: _logoSec,
-                                    child: Container(
-                                      width: double.infinity,
-                                      height: 120,
-                                      decoration: BoxDecoration(
-                                        color: const Color(0xFFF8F9FA),
-                                        borderRadius: BorderRadius.circular(12),
-                                        border: Border.all(
-                                          color: const Color(0xFFB2DFDB),
-                                          width: 1,
-                                          style: BorderStyle.solid,
-                                        ),
-                                      ),
-                                      child: Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          const Icon(
-                                            Icons.cloud_upload_outlined,
-                                            size: 32,
-                                            color: Color(0xFF26A69A),
+                                  child: MouseRegion(
+                                    cursor: SystemMouseCursors.click,
+                                    hitTestBehavior:
+                                        HitTestBehavior.deferToChild,
+                                    child: GestureDetector(
+                                      onTap: _logoSec,
+                                      child: Container(
+                                        width: double.infinity,
+                                        height: 120,
+                                        decoration: BoxDecoration(
+                                          color: const Color(0xFFF8F9FA),
+                                          borderRadius: BorderRadius.circular(
+                                            12,
                                           ),
-                                          const SizedBox(height: 8),
-                                          Text(
-                                            tr(
-                                              'settings.company.dialog.upload_image',
-                                            ),
-                                            style: const TextStyle(
-                                              fontSize: 14,
-                                              fontWeight: FontWeight.w600,
+                                          border: Border.all(
+                                            color: const Color(0xFFB2DFDB),
+                                            width: 1,
+                                            style: BorderStyle.solid,
+                                          ),
+                                        ),
+                                        child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            const Icon(
+                                              Icons.cloud_upload_outlined,
+                                              size: 32,
                                               color: Color(0xFF26A69A),
                                             ),
-                                          ),
-                                          const SizedBox(height: 4),
-                                          Text(
-                                            tr(
-                                              'settings.company.image_formats',
+                                            const SizedBox(height: 8),
+                                            Text(
+                                              tr(
+                                                'settings.company.dialog.upload_image',
+                                              ),
+                                              style: const TextStyle(
+                                                fontSize: 14,
+                                                fontWeight: FontWeight.w600,
+                                                color: Color(0xFF26A69A),
+                                              ),
                                             ),
-                                            style: TextStyle(
-                                              fontSize: 12,
-                                              fontWeight: FontWeight.w500,
-                                              color: Color(0xFF9AA0A6),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                              tr(
+                                                'settings.company.image_formats',
+                                              ),
+                                              style: TextStyle(
+                                                fontSize: 12,
+                                                fontWeight: FontWeight.w500,
+                                                color: Color(0xFF9AA0A6),
+                                              ),
                                             ),
-                                          ),
-                                        ],
+                                          ],
+                                        ),
                                       ),
                                     ),
-                                  )),
+                                  ),
                                 ),
 
                               const SizedBox(height: 32),
@@ -1217,46 +1250,50 @@ class _SirketEkleDialogState extends State<SirketEkleDialog> {
             final isSelected = groupValue == opt.value;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                onTap: () => onChanged(opt.value),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected ? _primaryColor : _textColor,
-                          width: 2,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                hitTestBehavior: HitTestBehavior.deferToChild,
+                child: GestureDetector(
+                  onTap: () => onChanged(opt.value),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected ? _primaryColor : _textColor,
+                            width: 2,
+                          ),
+                        ),
+                        child: isSelected
+                            ? Center(
+                                child: Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _primaryColor,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        opt.label,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: _textColor,
                         ),
                       ),
-                      child: isSelected
-                          ? Center(
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _primaryColor,
-                                ),
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      opt.label,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w500,
-                        color: _textColor,
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              )),
+              ),
             );
           }).toList(),
         ),

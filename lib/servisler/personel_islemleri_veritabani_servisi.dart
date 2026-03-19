@@ -18,13 +18,13 @@ class PersonelIslemleriVeritabaniServisi {
   factory PersonelIslemleriVeritabaniServisi() => _instance;
   PersonelIslemleriVeritabaniServisi._internal();
 
-  // [2025 FIX] Pool kullanımına geçiş - tek Connection yerine
+  // [2026 FIX] Pool kullanımına geçiş - tek Connection yerine
   Pool? _pool;
   bool _isInitialized = false;
   Completer<void>? _initCompleter;
   int _initToken = 0;
 
-  static const String _defaultCompanyId = 'patisyo2025';
+  static const String _defaultCompanyId = 'lospos2026';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
 
   // Merkezi yapılandırma
@@ -106,7 +106,7 @@ class PersonelIslemleriVeritabaniServisi {
   Future<void> _tablolariOlustur() async {
     if (_pool == null) return;
 
-    // [2025 HYPERSCALE] Personel Hareketleri Tablosu - Native Partitioning Support
+    // [2026 HYPERSCALE] Personel Hareketleri Tablosu - Native Partitioning Support
     try {
       final tableCheck = await _pool!.execute(
         "SELECT relkind::text FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = 'user_transactions'",
@@ -314,7 +314,7 @@ class PersonelIslemleriVeritabaniServisi {
       )
     ''');
 
-    // [2025 HYPERSCALE] Performans İndeksleri
+    // [2026 HYPERSCALE] Performans İndeksleri
     try {
       await _pool!.execute(
         'CREATE INDEX IF NOT EXISTS idx_sync_outbox_status ON sync_outbox (status)',
@@ -360,7 +360,10 @@ class PersonelIslemleriVeritabaniServisi {
     _checkedDefaultPartition = true;
   }
 
-  Future<void> _ensurePartitionExists(DateTime date, {TxSession? session}) async {
+  Future<void> _ensurePartitionExists(
+    DateTime date, {
+    TxSession? session,
+  }) async {
     final int key = _monthKey(date);
     if (_checkedPartitions.contains(key) && _checkedDefaultPartition) return;
     try {
@@ -576,7 +579,11 @@ class PersonelIslemleriVeritabaniServisi {
     final maxDt = range.first[1] as DateTime?;
     if (minDt == null || maxDt == null) return;
 
-    await _ensureUserTransactionPartitionsForRange(minDt, maxDt, session: session);
+    await _ensureUserTransactionPartitionsForRange(
+      minDt,
+      maxDt,
+      session: session,
+    );
 
     await PgEklentiler.moveRowsFromDefaultPartition(
       executor: executor,
@@ -586,8 +593,8 @@ class PersonelIslemleriVeritabaniServisi {
     );
   }
 
-  /// Settings DB üzerindeki (patisyosettings) Kullanıcı Bakiyesini günceller.
-  /// [2025 OUTBOX PATTERN] Doğrudan bağlantı yerine Outbox tablosuna yazar.
+  /// Settings DB üzerindeki (lospossettings) Kullanıcı Bakiyesini günceller.
+  /// [2026 OUTBOX PATTERN] Doğrudan bağlantı yerine Outbox tablosuna yazar.
   /// Gerçek senkronizasyon processOutbox() üzerinden yapılır.
   Future<void> _updateBalanceInSettings(
     String userId,

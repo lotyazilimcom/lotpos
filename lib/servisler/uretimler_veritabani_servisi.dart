@@ -450,7 +450,7 @@ class UretimlerVeritabaniServisi {
       debugPrint('Reçete tablosu oluşturma hatası: $e');
     }
 
-    // Üretim Stok Hareketleri (Production Stock Movements) Tablosu - 2025 Modernization
+    // Üretim Stok Hareketleri (Production Stock Movements) Tablosu - 2026 Modernization
     // Özellikler: Native Partitioning (by created_at) + BRIN Index + GIN Index
     try {
       // 1. Mevcut tablonun durumunu kontrol et (Partitioned mı, Normal mi?)
@@ -510,7 +510,7 @@ class UretimlerVeritabaniServisi {
         ''');
 
         // Partitions (Bölümler) - Yıllık
-        // [2025 AUTO-PARTITION] Dynamic Partitioning Logic - MUST RUN EVERY TIME
+        // [2026 AUTO-PARTITION] Dynamic Partitioning Logic - MUST RUN EVERY TIME
       }
 
       // Ensure partitions exist for a wide range of years to catch all historical data during migration
@@ -822,7 +822,7 @@ class UretimlerVeritabaniServisi {
         await _pool!.execute(
           'CREATE TABLE IF NOT EXISTS stock_movements_default PARTITION OF stock_movements DEFAULT',
         );
-        // [2025 AUTO-PARTITION] Dynamic Partitioning (Monthly)
+        // [2026 AUTO-PARTITION] Dynamic Partitioning (Monthly)
         final DateTime now = DateTime.now();
         for (int i = -12; i <= 60; i++) {
           final d = DateTime(now.year, now.month + i, 1);
@@ -841,7 +841,7 @@ class UretimlerVeritabaniServisi {
         }
       }
 
-      // [2025 HYPER-ROBUST] Verify table existence before any ALTER/INDEX operation
+      // [2026 HYPER-ROBUST] Verify table existence before any ALTER/INDEX operation
       final smCheck = await _pool!.execute(
         "SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = 'stock_movements'",
       );
@@ -1185,7 +1185,7 @@ class UretimlerVeritabaniServisi {
     String? kullanici,
     List<int>?
     sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
-    int? lastId, // [2025 OPTIMIZATION] Keyser cursor
+    int? lastId, // [2026 OPTIMIZATION] Keyser cursor
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return [];

@@ -5,14 +5,14 @@ void main() async {
   stdout.writeln('Checking PostgreSQL connection...');
 
   // Defaults from veritabani_yapilandirma.dart (override via env vars).
-  final host = Platform.environment['PATISYO_PG_HOST'] ?? '127.0.0.1';
+  final host = Platform.environment['LOSPOS_PG_HOST'] ?? '127.0.0.1';
   final port =
-      int.tryParse(Platform.environment['PATISYO_PG_PORT'] ?? '') ?? 5432;
+      int.tryParse(Platform.environment['LOSPOS_PG_PORT'] ?? '') ?? 5432;
   final database =
-      Platform.environment['PATISYO_PG_DB'] ?? 'patisyosettings';
+      Platform.environment['LOSPOS_PG_DB'] ?? 'lospossettings';
   final username =
-      Platform.environment['PATISYO_PG_USER'] ?? 'patisyo';
-  final password = Platform.environment['PATISYO_PG_PASSWORD'] ?? '';
+      Platform.environment['LOSPOS_PG_USER'] ?? 'lospos';
+  final password = Platform.environment['LOSPOS_PG_PASSWORD'] ?? '';
 
   final endpoint = Endpoint(
     host: host,

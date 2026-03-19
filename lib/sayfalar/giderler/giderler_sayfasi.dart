@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../bilesenler/genisletilebilir_tablo.dart';
@@ -20,7 +20,7 @@ import '../../yardimcilar/format_yardimcisi.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
 import '../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
-import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import 'package:lospos/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../ortak/genisletilebilir_print_preview_screen.dart';
 
 class GiderlerSayfasi extends StatefulWidget {

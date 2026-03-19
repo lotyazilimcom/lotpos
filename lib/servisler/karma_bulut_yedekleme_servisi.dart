@@ -18,18 +18,18 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
   KarmaBulutYedeklemeServisi._internal();
 
   // Bu ayarlar "Veritabanı / Yedek Ayarları" sayfasındaki UI ile eşleşir.
-  static const String prefBackupEnabledKey = 'patisyo_cloud_backup_enabled';
-  static const String prefBackupPeriodKey = 'patisyo_cloud_backup_period';
+  static const String prefBackupEnabledKey = 'lospos_cloud_backup_enabled';
+  static const String prefBackupPeriodKey = 'lospos_cloud_backup_period';
 
   // Telemetry (yerel): kullanıcıya göstermeden güvenli planlama için.
   static const String _prefLastSuccessAtKey =
-      'patisyo_cloud_backup_last_success_at';
+      'lospos_cloud_backup_last_success_at';
   static const String _prefLastDeltaSuccessAtKey =
-      'patisyo_cloud_backup_last_delta_success_at';
+      'lospos_cloud_backup_last_delta_success_at';
   static const String _prefLastCloudPullSuccessAtKey =
-      'patisyo_cloud_backup_last_cloud_pull_success_at';
+      'lospos_cloud_backup_last_cloud_pull_success_at';
   static const String _prefLastRequestAtKey =
-      'patisyo_cloud_backup_last_request_at';
+      'lospos_cloud_backup_last_request_at';
 
   // Hybrid modda, cloud kimlikleri sonradan hazır olursa kullanıcıdan aktarım
   // seçimi (merge/full/none) istemek için UI tetikleyicisi.
@@ -211,7 +211,8 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
     final now = DateTime.now();
     final lastReq = _getLastRequestAt(prefs);
     final shouldSend =
-        lastReq == null || now.difference(lastReq) > const Duration(minutes: 30);
+        lastReq == null ||
+        now.difference(lastReq) > const Duration(minutes: 30);
     if (shouldSend) {
       await OnlineVeritabaniServisi().talepGonder(
         hardwareId: hw,
@@ -225,7 +226,10 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
 
     if (creds.isValidApi) {
       final baseUrl =
-          (creds.apiWriteBaseUrl ?? creds.apiBaseUrl ?? creds.apiReadBaseUrl ?? '')
+          (creds.apiWriteBaseUrl ??
+                  creds.apiBaseUrl ??
+                  creds.apiReadBaseUrl ??
+                  '')
               .trim();
       await VeritabaniYapilandirma.saveCloudApiCredentials(
         baseUrl: baseUrl,
@@ -333,8 +337,7 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
 
       if (_pendingSeedNeedsChoice(niyet: niyet, savedChoice: savedChoice)) {
         // UI tarafı bu tick'i dinleyip dialog açacak.
-        hybridSeedChoicePromptTick.value =
-            hybridSeedChoicePromptTick.value + 1;
+        hybridSeedChoicePromptTick.value = hybridSeedChoicePromptTick.value + 1;
         _schedule(const Duration(minutes: 2));
         return;
       }
@@ -348,7 +351,9 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
           // Kullanıcı açıkça "dokunma" dedi: Karma modda buluta hiçbir veri gönderme.
           // (Delta sync altyapısı devreye girene kadar en güvenli davranış: otomatik yedeği kapat.)
           await prefs.setBool(prefBackupEnabledKey, false);
-          await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
+          await prefs.remove(
+            VeritabaniYapilandirma.prefPendingTransferChoiceKey,
+          );
           await aktarim.niyetTemizle();
           _consecutiveFailures = 0;
           _lastError = null;
@@ -387,14 +392,16 @@ class KarmaBulutYedeklemeServisi extends ChangeNotifier {
       }
 
       // 2) Delta sync: Yerelde değişiklik olduysa buluta anında gönder (best-effort, upsert).
-      final localHost =
-          (VeritabaniYapilandirma.discoveredHost ?? '127.0.0.1').trim();
+      final localHost = (VeritabaniYapilandirma.discoveredHost ?? '127.0.0.1')
+          .trim();
       final localCompanyDb = OturumServisi().aktifVeritabaniAdi;
 
       final lastDelta = _getLastDeltaSuccessAt(prefs);
       final lastFull = await _getLastSuccessAt(prefs);
       final baseline =
-          lastDelta ?? lastFull ?? DateTime.now().subtract(const Duration(minutes: 5));
+          lastDelta ??
+          lastFull ??
+          DateTime.now().subtract(const Duration(minutes: 5));
 
       final deltaReport = await aktarim.deltaSenkronYerelBulut(
         localHost: localHost.isEmpty ? '127.0.0.1' : localHost,

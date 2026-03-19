@@ -1,6 +1,6 @@
 # Veritabanı ve Yedekleme Sistem Tasarımı (UX/UI)
 
-Bu belge, Patisyo v10 projesi için "Veritabanı Yapılandırması" ve "Bulut Yedekleme" sistemlerinin kullanıcı deneyimi ve arayüz tasarımını detaylandırır.
+Bu belge, Lospos v10 projesi için "Veritabanı Yapılandırması" ve "Bulut Yedekleme" sistemlerinin kullanıcı deneyimi ve arayüz tasarımını detaylandırır.
 
 ## 1. Bilgi Mimarisi
 Ayarlar menüsü altında "Veritabanı / Yedek Ayarları" kısmında iki ana bölüm bulunacaktır:

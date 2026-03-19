@@ -19,10 +19,7 @@ class _HizliIslemItem {
 class DashboardHizliIslemler extends StatelessWidget {
   final void Function(int menuIndex) onIslemTap;
 
-  const DashboardHizliIslemler({
-    super.key,
-    required this.onIslemTap,
-  });
+  const DashboardHizliIslemler({super.key, required this.onIslemTap});
 
   static const _islemler = <_HizliIslemItem>[
     _HizliIslemItem(
@@ -64,9 +61,7 @@ class DashboardHizliIslemler extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppPalette.grey.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: AppPalette.grey.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
             color: AppPalette.slate.withValues(alpha: 0.06),

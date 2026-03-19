@@ -57,10 +57,7 @@ class VeritabaniBaglantiSifirlayici {
         'KrediKartlari',
         () => KrediKartlariVeritabaniServisi().baglantiyiKapat(),
       ),
-      safe(
-        'VeritabaniHavuzu',
-        () => VeritabaniHavuzu().tumunuKapat(),
-      ),
+      safe('VeritabaniHavuzu', () => VeritabaniHavuzu().tumunuKapat()),
     ]);
   }
 }

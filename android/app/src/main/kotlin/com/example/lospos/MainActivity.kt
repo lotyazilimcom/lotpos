@@ -1,4 +1,4 @@
-package com.example.patisyov10
+package com.example.lospos
 
 import io.flutter.embedding.android.FlutterActivity
 

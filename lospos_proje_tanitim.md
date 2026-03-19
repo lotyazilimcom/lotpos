@@ -1,6 +1,6 @@
 # 🏢 Lot Pos V 1.0 — Profesyonel Ön Muhasebe & İşletme Yönetim Yazılımı
 
-> **Geliştirici:** Lot Yazılım — [lotyazilim.com](https://lotyazilim.com)  
+> **Geliştirici:** LosSoft — [lotyazilim.com](https://lotyazilim.com)  
 > **Teknoloji:** Flutter (Dart) + PostgreSQL  
 > **Versiyon:** V 1.0  
 > **Lisans Modeli:** PRO + LITE (Freemium)
@@ -490,5 +490,5 @@ Tam kapsamlı alım-satım yönetim modülü. İşletmenizin tüm ticari operasy
 
 ---
 
-> **© 2026 Lot Yazılım — Tüm Hakları Saklıdır.**  
+> **© 2026 LosSoft — Tüm Hakları Saklıdır.**  
 > İletişim: [lotyazilim.com](https://lotyazilim.com)

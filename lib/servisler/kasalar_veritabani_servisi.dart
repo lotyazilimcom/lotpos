@@ -32,7 +32,7 @@ class KasalarVeritabaniServisi {
   Completer<void>? _initCompleter;
   int _initToken = 0;
 
-  static const String _defaultCompanyId = 'patisyo2025';
+  static const String _defaultCompanyId = 'lospos2026';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
 
   /// [2026 FIX] Türkçe karakterleri ASCII karşılıklarına normalize eder.
@@ -466,7 +466,7 @@ class KasalarVeritabaniServisi {
       )
     ''');
 
-    // [2025 HYPERSCALE] Create Cash Register Transactions Table - Native Partitioning Support
+    // [2026 HYPERSCALE] Create Cash Register Transactions Table - Native Partitioning Support
     try {
       // 1. Ana tablonun durumunu kontrol et
       final tableCheck = await _pool!.execute(
@@ -698,7 +698,7 @@ class KasalarVeritabaniServisi {
         'ALTER TABLE cash_register_transactions ADD COLUMN IF NOT EXISTS company_id TEXT',
       );
 
-      // [2025 ELITE] get_professional_label SQL Helper Function
+      // [2026 ELITE] get_professional_label SQL Helper Function
       // Global yardımcı fonksiyon
       await _pool!.execute('''
         CREATE OR REPLACE FUNCTION get_professional_label(raw_type TEXT, context TEXT DEFAULT '') RETURNS TEXT AS \$\$
@@ -867,7 +867,7 @@ class KasalarVeritabaniServisi {
       ''');
     } catch (_) {}
 
-    // [2025 HYPER-SPEED] İndeksler ve Triggerlar arka planda kurulur (Sayfa anında açılır)
+    // [2026 HYPER-SPEED] İndeksler ve Triggerlar arka planda kurulur (Sayfa anında açılır)
     if (_config.allowBackgroundDbMaintenance) {
       unawaited(() async {
         try {
@@ -2204,7 +2204,7 @@ class KasalarVeritabaniServisi {
     if (_pool == null) return;
 
     await _pool!.runTx((session) async {
-      // [2025 FIX] ÖNCE işlemleri bakiye düzelterek sil, SONRA kasayı sil
+      // [2026 FIX] ÖNCE işlemleri bakiye düzelterek sil, SONRA kasayı sil
       // 1. Bu kasaya ait tüm işlemleri al
       final islemler = await session.execute(
         Sql.named(
@@ -2684,7 +2684,7 @@ class KasalarVeritabaniServisi {
     );
   }
 
-  /// [2025 ENHANCED] Partition-safe UPDATE with DELETE+INSERT fallback
+  /// [2026 ENHANCED] Partition-safe UPDATE with DELETE+INSERT fallback
   /// Bu metod UPDATE başarısız olduğunda DELETE + INSERT yapar.
   Future<void> _partitionSafeKasaTransUpdate(
     TxSession s, {
@@ -2692,7 +2692,7 @@ class KasalarVeritabaniServisi {
     required String sql,
     required Map<String, dynamic> params,
   }) async {
-    // [2025 FIX] Hem mevcut ay hem hedef ayın partition'larını proaktif oluştur
+    // [2026 FIX] Hem mevcut ay hem hedef ayın partition'larını proaktif oluştur
     final DateTime now = DateTime.now();
     final int targetKey = _monthKey(tarih);
     final int currentKey = _monthKey(now);
@@ -2933,7 +2933,7 @@ class KasalarVeritabaniServisi {
       if (_pool == null) return -1;
     }
 
-    // [2025 PROACTIVE PARTITIONING]
+    // [2026 PROACTIVE PARTITIONING]
     await _ensurePartitionExists(tarih, session: session);
 
     int yeniIslemId = -1;
@@ -2978,7 +2978,7 @@ class KasalarVeritabaniServisi {
       // 0. VALIDATION: Eksi Bakiye Kontrolü (Ayarlara Bağlı)
       if (islemTuru != 'Tahsilat') {
         try {
-          // Session'ı ÇIKAR, çünkü ayarlar farklı veritabanında (patisyosettings)
+          // Session'ı ÇIKAR, çünkü ayarlar farklı veritabanında (lospossettings)
           final genelAyarlar = await AyarlarVeritabaniServisi()
               .genelAyarlariGetir();
           if (genelAyarlar.eksiBakiyeKontrol) {
@@ -3050,7 +3050,7 @@ class KasalarVeritabaniServisi {
             errorStr.contains('42P01') ||
             errorStr.toLowerCase().contains('does not exist');
 
-        // [2025 FIX] Table/Partition Hatası yakala ve onar (Self-Healing)
+        // [2026 FIX] Table/Partition Hatası yakala ve onar (Self-Healing)
         if (isMissingTable || _isPartitionError(e)) {
           debugPrint(
             '⚠️ Kasa Tablo/Partition hatası yakalandı, Self-Healing JIT onarımı... Ay: ${tarih.year}-${tarih.month.toString().padLeft(2, '0')}',
@@ -3313,7 +3313,7 @@ class KasalarVeritabaniServisi {
 
   // --- PARTITIONING HELPERS ---
 
-  /// [2025 SMART UPDATE] Kasa İşlemi Güncelleme (Silmeden)
+  /// [2026 SMART UPDATE] Kasa İşlemi Güncelleme (Silmeden)
   Future<void> kasaIslemGuncelleByRef({
     required String ref,
     required double tutar,
@@ -3327,7 +3327,7 @@ class KasalarVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return;
 
-    // [2025 PROACTIVE PARTITIONING]
+    // [2026 PROACTIVE PARTITIONING]
     await _ensurePartitionExists(tarih);
 
     Future<void> operation(TxSession s) async {
@@ -3573,7 +3573,7 @@ class KasalarVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return;
 
-    // [2025 PROACTIVE PARTITIONING]
+    // [2026 PROACTIVE PARTITIONING]
     await _ensurePartitionExists(tarih);
 
     String? entegrasyonRef;
@@ -3622,7 +3622,7 @@ class KasalarVeritabaniServisi {
           newCariId = await cariServis.cariIdGetir(cariKodu, session: s);
         }
 
-        // [2025 SMART UPDATE] Cari Değişmediyse ve Ref Varsa -> Update
+        // [2026 SMART UPDATE] Cari Değişmediyse ve Ref Varsa -> Update
         if (oldCariId != null &&
             newCariId != null &&
             oldCariId == newCariId &&

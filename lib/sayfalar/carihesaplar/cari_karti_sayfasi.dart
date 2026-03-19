@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'cari_para_al_ver_sayfasi.dart';
 import 'borc_alacak_dekontu_isle_sayfasi.dart';
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../bilesenler/genisletilebilir_tablo.dart';
@@ -34,7 +34,7 @@ import '../../servisler/sayfa_senkronizasyon_servisi.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
 import '../alimsatimislemleri/satis_sonrasi_yazdir_sayfasi.dart';
-import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import 'package:lospos/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../ortak/genisletilebilir_print_preview_screen.dart';
 import 'cari_hesap_ekle_sayfasi.dart';
 import 'cari_acilis_devri_duzenle_sayfasi.dart';
@@ -1921,7 +1921,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                   (tx['aciklama']?.toString().toLowerCase() ?? '').contains(
                     'pesinat',
                   )))) {
-        // [2025 FIX] Unique key ile her düzenleme için yeni State oluştur
+        // [2026 FIX] Unique key ile her düzenleme için yeni State oluştur
         final int txId =
             tx['id'] as int? ?? DateTime.now().millisecondsSinceEpoch;
 
@@ -11255,7 +11255,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
           decimalDigits: _genelAyarlar.fiyatOndalik,
         );
       case 'bakiye_borc':
-        // [2025 SYNC] DB kolonu yerine bellekte hesaplanan ve güncel modelle senkronize 'running_balance' kullan
+        // [2026 SYNC] DB kolonu yerine bellekte hesaplanan ve güncel modelle senkronize 'running_balance' kullan
         final rb = tx['running_balance'];
         if (rb != null && rb is double && rb > 0) {
           return FormatYardimcisi.sayiFormatlaOndalikli(
@@ -11267,7 +11267,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
         }
         return '';
       case 'bakiye_alacak':
-        // [2025 SYNC] Alacak bakiye (negatif bakiye) gösterimi
+        // [2026 SYNC] Alacak bakiye (negatif bakiye) gösterimi
         final rb = tx['running_balance'];
         if (rb != null && rb is double && rb < 0) {
           return FormatYardimcisi.sayiFormatlaOndalikli(
@@ -12859,7 +12859,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                     }
 
                     if (dt != null) {
-                      // [2025 FIX] Eğer saat 00:00 ise ve created_at varsa, saati created_at'den al
+                      // [2026 FIX] Eğer saat 00:00 ise ve created_at varsa, saati created_at'den al
                       if (dt.hour == 0 &&
                           dt.minute == 0 &&
                           dt.second == 0 &&
@@ -12979,7 +12979,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
                           : 'Senet Verildi';
                     }
                   } else {
-                    // [2025 FIX] Eğer islemTuru zaten zenginleştirilmişse kullan
+                    // [2026 FIX] Eğer islemTuru zaten zenginleştirilmişse kullan
                     if (islemTuru.contains('(') && islemTuru.contains(')')) {
                       displayName = islemTuru;
                     } else {
@@ -13541,7 +13541,7 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
       // Mevcut model `final int id` istiyor.
       id: DateTime.now().millisecondsSinceEpoch ~/ 1000,
       kodNo: 'D-2024-${DateTime.now().millisecond}',
-      adi: 'Patisyo Teknoloji A.Ş.',
+      adi: 'LosSoft',
       hesapTuru: 'Alıcı',
       aktifMi: true,
       bakiyeBorc: 15450.75,
@@ -13554,9 +13554,9 @@ class _CariKartiSayfasiState extends State<CariKartiSayfasi> {
       vadeGun: 45,
       telefon1: '0212 555 10 20',
       telefon2: '0532 555 30 40',
-      eposta: 'muhasebe@patisyo.com',
-      webAdresi: 'www.patisyo.com',
-      fatUnvani: 'Patisyo Teknoloji ve Yazılım Hizmetleri A.Ş.',
+      eposta: 'muhasebe@lossoft.com',
+      webAdresi: 'www.lossoft.com',
+      fatUnvani: 'LosSoft',
       fatAdresi: 'Teknopark İstanbul, Sanayi Mah. Teknoloji Bulvarı No:1/1A',
       fatIlce: 'Pendik',
       fatSehir: 'İstanbul',

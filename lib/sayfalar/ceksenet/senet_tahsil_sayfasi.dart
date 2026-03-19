@@ -14,7 +14,7 @@ import '../../bilesenler/tek_tarih_secici_dialog.dart';
 import '../../servisler/kasalar_veritabani_servisi.dart';
 import '../../servisler/bankalar_veritabani_servisi.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 import '../kasalar/modeller/kasa_model.dart';
 import '../bankalar/modeller/banka_model.dart';
 
@@ -941,7 +941,7 @@ class _SenetTahsilSayfasiState extends State<SenetTahsilSayfasi> {
           ],
         ),
         const SizedBox(height: 4),
-        PatisyoRawAutocomplete<Map<String, String>>(
+        LosposRawAutocomplete<Map<String, String>>(
           focusNode: focusNode,
           textEditingController: controller,
           optionsBuilder: (TextEditingValue textEditingValue) async {

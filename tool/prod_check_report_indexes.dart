@@ -4,11 +4,11 @@ import 'dart:io';
 
 import 'package:postgres/postgres.dart';
 
-import 'package:patisyov10/servisler/arama/buyuk_olcek_arama_bootstrap_spec.dart';
-import 'package:patisyov10/servisler/pg_eklentiler.dart';
+import 'package:lospos/servisler/arama/buyuk_olcek_arama_bootstrap_spec.dart';
+import 'package:lospos/servisler/pg_eklentiler.dart';
 
-const String _settingsDb = 'patisyosettings';
-const String _defaultDb = 'patisyo2025';
+const String _settingsDb = 'lospossettings';
+const String _defaultDb = 'lospos2026';
 const int _minimumPgVersionNum = 180003; // PostgreSQL 18.3
 
 Future<void> main(List<String> args) async {
@@ -21,36 +21,36 @@ Future<void> main(List<String> args) async {
       : _defaultDb;
 
   if ((apply || explain) &&
-      !_isTruthy(Platform.environment['PATISYO_ALLOW_HEAVY_MAINTENANCE'])) {
+      !_isTruthy(Platform.environment['LOSPOS_ALLOW_HEAVY_MAINTENANCE'])) {
     print(
       '❌ --apply/--explain icin bakim onayi gerekli: '
-      'PATISYO_ALLOW_HEAVY_MAINTENANCE=true',
+      'LOSPOS_ALLOW_HEAVY_MAINTENANCE=true',
     );
     exitCode = 2;
     return;
   }
 
   final host =
-      (Platform.environment['PATISYO_PG_HOST'] ??
-              Platform.environment['PATISYO_DB_HOST'] ??
+      (Platform.environment['LOSPOS_PG_HOST'] ??
+              Platform.environment['LOSPOS_DB_HOST'] ??
               '127.0.0.1')
           .trim();
   final port =
       int.tryParse(
-        (Platform.environment['PATISYO_PG_PORT'] ??
-                Platform.environment['PATISYO_DB_PORT'] ??
+        (Platform.environment['LOSPOS_PG_PORT'] ??
+                Platform.environment['LOSPOS_DB_PORT'] ??
                 '')
             .trim(),
       ) ??
       5432;
   final username =
-      (Platform.environment['PATISYO_PG_USER'] ??
-              Platform.environment['PATISYO_DB_USER'] ??
-              'patisyo')
+      (Platform.environment['LOSPOS_PG_USER'] ??
+              Platform.environment['LOSPOS_DB_USER'] ??
+              'lospos')
           .trim();
   final password =
-      (Platform.environment['PATISYO_PG_PASSWORD'] ??
-              Platform.environment['PATISYO_DB_PASSWORD'] ??
+      (Platform.environment['LOSPOS_PG_PASSWORD'] ??
+              Platform.environment['LOSPOS_DB_PASSWORD'] ??
               '')
           .trim();
   final sslMode = _sslModeFromEnv();
@@ -317,7 +317,7 @@ Future<void> _runExplains(
       EXPLAIN (ANALYZE, BUFFERS)
       SELECT ut.id, ut.date
       FROM user_transactions ut
-      WHERE COALESCE(ut.company_id, 'patisyo2025') = @companyId
+      WHERE COALESCE(ut.company_id, 'lospos2026') = @companyId
       ORDER BY ut.date DESC, ut.id DESC
       LIMIT 26
     ''');
@@ -632,7 +632,7 @@ List<_IndexSpec> _settingsIndexSpecs() {
       acceptedNames: const <String>['idx_ut_company_date_id'],
       createSql:
           "CREATE INDEX IF NOT EXISTS idx_ut_company_date_id "
-          "ON user_transactions (COALESCE(company_id, 'patisyo2025'), date DESC, id DESC)",
+          "ON user_transactions (COALESCE(company_id, 'lospos2026'), date DESC, id DESC)",
     ),
   ];
 }
@@ -789,13 +789,13 @@ String _veritabaniAdiHesapla(String companyCode) {
   final safeCode = trimmed
       .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
       .toLowerCase();
-  return safeCode.isEmpty ? _defaultDb : 'patisyo_$safeCode';
+  return safeCode.isEmpty ? _defaultDb : 'lospos_$safeCode';
 }
 
 SslMode _sslModeFromEnv() {
   final raw =
-      (Platform.environment['PATISYO_PG_SSLMODE'] ??
-              Platform.environment['PATISYO_DB_SSLMODE'] ??
+      (Platform.environment['LOSPOS_PG_SSLMODE'] ??
+              Platform.environment['LOSPOS_DB_SSLMODE'] ??
               Platform.environment['PGSSLMODE'] ??
               '')
           .trim()

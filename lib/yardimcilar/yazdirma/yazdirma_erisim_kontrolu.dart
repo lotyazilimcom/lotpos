@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:patisyov10/servisler/veritabani_yapilandirma.dart';
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/servisler/veritabani_yapilandirma.dart';
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
 
 class YazdirmaErisimKontrolu {
   const YazdirmaErisimKontrolu._();

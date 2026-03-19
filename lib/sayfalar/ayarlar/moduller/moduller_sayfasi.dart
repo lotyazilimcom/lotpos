@@ -1,11 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/standart_alt_aksiyon_bar.dart';
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
-import 'package:patisyov10/servisler/ayarlar_veritabani_servisi.dart';
-import 'package:patisyov10/sayfalar/ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
-import 'package:patisyov10/servisler/sayfa_senkronizasyon_servisi.dart';
+import 'package:lospos/bilesenler/standart_alt_aksiyon_bar.dart';
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/servisler/ayarlar_veritabani_servisi.dart';
+import 'package:lospos/sayfalar/ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
+import 'package:lospos/servisler/sayfa_senkronizasyon_servisi.dart';
 
 class ModullerSayfasi extends StatefulWidget {
   const ModullerSayfasi({super.key});
@@ -464,50 +464,54 @@ class _ModullerSayfasiState extends State<ModullerSayfasi> {
     const Color accentColor = Color(0xFFEA4335);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
-      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-        onTap: () => onChanged(!value),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: 44,
-          height: 24,
-          padding: const EdgeInsets.all(2),
-          decoration: BoxDecoration(
-            color: value ? accentColor : Colors.grey.shade300,
-            borderRadius: BorderRadius.circular(12),
-            boxShadow: value
-                ? [
-                    BoxShadow(
-                      color: accentColor.withValues(alpha: 0.3),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ]
-                : null,
-          ),
-          child: AnimatedAlign(
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        hitTestBehavior: HitTestBehavior.deferToChild,
+        child: GestureDetector(
+          onTap: () => onChanged(!value),
+          child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            alignment: value ? Alignment.centerRight : Alignment.centerLeft,
-            child: Container(
-              width: 20,
-              height: 20,
-              decoration: BoxDecoration(
-                color: Colors.white,
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.15),
-                    blurRadius: 4,
-                    offset: const Offset(0, 1),
-                  ),
-                ],
-              ),
-              child: value
-                  ? const Icon(Icons.check, size: 12, color: accentColor)
+            width: 44,
+            height: 24,
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              color: value ? accentColor : Colors.grey.shade300,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: value
+                  ? [
+                      BoxShadow(
+                        color: accentColor.withValues(alpha: 0.3),
+                        blurRadius: 6,
+                        offset: const Offset(0, 2),
+                      ),
+                    ]
                   : null,
+            ),
+            child: AnimatedAlign(
+              duration: const Duration(milliseconds: 200),
+              alignment: value ? Alignment.centerRight : Alignment.centerLeft,
+              child: Container(
+                width: 20,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.15),
+                      blurRadius: 4,
+                      offset: const Offset(0, 1),
+                    ),
+                  ],
+                ),
+                child: value
+                    ? const Icon(Icons.check, size: 12, color: accentColor)
+                    : null,
+              ),
             ),
           ),
         ),
-      )),
+      ),
     );
   }
 

@@ -1,4 +1,4 @@
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
 
 enum YazdirmaAlanTipi { text, image, line }
 

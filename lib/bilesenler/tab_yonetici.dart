@@ -328,68 +328,74 @@ class _TabYoneticiState extends State<TabYonetici> {
       onEnter: (_) => setState(() => _hoveredTabIndex = index),
       onExit: (_) => setState(() => _hoveredTabIndex = null),
       cursor: SystemMouseCursors.click,
-      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-        onTap: () => widget.onTabSecildi(index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          width: 180,
-          margin: const EdgeInsets.only(top: 6), // Üstten biraz boşluk
-          decoration: BoxDecoration(
-            color: bgColor,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(8)),
-            border: isAktif
-                ? Border(
-                    top: BorderSide(color: borderColor),
-                    left: BorderSide(color: borderColor),
-                    right: BorderSide(color: borderColor),
-                    bottom: BorderSide.none,
-                  )
-                : null,
-          ),
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              if (isAktif)
-                Positioned(
-                  bottom: -1,
-                  left: 0,
-                  right: 0,
-                  height: 2,
-                  child: Container(color: Colors.white),
-                ),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        hitTestBehavior: HitTestBehavior.deferToChild,
+        child: GestureDetector(
+          onTap: () => widget.onTabSecildi(index),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            width: 180,
+            margin: const EdgeInsets.only(top: 6), // Üstten biraz boşluk
+            decoration: BoxDecoration(
+              color: bgColor,
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(8),
+              ),
+              border: isAktif
+                  ? Border(
+                      top: BorderSide(color: borderColor),
+                      left: BorderSide(color: borderColor),
+                      right: BorderSide(color: borderColor),
+                      bottom: BorderSide.none,
+                    )
+                  : null,
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                if (isAktif)
+                  Positioned(
+                    bottom: -1,
+                    left: 0,
+                    right: 0,
+                    height: 2,
+                    child: Container(color: Colors.white),
+                  ),
 
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-                child: Row(
-                  children: [
-                    Icon(tab.ikon, size: 16, color: iconColor),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        baslik,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: isAktif
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: textColor,
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    children: [
+                      Icon(tab.ikon, size: 16, color: iconColor),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          baslik,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: isAktif
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: textColor,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 4),
-                    _CloseButton(
-                      onPressed: () => widget.onTabKapatildi(index),
-                      isActive: isAktif,
-                    ),
-                  ],
+                      const SizedBox(width: 4),
+                      _CloseButton(
+                        onPressed: () => widget.onTabKapatildi(index),
+                        isActive: isAktif,
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      )),
+      ),
     );
   }
 }
@@ -461,28 +467,32 @@ class _CloseButtonState extends State<_CloseButton> {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-        onTap: widget.onPressed,
-        child: Container(
-          width: 20,
-          height: 20,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: _isHovered
-                ? const Color(0xFFEF4444).withValues(alpha: 0.1)
-                : Colors.transparent,
-          ),
-          child: Icon(
-            Icons.close_rounded,
-            size: 14,
-            color: _isHovered
-                ? const Color(0xFFEF4444)
-                : (widget.isActive
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFFCBD5E1)),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        hitTestBehavior: HitTestBehavior.deferToChild,
+        child: GestureDetector(
+          onTap: widget.onPressed,
+          child: Container(
+            width: 20,
+            height: 20,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: _isHovered
+                  ? const Color(0xFFEF4444).withValues(alpha: 0.1)
+                  : Colors.transparent,
+            ),
+            child: Icon(
+              Icons.close_rounded,
+              size: 14,
+              color: _isHovered
+                  ? const Color(0xFFEF4444)
+                  : (widget.isActive
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFFCBD5E1)),
+            ),
           ),
         ),
-      )),
+      ),
     );
   }
 }

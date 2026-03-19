@@ -17,13 +17,13 @@ import 'package:postgres/postgres.dart';
 ///   dart lib/servisler/veritabani_bigint_migrasyon_servisi.dart
 ///
 ///   # Gerçekten uygula
-///   PATISYO_BIGINT_MIGRATE_EXECUTE=1 dart lib/servisler/veritabani_bigint_migrasyon_servisi.dart
+///   LOSPOS_BIGINT_MIGRATE_EXECUTE=1 dart lib/servisler/veritabani_bigint_migrasyon_servisi.dart
 ///
 /// ENV:
-/// - PATISYO_DB_HOST, PATISYO_DB_PORT, PATISYO_DB_USER, PATISYO_DB_PASSWORD
-/// - PATISYO_DB_SSLMODE=require|disable (opsiyonel)
-/// - PATISYO_BIGINT_MIGRATE_DATABASES="db1,db2" (opsiyonel; yoksa PATISYO_DB_NAME kullanılır)
-/// - PATISYO_BIGINT_MIGRATE_EXECUTE=1 (opsiyonel; yoksa sadece rapor)
+/// - LOSPOS_DB_HOST, LOSPOS_DB_PORT, LOSPOS_DB_USER, LOSPOS_DB_PASSWORD
+/// - LOSPOS_DB_SSLMODE=require|disable (opsiyonel)
+/// - LOSPOS_BIGINT_MIGRATE_DATABASES="db1,db2" (opsiyonel; yoksa LOSPOS_DB_NAME kullanılır)
+/// - LOSPOS_BIGINT_MIGRATE_EXECUTE=1 (opsiyonel; yoksa sadece rapor)
 ///
 void main() async {
   final svc = _BigintMigrator();
@@ -31,22 +31,24 @@ void main() async {
 }
 
 final class _BigintMigrator {
-  final String host = (Platform.environment['PATISYO_DB_HOST'] ?? '127.0.0.1').trim();
+  final String host = (Platform.environment['LOSPOS_DB_HOST'] ?? '127.0.0.1')
+      .trim();
   final int port =
-      int.tryParse((Platform.environment['PATISYO_DB_PORT'] ?? '').trim()) ??
+      int.tryParse((Platform.environment['LOSPOS_DB_PORT'] ?? '').trim()) ??
       5432;
-  final String username =
-      (Platform.environment['PATISYO_DB_USER'] ?? 'patisyo').trim();
-  final String password =
-      (Platform.environment['PATISYO_DB_PASSWORD'] ?? '').trim();
+  final String username = (Platform.environment['LOSPOS_DB_USER'] ?? 'lospos')
+      .trim();
+  final String password = (Platform.environment['LOSPOS_DB_PASSWORD'] ?? '')
+      .trim();
 
-  final bool execute = (Platform.environment['PATISYO_BIGINT_MIGRATE_EXECUTE'] ?? '')
-      .trim()
-      .toLowerCase()
-      .let((v) => v == '1' || v == 'true' || v == 'yes' || v == 'on');
+  final bool execute =
+      (Platform.environment['LOSPOS_BIGINT_MIGRATE_EXECUTE'] ?? '')
+          .trim()
+          .toLowerCase()
+          .let((v) => v == '1' || v == 'true' || v == 'yes' || v == 'on');
 
   SslMode get sslMode {
-    final raw = (Platform.environment['PATISYO_DB_SSLMODE'] ?? '')
+    final raw = (Platform.environment['LOSPOS_DB_SSLMODE'] ?? '')
         .trim()
         .toLowerCase();
     if (raw == 'disable') return SslMode.disable;
@@ -57,7 +59,7 @@ final class _BigintMigrator {
   }
 
   List<String> _targetDbs() {
-    final raw = (Platform.environment['PATISYO_BIGINT_MIGRATE_DATABASES'] ?? '')
+    final raw = (Platform.environment['LOSPOS_BIGINT_MIGRATE_DATABASES'] ?? '')
         .trim();
     if (raw.isNotEmpty) {
       return raw
@@ -68,20 +70,22 @@ final class _BigintMigrator {
           .toList();
     }
     final fallback =
-        (Platform.environment['PATISYO_DB_NAME'] ?? 'patisyosettings').trim();
+        (Platform.environment['LOSPOS_DB_NAME'] ?? 'lospossettings').trim();
     return fallback.isEmpty ? const <String>[] : <String>[fallback];
   }
 
   Future<void> run() async {
     final dbs = _targetDbs();
     if (dbs.isEmpty) {
-      stderr.writeln('Hedef veritabanı bulunamadı. PATISYO_DB_NAME veya PATISYO_BIGINT_MIGRATE_DATABASES ayarlayın.');
+      stderr.writeln(
+        'Hedef veritabanı bulunamadı. LOSPOS_DB_NAME veya LOSPOS_BIGINT_MIGRATE_DATABASES ayarlayın.',
+      );
       exitCode = 64;
       return;
     }
 
     if (password.isEmpty) {
-      stderr.writeln('PATISYO_DB_PASSWORD zorunludur (CLI migrasyon).');
+      stderr.writeln('LOSPOS_DB_PASSWORD zorunludur (CLI migrasyon).');
       exitCode = 64;
       return;
     }
@@ -131,7 +135,9 @@ final class _BigintMigrator {
 
       final fkConstraints = await _findFkConstraints(conn);
 
-      final pkSet = pkCols.map((c) => '${c.schema}.${c.table}.${c.column}').toSet();
+      final pkSet = pkCols
+          .map((c) => '${c.schema}.${c.table}.${c.column}')
+          .toSet();
       final constraintsToDrop = <_FkConstraint>[];
       final columnsToAlter = <_Col>{...pkCols};
 
@@ -166,7 +172,9 @@ final class _BigintMigrator {
         ..addAll(int4Only);
 
       stdout.writeln('PK INT→BIGINT: ${pkCols.length}');
-      stdout.writeln('FK constraint drop/recreate: ${constraintsToDrop.length}');
+      stdout.writeln(
+        'FK constraint drop/recreate: ${constraintsToDrop.length}',
+      );
       stdout.writeln('Toplam sütun alter: ${columnsToAlter.length}');
 
       final sqlPlan = <String>[
@@ -343,8 +351,7 @@ final class _BigintMigrator {
 
   Future<bool> _isInt4(Connection conn, _Col c) async {
     final res = await conn.execute(
-      Sql.named(
-        '''
+      Sql.named('''
         SELECT (a.atttypid = 'int4'::regtype) AS is_int4
         FROM pg_attribute a
         JOIN pg_class cl ON cl.oid = a.attrelid
@@ -355,8 +362,7 @@ final class _BigintMigrator {
           AND a.attnum > 0
           AND NOT a.attisdropped
         LIMIT 1
-      ''',
-      ),
+      '''),
       parameters: <String, Object?>{
         'schema': c.schema,
         'table': c.table,

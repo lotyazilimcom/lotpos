@@ -41,9 +41,7 @@ class _DashboardUyariKartiState extends State<DashboardUyariKarti> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppPalette.grey.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: AppPalette.grey.withValues(alpha: 0.15)),
           boxShadow: [
             BoxShadow(
               color: _isHovered
@@ -102,9 +100,7 @@ class _DashboardUyariKartiState extends State<DashboardUyariKarti> {
                 AppPalette.red,
               ),
               const SizedBox(height: 8),
-              ...widget.kritikStoklar.take(4).map(
-                    (s) => _buildStokItem(s),
-                  ),
+              ...widget.kritikStoklar.take(4).map((s) => _buildStokItem(s)),
               const SizedBox(height: 16),
             ],
 
@@ -116,13 +112,10 @@ class _DashboardUyariKartiState extends State<DashboardUyariKarti> {
                 AppPalette.amber,
               ),
               const SizedBox(height: 8),
-              ...widget.yaklasanVadeler.take(4).map(
-                    (v) => _buildVadeItem(v),
-                  ),
+              ...widget.yaklasanVadeler.take(4).map((v) => _buildVadeItem(v)),
             ],
 
-            if (widget.kritikStoklar.isEmpty &&
-                widget.yaklasanVadeler.isEmpty)
+            if (widget.kritikStoklar.isEmpty && widget.yaklasanVadeler.isEmpty)
               Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(vertical: 32),
@@ -183,9 +176,7 @@ class _DashboardUyariKartiState extends State<DashboardUyariKarti> {
             decoration: BoxDecoration(
               color: AppPalette.red.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: AppPalette.red.withValues(alpha: 0.1),
-              ),
+              border: Border.all(color: AppPalette.red.withValues(alpha: 0.1)),
             ),
             child: Row(
               children: [
@@ -247,9 +238,7 @@ class _DashboardUyariKartiState extends State<DashboardUyariKarti> {
             decoration: BoxDecoration(
               color: riskRenk.withValues(alpha: 0.04),
               borderRadius: BorderRadius.circular(8),
-              border: Border.all(
-                color: riskRenk.withValues(alpha: 0.1),
-              ),
+              border: Border.all(color: riskRenk.withValues(alpha: 0.1)),
             ),
             child: Row(
               children: [

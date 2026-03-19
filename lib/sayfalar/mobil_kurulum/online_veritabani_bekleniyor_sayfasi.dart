@@ -70,10 +70,7 @@ class _OnlineVeritabaniBekleniyorSayfasiState
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF2C3E50),
-              Color(0xFF0F323D),
-            ],
+            colors: [Color(0xFF2C3E50), Color(0xFF0F323D)],
           ),
         ),
         child: SafeArea(
@@ -197,4 +194,3 @@ class _OnlineVeritabaniBekleniyorSayfasiState
     );
   }
 }
-

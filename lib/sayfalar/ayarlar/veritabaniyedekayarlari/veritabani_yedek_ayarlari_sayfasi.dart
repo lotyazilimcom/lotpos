@@ -134,22 +134,22 @@ class _VeritabaniYedekAyarlariSayfasiState
   }
 
   static String _localSettingsDatabaseName() {
-    if (kIsWeb) return 'patisyosettings';
-    final fromEnv = Platform.environment['PATISYO_DB_NAME'];
+    if (kIsWeb) return 'lospossettings';
+    final fromEnv = Platform.environment['LOSPOS_DB_NAME'];
     if (fromEnv != null && fromEnv.trim().isNotEmpty) return fromEnv.trim();
-    return 'patisyosettings';
+    return 'lospossettings';
   }
 
   static int _localPort() {
-    final envPort = Platform.environment['PATISYO_DB_PORT'];
+    final envPort = Platform.environment['LOSPOS_DB_PORT'];
     return int.tryParse(envPort ?? '') ?? 5432;
   }
 
   static String _localUser() =>
-      (Platform.environment['PATISYO_DB_USER'] ?? 'patisyo').trim();
+      (Platform.environment['LOSPOS_DB_USER'] ?? 'lospos').trim();
 
   static String _localPassword() {
-    final passEnv = Platform.environment['PATISYO_DB_PASSWORD'];
+    final passEnv = Platform.environment['LOSPOS_DB_PASSWORD'];
     if (passEnv != null && passEnv.trim().isNotEmpty) return passEnv.trim();
     // Geriye dönük uyumluluk (mevcut kurulumların şifresi)
     return '5828486';
@@ -2920,7 +2920,7 @@ class _VeritabaniYedekAyarlariSayfasiState
     final ts =
         '${now.year}${two(now.month)}${two(now.day)}_${two(now.hour)}${two(now.minute)}';
     final safeDb = dbName.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-    return 'patisyo_${safeDb}_schema_$ts.sql';
+    return 'lospos_${safeDb}_schema_$ts.sql';
   }
 
   Future<void> _yerelSemayiSqlOlarakIndir(Color primaryColor) async {

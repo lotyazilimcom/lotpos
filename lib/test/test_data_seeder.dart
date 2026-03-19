@@ -1,12 +1,12 @@
 // ignore_for_file: avoid_print
-// PATISYO TEST DATA SEEDER
+// LOSPOS TEST DATA SEEDER
 //
 // Bu araç, uygulamanın tüm modüllerini test etmek için
 // gerçekçi test verileri oluşturur.
 //
 // Kullanım (Terminal):
 // ```
-// cd /Users/pateez/Desktop/patisyov10
+// cd /Users/pateez/Desktop/lospos
 // dart run lib/test/test_data_seeder.dart
 // ```
 //
@@ -640,7 +640,7 @@ class TestDataSeeder {
         kullaniciAdi: '${isim.toLowerCase()}${soyisim.toLowerCase()}',
         ad: isim,
         soyad: soyisim,
-        eposta: '${isim.toLowerCase()}.${soyisim.toLowerCase()}@patisyo.com',
+        eposta: '${isim.toLowerCase()}.${soyisim.toLowerCase()}@lossoft.com',
         rol: roller[i % roller.length],
         aktifMi: i < 9, // Son kullanıcı pasif
         telefon: _randomPhone(),
@@ -708,7 +708,7 @@ class TestDataSeeder {
   Future<void> runFullSeed() async {
     print('''
 ╔══════════════════════════════════════════════════════════════════════╗
-║                    🧪 PATISYO TEST DATA SEEDER                       ║
+║                    🧪 LOSPOS TEST DATA SEEDER                       ║
 ║                                                                      ║
 ║  Bu araç tüm modüller için test verisi oluşturur.                    ║
 ║                                                                      ║

@@ -15,8 +15,8 @@ import 'package:flutter/widgets.dart';
 /// Bu sınıf aynı davranışı korur, sadece:
 /// - FocusNode listener ekleme/çıkarma callback'ini düzeltir.
 /// - `hide()` çağrısını `isShowing` ile guard eder (detached controller assert'ini önler).
-class PatisyoRawAutocomplete<T extends Object> extends StatefulWidget {
-  const PatisyoRawAutocomplete({
+class LosposRawAutocomplete<T extends Object> extends StatefulWidget {
+  const LosposRawAutocomplete({
     super.key,
     required this.optionsViewBuilder,
     required this.optionsBuilder,
@@ -29,7 +29,9 @@ class PatisyoRawAutocomplete<T extends Object> extends StatefulWidget {
     this.initialValue,
   }) : assert(
          fieldViewBuilder != null ||
-             (key != null && focusNode != null && textEditingController != null),
+             (key != null &&
+                 focusNode != null &&
+                 textEditingController != null),
          'Pass in a fieldViewBuilder, or otherwise create a separate field and pass in the FocusNode, TextEditingController, and a key. Use the key with RawAutocomplete.onFieldSubmitted.',
        ),
        assert((focusNode == null) == (textEditingController == null)),
@@ -49,15 +51,14 @@ class PatisyoRawAutocomplete<T extends Object> extends StatefulWidget {
   final TextEditingValue? initialValue;
 
   @override
-  State<PatisyoRawAutocomplete<T>> createState() =>
-      _PatisyoRawAutocompleteState<T>();
+  State<LosposRawAutocomplete<T>> createState() =>
+      _LosposRawAutocompleteState<T>();
 }
 
-class _PatisyoRawAutocompleteState<T extends Object>
-    extends State<PatisyoRawAutocomplete<T>> {
-  final OverlayPortalController _optionsViewController = OverlayPortalController(
-    debugLabel: '_PatisyoRawAutocompleteState',
-  );
+class _LosposRawAutocompleteState<T extends Object>
+    extends State<LosposRawAutocomplete<T>> {
+  final OverlayPortalController _optionsViewController =
+      OverlayPortalController(debugLabel: '_LosposRawAutocompleteState');
 
   static const int _pageSize = 4;
   late bool _hasFocus;
@@ -66,8 +67,8 @@ class _PatisyoRawAutocompleteState<T extends Object>
   TextEditingController? _internalTextEditingController;
   TextEditingController get _textEditingController {
     return widget.textEditingController ??
-        (_internalTextEditingController ??=
-            TextEditingController()..addListener(_onChangedField));
+        (_internalTextEditingController ??= TextEditingController()
+          ..addListener(_onChangedField));
   }
 
   FocusNode? _internalFocusNode;
@@ -78,38 +79,38 @@ class _PatisyoRawAutocompleteState<T extends Object>
 
   late final Map<Type, CallbackAction<Intent>> _actionMap =
       <Type, CallbackAction<Intent>>{
-    AutocompletePreviousOptionIntent:
-        _AutocompleteCallbackAction<AutocompletePreviousOptionIntent>(
-      onInvoke: _highlightPreviousOption,
-      isEnabledCallback: () => _canShowOptionsView,
-    ),
-    AutocompleteNextOptionIntent:
-        _AutocompleteCallbackAction<AutocompleteNextOptionIntent>(
-      onInvoke: _highlightNextOption,
-      isEnabledCallback: () => _canShowOptionsView,
-    ),
-    AutocompleteFirstOptionIntent:
-        _AutocompleteCallbackAction<AutocompleteFirstOptionIntent>(
-      onInvoke: _highlightFirstOption,
-      isEnabledCallback: () => _canShowOptionsView,
-    ),
-    AutocompleteLastOptionIntent:
-        _AutocompleteCallbackAction<AutocompleteLastOptionIntent>(
-      onInvoke: _highlightLastOption,
-      isEnabledCallback: () => _canShowOptionsView,
-    ),
-    AutocompleteNextPageOptionIntent:
-        _AutocompleteCallbackAction<AutocompleteNextPageOptionIntent>(
-      onInvoke: _highlightNextPageOption,
-      isEnabledCallback: () => _canShowOptionsView,
-    ),
-    AutocompletePreviousPageOptionIntent:
-        _AutocompleteCallbackAction<AutocompletePreviousPageOptionIntent>(
-      onInvoke: _highlightPreviousPageOption,
-      isEnabledCallback: () => _canShowOptionsView,
-    ),
-    DismissIntent: CallbackAction<DismissIntent>(onInvoke: _hideOptions),
-  };
+        AutocompletePreviousOptionIntent:
+            _AutocompleteCallbackAction<AutocompletePreviousOptionIntent>(
+              onInvoke: _highlightPreviousOption,
+              isEnabledCallback: () => _canShowOptionsView,
+            ),
+        AutocompleteNextOptionIntent:
+            _AutocompleteCallbackAction<AutocompleteNextOptionIntent>(
+              onInvoke: _highlightNextOption,
+              isEnabledCallback: () => _canShowOptionsView,
+            ),
+        AutocompleteFirstOptionIntent:
+            _AutocompleteCallbackAction<AutocompleteFirstOptionIntent>(
+              onInvoke: _highlightFirstOption,
+              isEnabledCallback: () => _canShowOptionsView,
+            ),
+        AutocompleteLastOptionIntent:
+            _AutocompleteCallbackAction<AutocompleteLastOptionIntent>(
+              onInvoke: _highlightLastOption,
+              isEnabledCallback: () => _canShowOptionsView,
+            ),
+        AutocompleteNextPageOptionIntent:
+            _AutocompleteCallbackAction<AutocompleteNextPageOptionIntent>(
+              onInvoke: _highlightNextPageOption,
+              isEnabledCallback: () => _canShowOptionsView,
+            ),
+        AutocompletePreviousPageOptionIntent:
+            _AutocompleteCallbackAction<AutocompletePreviousPageOptionIntent>(
+              onInvoke: _highlightPreviousPageOption,
+              isEnabledCallback: () => _canShowOptionsView,
+            ),
+        DismissIntent: CallbackAction<DismissIntent>(onInvoke: _hideOptions),
+      };
 
   Iterable<T> _options = Iterable<T>.empty();
   T? _selection;
@@ -118,39 +119,44 @@ class _PatisyoRawAutocompleteState<T extends Object>
 
   static const Map<ShortcutActivator, Intent> _appleShortcuts =
       <ShortcutActivator, Intent>{
-    SingleActivator(LogicalKeyboardKey.arrowUp, meta: true):
-        AutocompleteFirstOptionIntent(),
-    SingleActivator(LogicalKeyboardKey.arrowDown, meta: true):
-        AutocompleteLastOptionIntent(),
-  };
+        SingleActivator(LogicalKeyboardKey.arrowUp, meta: true):
+            AutocompleteFirstOptionIntent(),
+        SingleActivator(LogicalKeyboardKey.arrowDown, meta: true):
+            AutocompleteLastOptionIntent(),
+      };
 
   static const Map<ShortcutActivator, Intent> _nonAppleShortcuts =
       <ShortcutActivator, Intent>{
-    SingleActivator(LogicalKeyboardKey.arrowUp, control: true):
-        AutocompleteFirstOptionIntent(),
-    SingleActivator(LogicalKeyboardKey.arrowDown, control: true):
-        AutocompleteLastOptionIntent(),
-  };
+        SingleActivator(LogicalKeyboardKey.arrowUp, control: true):
+            AutocompleteFirstOptionIntent(),
+        SingleActivator(LogicalKeyboardKey.arrowDown, control: true):
+            AutocompleteLastOptionIntent(),
+      };
 
   static const Map<ShortcutActivator, Intent> _commonShortcuts =
       <ShortcutActivator, Intent>{
-    SingleActivator(LogicalKeyboardKey.arrowUp): AutocompletePreviousOptionIntent(),
-    SingleActivator(LogicalKeyboardKey.arrowDown): AutocompleteNextOptionIntent(),
-    SingleActivator(LogicalKeyboardKey.pageUp): AutocompletePreviousPageOptionIntent(),
-    SingleActivator(LogicalKeyboardKey.pageDown): AutocompleteNextPageOptionIntent(),
-  };
+        SingleActivator(LogicalKeyboardKey.arrowUp):
+            AutocompletePreviousOptionIntent(),
+        SingleActivator(LogicalKeyboardKey.arrowDown):
+            AutocompleteNextOptionIntent(),
+        SingleActivator(LogicalKeyboardKey.pageUp):
+            AutocompletePreviousPageOptionIntent(),
+        SingleActivator(LogicalKeyboardKey.pageDown):
+            AutocompleteNextPageOptionIntent(),
+      };
 
-  static Map<ShortcutActivator, Intent> get _shortcuts => <ShortcutActivator, Intent>{
-    ..._commonShortcuts,
-    ...switch (defaultTargetPlatform) {
-      TargetPlatform.iOS => _appleShortcuts,
-      TargetPlatform.macOS => _appleShortcuts,
-      TargetPlatform.android => _nonAppleShortcuts,
-      TargetPlatform.linux => _nonAppleShortcuts,
-      TargetPlatform.windows => _nonAppleShortcuts,
-      TargetPlatform.fuchsia => _nonAppleShortcuts,
-    },
-  };
+  static Map<ShortcutActivator, Intent> get _shortcuts =>
+      <ShortcutActivator, Intent>{
+        ..._commonShortcuts,
+        ...switch (defaultTargetPlatform) {
+          TargetPlatform.iOS => _appleShortcuts,
+          TargetPlatform.macOS => _appleShortcuts,
+          TargetPlatform.android => _nonAppleShortcuts,
+          TargetPlatform.linux => _nonAppleShortcuts,
+          TargetPlatform.windows => _nonAppleShortcuts,
+          TargetPlatform.fuchsia => _nonAppleShortcuts,
+        },
+      };
 
   bool get _canShowOptionsView => _focusNode.hasFocus && _options.isNotEmpty;
 
@@ -219,8 +225,9 @@ class _PatisyoRawAutocompleteState<T extends Object>
   }
 
   void _updateHighlight(int nextIndex) {
-    _highlightedOptionIndex.value =
-        _options.isEmpty ? 0 : nextIndex.clamp(0, _options.length - 1);
+    _highlightedOptionIndex.value = _options.isEmpty
+        ? 0
+        : nextIndex.clamp(0, _options.length - 1);
   }
 
   void _highlightPreviousOption(AutocompletePreviousOptionIntent intent) {
@@ -243,7 +250,9 @@ class _PatisyoRawAutocompleteState<T extends Object>
     _highlightOption(_highlightedOptionIndex.value + _pageSize);
   }
 
-  void _highlightPreviousPageOption(AutocompletePreviousPageOptionIntent intent) {
+  void _highlightPreviousPageOption(
+    AutocompletePreviousPageOptionIntent intent,
+  ) {
     _highlightOption(_highlightedOptionIndex.value - _pageSize);
   }
 
@@ -266,7 +275,10 @@ class _PatisyoRawAutocompleteState<T extends Object>
   // widgets.dart'ta export edilmediği için lokal sabit kullanıyoruz.
   static const double _kMinUsableHeight = 48.0;
 
-  Widget _buildOptionsView(BuildContext context, OverlayChildLayoutInfo layoutInfo) {
+  Widget _buildOptionsView(
+    BuildContext context,
+    OverlayChildLayoutInfo layoutInfo,
+  ) {
     if (layoutInfo.childPaintTransform.determinant() == 0.0) {
       return const SizedBox.shrink();
     }
@@ -316,8 +328,9 @@ class _PatisyoRawAutocompleteState<T extends Object>
         child: ConstrainedBox(
           constraints: BoxConstraints.tight(optionsViewBoundingBox),
           child: Align(
-            alignment:
-                opensUp ? AlignmentDirectional.bottomStart : AlignmentDirectional.topStart,
+            alignment: opensUp
+                ? AlignmentDirectional.bottomStart
+                : AlignmentDirectional.topStart,
             child: TextFieldTapRegion(
               child: AutocompleteHighlightedOption(
                 highlightIndexNotifier: _highlightedOptionIndex,
@@ -335,8 +348,9 @@ class _PatisyoRawAutocompleteState<T extends Object>
     super.initState();
     final TextEditingController initialController =
         widget.textEditingController ??
-        (_internalTextEditingController =
-            TextEditingController.fromValue(widget.initialValue));
+        (_internalTextEditingController = TextEditingController.fromValue(
+          widget.initialValue,
+        ));
     initialController.addListener(_onChangedField);
     _hasFocus = _focusNode.hasFocus;
 
@@ -345,9 +359,12 @@ class _PatisyoRawAutocompleteState<T extends Object>
   }
 
   @override
-  void didUpdateWidget(PatisyoRawAutocomplete<T> oldWidget) {
+  void didUpdateWidget(LosposRawAutocomplete<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.textEditingController, widget.textEditingController)) {
+    if (!identical(
+      oldWidget.textEditingController,
+      widget.textEditingController,
+    )) {
       oldWidget.textEditingController?.removeListener(_onChangedField);
       if (oldWidget.textEditingController == null) {
         _internalTextEditingController?.dispose();

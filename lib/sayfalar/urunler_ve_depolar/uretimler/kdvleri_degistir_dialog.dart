@@ -325,7 +325,9 @@ class _KdvleriDegistirDialogState extends State<KdvleriDegistirDialog> {
                                           ? null
                                           : _handleSave,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFFEA4335),
+                                        backgroundColor: const Color(
+                                          0xFFEA4335,
+                                        ),
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
                                           vertical: 14,

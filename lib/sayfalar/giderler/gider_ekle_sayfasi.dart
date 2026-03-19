@@ -1554,7 +1554,7 @@ class _GiderEkleSayfasiState extends State<GiderEkleSayfasi> {
 
       final appDir = await getApplicationDocumentsDirectory();
       final expensesDir = Directory(
-        p.join(appDir.path, 'patisyov10', 'expenses_images'),
+        p.join(appDir.path, 'lospos', 'expenses_images'),
       );
 
       if (!await expensesDir.exists()) {

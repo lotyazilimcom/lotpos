@@ -13,6 +13,7 @@ class StandartTablo extends StatefulWidget {
   final Function(String) onSearch;
   final Function(int page, int rowsPerPage) onPageChanged;
   final int totalRecords;
+
   /// [2026] COUNT(*) bağımlı sayfa numarası yerine cursor (next/prev) tabanlı gezinme.
   ///
   /// "Limitsiz" tanımı:
@@ -73,22 +74,19 @@ class _StandartTabloState extends State<StandartTablo> {
       final trimmed = query.trim();
       final effectiveQuery =
           widget.cursorPagination && trimmed.isNotEmpty && trimmed.length < 3
-              ? ''
-              : query;
+          ? ''
+          : query;
       if (_searchDebounce?.isActive ?? false) {
         _searchDebounce!.cancel();
       }
-      _searchDebounce = Timer(
-        const Duration(milliseconds: 500),
-        () {
-          if (mounted) {
-            setState(() {
-              _currentPage = 1;
-            });
-          }
-          widget.onSearch(effectiveQuery);
-        },
-      );
+      _searchDebounce = Timer(const Duration(milliseconds: 500), () {
+        if (mounted) {
+          setState(() {
+            _currentPage = 1;
+          });
+        }
+        widget.onSearch(effectiveQuery);
+      });
     });
     _loadColumnWidths();
   }
@@ -102,12 +100,13 @@ class _StandartTabloState extends State<StandartTablo> {
     if (widget.cursorPagination != oldWidget.cursorPagination) {
       int nextRowsPerPage = _rowsPerPage;
       if (widget.cursorPagination) {
-        nextRowsPerPage =
-            nextRowsPerPage.clamp(_cursorMinRowsPerPage, _cursorMaxRowsPerPage);
+        nextRowsPerPage = nextRowsPerPage.clamp(
+          _cursorMinRowsPerPage,
+          _cursorMaxRowsPerPage,
+        );
       }
       if (!_rowsPerPageOptions.contains(nextRowsPerPage)) {
-        nextRowsPerPage =
-            widget.cursorPagination ? _cursorMaxRowsPerPage : 25;
+        nextRowsPerPage = widget.cursorPagination ? _cursorMaxRowsPerPage : 25;
       }
 
       if (nextRowsPerPage != _rowsPerPage || _currentPage != 1) {
@@ -161,10 +160,9 @@ class _StandartTabloState extends State<StandartTablo> {
 
   void _changeRowsPerPage(int? value) {
     if (value != null) {
-      final int normalized =
-          widget.cursorPagination
-              ? value.clamp(_cursorMinRowsPerPage, _cursorMaxRowsPerPage).toInt()
-              : value;
+      final int normalized = widget.cursorPagination
+          ? value.clamp(_cursorMinRowsPerPage, _cursorMaxRowsPerPage).toInt()
+          : value;
       setState(() {
         _rowsPerPage = normalized;
         _currentPage = 1; // Reset to first page
@@ -195,57 +193,58 @@ class _StandartTabloState extends State<StandartTablo> {
           children: [
             // Rows Per Page Dropdown & Selection Widget
             Column(
-	              crossAxisAlignment: CrossAxisAlignment.start,
-	              children: [
-	                MouseRegion(
-	                  cursor: SystemMouseCursors.click,
-	                  hitTestBehavior: HitTestBehavior.deferToChild,
-	                  child: Container(
-	                    height: 40,
-	                    padding: const EdgeInsets.symmetric(horizontal: 12),
-	                    decoration: BoxDecoration(
-	                      color: Colors.white,
-	                      border: Border.all(color: Colors.grey.shade300),
-	                      borderRadius: BorderRadius.circular(8),
-	                      boxShadow: [
-	                        BoxShadow(
-	                          color: Colors.black.withValues(alpha: 0.05),
-	                          blurRadius: 2,
-	                          offset: const Offset(0, 1),
-	                        ),
-	                      ],
-	                    ),
-	                    child: DropdownButtonHideUnderline(
-	                      child: DropdownButton<int>(
-	                        mouseCursor: WidgetStateMouseCursor.clickable,
-	                        dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
-	                        value: _rowsPerPage,
-	                        icon: const Icon(
-	                          Icons.keyboard_arrow_down,
-	                          size: 20,
-	                          color: Color(0xFF606368),
-	                        ),
-	                        style: const TextStyle(
-	                          fontWeight: FontWeight.w600,
-	                          color: Color(0xFF333333),
-	                          fontSize: 14,
-	                        ),
-	                        dropdownColor: Colors.white,
-	                        borderRadius: BorderRadius.circular(8),
-	                        elevation: 4,
-	                        onChanged: _changeRowsPerPage,
-	                        items: _rowsPerPageOptions.map((e) {
-	                          return DropdownMenuItem(value: e, child: Text('$e'));
-	                        }).toList(),
-	                      ),
-	                    ),
-	                  ),
-	                ),
-	                if (widget.selectionWidget != null)
-	                  Padding(
-	                    padding: const EdgeInsets.only(top: 8.0),
-	                    child: widget.selectionWidget!,
-	                  ),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                MouseRegion(
+                  cursor: SystemMouseCursors.click,
+                  hitTestBehavior: HitTestBehavior.deferToChild,
+                  child: Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      border: Border.all(color: Colors.grey.shade300),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.05),
+                          blurRadius: 2,
+                          offset: const Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        mouseCursor: WidgetStateMouseCursor.clickable,
+                        dropdownMenuItemMouseCursor:
+                            WidgetStateMouseCursor.clickable,
+                        value: _rowsPerPage,
+                        icon: const Icon(
+                          Icons.keyboard_arrow_down,
+                          size: 20,
+                          color: Color(0xFF606368),
+                        ),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF333333),
+                          fontSize: 14,
+                        ),
+                        dropdownColor: Colors.white,
+                        borderRadius: BorderRadius.circular(8),
+                        elevation: 4,
+                        onChanged: _changeRowsPerPage,
+                        items: _rowsPerPageOptions.map((e) {
+                          return DropdownMenuItem(value: e, child: Text('$e'));
+                        }).toList(),
+                      ),
+                    ),
+                  ),
+                ),
+                if (widget.selectionWidget != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8.0),
+                    child: widget.selectionWidget!,
+                  ),
               ],
             ),
             const Spacer(),
@@ -373,7 +372,9 @@ class _StandartTabloState extends State<StandartTablo> {
 
   Widget _buildPaginationFooter() {
     final bool isCursorMode = widget.cursorPagination;
-    if (!isCursorMode && widget.totalRecords == 0) return const SizedBox.shrink();
+    if (!isCursorMode && widget.totalRecords == 0) {
+      return const SizedBox.shrink();
+    }
 
     final int effectiveRowsPerPage = _rowsPerPage;
     final int totalPages = (!isCursorMode && effectiveRowsPerPage > 0)
@@ -397,7 +398,9 @@ class _StandartTabloState extends State<StandartTablo> {
     }
 
     final String totalLabel = isCursorMode
-        ? (dataCount == 0 ? '0' : (widget.hasNextPage ? '$endRecord+' : '$endRecord'))
+        ? (dataCount == 0
+              ? '0'
+              : (widget.hasNextPage ? '$endRecord+' : '$endRecord'))
         : '${widget.totalRecords}';
 
     return Container(
@@ -442,8 +445,12 @@ class _StandartTabloState extends State<StandartTablo> {
               _buildPageButton(
                 icon: Icons.keyboard_arrow_right,
                 onTap: isCursorMode
-                    ? (widget.hasNextPage ? () => _changePage(_currentPage + 1) : null)
-                    : (_currentPage < totalPages ? () => _changePage(_currentPage + 1) : null),
+                    ? (widget.hasNextPage
+                          ? () => _changePage(_currentPage + 1)
+                          : null)
+                    : (_currentPage < totalPages
+                          ? () => _changePage(_currentPage + 1)
+                          : null),
               ),
               if (!isCursorMode) ...[
                 const SizedBox(width: 8),
@@ -503,38 +510,44 @@ class _StandartTabloState extends State<StandartTablo> {
       cursor: onTap != null
           ? SystemMouseCursors.click
           : SystemMouseCursors.basic,
-      child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          constraints: const BoxConstraints(minWidth: 32),
-          height: 32,
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: isActive ? const Color(0xFF2C3E50) : Colors.white,
-            border: Border.all(
-              color: isActive ? const Color(0xFF2C3E50) : Colors.grey.shade300,
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        hitTestBehavior: HitTestBehavior.deferToChild,
+        child: GestureDetector(
+          onTap: onTap,
+          child: Container(
+            constraints: const BoxConstraints(minWidth: 32),
+            height: 32,
+            padding: const EdgeInsets.symmetric(horizontal: 8),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: isActive ? const Color(0xFF2C3E50) : Colors.white,
+              border: Border.all(
+                color: isActive
+                    ? const Color(0xFF2C3E50)
+                    : Colors.grey.shade300,
+              ),
+              borderRadius: BorderRadius.circular(4),
             ),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: text != null
-              ? Text(
-                  text,
-                  style: TextStyle(
-                    color: isActive ? Colors.white : const Color(0xFF606368),
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
+            child: text != null
+                ? Text(
+                    text,
+                    style: TextStyle(
+                      color: isActive ? Colors.white : const Color(0xFF606368),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  )
+                : Icon(
+                    icon,
+                    size: 18,
+                    color: onTap != null
+                        ? const Color(0xFF606368)
+                        : Colors.grey.shade300,
                   ),
-                )
-              : Icon(
-                  icon,
-                  size: 18,
-                  color: onTap != null
-                      ? const Color(0xFF606368)
-                      : Colors.grey.shade300,
-                ),
+          ),
         ),
-      )),
+      ),
     );
   }
 }

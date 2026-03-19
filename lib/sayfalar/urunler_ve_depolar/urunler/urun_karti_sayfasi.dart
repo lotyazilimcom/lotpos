@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../bilesenler/genisletilebilir_tablo.dart';
@@ -41,7 +41,7 @@ import '../uretimler/uretim_yap_sayfasi.dart';
 import 'acilis_stogu_duzenle_sayfasi.dart';
 import 'devir_yap_sayfasi.dart';
 import '../../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
-import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import 'package:lospos/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../../../bilesenler/highlight_text.dart';
 
 class UrunKartiSayfasi extends StatefulWidget {

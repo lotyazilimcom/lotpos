@@ -60,8 +60,7 @@ class ReadOnlyDiyalog extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w900,
-                      color:
-                          isDark ? Colors.white : const Color(0xFF2C3E50),
+                      color: isDark ? Colors.white : const Color(0xFF2C3E50),
                     ),
                   ),
                 ),

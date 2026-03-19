@@ -3,36 +3,36 @@
 import 'dart:io';
 
 import 'package:postgres/postgres.dart';
-import 'package:patisyov10/servisler/postgresql_tuning_profili.dart';
+import 'package:lospos/servisler/postgresql_tuning_profili.dart';
 
-const String _settingsDb = 'patisyosettings';
-const String _defaultDb = 'patisyo2025';
+const String _settingsDb = 'lospossettings';
+const String _defaultDb = 'lospos2026';
 const String _legacyPassword = '5828486';
 const int _minimumPgVersionNum = 180003; // PostgreSQL 18.3
 
 Future<void> main(List<String> args) async {
   final onlyDb = _parseValueArg(args, '--db')?.trim();
   final host =
-      (Platform.environment['PATISYO_PG_HOST'] ??
-              Platform.environment['PATISYO_DB_HOST'] ??
+      (Platform.environment['LOSPOS_PG_HOST'] ??
+              Platform.environment['LOSPOS_DB_HOST'] ??
               '127.0.0.1')
           .trim();
   final port =
       int.tryParse(
-        (Platform.environment['PATISYO_PG_PORT'] ??
-                Platform.environment['PATISYO_DB_PORT'] ??
+        (Platform.environment['LOSPOS_PG_PORT'] ??
+                Platform.environment['LOSPOS_DB_PORT'] ??
                 '5432')
             .trim(),
       ) ??
       5432;
   final username =
-      (Platform.environment['PATISYO_PG_USER'] ??
-              Platform.environment['PATISYO_DB_USER'] ??
-              'patisyo')
+      (Platform.environment['LOSPOS_PG_USER'] ??
+              Platform.environment['LOSPOS_DB_USER'] ??
+              'lospos')
           .trim();
   final password =
-      (Platform.environment['PATISYO_PG_PASSWORD'] ??
-              Platform.environment['PATISYO_DB_PASSWORD'] ??
+      (Platform.environment['LOSPOS_PG_PASSWORD'] ??
+              Platform.environment['LOSPOS_DB_PASSWORD'] ??
               _legacyPassword)
           .trim();
   final sslMode = _sslModeFromEnv();
@@ -914,7 +914,7 @@ String _normalizeSetting(String value) {
 }
 
 int _targetMaxConnections() {
-  final raw = (Platform.environment['PATISYO_DB_MAX_CONNECTIONS'] ?? '').trim();
+  final raw = (Platform.environment['LOSPOS_DB_MAX_CONNECTIONS'] ?? '').trim();
   return int.tryParse(raw) ?? 20;
 }
 
@@ -934,7 +934,7 @@ String _companyDbName(String companyCode) {
   final trimmed = companyCode.trim();
   if (trimmed == _defaultDb) return _defaultDb;
   final safe = trimmed.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
-  return safe.isEmpty ? _defaultDb : 'patisyo_$safe';
+  return safe.isEmpty ? _defaultDb : 'lospos_$safe';
 }
 
 String? _parseValueArg(List<String> args, String key) {
@@ -949,8 +949,8 @@ String? _parseValueArg(List<String> args, String key) {
 
 SslMode _sslModeFromEnv() {
   final raw =
-      (Platform.environment['PATISYO_PG_SSLMODE'] ??
-              Platform.environment['PATISYO_DB_SSLMODE'] ??
+      (Platform.environment['LOSPOS_PG_SSLMODE'] ??
+              Platform.environment['LOSPOS_DB_SSLMODE'] ??
               Platform.environment['PGSSLMODE'] ??
               '')
           .trim()

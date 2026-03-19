@@ -11,8 +11,7 @@ class LiteKisitlari {
       LiteAyarlarServisi().maxDailyRetailSales;
   static int get raporGun => LiteAyarlarServisi().reportDaysLimit;
 
-  static bool get isBankCreditActive =>
-      LiteAyarlarServisi().isBankCreditActive;
+  static bool get isBankCreditActive => LiteAyarlarServisi().isBankCreditActive;
   static bool get isCheckPromissoryActive =>
       LiteAyarlarServisi().isCheckPromissoryActive;
   static bool get isCloudBackupActive =>

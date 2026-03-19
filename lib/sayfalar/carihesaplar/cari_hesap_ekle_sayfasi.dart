@@ -840,10 +840,7 @@ class _CariHesapEkleSayfasiState extends State<CariHesapEkleSayfasi> {
                   constraints: BoxConstraints(
                     maxWidth: isMobileLayout ? 760 : 1200,
                   ),
-                  child: _buildActionButtons(
-                    theme,
-                    isCompact: isMobileLayout,
-                  ),
+                  child: _buildActionButtons(theme, isCompact: isMobileLayout),
                 ),
               ),
             ),
@@ -1531,8 +1528,9 @@ class _CariHesapEkleSayfasiState extends State<CariHesapEkleSayfasi> {
     if (isCompact) {
       return LayoutBuilder(
         builder: (context, constraints) {
-          final double maxRowWidth =
-              constraints.maxWidth > 320 ? 320 : constraints.maxWidth;
+          final double maxRowWidth = constraints.maxWidth > 320
+              ? 320
+              : constraints.maxWidth;
           const double gap = 10;
           final double buttonWidth = (maxRowWidth - gap) / 2;
 

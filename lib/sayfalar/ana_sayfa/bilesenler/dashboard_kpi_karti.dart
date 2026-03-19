@@ -92,11 +92,7 @@ class _DashboardKpiKartiState extends State<DashboardKpiKarti> {
                       color: widget.renk.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
                     ),
-                    child: Icon(
-                      widget.ikon,
-                      color: widget.renk,
-                      size: 20,
-                    ),
+                    child: Icon(widget.ikon, color: widget.renk, size: 20),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -236,10 +232,7 @@ class _SparklinePainter extends CustomPainter {
       ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [
-          renk.withValues(alpha: 0.15),
-          renk.withValues(alpha: 0.0),
-        ],
+        colors: [renk.withValues(alpha: 0.15), renk.withValues(alpha: 0.0)],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
 
     canvas.drawPath(fillPath, fillPaint);

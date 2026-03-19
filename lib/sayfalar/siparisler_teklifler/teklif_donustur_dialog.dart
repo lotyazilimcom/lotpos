@@ -354,7 +354,8 @@ class _TeklifDonusturDialogState extends State<TeklifDonusturDialog> {
                                 itemBuilder: (BuildContext context, int index) {
                                   final option = options.elementAt(index);
                                   return InkWell(
-                                    mouseCursor: WidgetStateMouseCursor.clickable,
+                                    mouseCursor:
+                                        WidgetStateMouseCursor.clickable,
                                     onTap: () => onSelected(option),
                                     child: Padding(
                                       padding: const EdgeInsets.all(12),

@@ -13,7 +13,7 @@ import '../../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../depolar/modeller/depo_model.dart';
 import 'modeller/uretim_model.dart';
 import '../../../bilesenler/tek_tarih_secici_dialog.dart';
-import '../../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../../bilesenler/lospos_raw_autocomplete.dart';
 
 class UretimYapSayfasi extends StatefulWidget {
   final UretimModel? initialModel;
@@ -779,7 +779,7 @@ class _UretimYapSayfasiState extends State<UretimYapSayfasi> {
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
-            return PatisyoRawAutocomplete<UretimModel>(
+            return LosposRawAutocomplete<UretimModel>(
               focusNode: focusNode,
               textEditingController: controller,
               optionsBuilder: (TextEditingValue textEditingValue) async {

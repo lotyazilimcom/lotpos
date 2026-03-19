@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../bilesenler/genisletilebilir_tablo.dart';
@@ -32,7 +32,7 @@ import '../../alimsatimislemleri/satis_yap_sayfasi.dart';
 import '../../carihesaplar/modeller/cari_hesap_model.dart';
 import '../../../yardimcilar/entegrasyon_islem_yardimcisi.dart';
 import '../../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
-import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import 'package:lospos/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../../ortak/genisletilebilir_print_preview_screen.dart';
 import '../../../bilesenler/highlight_text.dart';
 import '../../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';

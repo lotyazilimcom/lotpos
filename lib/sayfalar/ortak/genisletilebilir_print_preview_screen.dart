@@ -404,7 +404,8 @@ class _GenisletilebilirPrintPreviewScreenState
 
     List<double>? filteredMainFlexes;
     final originalFlexes = widget.mainColumnFlexes;
-    if (originalFlexes != null && originalFlexes.length == widget.headers.length) {
+    if (originalFlexes != null &&
+        originalFlexes.length == widget.headers.length) {
       filteredMainFlexes = <double>[];
       for (int i = 0; i < _visibleMainIndices.length; i++) {
         if (_visibleMainIndices[i]) {

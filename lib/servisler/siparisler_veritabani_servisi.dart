@@ -1186,7 +1186,7 @@ class SiparislerVeritabaniServisi {
     String? kullanici,
     List<int>?
     sadeceIdler, // Harici arama indeksi gibi kaynaklardan gelen ID filtreleri
-    int? lastId, // [2025 HYBRID PAGINATION]
+    int? lastId, // [2026 HYBRID PAGINATION]
   }) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return [];

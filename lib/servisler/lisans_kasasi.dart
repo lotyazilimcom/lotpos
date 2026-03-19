@@ -27,15 +27,15 @@ class LisansKasasiKaydi {
   });
 
   Map<String, dynamic> toJson() => {
-        'v': version,
-        'hardware_id': hardwareId,
-        'license_key': licenseKey,
-        'license_end_date': licenseEndDateUtc != null
-            ? _dateOnlyIsoUtc(licenseEndDateUtc!)
-            : null,
-        'last_seen_utc': lastSeenUtc.toUtc().toIso8601String(),
-        'max_seen_utc': maxSeenUtc.toUtc().toIso8601String(),
-      };
+    'v': version,
+    'hardware_id': hardwareId,
+    'license_key': licenseKey,
+    'license_end_date': licenseEndDateUtc != null
+        ? _dateOnlyIsoUtc(licenseEndDateUtc!)
+        : null,
+    'last_seen_utc': lastSeenUtc.toUtc().toIso8601String(),
+    'max_seen_utc': maxSeenUtc.toUtc().toIso8601String(),
+  };
 
   static LisansKasasiKaydi? fromJson(Map<String, dynamic> json) {
     try {
@@ -47,12 +47,14 @@ class LisansKasasiKaydi {
       if (hardwareId == null || hardwareId.trim().isEmpty) return null;
 
       final lastSeenIso = json['last_seen_utc']?.toString();
-      final lastSeenUtc =
-          lastSeenIso != null ? DateTime.tryParse(lastSeenIso) : null;
+      final lastSeenUtc = lastSeenIso != null
+          ? DateTime.tryParse(lastSeenIso)
+          : null;
 
       final maxSeenIso = json['max_seen_utc']?.toString();
-      final maxSeenUtc =
-          maxSeenIso != null ? DateTime.tryParse(maxSeenIso) : null;
+      final maxSeenUtc = maxSeenIso != null
+          ? DateTime.tryParse(maxSeenIso)
+          : null;
 
       if (lastSeenUtc == null || maxSeenUtc == null) {
         return null;
@@ -60,8 +62,9 @@ class LisansKasasiKaydi {
 
       final licenseKey = json['license_key']?.toString();
       final endDateIso = json['license_end_date']?.toString();
-      final licenseEndDateUtc =
-          endDateIso != null ? _parseDateOnlyIsoUtc(endDateIso) : null;
+      final licenseEndDateUtc = endDateIso != null
+          ? _parseDateOnlyIsoUtc(endDateIso)
+          : null;
 
       return LisansKasasiKaydi(
         version: version,
@@ -267,7 +270,9 @@ class LisansKasasi {
   Future<File> _vaultFile(String hardwareId) async {
     final dir = await getApplicationSupportDirectory();
     final folder = Directory(p.join(dir.path, 'lotyazilim'));
-    return File(p.join(folder.path, 'license_${hardwareId.toUpperCase()}.vault'));
+    return File(
+      p.join(folder.path, 'license_${hardwareId.toUpperCase()}.vault'),
+    );
   }
 
   static List<int> _deriveKeyBytes({

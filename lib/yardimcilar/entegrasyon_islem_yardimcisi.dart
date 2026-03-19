@@ -44,12 +44,13 @@ class EntegrasyonIslemYardimcisi {
 
     if (shipments.isEmpty) return [];
 
-    final List<DepoModel> depolar =
-        await DepolarVeritabaniServisi().tumDepolariGetir();
+    final List<DepoModel> depolar = await DepolarVeritabaniServisi()
+        .tumDepolariGetir();
     final Map<int, DepoModel> depoById = {for (final d in depolar) d.id: d};
     final int fallbackWarehouseId = depolar.isNotEmpty ? depolar.first.id : 0;
-    final String fallbackWarehouseName =
-        depolar.isNotEmpty ? depolar.first.ad : '';
+    final String fallbackWarehouseName = depolar.isNotEmpty
+        ? depolar.first.ad
+        : '';
 
     final List<TransactionItem> items = [];
     for (final s in shipments) {
@@ -83,8 +84,9 @@ class EntegrasyonIslemYardimcisi {
               raw['ham_fiyat'] ??
               raw['hamFiyat'],
         );
-        final double unitPrice =
-            (currency != 'TRY' && rate > 0) ? (unitCostLocal / rate) : unitCostLocal;
+        final double unitPrice = (currency != 'TRY' && rate > 0)
+            ? (unitCostLocal / rate)
+            : unitCostLocal;
 
         final double quantity = parseDouble(
           raw['quantity'] ?? raw['miktar'] ?? raw['qty'],
@@ -135,8 +137,9 @@ class EntegrasyonIslemYardimcisi {
         final double lineTotalLocal = parseDouble(
           raw['total'] ?? raw['lineTotal'] ?? raw['line_total'],
         );
-        final double lineTotal =
-            (currency != 'TRY' && rate > 0) ? (lineTotalLocal / rate) : lineTotalLocal;
+        final double lineTotal = (currency != 'TRY' && rate > 0)
+            ? (lineTotalLocal / rate)
+            : lineTotalLocal;
 
         double resolvedVatRate = vatRate;
         if (resolvedVatRate <= 0 && lineTotal > 0 && quantity > 0) {
@@ -156,8 +159,9 @@ class EntegrasyonIslemYardimcisi {
 
             if (netVatAmount > 0) {
               final double divisor = (1.0 - tevkifatOrani);
-              final double inferredVatAmount =
-                  (divisor > 0) ? (netVatAmount / divisor) : netVatAmount;
+              final double inferredVatAmount = (divisor > 0)
+                  ? (netVatAmount / divisor)
+                  : netVatAmount;
               resolvedVatRate = (inferredVatAmount / vatBase) * 100.0;
 
               if (resolvedVatRate.isFinite) {
@@ -202,4 +206,3 @@ class EntegrasyonIslemYardimcisi {
     debugPrint('EntegrasyonIslemYardimcisi hata: $error');
   }
 }
-

@@ -18,25 +18,25 @@ class VeritabaniYapilandirma {
 
   // SharedPreferences Keys
   static const String _prefConnectionMode =
-      'patisyo_connection_mode'; // 'local' | 'hybrid' | 'cloud' | 'cloud_pending'
-  static const String _prefLastDiscoveredHost = 'patisyo_last_host';
-  static const String _prefCloudHost = 'patisyo_cloud_db_host';
-  static const String _prefCloudPort = 'patisyo_cloud_db_port';
-  static const String _prefCloudUsername = 'patisyo_cloud_db_user';
-  static const String _prefCloudPassword = 'patisyo_cloud_db_password';
-  static const String _prefCloudDatabase = 'patisyo_cloud_db_name';
-  static const String _prefCloudSslRequired = 'patisyo_cloud_db_ssl_required';
-  static const String _prefCloudApiBaseUrl = 'patisyo_cloud_api_base_url';
+      'lospos_connection_mode'; // 'local' | 'hybrid' | 'cloud' | 'cloud_pending'
+  static const String _prefLastDiscoveredHost = 'lospos_last_host';
+  static const String _prefCloudHost = 'lospos_cloud_db_host';
+  static const String _prefCloudPort = 'lospos_cloud_db_port';
+  static const String _prefCloudUsername = 'lospos_cloud_db_user';
+  static const String _prefCloudPassword = 'lospos_cloud_db_password';
+  static const String _prefCloudDatabase = 'lospos_cloud_db_name';
+  static const String _prefCloudSslRequired = 'lospos_cloud_db_ssl_required';
+  static const String _prefCloudApiBaseUrl = 'lospos_cloud_api_base_url';
   static const String _prefCloudApiReadBaseUrl =
-      'patisyo_cloud_api_read_base_url';
+      'lospos_cloud_api_read_base_url';
   static const String _prefCloudApiWriteBaseUrl =
-      'patisyo_cloud_api_write_base_url';
-  static const String _prefCloudApiToken = 'patisyo_cloud_api_token';
+      'lospos_cloud_api_write_base_url';
+  static const String _prefCloudApiToken = 'lospos_cloud_api_token';
 
   // Veritabanı aktarımında (desktop) kullanıcı seçimini saklamak için.
   // Değerler: 'merge' | 'full'
   static const String prefPendingTransferChoiceKey =
-      'patisyo_pending_db_transfer_choice';
+      'lospos_pending_db_transfer_choice';
 
   // Desktop: kullanıcı cloud istedi ama admin ayarı/kimlikleri hazır değil.
   // Bu modda uygulama yerelden çalışmaya devam eder, kimlikler hazır olunca kullanıcıya sorulur.
@@ -52,32 +52,32 @@ class VeritabaniYapilandirma {
   static bool _desktopCloudConnectionReady = false;
 
   // Environment Variable Keys
-  static const String _hostKey = 'PATISYO_DB_HOST';
-  static const String _portKey = 'PATISYO_DB_PORT';
-  static const String _usernameKey = 'PATISYO_DB_USER';
-  static const String _passwordKey = 'PATISYO_DB_PASSWORD';
-  static const String _databaseKey = 'PATISYO_DB_NAME';
-  static const String _maxConnectionsKey = 'PATISYO_DB_MAX_CONNECTIONS';
-  static const String _poolerHostKey = 'PATISYO_DB_POOLER_HOST';
-  static const String _poolerPortKey = 'PATISYO_DB_POOLER_PORT';
+  static const String _hostKey = 'LOSPOS_DB_HOST';
+  static const String _portKey = 'LOSPOS_DB_PORT';
+  static const String _usernameKey = 'LOSPOS_DB_USER';
+  static const String _passwordKey = 'LOSPOS_DB_PASSWORD';
+  static const String _databaseKey = 'LOSPOS_DB_NAME';
+  static const String _maxConnectionsKey = 'LOSPOS_DB_MAX_CONNECTIONS';
+  static const String _poolerHostKey = 'LOSPOS_DB_POOLER_HOST';
+  static const String _poolerPortKey = 'LOSPOS_DB_POOLER_PORT';
   static const String _poolerModeKey =
-      'PATISYO_DB_POOLER_MODE'; // session | transaction
+      'LOSPOS_DB_POOLER_MODE'; // session | transaction
   static const String _queryModeKey =
-      'PATISYO_DB_QUERY_MODE'; // extended | simple
-  static const String _batchSizeKey = 'PATISYO_BATCH_SIZE';
-  static const String _apiBaseUrlKey = 'PATISYO_API_BASE_URL';
-  static const String _apiReadBaseUrlKey = 'PATISYO_API_READ_BASE_URL';
-  static const String _apiWriteBaseUrlKey = 'PATISYO_API_WRITE_BASE_URL';
-  static const String _apiTokenKey = 'PATISYO_API_TOKEN';
+      'LOSPOS_DB_QUERY_MODE'; // extended | simple
+  static const String _batchSizeKey = 'LOSPOS_BATCH_SIZE';
+  static const String _apiBaseUrlKey = 'LOSPOS_API_BASE_URL';
+  static const String _apiReadBaseUrlKey = 'LOSPOS_API_READ_BASE_URL';
+  static const String _apiWriteBaseUrlKey = 'LOSPOS_API_WRITE_BASE_URL';
+  static const String _apiTokenKey = 'LOSPOS_API_TOKEN';
   static const String _allowHeavyMaintenanceKey =
-      'PATISYO_ALLOW_HEAVY_MAINTENANCE';
-  static const String _allowCitusExtensionKey = 'PATISYO_ALLOW_CITUS_EXTENSION';
+      'LOSPOS_ALLOW_HEAVY_MAINTENANCE';
+  static const String _allowCitusExtensionKey = 'LOSPOS_ALLOW_CITUS_EXTENSION';
 
   // Varsayılan değerler
   static const String _defaultHost = '127.0.0.1';
   static const int _defaultPort = 5432;
-  static const String _defaultUsername = 'patisyo';
-  static const String _defaultDatabase = 'patisyosettings';
+  static const String _defaultUsername = 'lospos';
+  static const String _defaultDatabase = 'lospossettings';
   static const int _defaultMaxConnections = 20;
   static const int _defaultMaxConnectionsCloud = 6;
   static const int _defaultBatchSize = 5000;
@@ -128,7 +128,7 @@ class VeritabaniYapilandirma {
   /// patlatabilir. 2026 arama omurgasında default açık; gerekirse env ile kapatılır.
   ///
   /// Kapatmak için env:
-  /// `PATISYO_ALLOW_HEAVY_MAINTENANCE=false`
+  /// `LOSPOS_ALLOW_HEAVY_MAINTENANCE=false`
   bool get allowBackgroundHeavyMaintenance {
     if (kIsWeb) return false;
     final v = (Platform.environment[_allowHeavyMaintenanceKey] ?? '')
@@ -625,7 +625,7 @@ class VeritabaniYapilandirma {
 
     // IMPORTANT:
     // - Dart `postgres` paketi Simple Query Protocol modunda parametreli sorguları desteklemez.
-    // - LotPOS ise neredeyse tüm modüllerde `Sql.named(..., parameters: ...)` kullanır.
+    // - lospos ise neredeyse tüm modüllerde `Sql.named(..., parameters: ...)` kullanır.
     //
     // Bu yüzden "pooler/transaction" gibi ortamlarda otomatik SIMPLE'a düşmek,
     // uygulamayı runtime'da kırar.
@@ -633,7 +633,7 @@ class VeritabaniYapilandirma {
     // Pooler transaction modunda (Supabase 6543 vb.) prepared statement'lar kapalı olabilir;
     // bu durumda çözüm: session pooler veya direct endpoint kullanmak + EXTENDED.
     //
-    // İhtiyaç olursa kullanıcı `PATISYO_DB_QUERY_MODE` ile manuel olarak override edebilir.
+    // İhtiyaç olursa kullanıcı `LOSPOS_DB_QUERY_MODE` ile manuel olarak override edebilir.
     return QueryMode.extended;
   }
 
@@ -911,13 +911,13 @@ class VeritabaniYapilandirma {
     // tek seferde kurar. İndirilen şema SQL'inin en sonuna eklenir.
     //
     // Not: Script idempotent; boş/var olan DB üzerinde güvenle tekrar çalıştırılabilir.
-    if (content.contains('-- PATISYO_MANAGED_CLOUD_BOOTSTRAP')) return content;
+    if (content.contains('-- LOSPOS_MANAGED_CLOUD_BOOTSTRAP')) return content;
     final trimmed = content.trimRight();
     return '$trimmed\n\n$_managedCloudHybridBootstrapSql\n';
   }
 
   static const String _managedCloudHybridBootstrapSql = r'''
--- PATISYO_MANAGED_CLOUD_BOOTSTRAP
+-- LOSPOS_MANAGED_CLOUD_BOOTSTRAP
 -- Managed Cloud (Neon/Supabase) Hibrit Senkron Kurulumu
 --
 -- Bu blok, uygulama rolünün DDL/trigger/sequence yetkisi olmadığı senaryolarda
@@ -997,7 +997,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_sync_tombstones_table_pk
 CREATE INDEX IF NOT EXISTS idx_sync_tombstones_deleted_at
   ON public.sync_tombstones (deleted_at);
 
-CREATE OR REPLACE FUNCTION public.patisyo_capture_delete_tombstone()
+CREATE OR REPLACE FUNCTION public.lospos_capture_delete_tombstone()
 RETURNS trigger AS $$
 DECLARE
   pk_cols TEXT[];
@@ -1006,7 +1006,7 @@ DECLARE
   row JSONB;
 BEGIN
   -- Senkron uygulaması sırasında (remote tombstone apply) tekrar tombstone üretme.
-  IF COALESCE(current_setting('patisyo.sync_apply', true), '') = '1' THEN
+  IF COALESCE(current_setting('lospos.sync_apply', true), '') = '1' THEN
     RETURN OLD;
   END IF;
 
@@ -1065,14 +1065,14 @@ BEGIN
     IF NOT EXISTS (
       SELECT 1
       FROM pg_trigger t
-      WHERE t.tgname = 'trg_patisyo_capture_delete'
+      WHERE t.tgname = 'trg_lospos_capture_delete'
         AND t.tgrelid = r.oid
     ) THEN
       EXECUTE format(
         'CREATE TRIGGER %s AFTER DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.%s()',
-        'trg_patisyo_capture_delete',
+        'trg_lospos_capture_delete',
         r.name,
-        'patisyo_capture_delete_tombstone'
+        'lospos_capture_delete_tombstone'
       );
     END IF;
   END LOOP;
@@ -1104,7 +1104,7 @@ CREATE INDEX IF NOT EXISTS idx_sync_delta_outbox_acked_at
 CREATE INDEX IF NOT EXISTS idx_sync_delta_outbox_search_acked_at
   ON public.sync_delta_outbox (search_acked_at);
 
-CREATE OR REPLACE FUNCTION public.patisyo_capture_delta_outbox()
+CREATE OR REPLACE FUNCTION public.lospos_capture_delta_outbox()
 RETURNS trigger AS $$
 DECLARE
   pk_cols TEXT[];
@@ -1114,7 +1114,7 @@ DECLARE
   v_action TEXT;
 BEGIN
   -- Senkron uygulanırken (remote -> local/cloud upsert/delete) outbox üretme.
-  IF COALESCE(current_setting('patisyo.sync_apply', true), '') = '1' THEN
+  IF COALESCE(current_setting('lospos.sync_apply', true), '') = '1' THEN
     IF TG_OP = 'DELETE' THEN
       RETURN OLD;
     END IF;
@@ -1233,14 +1233,14 @@ BEGIN
     IF NOT EXISTS (
       SELECT 1
       FROM pg_trigger t
-      WHERE t.tgname = 'trg_patisyo_capture_delta_outbox'
+      WHERE t.tgname = 'trg_lospos_capture_delta_outbox'
         AND t.tgrelid = r.oid
     ) THEN
       EXECUTE format(
         'CREATE TRIGGER %s AFTER INSERT OR UPDATE OR DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.%s()',
-        'trg_patisyo_capture_delta_outbox',
+        'trg_lospos_capture_delta_outbox',
         r.name,
-        'patisyo_capture_delta_outbox'
+        'lospos_capture_delta_outbox'
       );
     END IF;
   END LOOP;
@@ -1248,11 +1248,11 @@ END
 $$;
 
 -- 4) Timestamp infra (best-effort): created_at/updated_at + updated_at trigger
-CREATE OR REPLACE FUNCTION public.patisyo_set_updated_at()
+CREATE OR REPLACE FUNCTION public.lospos_set_updated_at()
 RETURNS trigger AS $$
 BEGIN
   -- Senkron uygulanırken (remote -> local/cloud upsert) updated_at'ı bozma.
-  IF COALESCE(current_setting('patisyo.sync_apply', true), '') = '1' THEN
+  IF COALESCE(current_setting('lospos.sync_apply', true), '') = '1' THEN
     RETURN NEW;
   END IF;
   NEW.updated_at = CURRENT_TIMESTAMP;
@@ -1309,14 +1309,14 @@ BEGIN
       IF NOT EXISTS (
         SELECT 1
         FROM pg_trigger t
-        WHERE t.tgname = 'trg_patisyo_set_updated_at'
+        WHERE t.tgname = 'trg_lospos_set_updated_at'
           AND t.tgrelid = r.oid
       ) THEN
         EXECUTE format(
           'CREATE TRIGGER %s BEFORE UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.%s()',
-          'trg_patisyo_set_updated_at',
+          'trg_lospos_set_updated_at',
           r.name,
-          'patisyo_set_updated_at'
+          'lospos_set_updated_at'
         );
       END IF;
     EXCEPTION WHEN others THEN
@@ -1387,7 +1387,9 @@ COMMIT;
     return true;
   }
 
-  static Future<String?> _normalizeDiscoveredHostBestEffort(String? host) async {
+  static Future<String?> _normalizeDiscoveredHostBestEffort(
+    String? host,
+  ) async {
     final cleaned = _temizHost(host);
     if (cleaned == null) return null;
     if (yerelAnaSunucuHostMu(cleaned) || _isIpv4Literal(cleaned)) {

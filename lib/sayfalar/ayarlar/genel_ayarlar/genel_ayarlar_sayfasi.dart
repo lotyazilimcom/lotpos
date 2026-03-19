@@ -9,26 +9,26 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'modeller/genel_ayarlar_model.dart';
-import 'package:patisyov10/sayfalar/ayarlar/genel_ayarlar/modeller/para_birimleri_data.dart';
-import 'package:patisyov10/sayfalar/baslangic/bootstrap_sayfasi.dart';
+import 'package:lospos/sayfalar/ayarlar/genel_ayarlar/modeller/para_birimleri_data.dart';
+import 'package:lospos/sayfalar/baslangic/bootstrap_sayfasi.dart';
 import 'veri_kaynagi/genel_ayarlar_veri_kaynagi.dart';
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
 import 'modeller/doviz_kuru_model.dart';
-import 'package:patisyov10/servisler/ayarlar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/doviz_guncelleme_servisi.dart';
-import 'package:patisyov10/servisler/bankalar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/kasalar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/kredi_kartlari_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/lisans_servisi.dart';
-import 'package:patisyov10/servisler/local_network_discovery_service.dart';
-import 'package:patisyov10/servisler/veritabani_baglanti_sifirlayici.dart';
-import 'package:patisyov10/servisler/veritabani_yapilandirma.dart';
-import 'package:patisyov10/bilesenler/standart_alt_aksiyon_bar.dart';
-import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import 'package:lospos/servisler/ayarlar_veritabani_servisi.dart';
+import 'package:lospos/servisler/doviz_guncelleme_servisi.dart';
+import 'package:lospos/servisler/bankalar_veritabani_servisi.dart';
+import 'package:lospos/servisler/kasalar_veritabani_servisi.dart';
+import 'package:lospos/servisler/kredi_kartlari_veritabani_servisi.dart';
+import 'package:lospos/servisler/lisans_servisi.dart';
+import 'package:lospos/servisler/local_network_discovery_service.dart';
+import 'package:lospos/servisler/veritabani_baglanti_sifirlayici.dart';
+import 'package:lospos/servisler/veritabani_yapilandirma.dart';
+import 'package:lospos/bilesenler/standart_alt_aksiyon_bar.dart';
+import 'package:lospos/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import 'package:intl/intl.dart';
-import 'package:patisyov10/sayfalar/bankalar/modeller/banka_model.dart';
-import 'package:patisyov10/sayfalar/kasalar/modeller/kasa_model.dart';
-import 'package:patisyov10/sayfalar/kredikartlari/modeller/kredi_karti_model.dart';
+import 'package:lospos/sayfalar/bankalar/modeller/banka_model.dart';
+import 'package:lospos/sayfalar/kasalar/modeller/kasa_model.dart';
+import 'package:lospos/sayfalar/kredikartlari/modeller/kredi_karti_model.dart';
 
 class GenelAyarlarSayfasi extends StatefulWidget {
   const GenelAyarlarSayfasi({super.key});
@@ -411,7 +411,9 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
     if (rawName.isNotEmpty && !_ipGibiGorunuyorMu(rawName)) {
       return rawName;
     }
-    return index == 0 ? 'Patisyo POS Server' : 'Patisyo POS Server (${index + 1})';
+    return index == 0
+        ? 'Lospos POS Server'
+        : 'Lospos POS Server (${index + 1})';
   }
 
   Future<void> _kaydet() async {
@@ -2977,7 +2979,7 @@ class _GenelAyarlarSayfasiState extends State<GenelAyarlarSayfasi>
                 mainAxisSize: pw.MainAxisSize.min,
                 children: [
                   pw.Text(
-                    'Patisyo',
+                    'Lospos',
                     style: pw.TextStyle(
                       fontSize: 28,
                       fontWeight: pw.FontWeight.bold,

@@ -1,20 +1,20 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
-import 'package:patisyov10/servisler/ayarlar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/bankalar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/cari_hesaplar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/depolar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/kasalar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/kredi_kartlari_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/urunler_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/cekler_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/senetler_veritabani_servisi.dart';
-import 'package:patisyov10/sayfalar/ceksenet/modeller/cek_model.dart';
-import 'package:patisyov10/sayfalar/ceksenet/modeller/senet_model.dart';
-import 'package:patisyov10/servisler/siparisler_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/maliyet_hesaplama_servisi.dart';
-import 'package:patisyov10/servisler/lite_kisitlari.dart';
+import 'package:lospos/servisler/ayarlar_veritabani_servisi.dart';
+import 'package:lospos/servisler/bankalar_veritabani_servisi.dart';
+import 'package:lospos/servisler/cari_hesaplar_veritabani_servisi.dart';
+import 'package:lospos/servisler/depolar_veritabani_servisi.dart';
+import 'package:lospos/servisler/kasalar_veritabani_servisi.dart';
+import 'package:lospos/servisler/kredi_kartlari_veritabani_servisi.dart';
+import 'package:lospos/servisler/urunler_veritabani_servisi.dart';
+import 'package:lospos/servisler/cekler_veritabani_servisi.dart';
+import 'package:lospos/servisler/senetler_veritabani_servisi.dart';
+import 'package:lospos/sayfalar/ceksenet/modeller/cek_model.dart';
+import 'package:lospos/sayfalar/ceksenet/modeller/senet_model.dart';
+import 'package:lospos/servisler/siparisler_veritabani_servisi.dart';
+import 'package:lospos/servisler/maliyet_hesaplama_servisi.dart';
+import 'package:lospos/servisler/lite_kisitlari.dart';
 import 'package:intl/intl.dart';
 
 /// Alış yap işlemleriyle ilgili Entegre Veritabanı Servisi
@@ -354,7 +354,7 @@ class AlisYapVeritabaniServisi {
     required String cariKodu,
     required String aciklama,
   }) {
-    // Patisyo V10 Update:
+    // Lospos V10 Update:
     // Otomatik açıklama (prefix) oluşturma kapatıldı.
     // Sadece kullanıcının girdiği açıklama kaydedilecek.
     return aciklama;

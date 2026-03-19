@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/services.dart';
 import 'borc_alacak_dekontu_isle_sayfasi.dart';
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../bilesenler/genisletilebilir_tablo.dart';
@@ -22,7 +22,7 @@ import '../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../../yardimcilar/format_yardimcisi.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
-import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import 'package:lospos/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../ortak/genisletilebilir_print_preview_screen.dart';
 import 'cari_hesap_ekle_sayfasi.dart';
 import 'cari_karti_sayfasi.dart';
@@ -523,7 +523,7 @@ class _CariHesaplarSayfasiState extends State<CariHesaplarSayfasi> {
             _loadSettings();
           }
 
-          // [2025 FIX] Keyset Pagination için cursor'u kaydet
+          // [2026 FIX] Keyset Pagination için cursor'u kaydet
           _pageCursors.remove(_currentPage);
           if (nextCursor != null && nextCursor.trim().isNotEmpty) {
             _pageCursors[_currentPage] = nextCursor.trim();
@@ -5963,7 +5963,7 @@ class _CariHesaplarSayfasiState extends State<CariHesaplarSayfasi> {
                     }
 
                     if (dt != null) {
-                      // [2025 FIX] Eğer saat 00:00 ise ve created_at varsa, saati created_at'den al
+                      // [2026 FIX] Eğer saat 00:00 ise ve created_at varsa, saati created_at'den al
                       final createdAt = tx['created_at'];
                       if (dt.hour == 0 &&
                           dt.minute == 0 &&
@@ -6094,7 +6094,7 @@ class _CariHesaplarSayfasiState extends State<CariHesaplarSayfasi> {
                           : 'Senet Verildi';
                     }
                   } else {
-                    // [2025 FIX] Eğer islemTuru zaten zenginleştirilmişse kullan
+                    // [2026 FIX] Eğer islemTuru zaten zenginleştirilmişse kullan
                     if (islemTuru.contains('(') && islemTuru.contains(')')) {
                       displayName = islemTuru;
                     } else {

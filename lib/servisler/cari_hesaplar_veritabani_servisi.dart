@@ -646,7 +646,7 @@ class CariHesaplarVeritabaniServisi {
       rethrow;
     }
 
-    // [2025 HYPER-SPEED] Arka Plan Yönetimi (İndeksler, Triggerlar, Ek Partitionlar)
+    // [2026 HYPER-SPEED] Arka Plan Yönetimi (İndeksler, Triggerlar, Ek Partitionlar)
     // KRİTİK: Arama fonksiyonları ve kolonları indeksleme başlamadan önce hazır olmalı!
     await _eksikKolonlariTamamlaVeTriggerlariKur();
 
@@ -995,7 +995,7 @@ class CariHesaplarVeritabaniServisi {
         return rows.isNotEmpty;
       }
 
-      // [2025 RECOVERY] Öksüz partition kontrolü ve profesyonel onarımı
+      // [2026 RECOVERY] Öksüz partition kontrolü ve profesyonel onarımı
       if (!await isAttached()) {
         if (await isTableExists()) {
           final currentParent = await getParentTable(partitionName);
@@ -1586,7 +1586,7 @@ class CariHesaplarVeritabaniServisi {
     }
     String direction = sortAscending ? 'ASC' : 'DESC';
 
-    // [2025 HYBRID PAGINATION]
+    // [2026 HYBRID PAGINATION]
     // UI sadece 'lastId' gönderiyor. Eğer sıralama ID dışında bir kolonsa (örn: 'adi'),
     // cursor mantığının çalışması için o kaydın 'adi' değerine ihtiyacımız var.
     // UI'ı bozmamak için bu değeri veritabanından hızlıca çekip cursor'u sunucuda oluşturuyoruz.
@@ -1770,7 +1770,7 @@ class CariHesaplarVeritabaniServisi {
       ''');
     }
 
-    // [2025 KEYSET PAGINATION LOGIC]
+    // [2026 KEYSET PAGINATION LOGIC]
     if (lastId != null) {
       if (sortColumn == 'id') {
         // Basit ID sıralaması
@@ -1842,7 +1842,7 @@ class CariHesaplarVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return 0;
 
-    // [2025 UPGRADE] pg_class ile yaklaşık sayım (Filtresiz)
+    // [2026 UPGRADE] pg_class ile yaklaşık sayım (Filtresiz)
     if (aramaTerimi == null &&
         aktifMi == null &&
         hesapTuru == null &&
@@ -2614,7 +2614,7 @@ class CariHesaplarVeritabaniServisi {
     });
   }
 
-  /// [2025 ELITE] Cari Para Al/Ver Kaydet/Güncelle (FLD-U & Atomic Transaction)
+  /// [2026 ELITE] Cari Para Al/Ver Kaydet/Güncelle (FLD-U & Atomic Transaction)
   /// Bu metod hem Cari hem de Kasa/Banka/Kredi Kartı tarafını tek bir transaksiyon
   /// içinde, veriyi silmeden, bakiye deltasını kullanarak günceller.
   Future<int?> cariParaAlVerKaydet({
@@ -2977,7 +2977,7 @@ class CariHesaplarVeritabaniServisi {
     });
   }
 
-  /// [2025 ELITE] Cari Borç/Alacak Dekontu Kaydet (FLD-U & Partition Safe)
+  /// [2026 ELITE] Cari Borç/Alacak Dekontu Kaydet (FLD-U & Partition Safe)
   Future<void> cariDekontKaydet({
     required int cariId,
     required double tutar,
@@ -3085,7 +3085,7 @@ class CariHesaplarVeritabaniServisi {
     });
   }
 
-  /// [2025 ELITE] Cari Açılış/Devir Kaydet (FLD-U)
+  /// [2026 ELITE] Cari Açılış/Devir Kaydet (FLD-U)
   Future<void> cariDevirKaydet({
     required int cariId,
     required double tutar,
@@ -3172,7 +3172,7 @@ class CariHesaplarVeritabaniServisi {
     });
   }
 
-  /// [2025 SMART UPDATE] Field-Level Transaction Update (No Deletion)
+  /// [2026 SMART UPDATE] Field-Level Transaction Update (No Deletion)
   /// Bu metod, mevcut hareketi silmeden güncelleyerek "Bloat" oluşumunu engeller.
   Future<void> cariIslemGuncelleByRef({
     required String ref,
@@ -3498,7 +3498,7 @@ class CariHesaplarVeritabaniServisi {
           parameters: {'refs': refs},
         );
 
-        // 3. [2025 FIX] Finansal Entegrasyonları BAKİYE DÜZELTEREK Temizle
+        // 3. [2026 FIX] Finansal Entegrasyonları BAKİYE DÜZELTEREK Temizle
         // YANLIŞ: Doğrudan DELETE (Bakiye bozulur)
         // DOĞRU: Servis metodları ile bakiye geri alarak sil
 
@@ -4626,7 +4626,7 @@ class CariHesaplarVeritabaniServisi {
     String? kaynakTur,
     int? kaynakId,
     int? transactionId,
-    DateTime? date, // [2025 OPTIMIZATION] Partition pruning
+    DateTime? date, // [2026 OPTIMIZATION] Partition pruning
     Session? session,
   }) async {
     if (!_isInitialized) await baslat();
@@ -4642,7 +4642,7 @@ class CariHesaplarVeritabaniServisi {
     try {
       List<List<dynamic>> transactionRows = [];
 
-      // [2025 OPTIMIZATION] Try fetching with Date first (Fast)
+      // [2026 OPTIMIZATION] Try fetching with Date first (Fast)
       if (transactionId != null) {
         String query =
             'SELECT amount, kur, para_birimi, id, source_type, source_id, integration_ref, description, type FROM current_account_transactions WHERE id = @id';
@@ -4726,7 +4726,7 @@ class CariHesaplarVeritabaniServisi {
     }
 
     // 2) Bakiyeyi Geri Al (Tutar kadar "ters" işlem yap)
-    // [2025 FIX] Dövizli işlemlerde bakiyenin yanlış güncellenmesini önlemek için
+    // [2026 FIX] Dövizli işlemlerde bakiyenin yanlış güncellenmesini önlemek için
     // Hesabın ana para birimi ile işlemin para birimini karşılaştırıp doğru tutarı bulmalıyız.
     // [2026 CRITICAL FIX] Artık ÖNCEDEN KAYDEDİLEN değerleri kullanıyoruz
     try {
@@ -5220,7 +5220,7 @@ class CariHesaplarVeritabaniServisi {
   }
 
   /// Entegrasyon referansına göre cari işlemleri siler ve bakiyeyi günceller.
-  /// [2025 GUARD]: Çifte Silme Koruma - Aynı ref ile işlem yoksa erken çık
+  /// [2026 GUARD]: Çifte Silme Koruma - Aynı ref ile işlem yoksa erken çık
   Future<void> cariIslemSilByRef(
     String ref, {
     bool skipLinked = false,
@@ -5229,7 +5229,7 @@ class CariHesaplarVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return;
 
-    // [2025 GUARD] Boş veya geçersiz referans kontrolü
+    // [2026 GUARD] Boş veya geçersiz referans kontrolü
     if (ref.isEmpty) {
       debugPrint('[GUARD] cariIslemSilByRef: Boş ref ile çağrıldı, atlanıyor.');
       return;
@@ -5246,7 +5246,7 @@ class CariHesaplarVeritabaniServisi {
       parameters: {'ref': ref},
     );
 
-    // [2025 GUARD] Çifte silme veya olmayan işlem kontrolü
+    // [2026 GUARD] Çifte silme veya olmayan işlem kontrolü
     if (rows.isEmpty) {
       debugPrint(
         '[GUARD] cariIslemSilByRef: ref=$ref için işlem bulunamadı (zaten silinmiş veya hiç oluşturulmamış).',
@@ -5494,7 +5494,7 @@ class CariHesaplarVeritabaniServisi {
           (accountResult.firstOrNull?[0] as String?) ?? 'TRY';
 
       // 1. Silinecek Tutarları Hesapla (Borç ve Alacak Toplamları)
-      // [2025 ELITE] Döviz çevrimini SQL içinde veya kodda doğru yapmalıyız.
+      // [2026 ELITE] Döviz çevrimini SQL içinde veya kodda doğru yapmalıyız.
       final result = await ctx.execute(
         Sql.named('''
         SELECT type, amount, kur, para_birimi 

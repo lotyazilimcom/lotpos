@@ -14,4 +14,3 @@ class ResponsiveYardimcisi {
     return MediaQuery.sizeOf(context).shortestSide >= 600;
   }
 }
-

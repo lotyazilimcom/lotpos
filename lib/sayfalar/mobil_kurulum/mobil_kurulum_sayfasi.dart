@@ -213,22 +213,27 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                             else
                               Container(
                                 width: double.infinity,
-                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 8,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.black.withValues(alpha: 0.08),
                                   borderRadius: BorderRadius.circular(16),
                                 ),
                                 child: RadioGroup<String>(
                                   groupValue:
-                                      (_selectedServer?.host ?? '').trim().isEmpty
-                                          ? null
-                                          : (_selectedServer?.host ?? '').trim(),
+                                      (_selectedServer?.host ?? '')
+                                          .trim()
+                                          .isEmpty
+                                      ? null
+                                      : (_selectedServer?.host ?? '').trim(),
                                   onChanged: (v) {
                                     if (v == null) return;
                                     final match = _foundServers.firstWhere(
                                       (s) => (s.host ?? '').trim() == v,
                                       orElse: () =>
-                                          _selectedServer ?? _foundServers.first,
+                                          _selectedServer ??
+                                          _foundServers.first,
                                     );
                                     setState(() => _selectedServer = match);
                                   },
@@ -236,7 +241,8 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                     children: _foundServers.map((s) {
                                       final host = (s.host ?? '').trim();
                                       final title = (s.name ?? host).trim();
-                                      final selected = _selectedServer?.host == host;
+                                      final selected =
+                                          _selectedServer?.host == host;
                                       return ListTile(
                                         dense: true,
                                         visualDensity: const VisualDensity(
@@ -285,9 +291,11 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                 ),
-                                onPressed: (_selectedServer?.host ?? '').trim().isEmpty
+                                onPressed:
+                                    (_selectedServer?.host ?? '').trim().isEmpty
                                     ? null
-                                    : () => _setupTamamla(context, mode: 'local'),
+                                    : () =>
+                                          _setupTamamla(context, mode: 'local'),
                                 child: Text(
                                   tr('common.continue'),
                                   style: TextStyle(
@@ -340,7 +348,9 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                   context,
                                   icon: Icons.public_rounded,
                                   title: tr('mobile_setup.use_internet'),
-                                  subtitle: tr('mobile_setup.use_internet_desc'),
+                                  subtitle: tr(
+                                    'mobile_setup.use_internet_desc',
+                                  ),
                                   color: const Color(0xFF81C784),
                                   onTap: () =>
                                       _setupTamamla(context, mode: 'cloud'),
@@ -364,7 +374,9 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
                                   context,
                                   icon: Icons.public_rounded,
                                   title: tr('mobile_setup.use_internet'),
-                                  subtitle: tr('mobile_setup.use_internet_desc'),
+                                  subtitle: tr(
+                                    'mobile_setup.use_internet_desc',
+                                  ),
                                   color: const Color(0xFF81C784),
                                   onTap: () =>
                                       _setupTamamla(context, mode: 'cloud'),
@@ -418,14 +430,19 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
         (isLocalLike(oncekiMod) && mode == 'cloud') ||
         (oncekiMod == 'cloud' && isLocalLike(mode));
     final bool localToHybrid = oncekiMod == 'local' && mode == 'hybrid';
-    final bool localToCloudSeed = (isLocalLike(oncekiMod) && mode == 'cloud') || localToHybrid;
+    final bool localToCloudSeed =
+        (isLocalLike(oncekiMod) && mode == 'cloud') || localToHybrid;
 
     DesktopVeritabaniAktarimSecimi? transferSecim;
-    if (!kurulumTamamlandi && modDegisti && (localCloudSwitch || localToHybrid)) {
+    if (!kurulumTamamlandi &&
+        modDegisti &&
+        (localCloudSwitch || localToHybrid)) {
       // İlk kurulumda veri aktarımı sormayız. Bekleyen bir seçim/niyet varsa temizle (best-effort).
       await prefs.remove(VeritabaniYapilandirma.prefPendingTransferChoiceKey);
       await VeritabaniAktarimServisi().niyetTemizle();
-    } else if (modDegisti && (localCloudSwitch || localToHybrid) && context.mounted) {
+    } else if (modDegisti &&
+        (localCloudSwitch || localToHybrid) &&
+        context.mounted) {
       transferSecim = await veritabaniAktarimSecimDialogGoster(
         context: context,
         localToCloud: localToCloudSeed,
@@ -486,8 +503,13 @@ class _MobilKurulumSayfasiState extends State<MobilKurulumSayfasi> {
         context: context,
         builder: (ctx) => Dialog(
           backgroundColor: Colors.white,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+          insetPadding: const EdgeInsets.symmetric(
+            horizontal: 32,
+            vertical: 24,
+          ),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
           child: Container(
             width: 450,
             decoration: BoxDecoration(

@@ -393,7 +393,8 @@ class _DilEkleDialogState extends State<DilEkleDialog> {
                               const SizedBox(height: 12),
                               DropdownButtonFormField<String>(
                                 mouseCursor: WidgetStateMouseCursor.clickable,
-                                dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
+                                dropdownMenuItemMouseCursor:
+                                    WidgetStateMouseCursor.clickable,
                                 menuMaxHeight: 300,
                                 initialValue: _editorLangKodu,
                                 icon: const Icon(
@@ -492,8 +493,10 @@ class _DilEkleDialogState extends State<DilEkleDialog> {
                                     ),
                                     const SizedBox(height: 12),
                                     DropdownButtonFormField<String>(
-                                      mouseCursor: WidgetStateMouseCursor.clickable,
-                                      dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
+                                      mouseCursor:
+                                          WidgetStateMouseCursor.clickable,
+                                      dropdownMenuItemMouseCursor:
+                                          WidgetStateMouseCursor.clickable,
                                       menuMaxHeight: 300,
                                       initialValue: _editorLangKodu,
                                       icon: const Icon(

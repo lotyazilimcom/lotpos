@@ -1,19 +1,19 @@
 param(
   [int]$DelaySeconds = 30,
-  [string]$RunValueName = 'PatisyoPostgresAutostart'
+  [string]$RunValueName = 'LosposPostgresAutostart'
 )
 
 $ErrorActionPreference = 'Stop'
 
-$sourceScript = Join-Path $PSScriptRoot 'patisyo_postgres_autostart.ps1'
+$sourceScript = Join-Path $PSScriptRoot 'lospos_postgres_autostart.ps1'
 if (-not (Test-Path $sourceScript)) {
   throw "Kaynak script bulunamadı: $sourceScript"
 }
 
-$targetDir = Join-Path $env:LOCALAPPDATA 'Patisyo\\autostart'
+$targetDir = Join-Path $env:LOCALAPPDATA 'Lospos\\autostart'
 New-Item -ItemType Directory -Force -Path $targetDir | Out-Null
 
-$targetScript = Join-Path $targetDir 'patisyo_postgres_autostart.ps1'
+$targetScript = Join-Path $targetDir 'lospos_postgres_autostart.ps1'
 Copy-Item -Path $sourceScript -Destination $targetScript -Force
 
 $command = "powershell.exe -NoProfile -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$targetScript`" -DelaySeconds $DelaySeconds"

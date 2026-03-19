@@ -1,10 +1,10 @@
 ---
-description: Patisyo projesinde yeni sayfa oluştururken uyulması gereken standartlar ve kullanılması gereken yardımcı sınıflar
+description: Lospos projesinde yeni sayfa oluştururken uyulması gereken standartlar ve kullanılması gereken yardımcı sınıflar
 ---
 
-# 📋 Patisyo Sayfa Geliştirme Standartları
+# 📋 Lospos Sayfa Geliştirme Standartları
 
-Bu döküman, Patisyo projesinde yeni bir sayfa veya bileşen oluştururken uyulması gereken tüm standartları, kısayolları, renklendirme kurallarını ve yardımcı sınıfların kullanımını içerir.
+Bu döküman, Lospos projesinde yeni bir sayfa veya bileşen oluştururken uyulması gereken tüm standartları, kısayolları, renklendirme kurallarını ve yardımcı sınıfların kullanımını içerir.
 
 ---
 

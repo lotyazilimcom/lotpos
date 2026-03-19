@@ -1,6 +1,6 @@
 param(
   [int]$DelaySeconds = 15,
-  [string]$LogDir = (Join-Path $env:LOCALAPPDATA 'Patisyo\\logs')
+  [string]$LogDir = (Join-Path $env:LOCALAPPDATA 'Lospos\\logs')
 )
 
 $ErrorActionPreference = 'Stop'

@@ -155,20 +155,20 @@ class ClusterKimligiServisi {
 
         final id = _uuidV4();
         await session.execute(
-          Sql.named(
-            '''
+          Sql.named('''
             INSERT INTO public.general_settings (key, value)
             VALUES (@k, @v)
             ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
-          ''',
-          ),
+          '''),
           parameters: <String, Object?>{'k': clusterIdKey, 'v': id},
         );
         return id;
       });
     } catch (e) {
       if (kDebugMode) {
-        debugPrint('ClusterKimligiServisi: okuVeyaOlusturWithExecutor failed: $e');
+        debugPrint(
+          'ClusterKimligiServisi: okuVeyaOlusturWithExecutor failed: $e',
+        );
       }
       return null;
     }

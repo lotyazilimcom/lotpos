@@ -12,6 +12,9 @@ git push -u origin main
 
 dart run lib/servisler/veritabani_reset_servisi.dart
 
+dart run tool/ilk_kurulum_sifirla.dart --truncate
+
+
 
 git reset --hard origin/main
 
@@ -47,7 +50,7 @@ flutter emulators --launch Pixel_Tablet
 
 
 
-şimdi reis beni çok iyi dinle bak şimdi C:\Users\Alkmlgun\Desktop\patisyov10 bu asıl projemiz ve bak C:\Users\Alkmlgun\Desktop\lotyazilim buda lisanslama için falan kullandığımız müşteri takip ettiğimiz internet projemiz şimdi bak sana resimlerlede anlatacağım şimdi beni çok iyi dinle bak C:\Users\Alkmlgun\Desktop\lotyazilim\pages\LiteUsersPage.tsx burada mobile yada tablette lite sürümü kullanmak için kullanıcı programı açtığında bu sayfada bilgisayar cihaz adı yada ne oldu mobile dektop table görünmüyor onu düzenle tüm işletim sistemleri için abk düzenle ve tam adı yazsın eksiksiz olarak düzenle çok dikkatli ol bak resimleride incele ios android hepsi için düzenle bakalım tablet ve phone lar için tam profesyonel şekilde yazsın çok dikaktli ol sakın ha başka yeri bozmadan tam profesyonel olarak yap
+şimdi reis beni çok iyi dinle bak şimdi C:\Users\Alkmlgun\Desktop\lospos bu asıl projemiz ve bak C:\Users\Alkmlgun\Desktop\lotyazilim buda lisanslama için falan kullandığımız müşteri takip ettiğimiz internet projemiz şimdi bak sana resimlerlede anlatacağım şimdi beni çok iyi dinle bak C:\Users\Alkmlgun\Desktop\lotyazilim\pages\LiteUsersPage.tsx burada mobile yada tablette lite sürümü kullanmak için kullanıcı programı açtığında bu sayfada bilgisayar cihaz adı yada ne oldu mobile dektop table görünmüyor onu düzenle tüm işletim sistemleri için abk düzenle ve tam adı yazsın eksiksiz olarak düzenle çok dikkatli ol bak resimleride incele ios android hepsi için düzenle bakalım tablet ve phone lar için tam profesyonel şekilde yazsın çok dikaktli ol sakın ha başka yeri bozmadan tam profesyonel olarak yap
 
 
 
@@ -72,7 +75,7 @@ güzel şimdi ne yapacaksın sen biliyormusun /Users/nasip/Desktop/lotyazilim/pa
 
 
 güzel şimdi ne yapacaksın sen biliyormusun /Users/nasip/Desktop/lotyazilim/pages/LiteUsersPage.tsx
-/Users/nasip/Desktop/lotyazilim/pages/CustomersPage.tsx bu iki yerde de bak supabase ve nanotech e veritabanı oluşturuyoruz şimdi bak oluşturduktan sonra proje flutter projesi bakıyor yeni veritabanında tablolar varmı yoksa oluşturuyor ve çok uzun sürüyor onu şöyle yapacağız bak bu supabase oluşturm ayada nanotech oluşturma butonunun olduğu dialogta bir sql yükleme sadece sql yükleme özelliği koy ve bak kullanıcı onu birkere yükledi kayda alsın ve kullanıcı değiştirene kadar o yüklediğini kullanarak veritabanı oluştukdan sonra full eksiksiz özellikle tabloları oluştursunki sonra daha sonra flutterıda güncelleyeceğizki böyl eçalışacak çok dikaktli ol sakın talimatım dışında başka yere dokunma bozma bak programdan indirdiğimi ekleyecek /Users/nasip/Desktop/patisyov10/patisyo_patisyo2025_schema_20260215_1851.sql.sql bak ve yap sakın ha başk ayeri bozma eksiksiz hatası zyap
+/Users/nasip/Desktop/lotyazilim/pages/CustomersPage.tsx bu iki yerde de bak supabase ve nanotech e veritabanı oluşturuyoruz şimdi bak oluşturduktan sonra proje flutter projesi bakıyor yeni veritabanında tablolar varmı yoksa oluşturuyor ve çok uzun sürüyor onu şöyle yapacağız bak bu supabase oluşturm ayada nanotech oluşturma butonunun olduğu dialogta bir sql yükleme sadece sql yükleme özelliği koy ve bak kullanıcı onu birkere yükledi kayda alsın ve kullanıcı değiştirene kadar o yüklediğini kullanarak veritabanı oluştukdan sonra full eksiksiz özellikle tabloları oluştursunki sonra daha sonra flutterıda güncelleyeceğizki böyl eçalışacak çok dikaktli ol sakın talimatım dışında başka yere dokunma bozma bak programdan indirdiğimi ekleyecek /Users/nasip/Desktop/lospos/lospos_lospos2026_schema_20260215_1851.sql.sql bak ve yap sakın ha başk ayeri bozma eksiksiz hatası zyap
 
 
 
@@ -109,10 +112,10 @@ hey birde cari hesapta hızlı not gir ve ticari bilgiler neden var anlamadım b
 
 Çok önemli kural resimleri ve dosyaları inceleyeceksin çalışma şeklini anlayacaksın sonra aşağıdaki hataları inceleyeceksin ve sonra düzeltmeye geçeceksin çok çok önemli kural en ufak başka bir style özellik dosya bozmayacaksın sakın ha çok dikaktli olacaksın çok 
 
-nasip@192 lotpos % flutter run -d macos
+nasip@192 lospos % flutter run -d macos
 Launching lib/main.dart on macOS in debug mode...
 Building macOS application...                                           
-✓ Built build/macos/Build/Products/Debug/patisyov10.app
+✓ Built build/macos/Build/Products/Debug/lospos.app
 Failed to foreground app; open returned 1
 Syncing files to device macOS...                                   317ms
 
@@ -127,29 +130,29 @@ q Quit (terminate the application on the device).
 A Dart VM Service on macOS is available at: http://127.0.0.1:49268/3Dr1pllwTfA=/
 The Flutter DevTools debugger and profiler on macOS is available at:
 http://127.0.0.1:49268/3Dr1pllwTfA=/devtools/?uri=ws://127.0.0.1:49268/3Dr1pllwTfA=/ws
-flutter: VeritabaniYapilandirma: Yapılandırma yüklendi. Mod: local, Effective: 127.0.0.1:5432/patisyosettings, CloudReady: false, DiscoveredHost: 127.0.0.1
+flutter: VeritabaniYapilandirma: Yapılandırma yüklendi. Mod: local, Effective: 127.0.0.1:5432/lospossettings, CloudReady: false, DiscoveredHost: 127.0.0.1
 flutter: supabase.supabase_flutter: INFO: ***** Supabase init completed ***** 
-flutter: Varsayılan şirket veritabanı kontrol ediliyor: patisyo_lotpos
+flutter: Varsayılan şirket veritabanı kontrol ediliyor: lospos_lospos
 flutter: AyarlarVeritabaniServisi: Admin connection established: postgres
-flutter: Şirket veritabanı zaten mevcut: patisyo_lotpos
-flutter: AyarlarVeritabaniServisi: Database connection and setup successful: patisyosettings
+flutter: Şirket veritabanı zaten mevcut: lospos_lospos
+flutter: AyarlarVeritabaniServisi: Database connection and setup successful: lospossettings
 flutter: DovizGuncellemeServisi: Başlatılıyor...
 flutter: Lisans Servisi: Hardware ID: 5EE67433
 flutter: DovizGuncellemeServisi: Kurlar başarıyla güncellendi.
 flutter: DB aktarım kontrolü: Cloud kimlikler hazır değil, atlanıyor.
 flutter: Lisans Servisi: Durum güncelleniyor: Online
-flutter: Aktif Şirket Değişti: Lot Yazılım (DB: patisyo_lotpos)
+flutter: Aktif Şirket Değişti: LosSoft (DB: lospos_lospos)
 flutter: Stok Hareketleri Tablo Durumu: tableExists=true, relkind=p, isPartitioned=true
-flutter: Depolar veritabanı bağlantısı başarılı (Havuz): patisyo_lotpos
-flutter: mDNS: Sunucu yayını başlatıldı: Patisyo POS Server (_patisyo-pos._tcp) Port: 5432, Pro: true
+flutter: Depolar veritabanı bağlantısı başarılı (Havuz): lospos_lospos
+flutter: mDNS: Sunucu yayını başlatıldı: Lospos POS Server (_lospos-pos._tcp) Port: 5432, Pro: true
 flutter: Stok Hareketleri Tablo Durumu (Products): relkind=p
 flutter: 🚀 Ürünler Performans Modu: GIN ve B-Tree indeksleri hazır.
 flutter: 🚀 10B Performans: BRIN indeksleri hazır.
-flutter: Ürünler veritabanı bağlantısı başarılı (Havuz): patisyo_lotpos
+flutter: Ürünler veritabanı bağlantısı başarılı (Havuz): lospos_lospos
 flutter: 🚀 Üretimler Performans Modu: Triggerlar ve B-Tree İndeksleri Aktif Edildi.
 flutter: 🍳 Üretim Reçetesi Tablosu hazır.
 flutter: 🏭 Üretim Stok Hareketleri Tablosu (Partitioned & Optimized) hazır.
-flutter: Üretimler veritabanı bağlantısı başarılı (Havuz): patisyo_lotpos
+flutter: Üretimler veritabanı bağlantısı başarılı (Havuz): lospos_lospos
 flutter: Kasa Hareketleri Tablo Durumu: tableExists=true, relkind=p, isPartitioned=true
 flutter: KasalarVeritabaniServisi: Pool connection established successfully.
 flutter: Banka Hareketleri Tablo Durumu: tableExists=true, relkind=p, isPartitioned=true
@@ -164,7 +167,7 @@ flutter: Mevcut Cari Hareketler Tablo Durumu: relkind=p
 flutter: ✅ Cari Hareketler tablosu zaten Partitioned yapıda.
 flutter: Cari Hesaplar veritabanı bağlantısı başarılı (Havuz)
 flutter: 🚀 Cari Hesaplar İndeksleri Hazır.
-flutter: Giderler veritabanı bağlantısı başarılı (Havuz): patisyo_lotpos
+flutter: Giderler veritabanı bağlantısı başarılı (Havuz): lospos_lospos
 flutter: PersonelIslemleriVeritabaniServisi: Pool bağlantısı başarılı.
 flutter: Mevcut Tablo Durumu: relkind=p (r=regular, p=partitioned)
 flutter: ✅ Tablo zaten Partitioned yapıda. Migration gerekmiyor.
@@ -191,13 +194,13 @@ Failed assertion: line 1025 pos 10: 'items == null ||
 
 The relevant error-causing widget was:
   PrintPreviewScreen
-  PrintPreviewScreen:file:///Users/nasip/Desktop/lotpos/lib/sayfalar/alimsatimislemleri/satis_sonrasi_yazdir_sayfasi.dart:30
+  PrintPreviewScreen:file:///Users/nasip/Desktop/lospos/lib/sayfalar/alimsatimislemleri/satis_sonrasi_yazdir_sayfasi.dart:30
   5:33
 
 When the exception was thrown, this was the stack:
 #2      new DropdownButton (package:flutter/src/material/dropdown.dart:1025:10)
-#3      _PrintPreviewScreenState._buildDropdownRow (package:patisyov10/sayfalar/ortak/print_preview_screen.dart:1850:22)
-#4      _PrintPreviewScreenState.build (package:patisyov10/sayfalar/ortak/print_preview_screen.dart:745:27)
+#3      _PrintPreviewScreenState._buildDropdownRow (package:lospos/sayfalar/ortak/print_preview_screen.dart:1850:22)
+#4      _PrintPreviewScreenState.build (package:lospos/sayfalar/ortak/print_preview_screen.dart:745:27)
 #5      StatefulElement.build (package:flutter/src/widgets/framework.dart:5931:27)
 #6      ComponentElement.performRebuild (package:flutter/src/widgets/framework.dart:5817:15)
 #7      StatefulElement.performRebuild (package:flutter/src/widgets/framework.dart:5982:11)
@@ -267,11 +270,11 @@ Hey şimdi reis bak https://app.lemonsqueezy.com/dashboard buraya kayıt oldum b
 
 3. çok önemli kural önce aşağıdkai dosyaları incel eve otomaitk satın alma otomatik iptal etmeyi satır satır en ince ayrıntısına kadar öğren ezberle resim ekledim iyice incele ve eksiksiz hatasız yukardaki tüm talimatları yerine getir sakın ha sakın başk ayeir bozma çok dikaktli ol çok sakın mevcut sistemleri bozma çok dikaktlice heryeri öğren
 
-/Users/nasip/Desktop/lotyazilim çok önemli kural ve emir bu klasör içindeki tüm dosyaları satır satır incele ve kırmızı çizgi net emir /Users/nasip/Desktop/lotpos/lib/sayfalar/ayarlar/hesap_ayarlari/pro_satin_alma_dialog.dart
-/Users/nasip/Desktop/lotpos/lib/sayfalar/ayarlar/hesap_ayarlari/hesap_ayarlari_sayfasi.dart bunları incele öğren ezberle tüm sistemi çok dikaktli ol supabase e falan nasıl bağlanıyor lemondan bilgiler nasıl geliyor tam öğren 
+/Users/nasip/Desktop/lotyazilim çok önemli kural ve emir bu klasör içindeki tüm dosyaları satır satır incele ve kırmızı çizgi net emir /Users/nasip/Desktop/lospos/lib/sayfalar/ayarlar/hesap_ayarlari/pro_satin_alma_dialog.dart
+/Users/nasip/Desktop/lospos/lib/sayfalar/ayarlar/hesap_ayarlari/hesap_ayarlari_sayfasi.dart bunları incele öğren ezberle tüm sistemi çok dikaktli ol supabase e falan nasıl bağlanıyor lemondan bilgiler nasıl geliyor tam öğren 
 
-/Users/nasip/Desktop/lotpos/promt çok önemli kural ve emir bu klasör içindeki tüm dosyaları satır satır incele ve kırmızı çizgi net emir /Users/nasip/Desktop/lotpos/lib/sayfalar/ayarlar/hesap_ayarlari/pro_satin_alma_dialog.dart
-/Users/nasip/Desktop/lotpos/lib/sayfalar/ayarlar/hesap_ayarlari/hesap_ayarlari_sayfasi.dart bunları incele öğren ezberle tüm sistemi çok dikaktli ol supabase e falan nasıl bağlanıyor lemondan bilgiler nasıl geliyor tam öğren 
+/Users/nasip/Desktop/lospos/promt çok önemli kural ve emir bu klasör içindeki tüm dosyaları satır satır incele ve kırmızı çizgi net emir /Users/nasip/Desktop/lospos/lib/sayfalar/ayarlar/hesap_ayarlari/pro_satin_alma_dialog.dart
+/Users/nasip/Desktop/lospos/lib/sayfalar/ayarlar/hesap_ayarlari/hesap_ayarlari_sayfasi.dart bunları incele öğren ezberle tüm sistemi çok dikaktli ol supabase e falan nasıl bağlanıyor lemondan bilgiler nasıl geliyor tam öğren 
 
 
 

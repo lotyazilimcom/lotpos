@@ -12,7 +12,7 @@ import 'lisans_kasasi.dart';
 import 'lite_ayarlar_servisi.dart';
 import 'online_veritabani_servisi.dart';
 
-/// Patisyo Lisans Servisi (CIA Level Security & Supabase SDK Implementation)
+/// Lospos Lisans Servisi (CIA Level Security & Supabase SDK Implementation)
 ///
 /// Bu servis, uygulamanın lisans durumunu yönetir, donanım kimliği üretir
 /// ve Supabase üzerinden lisans (PRO) / kısıtlı (LITE) durumunu senkronize eder.
@@ -22,18 +22,18 @@ class LisansServisi extends ChangeNotifier {
   LisansServisi._internal();
 
   // CIA Level Obfuscation - XOR Encryption with a static key
-  static const String _secKey = 'PATISYO-CIA-2025-SECURITY-KEY-!@#';
+  static const String _secKey = 'LOSPOS-CIA-2026-SECURITY-KEY-!@#';
 
   // "https://nnistfbawmeyojpcdyho.supabase.co" XOR encoded then Base64
   static final String _uEnc =
-      'ODUgOSBjYAItJyheRlZQVFo+IDo6ODk3PVQjKndeVDBCMiAnLH06IA==';
+      'JDsnIDxpAmwnL0RBRFRUTCQoJiw9IyQ6STItNgNSNVMtLTIjKn1OLA==';
 
   // Supabase Anon Key XOR encoded then Base64
   static final String _kEnc =
-      'NTgeITEeLEQMIAtkZ0p7BGM6DDAcPBthOm4CcxBGURh1EwttZzYgBV0gegxEfVl4T0kLBysMPw8uA34CNhBDayx5OQhiAD5sOkwbB3F3X3paUR9iKSYCazg3HmMgIA5FVwlKJyg3JGoqFX4KfwhAdEVQBxk6CQAfIhAMCEQELxwebzpiKQwuACoUC3QwACx7BlNxfBseLwJhHB0zLmIPDC5jT3ANNQQhCgAwHEIXIjleVUp9T2QpPQYhZ3psKU4PKQl6VTVCDxUgMBIwInwsIg==';
+      'KTYZOC0UTioGKGd7ZUh/HB0sCiYbJwZsTggMb2RKMHsaDBlpYTZUCTkiHn9ZfV9nKSEbFzoQOR9XERYQXmguaSAVOhl5GkB2PCB1fABoW2c7IXFkPiwDYFwoAhdGRBdLOgY6JyYwQHo6G357BntbayYncWE7BRcTXRIdCERuKmZ/ASkRNh5XCjAMaWtDe1t7ZyYAHGQEPhgZBRE+Wm4EajsBPWBhNmg2ChJEYV9mXVUgIjkaKAAuIWg/cGoVUSNnIB8EJDoychc9OGxbXWNZRg==';
 
   // License Token Secret (Used by Admin Panel) XOR encoded then Base64
-  static final String _lsEnc = 'HA4AZAAcDHgRDGx+ZnFmfGIdaHFlYH95EmgS';
+  static final String _lsEnc = 'AAAHfRwWbhYbBABhZHNiZBwLbmdie2J0Zg4c';
 
   // CIA-level Offline Vault (AES-256-GCM + HMAC signature) + clock tamper defense
   final LisansKasasi _kasasi = LisansKasasi();
@@ -92,7 +92,7 @@ class LisansServisi extends ChangeNotifier {
   String? get licenseKey => _licenseKey;
 
   static const String _prefsInheritedProKey = 'inherited_pro_status';
-  static const String _prefsHardwareIdKey = 'patisyo_hardware_id_v1';
+  static const String _prefsHardwareIdKey = 'lospos_hardware_id_v1';
 
   /// Sunucudan devralınan lisans durumunu ayarlar
   Future<void> setInheritedPro(bool status) async {

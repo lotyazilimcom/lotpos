@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:postgres/postgres.dart';
 import '../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../sayfalar/ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
@@ -18,11 +19,14 @@ import 'arama/hizli_sayim_yardimcisi.dart';
 import 'bulut_sema_dogrulama_servisi.dart';
 import 'pg_eklentiler.dart';
 import 'postgresql_tuning_profili.dart';
+import 'sirket_veritabani_kimligi.dart';
 import 'veritabani_yapilandirma.dart';
 import 'veritabani_havuzu.dart';
 
 class AyarlarVeritabaniServisi {
   static const String _searchTagsVersionPrefix = 'v2026_settings_1';
+  static const String _defaultCompanySeedAssetPath =
+      'assets/default_company_seed.json';
   static final AyarlarVeritabaniServisi _instance =
       AyarlarVeritabaniServisi._internal();
   factory AyarlarVeritabaniServisi() => _instance;
@@ -117,7 +121,7 @@ class AyarlarVeritabaniServisi {
 
       // Supabase/Neon pooler (özellikle transaction pooling) bazı ortamlarda
       // prepared statement/extended query kullanımını kısıtlayabilir.
-      // LotPOS ise parametreli sorgular kullandığı için bu uyumluluğu erken doğrula.
+      // lospos ise parametreli sorgular kullandığı için bu uyumluluğu erken doğrula.
       final okPooler = await _poolerParametreliSorguUyumluluguKontrolEt();
       if (!okPooler) {
         await baglantiyiKapat();
@@ -181,7 +185,7 @@ class AyarlarVeritabaniServisi {
     if (pool == null) return false;
 
     final env = Platform.environment;
-    final poolerMode = (env['PATISYO_DB_POOLER_MODE'] ?? '')
+    final poolerMode = (env['LOSPOS_DB_POOLER_MODE'] ?? '')
         .trim()
         .toLowerCase();
     final hostLower = _config.host.trim().toLowerCase();
@@ -198,8 +202,8 @@ class AyarlarVeritabaniServisi {
     if (_config.queryMode == QueryMode.simple) {
       _sonHata =
           'DB bağlantısı QueryMode.simple görünüyor. '
-          'LotPOS parametreli sorgular kullandığı için SIMPLE modda çalışmaz. '
-          'Çözüm: `PATISYO_DB_QUERY_MODE=extended` kullanın. '
+          'lospos parametreli sorgular kullandığı için SIMPLE modda çalışmaz. '
+          'Çözüm: `LOSPOS_DB_QUERY_MODE=extended` kullanın. '
           'Supabase/Neon pooler transaction modundaysa session/direct endpoint (5432) tercih edin.';
       return false;
     }
@@ -220,9 +224,9 @@ class AyarlarVeritabaniServisi {
       if (isPreparedStmtIssue) {
         _sonHata =
             'Supabase/Neon pooler (transaction) tarafında prepared statement kapalı görünüyor. '
-            'LotPOS Flutter istemcisi parametreli sorgular için EXTENDED protocol (prepared statement) kullanır. '
+            'lospos Flutter istemcisi parametreli sorgular için EXTENDED protocol (prepared statement) kullanır. '
             'Çözüm: session pooler veya direct endpoint (5432) kullanın '
-            've `PATISYO_DB_POOLER_MODE=session` + `PATISYO_DB_QUERY_MODE=extended` ayarlayın.';
+            've `LOSPOS_DB_POOLER_MODE=session` + `LOSPOS_DB_QUERY_MODE=extended` ayarlayın.';
         return false;
       }
 
@@ -260,12 +264,11 @@ class AyarlarVeritabaniServisi {
             e.toString().contains('57P03') ||
             (e is ServerException && e.code == '57P03');
 
-        debugPrint(
-          'AyarlarVeritabaniServisi: DB test attempt $attempt failed: $e',
-        );
-
         // ── Cloud (Supabase) modu: hızlı çıkış ──
         if (bulut) {
+          debugPrint(
+            'AyarlarVeritabaniServisi: DB test attempt $attempt failed: $e',
+          );
           if (isAuthError) {
             _sonHata = tr('setup.cloud.access_error_contact_support');
             debugPrint(
@@ -302,6 +305,13 @@ class AyarlarVeritabaniServisi {
             return false;
           }
         } else {
+          final isExpectedFirstInstallMiss =
+              attempt == 1 && isDatabaseMissing && _baglantiLocalMakineMi();
+          if (!isExpectedFirstInstallMiss) {
+            debugPrint(
+              'AyarlarVeritabaniServisi: DB test attempt $attempt failed: $e',
+            );
+          }
           // ── Lokal mod: mevcut davranış ──
           if (isConnectionLimitError) {
             await _acikBaglantilariKapat();
@@ -585,7 +595,7 @@ class AyarlarVeritabaniServisi {
         return false;
       }
 
-      final temp = await Directory.systemTemp.createTemp('patisyov_pg_');
+      final temp = await Directory.systemTemp.createTemp('losposv_pg_');
       final pwFile = File('${temp.path}\\pg_pw.txt');
 
       // Local development kolayligi: setup icin admin sifresi.
@@ -636,7 +646,7 @@ class AyarlarVeritabaniServisi {
       final conf = File('$dataDir${sep}postgresql.conf');
       if (!await conf.exists()) return false;
 
-      const marker = '# patisyov10 auto-config';
+      const marker = '# lospos auto-config';
       final profile = await PostgresTuningProfile.detect(
         maxConnections: _config.maxConnections,
       );
@@ -667,7 +677,7 @@ class AyarlarVeritabaniServisi {
       final hba = File('$dataDir${sep}pg_hba.conf');
       if (!await hba.exists()) return false;
 
-      const marker = '# patisyov10 lan hba auto-config';
+      const marker = '# lospos lan hba auto-config';
       final managedLines = <String>[
         'host    all             all             10.0.0.0/8              md5',
         'host    all             all             172.16.0.0/12           md5',
@@ -789,7 +799,7 @@ class AyarlarVeritabaniServisi {
   Future<void> _windowsFirewallKuraliAcBestEffort() async {
     if (!Platform.isWindows || !_anaServerYerelAgErisimiGerekliMi()) return;
 
-    final ruleName = 'Patisyo PostgreSQL ${_config.port}';
+    final ruleName = 'Lospos PostgreSQL ${_config.port}';
     try {
       final show = await Process.run('netsh', [
         'advfirewall',
@@ -799,7 +809,9 @@ class AyarlarVeritabaniServisi {
         'name=$ruleName',
       ]);
       if (show.exitCode == 0 &&
-          show.stdout.toString().toLowerCase().contains(ruleName.toLowerCase())) {
+          show.stdout.toString().toLowerCase().contains(
+            ruleName.toLowerCase(),
+          )) {
         return;
       }
 
@@ -867,9 +879,7 @@ class AyarlarVeritabaniServisi {
       );
       return _postgresqlBaslatildiMi;
     } catch (e) {
-      debugPrint(
-        'AyarlarVeritabaniServisi: pg_ctl restart (Unix) error: $e',
-      );
+      debugPrint('AyarlarVeritabaniServisi: pg_ctl restart (Unix) error: $e');
       return false;
     }
   }
@@ -944,7 +954,7 @@ class AyarlarVeritabaniServisi {
         Directory.systemTemp.path;
 
     final sep = Platform.pathSeparator;
-    return '$baseDir${sep}patisyov10${sep}postgresql${sep}data';
+    return '$baseDir${sep}lospos${sep}postgresql${sep}data';
   }
 
   Future<String> _postgresqlDataDiziniSec(String pgPath) async {
@@ -1039,7 +1049,7 @@ class AyarlarVeritabaniServisi {
           ? initdbCandidate
           : 'initdb';
 
-      final temp = await Directory.systemTemp.createTemp('patisyov_pg_');
+      final temp = await Directory.systemTemp.createTemp('losposv_pg_');
       final pwFile = File('${temp.path}${sep}pg_pw.txt');
 
       // Local development kolayligi: setup icin admin sifresi.
@@ -1628,7 +1638,7 @@ class AyarlarVeritabaniServisi {
       'CREATE UNIQUE INDEX IF NOT EXISTS idx_currency_rates_pair ON currency_rates (from_code, to_code)',
     );
 
-    // [2025 ELITE] get_professional_label SQL Helper Function
+    // [2026 ELITE] get_professional_label SQL Helper Function
     // Global yardımcı fonksiyon (Arama etiketleri için)
     await _pool!.execute('''
       CREATE OR REPLACE FUNCTION get_professional_label(raw_type TEXT, context TEXT DEFAULT '') RETURNS TEXT AS \$\$
@@ -1686,7 +1696,7 @@ class AyarlarVeritabaniServisi {
       \$\$ LANGUAGE plpgsql;
     ''');
 
-    // [2025 HYPERSCALE] Otomatik Temizlik ve Cold Storage (Arşivleme) Prosedürü
+    // [2026 HYPERSCALE] Otomatik Temizlik ve Cold Storage (Arşivleme) Prosedürü
     await _pool!.execute('''
       CREATE OR REPLACE PROCEDURE archive_old_data(p_cutoff_year INTEGER)
       LANGUAGE plpgsql
@@ -2930,7 +2940,7 @@ class AyarlarVeritabaniServisi {
 
   String _varsayilanAdminSifresi() {
     if (!kIsWeb) {
-      final envPass = Platform.environment['PATISYO_DEFAULT_ADMIN_PASSWORD'];
+      final envPass = Platform.environment['LOSPOS_DEFAULT_ADMIN_PASSWORD'];
       if (envPass != null && envPass.trim().isNotEmpty) {
         return envPass.trim();
       }
@@ -2968,14 +2978,14 @@ class AyarlarVeritabaniServisi {
   Future<void> _varsayilanVerileriEkle() async {
     if (_pool == null) return;
 
+    Future<bool> tabloKaydiVarMi(String tableName) async {
+      final result = await _pool!.execute('SELECT 1 FROM $tableName LIMIT 1');
+      return result.isNotEmpty;
+    }
+
     try {
-      final rolesCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
-        _pool!,
-        fromClause: 'roles',
-        unfilteredTable: 'roles',
-        exactThreshold: 1,
-      );
-      if (rolesCount == 0) {
+      final rolesExist = await tabloKaydiVarMi('roles');
+      if (!rolesExist) {
         // Rolleri ekle...
         final List<String> tumIzinler = [];
         void tara(MenuItem oge) {
@@ -3031,20 +3041,15 @@ class AyarlarVeritabaniServisi {
     }
 
     try {
-      final usersCount = await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
-        _pool!,
-        fromClause: 'users',
-        unfilteredTable: 'users',
-        exactThreshold: 1,
-      );
-      if (usersCount == 0) {
+      final usersExist = await tabloKaydiVarMi('users');
+      if (!usersExist) {
         await kullaniciEkle(
           KullaniciModel(
             id: '1',
             kullaniciAdi: 'admin',
             ad: 'Sistem',
             soyad: 'Yöneticisi',
-            eposta: 'admin@patisyo.com',
+            eposta: 'admin@lossoft.com',
             rol: 'admin',
             aktifMi: true,
             telefon: '',
@@ -3059,38 +3064,25 @@ class AyarlarVeritabaniServisi {
 
     // Şirket Kontrolü - Güncellenmiş Mantık
     try {
-      final int companiesCount =
-          await HizliSayimYardimcisi.tahminiVeyaKesinSayim(
-            _pool!,
-            fromClause: 'company_settings',
-            unfilteredTable: 'company_settings',
-            exactThreshold: 1,
-          );
+      final companiesExist = await tabloKaydiVarMi('company_settings');
       final bulut = _bulutModundaMi();
-      final varsayilanSirketKodu = bulut ? _config.database : 'patisyo2025';
+      final fallbackSirketKodu = bulut
+          ? _config.database
+          : SirketVeritabaniKimligi.legacyDefaultDatabaseName;
 
-      if (companiesCount == 0) {
+      if (!companiesExist) {
         debugPrint('Şirket tablosu boş, varsayılan şirket oluşturuluyor...');
+        final varsayilanSirket = await _ilkKurulumVarsayilanSirketiniHazirla(
+          fallbackCode: fallbackSirketKodu,
+        );
         if (bulut) {
-          // Cloud modda ayrı veritabanı oluşturmadan sadece şirket kaydı ekle
-          await sirketEkle(
-            SirketAyarlariModel(
-              kod: varsayilanSirketKodu,
-              ad: varsayilanSirketKodu,
-              basliklar: [],
-              logolar: [],
-              aktifMi: true,
-              varsayilanMi: true,
-              duzenlenebilirMi: true,
-              ustBilgiLogosu: null,
-              ustBilgiSatirlari: [],
-            ),
-          );
+          // Cloud modda ayrı veritabanı oluşturmadan sadece şirket kaydı ekle.
+          await sirketEkle(varsayilanSirket);
           debugPrint(
-            'Cloud varsayılan şirket oluşturuldu: $varsayilanSirketKodu',
+            'Cloud varsayılan şirket oluşturuldu: ${varsayilanSirket.kod}',
           );
         } else {
-          await _varsayilanSirketiYarat(varsayilanSirketKodu);
+          await _varsayilanSirketiYarat(varsayilanSirket);
         }
       } else {
         // Şirket var ama varsayılan şirket olmayabilir
@@ -3268,39 +3260,81 @@ class AyarlarVeritabaniServisi {
     }
   }
 
-  Future<void> _varsayilanSirketiYarat(String varsayilanSirketKodu) async {
-    await sirketEkle(
-      SirketAyarlariModel(
-        kod: varsayilanSirketKodu,
-        ad: 'Patisyo Yazılım A.Ş.',
-        basliklar: [],
-        logolar: [],
+  Future<SirketAyarlariModel?> _varsayilanSirketSablonunuYukle() async {
+    try {
+      final raw = await rootBundle.loadString(_defaultCompanySeedAssetPath);
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map) return null;
+      return SirketAyarlariModel.fromMap(Map<String, dynamic>.from(decoded));
+    } catch (e) {
+      debugPrint(
+        'AyarlarVeritabaniServisi: Varsayılan şirket şablonu okunamadı: $e',
+      );
+      return null;
+    }
+  }
+
+  Future<SirketAyarlariModel> _ilkKurulumVarsayilanSirketiniHazirla({
+    required String fallbackCode,
+  }) async {
+    final seed = await _varsayilanSirketSablonunuYukle();
+    if (seed != null) {
+      final normalizedCode = seed.kod.trim().isEmpty ? fallbackCode : seed.kod;
+      final normalizedName = seed.ad.trim().isEmpty ? normalizedCode : seed.ad;
+      return SirketAyarlariModel(
+        kod: normalizedCode,
+        ad: normalizedName,
+        basliklar: List<String>.from(seed.basliklar),
+        logolar: List<Map<String, String>>.from(seed.logolar),
+        adres: seed.adres,
+        vergiDairesi: seed.vergiDairesi,
+        vergiNo: seed.vergiNo,
+        telefon: seed.telefon,
+        eposta: seed.eposta,
+        webAdresi: seed.webAdresi,
         aktifMi: true,
         varsayilanMi: true,
         duzenlenebilirMi: true,
-        ustBilgiLogosu: null,
-        ustBilgiSatirlari: [
-          'Patisyo Yazılım Antet Satırı 1',
-          'Patisyo Yazılım Antet Satırı 2',
-          'Patisyo Yazılım Antet Satırı 3',
-        ],
-      ),
+        ustBilgiLogosu: seed.ustBilgiLogosu,
+        ustBilgiSatirlari: List<String>.from(seed.ustBilgiSatirlari),
+      );
+    }
+
+    return SirketAyarlariModel(
+      kod: fallbackCode,
+      ad: 'LosSoft',
+      basliklar: const [],
+      logolar: const [],
+      aktifMi: true,
+      varsayilanMi: true,
+      duzenlenebilirMi: true,
+      ustBilgiLogosu: null,
+      ustBilgiSatirlari: const [
+        'LosSoft Antet Satırı 1',
+        'LosSoft Antet Satırı 2',
+        'LosSoft Antet Satırı 3',
+      ],
     );
+  }
+
+  Future<void> _varsayilanSirketiYarat(
+    SirketAyarlariModel varsayilanSirket,
+  ) async {
+    await sirketEkle(varsayilanSirket);
 
     // Varsayılan şirket için veritabanını da oluştur
     try {
-      await _varsayilanSirketVeritabaniOlustur(varsayilanSirketKodu);
+      await _varsayilanSirketVeritabaniOlustur(varsayilanSirket.kod);
     } catch (e) {
       debugPrint('Varsayılan şirket veritabanı oluşturma hatası: $e');
     }
   }
 
-  /// Varsayılan şirket için veritabanı oluşturur (patisyo2025 için özel durum)
+  /// Varsayılan/legacy şirket kodlarını mevcut ana company DB'ye eşleyerek oluşturur.
   Future<void> _varsayilanSirketVeritabaniOlustur(String sirketKodu) async {
-    // patisyo2025 için veritabanı adı direkt patisyo2025
-    final dbName = sirketKodu == 'patisyo2025'
-        ? 'patisyo2025'
-        : 'patisyo_${sirketKodu.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase()}';
+    final dbName = SirketVeritabaniKimligi.databaseNameFromCompanyCode(
+      sirketKodu,
+    );
 
     debugPrint('Varsayılan şirket veritabanı kontrol ediliyor: $dbName');
 
@@ -3388,10 +3422,9 @@ class AyarlarVeritabaniServisi {
   // --- YENİ ŞİRKET VERİTABANI OLUŞTURMA ---
 
   Future<void> sirketVeritabaniOlustur(String sirketKodu) async {
-    final safeCode = sirketKodu
-        .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
-        .toLowerCase();
-    final newDbName = 'patisyo_$safeCode';
+    final newDbName = SirketVeritabaniKimligi.databaseNameFromCompanyCode(
+      sirketKodu,
+    );
 
     debugPrint('Yeni şirket veritabanı oluşturuluyor: $newDbName');
 

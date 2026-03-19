@@ -294,4 +294,3 @@ final class _NoChannels implements Channels {
   @override
   Future<void> cancelAll() async {}
 }
-

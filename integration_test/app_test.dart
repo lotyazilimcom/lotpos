@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:patisyov10/main.dart' as app;
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
-import 'package:patisyov10/servisler/veritabani_reset_servisi.dart';
+import 'package:lospos/main.dart' as app;
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/servisler/veritabani_reset_servisi.dart';
 
 /// ═══════════════════════════════════════════════════════════════════════════
 /// PATİSYO V10 - TAM KAPSAMLI ENTEGRASYON TESTLERİ
@@ -29,7 +29,7 @@ import 'package:patisyov10/servisler/veritabani_reset_servisi.dart';
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
-  group('PatisyoV10 DEPOLAR-ÜRÜNLER-ÜRETİMLER Tam Kapsamlı Test', () {
+  group('LosposV10 DEPOLAR-ÜRÜNLER-ÜRETİMLER Tam Kapsamlı Test', () {
     late CeviriServisi ceviriServisi;
 
     // Test verileri

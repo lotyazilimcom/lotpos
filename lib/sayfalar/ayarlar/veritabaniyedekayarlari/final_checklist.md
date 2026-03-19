@@ -10,6 +10,6 @@ Aşağıdaki maddeler, kullanıcı gereksinimlerine göre tek tek kontrol edilmi
 - [x] **Aptal kullanıcı seviyesinde netlik:** "Ne işe yarar / Kimler için uygun" açıklamaları eklendi.
 - [x] **Varsayılanlar:** Kurulumda "Yerel (Local Only)" seçiminin varsayılan olması gerekliliği belirtildi.
 - [x] **Edge-case durumları:** İnternet yokluğu ve yedekleme kapatılmasına dair UI davranışları planlandı.
-- [x] **Proje stili:** Mevcut tasarım diline (Material 3, Patisyo renkleri) sadık kalındı.
+- [x] **Proje stili:** Mevcut tasarım diline (Material 3, Lospos renkleri) sadık kalındı.
 
 **Not:** Bu görev kapsamında sadece tasarım ve içerik (microcopy) üretimi yapılmıştır. Teknik implementasyon ve veritabanı şeması değişikliği yapılmamıştır.

@@ -129,19 +129,21 @@ Future<DesktopVeritabaniAktarimSecimi?> veritabaniAktarimSecimDialogGoster({
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 secenek(
-                                  value:
-                                      DesktopVeritabaniAktarimSecimi.hicbirSeyYapma,
+                                  value: DesktopVeritabaniAktarimSecimi
+                                      .hicbirSeyYapma,
                                   title: tr('dbsync.option.none.title'),
                                   subtitle: tr(noneDescKey),
                                 ),
                                 secenek(
-                                  value: DesktopVeritabaniAktarimSecimi.tamAktar,
+                                  value:
+                                      DesktopVeritabaniAktarimSecimi.tamAktar,
                                   title: tr('dbsync.full'),
                                   subtitle: tr(fullDescKey),
                                   destructive: true,
                                 ),
                                 secenek(
-                                  value: DesktopVeritabaniAktarimSecimi.birlestir,
+                                  value:
+                                      DesktopVeritabaniAktarimSecimi.birlestir,
                                   title: tr('dbsync.merge'),
                                   subtitle: tr(mergeDescKey),
                                 ),
@@ -159,9 +161,10 @@ Future<DesktopVeritabaniAktarimSecimi?> veritabaniAktarimSecimDialogGoster({
                                   ? null
                                   : () {
                                       setState(() => allowPop = true);
-                                      WidgetsBinding.instance.addPostFrameCallback(
-                                        (_) => Navigator.of(ctx).pop(secim),
-                                      );
+                                      WidgetsBinding.instance
+                                          .addPostFrameCallback(
+                                            (_) => Navigator.of(ctx).pop(secim),
+                                          );
                                     },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: primaryColor,

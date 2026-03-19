@@ -1,4 +1,4 @@
-/// Lot Pos V1.0 — Dashboard Özet Veri Modeli
+/// lospos V1.0 — Dashboard Özet Veri Modeli
 /// Tüm KPI ve analitik verileri tek bir modelde toplar.
 class DashboardOzet {
   // ─── Hero KPI ───
@@ -153,15 +153,14 @@ class GunlukTutar {
   const GunlukTutar({required this.tarih, required this.tutar});
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        'tarih': tarih.toIso8601String(),
-        'tutar': tutar,
-      };
+    'tarih': tarih.toIso8601String(),
+    'tutar': tutar,
+  };
 
   factory GunlukTutar.fromMap(Map<String, dynamic> map) => GunlukTutar(
-        tarih:
-            DateTime.tryParse(map['tarih']?.toString() ?? '') ?? DateTime.now(),
-        tutar: _toDouble(map['tutar']),
-      );
+    tarih: DateTime.tryParse(map['tarih']?.toString() ?? '') ?? DateTime.now(),
+    tutar: _toDouble(map['tutar']),
+  );
 }
 
 /// Kritik stok uyarısı
@@ -179,20 +178,20 @@ class KritikStokItem {
   });
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        'id': id,
-        'urunAdi': urunAdi,
-        'mevcutStok': mevcutStok,
-        'birim': birim,
-      };
+    'id': id,
+    'urunAdi': urunAdi,
+    'mevcutStok': mevcutStok,
+    'birim': birim,
+  };
 
   factory KritikStokItem.fromMap(Map<String, dynamic> map) => KritikStokItem(
-        id: _toInt(map['id']),
-        urunAdi: map['urunAdi']?.toString() ?? '',
-        mevcutStok: _toDouble(map['mevcutStok']),
-        birim: (map['birim']?.toString() ?? '').trim().isEmpty
-            ? 'Adet'
-            : map['birim'].toString(),
-      );
+    id: _toInt(map['id']),
+    urunAdi: map['urunAdi']?.toString() ?? '',
+    mevcutStok: _toDouble(map['mevcutStok']),
+    birim: (map['birim']?.toString() ?? '').trim().isEmpty
+        ? 'Adet'
+        : map['birim'].toString(),
+  );
 }
 
 /// Yaklaşan vade (Çek/Senet)
@@ -214,23 +213,24 @@ class YaklasanVade {
   });
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        'id': id,
-        'tur': tur,
-        'aciklama': aciklama,
-        'tutar': tutar,
-        'vadeTarihi': vadeTarihi.toIso8601String(),
-        'cariAdi': cariAdi,
-      };
+    'id': id,
+    'tur': tur,
+    'aciklama': aciklama,
+    'tutar': tutar,
+    'vadeTarihi': vadeTarihi.toIso8601String(),
+    'cariAdi': cariAdi,
+  };
 
   factory YaklasanVade.fromMap(Map<String, dynamic> map) => YaklasanVade(
-        id: _toInt(map['id']),
-        tur: map['tur']?.toString() ?? '',
-        aciklama: map['aciklama']?.toString() ?? '',
-        tutar: _toDouble(map['tutar']),
-        vadeTarihi: DateTime.tryParse(map['vadeTarihi']?.toString() ?? '') ??
-            DateTime.now(),
-        cariAdi: map['cariAdi']?.toString() ?? '',
-      );
+    id: _toInt(map['id']),
+    tur: map['tur']?.toString() ?? '',
+    aciklama: map['aciklama']?.toString() ?? '',
+    tutar: _toDouble(map['tutar']),
+    vadeTarihi:
+        DateTime.tryParse(map['vadeTarihi']?.toString() ?? '') ??
+        DateTime.now(),
+    cariAdi: map['cariAdi']?.toString() ?? '',
+  );
 }
 
 /// Son işlem kaydı
@@ -252,23 +252,22 @@ class SonIslem {
   });
 
   Map<String, dynamic> toMap() => <String, dynamic>{
-        'id': id,
-        'tur': tur,
-        'aciklama': aciklama,
-        'tutar': tutar,
-        'tarih': tarih.toIso8601String(),
-        'cariAdi': cariAdi,
-      };
+    'id': id,
+    'tur': tur,
+    'aciklama': aciklama,
+    'tutar': tutar,
+    'tarih': tarih.toIso8601String(),
+    'cariAdi': cariAdi,
+  };
 
   factory SonIslem.fromMap(Map<String, dynamic> map) => SonIslem(
-        id: _toInt(map['id']),
-        tur: map['tur']?.toString() ?? 'tahsilat',
-        aciklama: map['aciklama']?.toString() ?? '',
-        tutar: _toDouble(map['tutar']),
-        tarih:
-            DateTime.tryParse(map['tarih']?.toString() ?? '') ?? DateTime.now(),
-        cariAdi: map['cariAdi']?.toString() ?? '',
-      );
+    id: _toInt(map['id']),
+    tur: map['tur']?.toString() ?? 'tahsilat',
+    aciklama: map['aciklama']?.toString() ?? '',
+    tutar: _toDouble(map['tutar']),
+    tarih: DateTime.tryParse(map['tarih']?.toString() ?? '') ?? DateTime.now(),
+    cariAdi: map['cariAdi']?.toString() ?? '',
+  );
 }
 
 double _toDouble(dynamic value) {

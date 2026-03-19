@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 // ignore_for_file: deprecated_member_use
 import 'dart:async';
 import 'package:intl/intl.dart';
@@ -21,7 +21,7 @@ import '../../servisler/ayarlar_veritabani_servisi.dart';
 import 'package:flutter/services.dart';
 import 'alis_tamamla_sayfasi.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 import 'modeller/transaction_item.dart';
 import '../ayarlar/genel_ayarlar/modeller/doviz_kuru_model.dart';
 import '../../bilesenler/tek_tarih_secici_dialog.dart';
@@ -1676,7 +1676,7 @@ class _AlisYapSayfasiState extends State<AlisYapSayfasi> {
         const SizedBox(height: 4),
         LayoutBuilder(
           builder: (context, constraints) {
-            return PatisyoRawAutocomplete<CariHesapModel>(
+            return LosposRawAutocomplete<CariHesapModel>(
               focusNode: _supplierFocusNode,
               textEditingController: _supplierNameController,
               optionsBuilder: (TextEditingValue textEditingValue) async {
@@ -4146,7 +4146,7 @@ class _AlisYapSayfasiState extends State<AlisYapSayfasi> {
         SizedBox(height: isDense ? 2 : 4),
         LayoutBuilder(
           builder: (context, constraints) {
-            return PatisyoRawAutocomplete<UrunModel>(
+            return LosposRawAutocomplete<UrunModel>(
               focusNode: focusNode,
               textEditingController: controller,
               optionsBuilder: (TextEditingValue textEditingValue) async {

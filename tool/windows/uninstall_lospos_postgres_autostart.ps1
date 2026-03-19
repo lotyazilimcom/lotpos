@@ -1,5 +1,5 @@
 param(
-  [string]$RunValueName = 'PatisyoPostgresAutostart'
+  [string]$RunValueName = 'LosposPostgresAutostart'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -7,8 +7,8 @@ $ErrorActionPreference = 'Stop'
 $runKey = 'HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'
 Remove-ItemProperty -Path $runKey -Name $RunValueName -ErrorAction SilentlyContinue
 
-$targetDir = Join-Path $env:LOCALAPPDATA 'Patisyo\\autostart'
-$targetScript = Join-Path $targetDir 'patisyo_postgres_autostart.ps1'
+$targetDir = Join-Path $env:LOCALAPPDATA 'Lospos\\autostart'
+$targetScript = Join-Path $targetDir 'lospos_postgres_autostart.ps1'
 if (Test-Path $targetScript) {
   Remove-Item -Force $targetScript
 }

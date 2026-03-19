@@ -60,8 +60,7 @@ class OnlineVeritabaniKimlikleri {
       password.isNotEmpty;
 
   bool get isValidApi {
-    final url =
-        (apiWriteBaseUrl ?? apiBaseUrl ?? apiReadBaseUrl ?? '').trim();
+    final url = (apiWriteBaseUrl ?? apiBaseUrl ?? apiReadBaseUrl ?? '').trim();
     final db = database.trim();
     final token = (apiToken ?? '').trim();
     return url.isNotEmpty && db.isNotEmpty && token.isNotEmpty;
@@ -276,10 +275,9 @@ class OnlineVeritabaniServisi {
       };
 
       try {
-        await client.from('online_db_credentials').upsert(
-          payload,
-          onConflict: 'hardware_id',
-        );
+        await client
+            .from('online_db_credentials')
+            .upsert(payload, onConflict: 'hardware_id');
       } on PostgrestException catch (e) {
         final msg = (e.message).toLowerCase();
         final missingApiCols =
@@ -291,10 +289,9 @@ class OnlineVeritabaniServisi {
         final fallback = Map<String, dynamic>.from(payload)
           ..remove('api_base_url')
           ..remove('api_token');
-        await client.from('online_db_credentials').upsert(
-          fallback,
-          onConflict: 'hardware_id',
-        );
+        await client
+            .from('online_db_credentials')
+            .upsert(fallback, onConflict: 'hardware_id');
       }
 
       await client.from('online_db_requests').upsert({

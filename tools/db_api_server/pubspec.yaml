@@ -1,5 +1,5 @@
-name: lotpos_db_api_server
-description: "LotPOS Postgres proxy API server (PgBouncer-first)."
+name: lospos_db_api_server
+description: "lospos Postgres proxy API server (PgBouncer-first)."
 publish_to: none
 version: 0.1.0
 

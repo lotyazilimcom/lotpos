@@ -12,11 +12,9 @@ final class ApiPool implements Pool<void> {
   bool _open = true;
   final Completer<void> _closed = Completer<void>();
 
-  ApiPool({
-    required VeritabaniApiClient client,
-    required String database,
-  }) : _client = client,
-       _database = database.trim();
+  ApiPool({required VeritabaniApiClient client, required String database})
+    : _client = client,
+      _database = database.trim();
 
   @override
   bool get isOpen => _open;
@@ -266,13 +264,15 @@ final class _ApiResultStreamSub implements ResultStreamSubscription {
   Future<int> get affectedRows => Future<int>.value(0);
 
   @override
-  Future<ResultSchema> get schema => Future<ResultSchema>.value(ResultSchema(const []));
+  Future<ResultSchema> get schema =>
+      Future<ResultSchema>.value(ResultSchema(const []));
 
   @override
   Future<void> cancel() => _inner.cancel();
 
   @override
-  void onData(void Function(ResultRow data)? handleData) => _inner.onData(handleData);
+  void onData(void Function(ResultRow data)? handleData) =>
+      _inner.onData(handleData);
 
   @override
   void onDone(void Function()? handleDone) => _inner.onDone(handleDone);

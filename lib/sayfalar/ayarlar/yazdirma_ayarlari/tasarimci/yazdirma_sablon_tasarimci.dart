@@ -7,19 +7,19 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:patisyov10/servisler/oturum_servisi.dart';
-import 'package:patisyov10/servisler/yazdirma_veritabani_servisi.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/alanlar/yazdirma_alanlari.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_grafik_model.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_kagit_modeli.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/qr_kod_icerik_model.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/yazdirma_sablonu_model.dart';
+import 'package:lospos/servisler/oturum_servisi.dart';
+import 'package:lospos/servisler/yazdirma_veritabani_servisi.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/alanlar/yazdirma_alanlari.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_grafik_model.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_kagit_modeli.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/modeller/qr_kod_icerik_model.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/modeller/yazdirma_sablonu_model.dart';
 import 'package:file_selector/file_selector.dart';
-import 'package:patisyov10/bilesenler/onay_dialog.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/tasarimci/barkod_grafik_dialog.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/tasarimci/qr_kod_icerik_dialog.dart';
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
-import 'package:patisyov10/yardimcilar/mesaj_yardimcisi.dart';
+import 'package:lospos/bilesenler/onay_dialog.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/tasarimci/barkod_grafik_dialog.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/tasarimci/qr_kod_icerik_dialog.dart';
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/yardimcilar/mesaj_yardimcisi.dart';
 
 class YazdirmaSablonTasarimci extends StatefulWidget {
   final YazdirmaSablonuModel? sablon;
@@ -1128,7 +1128,7 @@ class _YazdirmaSablonTasarimciState extends State<YazdirmaSablonTasarimci> {
     final sirket = OturumServisi().aktifSirket;
     final sellerName = (sirket?.ad.trim().isNotEmpty ?? false)
         ? sirket!.ad
-        : 'Lot Yazılım';
+        : 'LosSoft';
 
     return {
       'seller_name': sellerName,

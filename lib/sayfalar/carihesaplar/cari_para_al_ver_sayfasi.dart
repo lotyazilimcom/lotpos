@@ -19,7 +19,7 @@ import '../kasalar/modeller/kasa_model.dart';
 import '../bankalar/modeller/banka_model.dart';
 import '../kredikartlari/modeller/kredi_karti_model.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 import '../../bilesenler/tek_tarih_secici_dialog.dart';
 import '../../servisler/sayfa_senkronizasyon_servisi.dart';
 
@@ -101,7 +101,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
   void didUpdateWidget(covariant CariParaAlVerSayfasi oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    // [2025 FIX] Daha güçlü karşılaştırma: ID + source_id kombinasyonu
+    // [2026 FIX] Daha güçlü karşılaştırma: ID + source_id kombinasyonu
     final newId = _extractTransactionId(widget.duzenlenecekIslem);
     final oldId = _extractTransactionId(oldWidget.duzenlenecekIslem);
     final newSourceId = _extractSourceId(widget.duzenlenecekIslem);
@@ -144,7 +144,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
   }
 
   void _initializeForEditing(Map<String, dynamic> item) {
-    // [2025 FIX] Tam sıfırlama ve setState ile UI güncelleme
+    // [2026 FIX] Tam sıfırlama ve setState ile UI güncelleme
     _loadSequence++; // Önceki async işlemleri iptal et
 
     _isEditing = false;
@@ -165,7 +165,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
     // Düzenleme modunu aktifleştir
     _isEditing = true;
 
-    // [2025 FIX] Item'ın bir kopyasını al (Map referans sorunu önleme)
+    // [2026 FIX] Item'ın bir kopyasını al (Map referans sorunu önleme)
     final Map<String, dynamic> itemCopy = Map<String, dynamic>.from(item);
 
     // Formu cari işlem verileriyle doldur
@@ -187,7 +187,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
   Future<void> _loadTransactionDetails() async {
     if (!mounted) return;
 
-    // [2025 FIX] Null kontrolü ve kopyalama - race condition önleme
+    // [2026 FIX] Null kontrolü ve kopyalama - race condition önleme
     if (widget.duzenlenecekIslem == null) {
       return;
     }
@@ -197,7 +197,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
       widget.duzenlenecekIslem!,
     );
 
-    // [2025 FIX] loadSequence'i burada artırma - sadece _initializeForEditing'de artırılmalı
+    // [2026 FIX] loadSequence'i burada artırma - sadece _initializeForEditing'de artırılmalı
     final int loadSeq = _loadSequence;
     setState(() => _isLoading = true);
     try {
@@ -224,7 +224,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
           if (!_userEdited) {
             _selectedLocation = 'cash';
           }
-          // [2025 FIX] TUTAR HARİÇ - sadece hesap bilgilerini al
+          // [2026 FIX] TUTAR HARİÇ - sadece hesap bilgilerini al
           // Tutar cari işlemden gelir, kaynak işlemden değil
           _fillFormFromTransaction(tx, isKasa: true, overwrite: false);
           // Sadece hesap kodunu/adını güncelle
@@ -248,7 +248,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
           if (!_userEdited) {
             _selectedLocation = 'bank';
           }
-          // [2025 FIX] TUTAR HARİÇ - sadece hesap bilgilerini al
+          // [2026 FIX] TUTAR HARİÇ - sadece hesap bilgilerini al
           _fillFormFromTransaction(tx, isKasa: false, overwrite: false);
           _accountCodeController.text =
               (tx['banka_kodu'] ?? tx['bankaKodu'] ?? tx['code'])?.toString() ??
@@ -271,7 +271,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
           if (!_userEdited) {
             _selectedLocation = 'cash';
           }
-          // [2025 FIX] TUTAR HARİÇ
+          // [2026 FIX] TUTAR HARİÇ
           _accountCodeController.text =
               (txKasa['kasa_kodu'] ?? txKasa['kasaKodu'] ?? txKasa['code'])
                   ?.toString() ??
@@ -295,7 +295,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
             if (!_userEdited) {
               _selectedLocation = 'bank';
             }
-            // [2025 FIX] TUTAR HARİÇ
+            // [2026 FIX] TUTAR HARİÇ
             _accountCodeController.text =
                 (txBanka['banka_kodu'] ??
                         txBanka['bankaKodu'] ??
@@ -325,7 +325,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
           _fillFormFromCariTransaction(item);
         }
 
-        // [2025 FIX] Eğer kod/ad eksikse ve ID varsa, DB'den çek (Legacy/Eksik veri tamamlama)
+        // [2026 FIX] Eğer kod/ad eksikse ve ID varsa, DB'den çek (Legacy/Eksik veri tamamlama)
         if (_selectedHesapId != null && _accountCodeController.text.isEmpty) {
           try {
             if (_selectedLocation == 'cash') {
@@ -414,7 +414,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
         item['source_code']?.toString() ??
         '';
 
-    // [2025 FIX] source_id varsa set et
+    // [2026 FIX] source_id varsa set et
     final srcId = int.tryParse(item['source_id']?.toString() ?? '');
     if (srcId != null && srcId > 0) {
       _selectedHesapId = srcId;
@@ -547,12 +547,12 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
         final String currentAmountText = _amountController.text;
         final double? parsedAmount =
             (!_userEdited && currentAmountText.isNotEmpty)
-                ? FormatYardimcisi.parseDouble(
-                    currentAmountText,
-                    binlik: oldBinlik,
-                    ondalik: oldOndalik,
-                  )
-                : null;
+            ? FormatYardimcisi.parseDouble(
+                currentAmountText,
+                binlik: oldBinlik,
+                ondalik: oldOndalik,
+              )
+            : null;
 
         setState(() => _genelAyarlar = settings);
 
@@ -796,7 +796,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
         return;
       }
 
-      // [2025 ELITE] Master Service Call
+      // [2026 ELITE] Master Service Call
       final cariServis = CariHesaplarVeritabaniServisi();
       await cariServis.cariParaAlVerKaydet(
         cariId: widget.cari.id,
@@ -863,7 +863,8 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
                     ),
                     onPressed: _closePage,
                   ),
-                  Text(tr('common.esc'),
+                  Text(
+                    tr('common.esc'),
                     style: theme.textTheme.labelSmall?.copyWith(
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                       fontWeight: FontWeight.w600,
@@ -1448,7 +1449,7 @@ class _CariParaAlVerSayfasiState extends State<CariParaAlVerSayfasi> {
           ],
         ),
         const SizedBox(height: 4),
-        PatisyoRawAutocomplete<Map<String, String>>(
+        LosposRawAutocomplete<Map<String, String>>(
           focusNode: focusNode,
           textEditingController: controller,
           optionsBuilder: (TextEditingValue textEditingValue) async {

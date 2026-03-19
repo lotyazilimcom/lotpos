@@ -268,7 +268,9 @@ class _FiyatlariDegistirDialogState extends State<FiyatlariDegistirDialog> {
                                     child: ElevatedButton(
                                       onPressed: _handleSave,
                                       style: ElevatedButton.styleFrom(
-                                        backgroundColor: const Color(0xFFEA4335),
+                                        backgroundColor: const Color(
+                                          0xFFEA4335,
+                                        ),
                                         foregroundColor: Colors.white,
                                         padding: const EdgeInsets.symmetric(
                                           vertical: 14,

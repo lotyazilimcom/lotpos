@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'db_api/api_connection.dart';
 import 'db_api/veritabani_api_client.dart';
 import 'pg_eklentiler.dart';
+import 'sirket_veritabani_kimligi.dart';
 import 'veritabani_yapilandirma.dart';
 
 enum VeritabaniAktarimTipi { tamAktar, birlestir }
@@ -100,17 +101,17 @@ class VeritabaniAktarimServisi {
   factory VeritabaniAktarimServisi() => _instance;
   VeritabaniAktarimServisi._internal();
 
-  static const String _prefPendingKey = 'patisyo_pending_db_transfer';
+  static const String _prefPendingKey = 'lospos_pending_db_transfer';
   static const String _tombstonesTable = 'sync_tombstones';
-  static const String _tombstoneTriggerFn = 'patisyo_capture_delete_tombstone';
-  static const String _tombstoneTriggerName = 'trg_patisyo_capture_delete';
+  static const String _tombstoneTriggerFn = 'lospos_capture_delete_tombstone';
+  static const String _tombstoneTriggerName = 'trg_lospos_capture_delete';
   static const String _deltaOutboxTable = 'sync_delta_outbox';
-  static const String _deltaOutboxTriggerFn = 'patisyo_capture_delta_outbox';
+  static const String _deltaOutboxTriggerFn = 'lospos_capture_delta_outbox';
   static const String _deltaOutboxTriggerName =
-      'trg_patisyo_capture_delta_outbox';
-  static const String _syncApplyGuc = 'patisyo.sync_apply';
-  static const String _updatedAtTriggerFn = 'patisyo_set_updated_at';
-  static const String _updatedAtTriggerName = 'trg_patisyo_set_updated_at';
+      'trg_lospos_capture_delta_outbox';
+  static const String _syncApplyGuc = 'lospos.sync_apply';
+  static const String _updatedAtTriggerFn = 'lospos_set_updated_at';
+  static const String _updatedAtTriggerName = 'trg_lospos_set_updated_at';
   static const int _localSequenceParity = 1; // odd
   static const int _cloudSequenceParity = 0; // even
   static const Set<String> _transferExcludedTables = <String>{
@@ -123,61 +124,61 @@ class VeritabaniAktarimServisi {
   // Partitioned tablolar: import/merge sırasında DEFAULT'a yığılmayı önlemek için.
   static const Map<String, _PartitionedTableInfo> _partitionedTables =
       <String, _PartitionedTableInfo>{
-    'bank_transactions': _PartitionedTableInfo(
-      parentTable: 'bank_transactions',
-      defaultTable: 'bank_transactions_default',
-      partitionKeyColumn: 'date',
-      partitionPrefix: 'bank_transactions',
-    ),
-    'cash_register_transactions': _PartitionedTableInfo(
-      parentTable: 'cash_register_transactions',
-      defaultTable: 'cash_register_transactions_default',
-      partitionKeyColumn: 'date',
-      partitionPrefix: 'cash_register_transactions',
-    ),
-    'credit_card_transactions': _PartitionedTableInfo(
-      parentTable: 'credit_card_transactions',
-      defaultTable: 'credit_card_transactions_default',
-      partitionKeyColumn: 'date',
-      partitionPrefix: 'credit_card_transactions',
-    ),
-    'current_account_transactions': _PartitionedTableInfo(
-      parentTable: 'current_account_transactions',
-      defaultTable: 'current_account_transactions_default',
-      partitionKeyColumn: 'date',
-      partitionPrefix: 'cat', // legacy uyumu
-    ),
-    'orders': _PartitionedTableInfo(
-      parentTable: 'orders',
-      defaultTable: 'orders_default',
-      partitionKeyColumn: 'tarih',
-      partitionPrefix: 'orders',
-    ),
-    'quotes': _PartitionedTableInfo(
-      parentTable: 'quotes',
-      defaultTable: 'quotes_default',
-      partitionKeyColumn: 'tarih',
-      partitionPrefix: 'quotes',
-    ),
-    'stock_movements': _PartitionedTableInfo(
-      parentTable: 'stock_movements',
-      defaultTable: 'stock_movements_default',
-      partitionKeyColumn: 'created_at',
-      partitionPrefix: 'stock_movements',
-    ),
-    'production_stock_movements': _PartitionedTableInfo(
-      parentTable: 'production_stock_movements',
-      defaultTable: 'production_stock_movements_default',
-      partitionKeyColumn: 'created_at',
-      partitionPrefix: 'production_stock_movements',
-    ),
-    'user_transactions': _PartitionedTableInfo(
-      parentTable: 'user_transactions',
-      defaultTable: 'user_transactions_default',
-      partitionKeyColumn: 'date',
-      partitionPrefix: 'user_transactions',
-    ),
-  };
+        'bank_transactions': _PartitionedTableInfo(
+          parentTable: 'bank_transactions',
+          defaultTable: 'bank_transactions_default',
+          partitionKeyColumn: 'date',
+          partitionPrefix: 'bank_transactions',
+        ),
+        'cash_register_transactions': _PartitionedTableInfo(
+          parentTable: 'cash_register_transactions',
+          defaultTable: 'cash_register_transactions_default',
+          partitionKeyColumn: 'date',
+          partitionPrefix: 'cash_register_transactions',
+        ),
+        'credit_card_transactions': _PartitionedTableInfo(
+          parentTable: 'credit_card_transactions',
+          defaultTable: 'credit_card_transactions_default',
+          partitionKeyColumn: 'date',
+          partitionPrefix: 'credit_card_transactions',
+        ),
+        'current_account_transactions': _PartitionedTableInfo(
+          parentTable: 'current_account_transactions',
+          defaultTable: 'current_account_transactions_default',
+          partitionKeyColumn: 'date',
+          partitionPrefix: 'cat', // legacy uyumu
+        ),
+        'orders': _PartitionedTableInfo(
+          parentTable: 'orders',
+          defaultTable: 'orders_default',
+          partitionKeyColumn: 'tarih',
+          partitionPrefix: 'orders',
+        ),
+        'quotes': _PartitionedTableInfo(
+          parentTable: 'quotes',
+          defaultTable: 'quotes_default',
+          partitionKeyColumn: 'tarih',
+          partitionPrefix: 'quotes',
+        ),
+        'stock_movements': _PartitionedTableInfo(
+          parentTable: 'stock_movements',
+          defaultTable: 'stock_movements_default',
+          partitionKeyColumn: 'created_at',
+          partitionPrefix: 'stock_movements',
+        ),
+        'production_stock_movements': _PartitionedTableInfo(
+          parentTable: 'production_stock_movements',
+          defaultTable: 'production_stock_movements_default',
+          partitionKeyColumn: 'created_at',
+          partitionPrefix: 'production_stock_movements',
+        ),
+        'user_transactions': _PartitionedTableInfo(
+          parentTable: 'user_transactions',
+          defaultTable: 'user_transactions_default',
+          partitionKeyColumn: 'date',
+          partitionPrefix: 'user_transactions',
+        ),
+      };
 
   final Map<String, Map<String, String>> _targetColumnUdtNameCacheByTable =
       <String, Map<String, String>>{};
@@ -276,7 +277,7 @@ class VeritabaniAktarimServisi {
     if (localCompanyDb.isEmpty) {
       localCompanyDb =
           await _tryResolveDefaultLocalCompanyDb(localSettings) ??
-          'patisyo2025';
+          SirketVeritabaniKimligi.legacyDefaultDatabaseName;
     }
 
     final localCompany = _buildLocalConnection(
@@ -356,8 +357,9 @@ class VeritabaniAktarimServisi {
 
     final cloudDbKey = 'cloud://${cloud.host}:${cloud.port}/${cloud.database}';
     final settingsDb = _localSettingsDatabaseName();
-    final normalizedLocalHost =
-        localHost.trim().isEmpty ? '127.0.0.1' : localHost.trim();
+    final normalizedLocalHost = localHost.trim().isEmpty
+        ? '127.0.0.1'
+        : localHost.trim();
     if (_deltaSettingsDbName != settingsDb) {
       _deltaSettingsDbName = settingsDb;
       _deltaSettingsModsByTable.clear();
@@ -368,8 +370,10 @@ class VeritabaniAktarimServisi {
     }
 
     final effectiveSince = since.subtract(overlap);
-    final localSettings =
-        _buildLocalConnection(host: normalizedLocalHost, database: settingsDb);
+    final localSettings = _buildLocalConnection(
+      host: normalizedLocalHost,
+      database: settingsDb,
+    );
     final localCompany = _buildLocalConnection(
       host: normalizedLocalHost,
       database: localCompanyDb,
@@ -463,17 +467,17 @@ class VeritabaniAktarimServisi {
       // 2) Geriye dönük fallback (outbox altyapısı yoksa): pg_stat + timestamp delta.
       final fallbackChangedTables =
           (!settingsOutboxReady && !companyOutboxReady)
-              ? <String>{
-                  ...await _detectChangedTables(
-                    conn: sSettingsConn,
-                    prev: _deltaSettingsModsByTable,
-                  ),
-                  ...await _detectChangedTables(
-                    conn: sCompanyConn,
-                    prev: _deltaCompanyModsByTable,
-                  ),
-                }
-              : <String>{};
+          ? <String>{
+              ...await _detectChangedTables(
+                conn: sSettingsConn,
+                prev: _deltaSettingsModsByTable,
+              ),
+              ...await _detectChangedTables(
+                conn: sCompanyConn,
+                prev: _deltaCompanyModsByTable,
+              ),
+            }
+          : <String>{};
 
       if (outboxItems.isEmpty && fallbackChangedTables.isEmpty) {
         return VeritabaniDeltaSenkronRapor(
@@ -488,10 +492,7 @@ class VeritabaniAktarimServisi {
       final Connection tCloudConn = tCloud;
 
       await _ensureTombstoneInfraBestEffort(tCloudConn, dbKey: cloudDbKey);
-      await _ensureDeltaTimestampInfraBestEffort(
-        tCloudConn,
-        dbKey: cloudDbKey,
-      );
+      await _ensureDeltaTimestampInfraBestEffort(tCloudConn, dbKey: cloudDbKey);
       await _ensureSequenceParityBestEffort(
         tCloudConn,
         dbKey: cloudDbKey,
@@ -556,7 +557,10 @@ class VeritabaniAktarimServisi {
             ? allTables.take(maxTables).toList()
             : allTables;
 
-        final ordered = await _topologicalInsertOrder(tCloudConn, limitedTables);
+        final ordered = await _topologicalInsertOrder(
+          tCloudConn,
+          limitedTables,
+        );
 
         for (final table in ordered) {
           final targetCols = await _columns(tCloudConn, table);
@@ -648,10 +652,13 @@ class VeritabaniAktarimServisi {
     final settingsDb = _localSettingsDatabaseName();
     final effectiveSince = since.subtract(overlap);
 
-    final normalizedHost =
-        localHost.trim().isEmpty ? '127.0.0.1' : localHost.trim();
-    final localSettings =
-        _buildLocalConnection(host: normalizedHost, database: settingsDb);
+    final normalizedHost = localHost.trim().isEmpty
+        ? '127.0.0.1'
+        : localHost.trim();
+    final localSettings = _buildLocalConnection(
+      host: normalizedHost,
+      database: settingsDb,
+    );
     final localCompany = _buildLocalConnection(
       host: normalizedHost,
       database: localCompanyDb,
@@ -877,13 +884,14 @@ class VeritabaniAktarimServisi {
         ]..sort();
 
         if (allTables.isNotEmpty) {
-          final limitedTables =
-              (maxTables > 0 && allTables.length > maxTables)
-                  ? allTables.take(maxTables).toList()
-                  : allTables;
+          final limitedTables = (maxTables > 0 && allTables.length > maxTables)
+              ? allTables.take(maxTables).toList()
+              : allTables;
 
-          final ordered =
-              await _topologicalInsertOrder(sCloudConn, limitedTables);
+          final ordered = await _topologicalInsertOrder(
+            sCloudConn,
+            limitedTables,
+          );
 
           for (final table in ordered) {
             if (settingsTables.contains(table)) {
@@ -1128,7 +1136,7 @@ class VeritabaniAktarimServisi {
             table: table,
             tip: tip,
             // Cloud modda `company_id` filtreleri aktif DB adına göre çalışır.
-            // Local DB'de `company_id` genelde şirket DB adı (örn. patisyo_lotpos).
+            // Local DB'de `company_id` genelde şirket DB adı (örn. lospos_lospos).
             // Cloud DB'de ise tek veritabanı adı (örn. postgres) kullanılır.
             // Bu yüzden local -> cloud aktarımında `company_id` hedef DB adına normalize edilir.
             companyIdOverride: cloud.database,
@@ -1357,7 +1365,7 @@ class VeritabaniAktarimServisi {
             table: table,
             tip: tip,
             // Cloud tarafında `company_id` hedef DB adı olabilir (örn. postgres).
-            // Local tarafta `company_id` şirket DB adı olmalı (örn. patisyo_lotpos).
+            // Local tarafta `company_id` şirket DB adı olmalı (örn. lospos_lospos).
             companyIdOverride: localCompany.database,
           );
           doneSteps++;
@@ -2559,7 +2567,9 @@ class VeritabaniAktarimServisi {
         final name = (r[0] as String?)?.trim() ?? '';
         if (name.isEmpty) continue;
         final raw = r[1];
-        final mods = raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+        final mods = raw is num
+            ? raw.toInt()
+            : int.tryParse(raw.toString()) ?? 0;
         next[name] = mods;
         final before = prev[name];
         if (before == null) {
@@ -2586,7 +2596,9 @@ class VeritabaniAktarimServisi {
         return tables.toSet();
       } catch (inner) {
         if (kDebugMode) {
-          debugPrint('DBAktarim: changed-table fallback listTables failed: $inner');
+          debugPrint(
+            'DBAktarim: changed-table fallback listTables failed: $inner',
+          );
         }
         return const <String>{};
       }
@@ -3022,12 +3034,16 @@ class VeritabaniAktarimServisi {
             'SELECT COALESCE(MAX(${_qi(col)}), 0) FROM ${_qt(table)}',
           );
           final raw = maxResult.isNotEmpty ? maxResult.first[0] : 0;
-          final maxId = raw is num ? raw.toInt() : int.tryParse(raw.toString()) ?? 0;
+          final maxId = raw is num
+              ? raw.toInt()
+              : int.tryParse(raw.toString()) ?? 0;
           var next = maxId + 1;
           final p = desiredParity == 0 ? 0 : 1;
           if (next % 2 != p) next++;
 
-          await conn.execute('ALTER SEQUENCE public.${_qi(seq)} INCREMENT BY 2');
+          await conn.execute(
+            'ALTER SEQUENCE public.${_qi(seq)} INCREMENT BY 2',
+          );
           await conn.execute('SELECT setval(${_qs(seq)}, $next, false)');
         }
       } catch (e) {
@@ -3520,8 +3536,9 @@ class VeritabaniAktarimServisi {
             final touchedAt = r[4] is DateTime
                 ? (r[4] as DateTime)
                 : DateTime.tryParse(r[4]?.toString() ?? '');
-            final retry =
-                r[5] is num ? (r[5] as num).toInt() : int.tryParse('${r[5]}') ?? 0;
+            final retry = r[5] is num
+                ? (r[5] as num).toInt()
+                : int.tryParse('${r[5]}') ?? 0;
             final dead = r[6] == true;
             if (table.isEmpty ||
                 pk == null ||
@@ -3564,11 +3581,7 @@ class VeritabaniAktarimServisi {
             AND touched_at = @ts
             AND acked_at IS NULL
         '''),
-        parameters: {
-          't': row.tableName,
-          'h': row.pkHash,
-          'ts': row.touchedAt,
-        },
+        parameters: {'t': row.tableName, 'h': row.pkHash, 'ts': row.touchedAt},
       );
     } catch (e) {
       if (kDebugMode) {
@@ -3625,11 +3638,7 @@ class VeritabaniAktarimServisi {
           ORDER BY id ASC
           LIMIT @limit
         '''),
-        parameters: {
-          'since': since,
-          'after': afterId,
-          'limit': limit,
-        },
+        parameters: {'since': since, 'after': afterId, 'limit': limit},
       );
 
       return result
@@ -3805,7 +3814,9 @@ class VeritabaniAktarimServisi {
           final params = <String, dynamic>{
             for (final k in keys) _paramKey(table, k): pkMap[k],
           };
-          final where = keys.map((k) => '${_qi(k)} = @${_paramKey(table, k)}').join(' AND ');
+          final where = keys
+              .map((k) => '${_qi(k)} = @${_paramKey(table, k)}')
+              .join(' AND ');
 
           await _bestEffortStatementInTransaction(
             target,
@@ -3936,56 +3947,56 @@ class VeritabaniAktarimServisi {
             continue;
           }
 
-          final ok = await _tryWorkInTransaction(
-            target,
-            () async {
-              final keys = pkMap.keys.toList()..sort();
-              final params = <String, dynamic>{
-                for (final k in keys) _paramKey(table, k): pkMap[k],
-              };
-              final where =
-                  keys.map((k) => '${_qi(k)} = @${_paramKey(table, k)}').join(' AND ');
+          final ok = await _tryWorkInTransaction(target, () async {
+            final keys = pkMap.keys.toList()..sort();
+            final params = <String, dynamic>{
+              for (final k in keys) _paramKey(table, k): pkMap[k],
+            };
+            final where = keys
+                .map((k) => '${_qi(k)} = @${_paramKey(table, k)}')
+                .join(' AND ');
 
-              final sel = await it.source.execute(
-                Sql.named(
-                  'SELECT ${cols.map(_qi).join(', ')} FROM ${_qt(table)} WHERE $where LIMIT 1',
-                ),
+            final sel = await it.source.execute(
+              Sql.named(
+                'SELECT ${cols.map(_qi).join(', ')} FROM ${_qt(table)} WHERE $where LIMIT 1',
+              ),
+              parameters: params,
+            );
+
+            if (sel.isEmpty) {
+              // Kaynakta yoksa: hedefte sil (best-effort).
+              await target.execute(
+                Sql.named('DELETE FROM ${_qt(table)} WHERE $where'),
                 parameters: params,
               );
+              return;
+            }
 
-              if (sel.isEmpty) {
-                // Kaynakta yoksa: hedefte sil (best-effort).
-                await target.execute(
-                  Sql.named('DELETE FROM ${_qt(table)} WHERE $where'),
-                  parameters: params,
-                );
-                return;
-              }
+            final rowValues = List<dynamic>.from(sel.first);
+            final companyIdIndex = companyIdOverride == null
+                ? -1
+                : cols.indexOf('company_id');
+            if (companyIdIndex >= 0 && companyIdIndex < rowValues.length) {
+              rowValues[companyIdIndex] = companyIdOverride;
+            }
 
-              final rowValues = List<dynamic>.from(sel.first);
-              final companyIdIndex =
-                  companyIdOverride == null ? -1 : cols.indexOf('company_id');
-              if (companyIdIndex >= 0 && companyIdIndex < rowValues.length) {
-                rowValues[companyIdIndex] = companyIdOverride;
-              }
-
-              await _insertBatch(
-                target: target,
-                table: table,
-                columns: cols,
-                conflictColumns: pkCols,
-                rows: <List<dynamic>>[rowValues],
-                upsert: true,
-              );
-            },
-            debugContext: 'delta-outbox-upsert:$table',
-          );
+            await _insertBatch(
+              target: target,
+              table: table,
+              columns: cols,
+              conflictColumns: pkCols,
+              rows: <List<dynamic>>[rowValues],
+              upsert: true,
+            );
+          }, debugContext: 'delta-outbox-upsert:$table');
 
           if (ok) {
             succeeded.add(it);
             touched.add(table);
           } else {
-            failed.add(_DeltaOutboxItemFailure(item: it, error: 'apply_failed'));
+            failed.add(
+              _DeltaOutboxItemFailure(item: it, error: 'apply_failed'),
+            );
           }
         }
       }
@@ -4009,8 +4020,9 @@ class VeritabaniAktarimServisi {
           final params = <String, dynamic>{
             for (final k in keys) _paramKey(table, k): pkMap[k],
           };
-          final where =
-              keys.map((k) => '${_qi(k)} = @${_paramKey(table, k)}').join(' AND ');
+          final where = keys
+              .map((k) => '${_qi(k)} = @${_paramKey(table, k)}')
+              .join(' AND ');
 
           final ok = await _tryStatementInTransaction(
             target,
@@ -4023,7 +4035,9 @@ class VeritabaniAktarimServisi {
             succeeded.add(it);
             touched.add(table);
           } else {
-            failed.add(_DeltaOutboxItemFailure(item: it, error: 'apply_failed'));
+            failed.add(
+              _DeltaOutboxItemFailure(item: it, error: 'apply_failed'),
+            );
           }
         }
       }
@@ -4205,20 +4219,20 @@ class VeritabaniAktarimServisi {
   static const String _localLegacyPassword = '5828486';
 
   String _localSettingsDatabaseName() {
-    if (kIsWeb) return 'patisyosettings';
-    final fromEnv = Platform.environment['PATISYO_DB_NAME'];
+    if (kIsWeb) return 'lospossettings';
+    final fromEnv = Platform.environment['LOSPOS_DB_NAME'];
     if (fromEnv != null && fromEnv.trim().isNotEmpty) return fromEnv.trim();
-    return 'patisyosettings';
+    return 'lospossettings';
   }
 
   _DbConn _buildLocalConnection({
     required String host,
     required String database,
   }) {
-    final envPort = Platform.environment['PATISYO_DB_PORT'];
+    final envPort = Platform.environment['LOSPOS_DB_PORT'];
     final port = int.tryParse(envPort ?? '') ?? 5432;
-    final user = Platform.environment['PATISYO_DB_USER'] ?? 'patisyo';
-    final passEnv = Platform.environment['PATISYO_DB_PASSWORD'];
+    final user = Platform.environment['LOSPOS_DB_USER'] ?? 'lospos';
+    final passEnv = Platform.environment['LOSPOS_DB_PASSWORD'];
     final pass = (passEnv != null && passEnv.trim().isNotEmpty)
         ? passEnv.trim()
         : _localLegacyPassword;
@@ -4376,11 +4390,7 @@ class VeritabaniAktarimServisi {
   }
 
   static String _localCompanyDbNameFromCode(String code) {
-    final c = code.trim();
-    if (c == 'patisyo2025') return 'patisyo2025';
-    final safe = c.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
-    if (safe.isEmpty) return 'patisyo2025';
-    return 'patisyo_$safe';
+    return SirketVeritabaniKimligi.databaseNameFromCompanyCode(code);
   }
 
   Future<bool> _quickReadinessCheck({

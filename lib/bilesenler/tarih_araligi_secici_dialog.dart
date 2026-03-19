@@ -56,13 +56,15 @@ class _TarihAraligiSeciciDialogState extends State<TarihAraligiSeciciDialog> {
     if (LiteKisitlari.isLiteMode) {
       final now = DateTime.now();
       final today = _dateOnlyLocal(now);
-      final allowedStart =
-          today.subtract(Duration(days: LiteKisitlari.raporGun - 1));
+      final allowedStart = today.subtract(
+        Duration(days: LiteKisitlari.raporGun - 1),
+      );
 
       final start = _start != null ? _dateOnlyLocal(_start!) : null;
       final end = _end != null ? _dateOnlyLocal(_end!) : null;
 
-      final violates = (start != null && start.isBefore(allowedStart)) ||
+      final violates =
+          (start != null && start.isBefore(allowedStart)) ||
           (end != null && end.isBefore(allowedStart));
 
       if (violates) {

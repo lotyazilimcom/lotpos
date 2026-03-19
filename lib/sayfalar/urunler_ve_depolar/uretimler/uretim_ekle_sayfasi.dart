@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -12,7 +12,7 @@ import '../../../servisler/urunler_veritabani_servisi.dart';
 import '../../../servisler/ayarlar_veritabani_servisi.dart';
 import '../../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
-import '../../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../../bilesenler/lospos_raw_autocomplete.dart';
 import 'modeller/uretim_model.dart';
 import 'modeller/recete_item_model.dart';
 import '../urunler/modeller/urun_model.dart';
@@ -2018,7 +2018,7 @@ class _UretimEkleSayfasiState extends State<UretimEkleSayfasi> {
         const SizedBox(height: 10),
         LayoutBuilder(
           builder: (context, constraints) {
-            return PatisyoRawAutocomplete<UrunModel>(
+            return LosposRawAutocomplete<UrunModel>(
               focusNode: focusNode,
               textEditingController: controller,
               optionsBuilder: (TextEditingValue textEditingValue) async {

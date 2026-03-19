@@ -962,7 +962,8 @@ class IslemTuruRenkleri {
       } else if (type.contains('satış yapıldı') ||
           type.contains('satis yapildi')) {
         return 'Satış Yapıldı';
-      } else if (type.contains('alış yapıldı') || type.contains('alis yapildi')) {
+      } else if (type.contains('alış yapıldı') ||
+          type.contains('alis yapildi')) {
         return 'Alış Yapıldı';
       } else if (type.contains('satış') || type.contains('satis')) {
         return 'Satış Faturası';

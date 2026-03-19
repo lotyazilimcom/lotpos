@@ -1,6 +1,6 @@
 const Map<String, String> trCeviriler = {
   // Common
-  'app.title': 'Patisyo v10',
+  'app.title': 'Lospos v10',
   'common.edit': 'Düzenle',
   'common.delete': 'Sil',
   'common.add': 'Ekle',
@@ -299,7 +299,7 @@ const Map<String, String> trCeviriler = {
   'settings.backup.status': 'Yedekleme Durumu',
   'settings.backup.period': 'Yedekleme Sıklığı',
   'settings.backup.target': 'Yedekleme Hedefi',
-  'settings.backup.target.cloud': 'Patisyo Bulut Sunucusu',
+  'settings.backup.target.cloud': 'Lospos Bulut Sunucusu',
   'settings.backup.period.15days': '15 Günde Bir',
   'settings.backup.period.monthly': 'Ayda Bir',
   'settings.backup.period.3months': '3 Ayda Bir',
@@ -315,7 +315,7 @@ const Map<String, String> trCeviriler = {
   'settings.database.mobile_local_requires_server':
       'Yerel sunucuyu kullanmak için önce ana bilgisayara bağlanın (Kurulum ekranından sunucu bulun).',
   'setup.local.server_not_found_open_app':
-      'Yerel ana sunucuya ulaşılamadı. Lütfen ana bilgisayarda Patisyo v10 uygulamasını açın ve tekrar deneyin.',
+      'Yerel ana sunucuya ulaşılamadı. Lütfen ana bilgisayarda Lospos v10 uygulamasını açın ve tekrar deneyin.',
   'setup.local.company_database_missing':
       'Seçili şirket veritabanı sunucuda bulunamadı. Lütfen ana bilgisayarda şirket veritabanının oluşturulduğundan emin olun veya başka bir şirket seçin.',
   'setup.cloud.preparing_title': 'Online Veritabanı Hazırlanıyor',
@@ -1987,7 +1987,7 @@ const Map<String, String> trCeviriler = {
   'settings.connection.server_list_empty':
       'Yerel ağda erişilebilir bir ana server bulunamadı.',
   'settings.connection.server_list_empty_hint':
-      'Ana bilgisayarda Patisyo v10 açıkken tekrar tarayın.',
+      'Ana bilgisayarda Lospos v10 açıkken tekrar tarayın.',
   'settings.connection.server_list_error_hint':
       'Ağ taraması tamamlanamadı. Bağlantınızı kontrol edip yeniden deneyin.',
   'settings.connection.current_server_label': 'Kayıtlı seçim: {host}',
@@ -2176,7 +2176,7 @@ const Map<String, String> trCeviriler = {
   'common.upload': 'Yükle',
 
   // Navigation / App
-  'nav.app.shortTitle': 'Patisyo',
+  'nav.app.shortTitle': 'Lospos',
 
   // Generic pages
   'page.placeholder': '"{title}" sayfası yakında hazır olacak.',
@@ -2185,7 +2185,7 @@ const Map<String, String> trCeviriler = {
   'sidebar.collapse': 'Daralt',
 
   // Login
-  'login.brand.title': 'Patisyo ile işinizi yönetin',
+  'login.brand.title': 'Lospos ile işinizi yönetin',
   'login.brand.description':
       'Perakende ve restoran işletmeleri için modern satış ve stok yönetimi.',
   'login.brand.optimized':
@@ -3057,7 +3057,7 @@ const Map<String, String> trCeviriler = {
   'accounts.statement.col.waybill_short': 'İrs',
   'accounts.transaction.error.load_failed':
       'İşlem bilgileri yüklenirken hata oluştu',
-  'app.brand_upper': 'PATISYO',
+  'app.brand_upper': 'LOSPOS',
   'checks.field.issue_date_short': '(Keşide Tar.)',
   'common.code': 'Kodu',
   'common.currency.try': 'TRY',
@@ -3641,7 +3641,7 @@ const Map<String, String> trCeviriler = {
   'print.qr.default.note':
       'Belge: {{invoice_no}}\nTarih: {{date}} {{time}}\nToplam: {{grand_total_rounded}} {{currency}}',
   'print.qr.default.plain_text':
-      'Lot Yazılım\nLot POS\nPerakende ve ticari yönetim sistemi\nBelge: {{invoice_no}}\nTarih: {{date}} {{time}}\nToplam: {{grand_total_rounded}} {{currency}}',
+      'LosSoft\nlospos\nPerakende ve ticari yönetim sistemi\nBelge: {{invoice_no}}\nTarih: {{date}} {{time}}\nToplam: {{grand_total_rounded}} {{currency}}',
   'print.qr.default.email_body':
       'Belge: {{invoice_no}}\nTarih: {{date}} {{time}}\nToplam: {{grand_total_rounded}} {{currency}}',
   'print.qr.placeholder_help':

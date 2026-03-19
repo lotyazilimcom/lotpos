@@ -11,7 +11,7 @@ class PencereDurumuServisi with WindowListener {
   factory PencereDurumuServisi() => _instance;
   PencereDurumuServisi._internal();
 
-  static const String _prefsKey = 'patisyov10.window_state.v1';
+  static const String _prefsKey = 'lospos.window_state.v1';
   static const Duration _debounce = Duration(milliseconds: 350);
 
   Timer? _saveTimer;

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
 
@@ -18,7 +18,7 @@ import '../urunler_ve_depolar/depolar/modeller/depo_model.dart';
 import '../carihesaplar/modeller/cari_hesap_model.dart';
 import '../../bilesenler/onay_dialog.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 import 'package:intl/intl.dart';
 import '../../servisler/siparisler_veritabani_servisi.dart';
 import 'modeller/siparis_model.dart';
@@ -1090,7 +1090,7 @@ class _SiparisEkleSayfasiState extends State<SiparisEkleSayfasi> {
         const SizedBox(height: 4),
         LayoutBuilder(
           builder: (context, constraints) {
-            return PatisyoRawAutocomplete<UrunModel>(
+            return LosposRawAutocomplete<UrunModel>(
               focusNode: focusNode,
               textEditingController: controller,
               optionsBuilder: (TextEditingValue textEditingValue) async {

@@ -2,7 +2,7 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
-  private static let savedWindowStateKey = "flutter.patisyov10.window_state.v1"
+  private static let savedWindowStateKey = "flutter.lospos.window_state.v1"
   private static let preferredLaunchPixelSize = NSSize(width: 3456, height: 2234)
 
   override func awakeFromNib() {

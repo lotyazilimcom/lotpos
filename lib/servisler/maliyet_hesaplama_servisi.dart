@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:patisyov10/servisler/urunler_veritabani_servisi.dart';
+import 'package:lospos/servisler/urunler_veritabani_servisi.dart';
 import 'package:postgres/postgres.dart';
 
 class MaliyetHesaplamaServisi {
@@ -83,8 +83,9 @@ class MaliyetHesaplamaServisi {
       for (final row in movementsResult) {
         final int id = row[0] as int;
         final double qty = _toDouble(row[1]);
-        final double price =
-            _toDouble(row[2]); // Alışta Maliyet, Satışta Satış Fiyatı
+        final double price = _toDouble(
+          row[2],
+        ); // Alışta Maliyet, Satışta Satış Fiyatı
         final bool isGiris = row[3] as bool;
         // final String type = row[4] as String;
 

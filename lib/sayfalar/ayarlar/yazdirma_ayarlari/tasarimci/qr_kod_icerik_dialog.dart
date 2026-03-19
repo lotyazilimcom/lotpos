@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/qr_kod_icerik_model.dart';
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/modeller/qr_kod_icerik_model.dart';
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
 
 class QrKodIcerikDialog extends StatefulWidget {
   final QrKodIcerikModel? initialValue;
@@ -486,7 +486,7 @@ class _QrKodIcerikDialogState extends State<QrKodIcerikDialog> {
             _buildTextField(
               controller: _emailSubjectController,
               label: tr('print.qr.field.subject'),
-              hint: _toDisplayText('Lot Yazılım | {{invoice_no}}'),
+              hint: _toDisplayText('LosSoft | {{invoice_no}}'),
             ),
             const SizedBox(height: 12),
             _buildTextField(
@@ -518,7 +518,7 @@ class _QrKodIcerikDialogState extends State<QrKodIcerikDialog> {
               label: tr('print.qr.field.message'),
               maxLines: 4,
               hint: _toDisplayText(
-                'Lot Yazılım | {{invoice_no}} | {{grand_total_rounded}} {{currency}}',
+                'LosSoft | {{invoice_no}} | {{grand_total_rounded}} {{currency}}',
               ),
             ),
           ],
@@ -529,7 +529,7 @@ class _QrKodIcerikDialogState extends State<QrKodIcerikDialog> {
             _buildTextField(
               controller: _wifiSsidController,
               label: tr('print.qr.field.wifi_name'),
-              hint: 'Lot Yazılım Ofis',
+              hint: 'LosSoft Ofis',
             ),
             const SizedBox(height: 12),
             _buildTextField(
@@ -583,13 +583,13 @@ class _QrKodIcerikDialogState extends State<QrKodIcerikDialog> {
             _buildTextField(
               controller: _contactNameController,
               label: tr('common.name'),
-              hint: 'Lot Yazılım',
+              hint: 'LosSoft',
             ),
             const SizedBox(height: 12),
             _buildTextField(
               controller: _contactCompanyController,
               label: tr('print.qr.field.company'),
-              hint: 'Lot POS',
+              hint: 'lospos',
             ),
             const SizedBox(height: 12),
             _buildTextField(

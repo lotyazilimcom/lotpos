@@ -66,7 +66,7 @@ class RaporlarServisi {
   Future<RaporFiltreKaynaklari>? _filtreKaynaklariFuture;
   DateTime? _filtreKaynaklariAt;
 
-  static const String _defaultCompanyId = 'patisyo2025';
+  static const String _defaultCompanyId = 'lospos2026';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
 
   static const Duration _summaryCacheTtl = Duration(minutes: 2);

@@ -7,7 +7,7 @@ const Map<String, String> enCeviriler = {
   'notes.detail.type': 'Transaction Type',
   'notes.detail.contact': 'Contact/Account',
   // Common
-  'app.title': 'Patisyo v10',
+  'app.title': 'Lospos v10',
   'common.edit': 'Edit',
   'common.delete': 'Delete',
   'common.add': 'Add',
@@ -293,7 +293,7 @@ const Map<String, String> enCeviriler = {
   'settings.backup.status': 'Backup Status',
   'settings.backup.period': 'Backup Frequency',
   'settings.backup.target': 'Backup Target',
-  'settings.backup.target.cloud': 'Patisyo Cloud Server',
+  'settings.backup.target.cloud': 'Lospos Cloud Server',
   'settings.backup.period.15days': 'Every 15 Days',
   'settings.backup.period.monthly': 'Monthly',
   'settings.backup.period.3months': 'Every 3 Months',
@@ -309,7 +309,7 @@ const Map<String, String> enCeviriler = {
   'settings.database.mobile_local_requires_server':
       'To use a local server, connect to the main computer first (from the setup screen).',
   'setup.local.server_not_found_open_app':
-      'The local main server is not reachable. Please open Patisyo v10 on the main computer and try again.',
+      'The local main server is not reachable. Please open Lospos v10 on the main computer and try again.',
   'setup.local.company_database_missing':
       'The selected company database was not found on the server. Please make sure the company database is created on the main computer or select a different company.',
   'setup.cloud.preparing_title': 'Online Database Preparing',
@@ -1934,7 +1934,7 @@ const Map<String, String> enCeviriler = {
   'settings.connection.server_list_empty':
       'No reachable main server was found on the local network.',
   'settings.connection.server_list_empty_hint':
-      'Open Patisyo v10 on the main computer and scan again.',
+      'Open Lospos v10 on the main computer and scan again.',
   'settings.connection.server_list_error_hint':
       'The network scan could not be completed. Check the connection and try again.',
   'settings.connection.current_server_label': 'Saved selection: {host}',
@@ -2121,7 +2121,7 @@ const Map<String, String> enCeviriler = {
   'common.upload': 'Upload',
 
   // Navigation / App
-  'nav.app.shortTitle': 'Patisyo',
+  'nav.app.shortTitle': 'Lospos',
 
   // Generic pages
   'page.placeholder': 'The "{title}" page is coming soon.',
@@ -2130,7 +2130,7 @@ const Map<String, String> enCeviriler = {
   'sidebar.collapse': 'Collapse',
 
   // Login
-  'login.brand.title': 'Manage your business with Patisyo',
+  'login.brand.title': 'Manage your business with Lospos',
   'login.brand.description':
       'Modern sales and inventory management for retail and hospitality.',
   'login.brand.optimized': 'Optimized for desktop and touch screens.',
@@ -2995,7 +2995,7 @@ const Map<String, String> enCeviriler = {
   'accounts.statement.col.waybill_no_short': 'WB.No',
   'accounts.statement.col.waybill_short': 'WB',
   'accounts.transaction.error.load_failed': 'Error loading transaction details',
-  'app.brand_upper': 'PATISYO',
+  'app.brand_upper': 'LOSPOS',
   'checks.field.issue_date_short': '(Issue Date)',
   'common.code': 'Code',
   'common.currency.try': 'TRY',
@@ -3585,7 +3585,7 @@ const Map<String, String> enCeviriler = {
   'print.qr.default.note':
       'Document: {{invoice_no}}\nDate: {{date}} {{time}}\nTotal: {{grand_total_rounded}} {{currency}}',
   'print.qr.default.plain_text':
-      'Lot Yazilim\nLot POS\nRetail and commercial management system\nDocument: {{invoice_no}}\nDate: {{date}} {{time}}\nTotal: {{grand_total_rounded}} {{currency}}',
+      'LosSoft\nlospos\nRetail and commercial management system\nDocument: {{invoice_no}}\nDate: {{date}} {{time}}\nTotal: {{grand_total_rounded}} {{currency}}',
   'print.qr.default.email_body':
       'Document: {{invoice_no}}\nDate: {{date}} {{time}}\nTotal: {{grand_total_rounded}} {{currency}}',
   'print.qr.placeholder_help':

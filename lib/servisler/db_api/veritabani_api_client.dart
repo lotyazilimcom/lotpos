@@ -66,7 +66,8 @@ final class VeritabaniApiClient {
   void _stickToWrite() {
     if (_writeStickyDuration <= Duration.zero) return;
     _forceWriteUntilEpochMs =
-        DateTime.now().millisecondsSinceEpoch + _writeStickyDuration.inMilliseconds;
+        DateTime.now().millisecondsSinceEpoch +
+        _writeStickyDuration.inMilliseconds;
   }
 
   static String _stripLeadingComments(String sql) {
@@ -156,11 +157,7 @@ final class VeritabaniApiClient {
     if (_closed) throw StateError('API client kapalı');
 
     final resp = await _http
-        .post(
-          _u(baseUrl, path),
-          headers: _headers(),
-          body: jsonEncode(body),
-        )
+        .post(_u(baseUrl, path), headers: _headers(), body: jsonEncode(body))
         .timeout(timeout ?? defaultTimeout);
 
     final text = resp.body;
@@ -210,12 +207,7 @@ final class VeritabaniApiClient {
       if (timeout != null) 'timeoutMs': timeout.inMilliseconds,
     };
 
-    final json = await _postJson(
-      target,
-      '/v1/execute',
-      body,
-      timeout: timeout,
-    );
+    final json = await _postJson(target, '/v1/execute', body, timeout: timeout);
     return _decodeResult(json);
   }
 
@@ -268,22 +260,16 @@ final class VeritabaniApiClient {
 
   Future<void> txCommit(String txId, {Duration? timeout}) async {
     _stickToWrite();
-    await _postJson(
-      writeBaseUrl,
-      '/v1/tx/commit',
-      <String, Object?>{'txId': txId.trim()},
-      timeout: timeout,
-    );
+    await _postJson(writeBaseUrl, '/v1/tx/commit', <String, Object?>{
+      'txId': txId.trim(),
+    }, timeout: timeout);
   }
 
   Future<void> txRollback(String txId, {Duration? timeout}) async {
     _stickToWrite();
-    await _postJson(
-      writeBaseUrl,
-      '/v1/tx/rollback',
-      <String, Object?>{'txId': txId.trim()},
-      timeout: timeout,
-    );
+    await _postJson(writeBaseUrl, '/v1/tx/rollback', <String, Object?>{
+      'txId': txId.trim(),
+    }, timeout: timeout);
   }
 }
 

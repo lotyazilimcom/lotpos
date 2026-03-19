@@ -163,7 +163,7 @@ class VeritabaniHavuzu {
           if (writeUri == null) {
             throw StateError(
               'Bulut API (WRITE) URL geçersiz: "${key.apiWriteBaseUrl}". '
-              'PATISYO_API_WRITE_BASE_URL / PATISYO_API_BASE_URL veya bulut kimliklerini kontrol edin.',
+              'LOSPOS_API_WRITE_BASE_URL / LOSPOS_API_BASE_URL veya bulut kimliklerini kontrol edin.',
             );
           }
 

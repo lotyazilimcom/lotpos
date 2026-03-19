@@ -1,4 +1,4 @@
-# 📋 PATISYO KAPSAMLI TEST CHECKLIST
+# 📋 LOSPOS KAPSAMLI TEST CHECKLIST
 
 ## 🎯 Hedef
 Tüm modüllerin eksiksiz test edilmesi. Her modülde:

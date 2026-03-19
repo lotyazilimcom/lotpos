@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import '../ayarlar/menu_ayarlari.dart';
 import '../yardimcilar/ceviri/ceviri_servisi.dart';
@@ -6,14 +9,15 @@ import '../sayfalar/ayarlar/sirketayarlari/modeller/sirket_ayarlari_model.dart';
 import '../servisler/ayarlar_veritabani_servisi.dart';
 import '../servisler/bankalar_veritabani_servisi.dart';
 import '../servisler/cekler_veritabani_servisi.dart';
-import 'dart:convert';
 import '../servisler/kasalar_veritabani_servisi.dart';
 import '../servisler/kredi_kartlari_veritabani_servisi.dart';
+import '../servisler/local_network_discovery_service.dart';
 import '../servisler/oturum_servisi.dart';
 import '../servisler/senetler_veritabani_servisi.dart';
 import '../sayfalar/giris/giris_sayfasi.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../servisler/sayfa_senkronizasyon_servisi.dart';
+import '../servisler/veritabani_yapilandirma.dart';
 
 class YanMenu extends StatefulWidget {
   const YanMenu({
@@ -517,7 +521,8 @@ class _YanMenuState extends State<YanMenu> {
     final avatarText = rawName.isNotEmpty
         ? rawName.substring(0, 1).toUpperCase()
         : 'U';
-    final companyLabel = widget.currentCompany.ad;
+    final companyLabel =
+        OturumServisi().gorunenSirketAdi ?? widget.currentCompany.ad;
 
     ImageProvider? profileImage;
     if (widget.currentUser.profilResmi != null &&
@@ -586,7 +591,7 @@ class _YanMenuState extends State<YanMenu> {
                         ),
                       ),
                       Text(
-                        OturumServisi().aktifVeritabaniAdi,
+                        OturumServisi().gorunenVeritabaniEtiketi,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.labelSmall?.copyWith(
@@ -638,7 +643,9 @@ class _YanMenuState extends State<YanMenu> {
     }
 
     // Değiştirilebilir durumu kontrol et
-    final canSwitch = widget.currentCompany.duzenlenebilirMi;
+    final canSwitch =
+        widget.currentCompany.duzenlenebilirMi &&
+        !OturumServisi().uzakSunucuAktifSirketKilidiVar;
 
     if (!mounted) return;
 
@@ -744,6 +751,10 @@ class _YanMenuState extends State<YanMenu> {
 
       // Oturumu Güncelle
       OturumServisi().aktifSirket = selectedCompany;
+      if (VeritabaniYapilandirma.masaustuAnaServerSecili &&
+          VeritabaniYapilandirma.connectionMode != 'cloud') {
+        unawaited(LocalNetworkDiscoveryService().yayiniBaslat());
+      }
 
       await KasalarVeritabaniServisi().baslat();
       await BankalarVeritabaniServisi().baslat();

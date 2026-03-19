@@ -45,9 +45,7 @@ class _DashboardGrafikKartiState extends State<DashboardGrafikKarti> {
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: AppPalette.grey.withValues(alpha: 0.15),
-            ),
+            border: Border.all(color: AppPalette.grey.withValues(alpha: 0.15)),
             boxShadow: [
               BoxShadow(
                 color: _isHovered

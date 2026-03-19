@@ -12,7 +12,7 @@ import '../../servisler/ayarlar_veritabani_servisi.dart';
 import '../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../../yardimcilar/format_yardimcisi.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 
 class SenetVerDialog extends StatefulWidget {
   const SenetVerDialog({super.key, this.senet, this.initialSenetNo});
@@ -1029,7 +1029,7 @@ class _SenetVerDialogState extends State<SenetVerDialog> {
           ],
         ),
         const SizedBox(height: 4),
-        PatisyoRawAutocomplete<CariHesapModel>(
+        LosposRawAutocomplete<CariHesapModel>(
           focusNode: _cariKodFocusNode,
           textEditingController: _cariKodController,
           displayStringForOption: (CariHesapModel option) => option.kodNo,

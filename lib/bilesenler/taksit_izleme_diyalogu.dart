@@ -235,10 +235,7 @@ class _TaksitIzlemeDiyaloguState extends State<TaksitIzlemeDiyalogu> {
         _anyChange = true;
       });
       if (mounted) {
-        MesajYardimcisi.basariGoster(
-          context,
-          tr('common.saved_successfully'),
-        );
+        MesajYardimcisi.basariGoster(context, tr('common.saved_successfully'));
       }
     } catch (e) {
       debugPrint('Kaydetme hatası: $e');
@@ -310,10 +307,7 @@ class _TaksitIzlemeDiyaloguState extends State<TaksitIzlemeDiyalogu> {
     } catch (e) {
       debugPrint('Ödeme hatası: $e');
       if (mounted) {
-        MesajYardimcisi.hataGoster(
-          context,
-          '${tr('common.error.generic')}$e',
-        );
+        MesajYardimcisi.hataGoster(context, '${tr('common.error.generic')}$e');
       }
     } finally {
       setState(() => _isSaving = false);
@@ -643,7 +637,8 @@ class _TaksitIzlemeDiyaloguState extends State<TaksitIzlemeDiyalogu> {
                                 if (!isPaid) ...[
                                   const SizedBox(width: 16),
                                   InkWell(
-                                    mouseCursor: WidgetStateMouseCursor.clickable,
+                                    mouseCursor:
+                                        WidgetStateMouseCursor.clickable,
                                     onTap: () => _odemeYap(t),
                                     borderRadius: BorderRadius.circular(8),
                                     child: Container(

@@ -74,22 +74,22 @@ class QrKodIcerikModel {
     return const QrKodIcerikModel(
       type: QrKodIcerikTuru.vcard,
       plainText:
-          'Lot Yazılım\n'
-          'Lot POS\n'
+          'LosSoft\n'
+          'lospos\n'
           'Perakende ve ticari yönetim sistemi\n'
           'Belge: {{invoice_no}}\n'
           'Tarih: {{date}} {{time}}\n'
           'Toplam: {{grand_total_rounded}} {{currency}}',
       url: '{{seller_web}}',
       emailAddress: '{{seller_email}}',
-      emailSubject: 'Lot Yazılım | {{invoice_no}}',
+      emailSubject: 'LosSoft | {{invoice_no}}',
       emailBody: receiptSummary,
       phoneNumber: '{{seller_phone}}',
       smsNumber: '{{seller_phone}}',
       smsMessage:
-          'Lot Yazılım | {{invoice_no}} | {{grand_total_rounded}} {{currency}}',
-      contactName: 'Lot Yazılım',
-      contactCompany: 'Lot POS',
+          'LosSoft | {{invoice_no}} | {{grand_total_rounded}} {{currency}}',
+      contactName: 'LosSoft',
+      contactCompany: 'lospos',
       contactTitle: 'Perakende ve ticari yönetim sistemi',
       contactPhone: '{{seller_phone}}',
       contactEmail: '{{seller_email}}',

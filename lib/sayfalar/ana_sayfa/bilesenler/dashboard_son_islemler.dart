@@ -37,9 +37,7 @@ class _DashboardSonIslemlerState extends State<DashboardSonIslemler> {
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppPalette.grey.withValues(alpha: 0.15),
-          ),
+          border: Border.all(color: AppPalette.grey.withValues(alpha: 0.15)),
           boxShadow: [
             BoxShadow(
               color: AppPalette.slate.withValues(alpha: 0.06),
@@ -94,8 +92,7 @@ class _DashboardSonIslemlerState extends State<DashboardSonIslemler> {
                         fontFamily: 'Inter',
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color:
-                            const Color(0xFF1E5F74).withValues(alpha: 0.8),
+                        color: const Color(0xFF1E5F74).withValues(alpha: 0.8),
                       ),
                     ),
                   ),
@@ -119,10 +116,16 @@ class _DashboardSonIslemlerState extends State<DashboardSonIslemler> {
                 ),
               )
             else
-              ...widget.islemler.take(15).toList().asMap().entries.map(
+              ...widget.islemler
+                  .take(15)
+                  .toList()
+                  .asMap()
+                  .entries
+                  .map(
                     (entry) => _buildIslemItem(
                       entry.value,
-                      isLast: entry.key == widget.islemler.length - 1 ||
+                      isLast:
+                          entry.key == widget.islemler.length - 1 ||
                           entry.key == 14,
                     ),
                   ),
@@ -155,11 +158,7 @@ class _DashboardSonIslemlerState extends State<DashboardSonIslemler> {
                         color: config.renk.withValues(alpha: 0.1),
                         shape: BoxShape.circle,
                       ),
-                      child: Icon(
-                        config.ikon,
-                        size: 16,
-                        color: config.renk,
-                      ),
+                      child: Icon(config.ikon, size: 16, color: config.renk),
                     ),
                     if (!isLast)
                       Expanded(
@@ -190,8 +189,7 @@ class _DashboardSonIslemlerState extends State<DashboardSonIslemler> {
                                     vertical: 2,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: config.renk
-                                        .withValues(alpha: 0.1),
+                                    color: config.renk.withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(4),
                                   ),
                                   child: Text(
@@ -253,8 +251,7 @@ class _DashboardSonIslemlerState extends State<DashboardSonIslemler> {
                             style: TextStyle(
                               fontFamily: 'Inter',
                               fontSize: 11,
-                              color:
-                                  AppPalette.grey.withValues(alpha: 0.6),
+                              color: AppPalette.grey.withValues(alpha: 0.6),
                             ),
                           ),
                         ],

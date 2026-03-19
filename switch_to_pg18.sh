@@ -28,38 +28,38 @@ echo "⏳ Servis bekleniyor..."
 sleep 5
 
 # 3. Kullanıcı ve Veritabanı Yapılandırması (Proje Varsayılanları)
-# Proje 'patisyo' kullanıcısı ile çalışır. Şifreyi istersen
-# `PATISYO_PG_PASSWORD` env değişkeni ile otomatik ayarlatabilirsin.
+# Proje 'lospos' kullanıcısı ile çalışır. Şifreyi istersen
+# `LOSPOS_PG_PASSWORD` env değişkeni ile otomatik ayarlatabilirsin.
 
-PATISYO_PASSWORD="${PATISYO_PG_PASSWORD:-}"
-if [ -z "$PATISYO_PASSWORD" ]; then
-    echo "ℹ️ PATISYO_PG_PASSWORD yok; 'patisyo' şifresi ayarlanmayacak."
+LOSPOS_PASSWORD="${LOSPOS_PG_PASSWORD:-}"
+if [ -z "$LOSPOS_PASSWORD" ]; then
+    echo "ℹ️ LOSPOS_PG_PASSWORD yok; 'lospos' şifresi ayarlanmayacak."
 fi
 
 CURRENT_USER=$(whoami)
 echo "👤 Mevcut kullanıcı: $CURRENT_USER"
 
-# 'patisyo' kullanıcısını oluştur (Superuser yetkisiyle, böylece DB oluşturabilir)
-if ! psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='patisyo'" | grep -q 1; then
-    echo "✨ 'patisyo' kullanıcısı oluşturuluyor..."
-    createuser -s patisyo
-    if [ -n "$PATISYO_PASSWORD" ]; then
-        psql postgres -c "ALTER USER patisyo WITH PASSWORD '$PATISYO_PASSWORD';"
+# 'lospos' kullanıcısını oluştur (Superuser yetkisiyle, böylece DB oluşturabilir)
+if ! psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='lospos'" | grep -q 1; then
+    echo "✨ 'lospos' kullanıcısı oluşturuluyor..."
+    createuser -s lospos
+    if [ -n "$LOSPOS_PASSWORD" ]; then
+        psql postgres -c "ALTER USER lospos WITH PASSWORD '$LOSPOS_PASSWORD';"
     fi
 else
-    echo "✅ 'patisyo' kullanıcısı zaten var."
+    echo "✅ 'lospos' kullanıcısı zaten var."
     # Şifreyi garantiye al (opsiyonel)
-    if [ -n "$PATISYO_PASSWORD" ]; then
-        psql postgres -c "ALTER USER patisyo WITH PASSWORD '$PATISYO_PASSWORD';"
+    if [ -n "$LOSPOS_PASSWORD" ]; then
+        psql postgres -c "ALTER USER lospos WITH PASSWORD '$LOSPOS_PASSWORD';"
     fi
 fi
 
-# 'patisyosettings' veritabanını oluştur (Eğer yoksa)
-if ! psql -lqt | cut -d \| -f 1 | grep -qw patisyosettings; then
-    echo "📂 'patisyosettings' veritabanı oluşturuluyor..."
-    createdb -O patisyo patisyosettings
+# 'lospossettings' veritabanını oluştur (Eğer yoksa)
+if ! psql -lqt | cut -d \| -f 1 | grep -qw lospossettings; then
+    echo "📂 'lospossettings' veritabanı oluşturuluyor..."
+    createdb -O lospos lospossettings
 else
-    echo "✅ 'patisyosettings' veritabanı zaten var."
+    echo "✅ 'lospossettings' veritabanı zaten var."
 fi
 
 # 4. Yetkilendirme
@@ -69,7 +69,7 @@ psql postgres -c "ALTER USER \"$CURRENT_USER\" WITH CREATEDB CREATEROLE;" || tru
 echo "🎉 İŞLEM TAMAMLANDI! PostgreSQL 18 artık aktif ve proje için hazır."
 echo "✅ Eski sürüm kaldırıldı."
 echo "✅ Yeni sürüm (boş) başlatıldı."
-echo "✅ 'patisyo' kullanıcısı ve DB ayarlandı."
+echo "✅ 'lospos' kullanıcısı ve DB ayarlandı."
 
 echo ""
 echo "⚠️ PostgreSQL 18 UPGRADE NOTU (pg_trgm / FTS / collation)"

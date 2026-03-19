@@ -286,7 +286,9 @@ class FormatYardimcisi {
       final int group = n % 1000;
       if (group != 0) {
         String groupText;
-        String scale = _trGruplar.length > groupIndex ? _trGruplar[groupIndex] : '';
+        String scale = _trGruplar.length > groupIndex
+            ? _trGruplar[groupIndex]
+            : '';
 
         if (groupIndex == 1 && group == 1) {
           // 1.000 = "Bin" (Bir Bin değil)
@@ -393,7 +395,8 @@ class CurrencyInputFormatter extends TextInputFormatter {
         decimalIndex = raw.lastIndexOf(sep);
         final digitsAfter = raw.length - decimalIndex - 1;
         final treatByConfig = sep == ondalik;
-        final treatByMax = maxDecimalDigits != null &&
+        final treatByMax =
+            maxDecimalDigits != null &&
             digitsAfter > 0 &&
             digitsAfter <= maxDecimalDigits!;
         treatAsDecimal = digitsAfter > 0 && (treatByConfig || treatByMax);
@@ -418,7 +421,8 @@ class CurrencyInputFormatter extends TextInputFormatter {
       final formattedInteger = _formatIntegerPart(integerDigits);
 
       String decimalDigits = decimalRaw.replaceAll(RegExp(r'[^0-9]'), '');
-      if (maxDecimalDigits != null && decimalDigits.length > maxDecimalDigits!) {
+      if (maxDecimalDigits != null &&
+          decimalDigits.length > maxDecimalDigits!) {
         decimalDigits = decimalDigits.substring(0, maxDecimalDigits!);
       }
 

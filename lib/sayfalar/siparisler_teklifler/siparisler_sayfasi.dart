@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import 'package:collection/collection.dart';
@@ -11,7 +11,7 @@ import '../../../yardimcilar/ceviri/islem_ceviri_yardimcisi.dart';
 import '../../../yardimcilar/responsive_yardimcisi.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
 import '../../../bilesenler/highlight_text.dart';
-import '../../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../../bilesenler/lospos_raw_autocomplete.dart';
 import 'modeller/siparis_model.dart';
 import 'siparis_ekle_sayfasi.dart';
 import '../../../bilesenler/tarih_araligi_secici_dialog.dart';
@@ -5783,7 +5783,7 @@ class _QuickProductAddPanelState extends State<_QuickProductAddPanel> {
         const SizedBox(height: 4),
         LayoutBuilder(
           builder: (context, constraints) {
-            return PatisyoRawAutocomplete<UrunModel>(
+            return LosposRawAutocomplete<UrunModel>(
               focusNode: focusNode,
               textEditingController: controller,
               optionsBuilder: (TextEditingValue textEditingValue) async {

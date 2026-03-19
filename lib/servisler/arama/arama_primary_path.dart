@@ -149,7 +149,7 @@ class _CandidatePage {
 class AramaPrimaryPath {
   static final RegExp _safeIdent = RegExp(r'^[a-zA-Z_][a-zA-Z0-9_]*$');
   static final RegExp _tokenSplitter = RegExp(r'[^a-z0-9]+');
-  static const String _defaultCompanyId = 'patisyo2025';
+  static const String _defaultCompanyId = 'lospos2026';
 
   static final Map<String, bool> _indexReadyCache = <String, bool>{};
 

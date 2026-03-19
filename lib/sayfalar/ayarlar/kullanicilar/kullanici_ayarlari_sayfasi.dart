@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 
@@ -22,7 +22,7 @@ import '../../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
 import '../../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
-import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import 'package:lospos/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../../ortak/genisletilebilir_print_preview_screen.dart';
 import 'kullanici_odeme_yap_sayfasi.dart';
 import 'kullanici_alacaklandir_sayfasi.dart';

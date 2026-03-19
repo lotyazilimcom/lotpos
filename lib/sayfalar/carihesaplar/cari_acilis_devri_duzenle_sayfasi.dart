@@ -154,10 +154,7 @@ class _CariAcilisDevriDuzenleSayfasiState
       Navigator.pop(context, true);
     } catch (e) {
       if (!mounted) return;
-      MesajYardimcisi.hataGoster(
-        context,
-        '${tr('common.error')}: $e',
-      );
+      MesajYardimcisi.hataGoster(context, '${tr('common.error')}: $e');
     } finally {
       if (mounted) {
         setState(() {
@@ -210,7 +207,8 @@ class _CariAcilisDevriDuzenleSayfasiState
                   ),
                   onPressed: () => Navigator.of(context).pop(),
                 ),
-                Text(tr('common.esc'),
+                Text(
+                  tr('common.esc'),
                   style: theme.textTheme.labelSmall?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                     fontWeight: FontWeight.w600,
@@ -352,7 +350,9 @@ class _CariAcilisDevriDuzenleSayfasiState
                                         const SizedBox(width: 12),
                                         Expanded(
                                           child: Text(
-                                            tr('accounts.opening_balance.info.balance_will_update'),
+                                            tr(
+                                              'accounts.opening_balance.info.balance_will_update',
+                                            ),
                                             style: TextStyle(
                                               fontSize: 13,
                                               color: Colors.blue.shade900,

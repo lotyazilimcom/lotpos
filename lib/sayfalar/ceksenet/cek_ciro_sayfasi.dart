@@ -14,7 +14,7 @@ import '../../servisler/cekler_veritabani_servisi.dart';
 import '../../bilesenler/tek_tarih_secici_dialog.dart';
 import '../carihesaplar/modeller/cari_hesap_model.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 
 class CekCiroSayfasi extends StatefulWidget {
   final CekModel cek;
@@ -854,7 +854,7 @@ class _CekCiroSayfasiState extends State<CekCiroSayfasi> {
           ],
         ),
         const SizedBox(height: 4),
-        PatisyoRawAutocomplete<Map<String, String>>(
+        LosposRawAutocomplete<Map<String, String>>(
           focusNode: focusNode,
           textEditingController: controller,
           optionsBuilder: (TextEditingValue textEditingValue) async {

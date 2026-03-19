@@ -1,6 +1,6 @@
 const Map<String, String> arCeviriler = {
   // Common
-  'app.title': 'Patisyo v10',
+  'app.title': 'Lospos v10',
   'common.edit': 'تعديل',
   'common.delete': 'حذف',
   'common.add': 'إضافة',
@@ -287,7 +287,7 @@ const Map<String, String> arCeviriler = {
   'settings.backup.status': 'حالة النسخ الاحتياطي',
   'settings.backup.period': 'تردد النسخ الاحتياطي',
   'settings.backup.target': 'هدف النسخ الاحتياطي',
-  'settings.backup.target.cloud': 'خادم Patisyo السحابي',
+  'settings.backup.target.cloud': 'خادم Lospos السحابي',
   'settings.backup.period.15days': 'كل 15 يومًا',
   'settings.backup.period.monthly': 'شهرياً',
   'settings.backup.period.3months': 'كل 3 أشهر',
@@ -303,7 +303,7 @@ const Map<String, String> arCeviriler = {
   'settings.database.mobile_local_requires_server':
       'لاستخدام خادم محلي، اتصل أولاً بالكمبيوتر الرئيسي (من شاشة الإعداد).',
   'setup.local.server_not_found_open_app':
-      'تعذر الاتصال بالخادم المحلي. يرجى فتح Patisyo v10 على الكمبيوتر الرئيسي ثم إعادة المحاولة.',
+      'تعذر الاتصال بالخادم المحلي. يرجى فتح Lospos v10 على الكمبيوتر الرئيسي ثم إعادة المحاولة.',
   'setup.local.company_database_missing':
       'لم يتم العثور على قاعدة بيانات الشركة المحددة على الخادم. يرجى التأكد من إنشاء قاعدة بيانات الشركة على الكمبيوتر الرئيسي أو اختيار شركة أخرى.',
   'setup.cloud.preparing_title': 'يتم إعداد قاعدة البيانات عبر الإنترنت',
@@ -1885,7 +1885,7 @@ const Map<String, String> arCeviriler = {
   'settings.connection.server_list_empty':
       'لم يتم العثور على خادم رئيسي متاح على الشبكة المحلية.',
   'settings.connection.server_list_empty_hint':
-      'افتح Patisyo v10 على الكمبيوتر الرئيسي ثم أعد الفحص.',
+      'افتح Lospos v10 على الكمبيوتر الرئيسي ثم أعد الفحص.',
   'settings.connection.server_list_error_hint':
       'تعذر إكمال فحص الشبكة. تحقق من الاتصال ثم حاول مرة أخرى.',
   'settings.connection.current_server_label': 'الاختيار المحفوظ: {host}',
@@ -2932,7 +2932,7 @@ const Map<String, String> arCeviriler = {
   'accounts.statement.col.waybill_short': 'إذن',
   'accounts.transaction.error.load_failed':
       'حدث خطأ أثناء تحميل تفاصيل العملية',
-  'app.brand_upper': 'PATISYO',
+  'app.brand_upper': 'LOSPOS',
   'checks.field.issue_date_short': '(تاريخ الإصدار)',
   'checks.messages.transaction_not_editable':
       'لا يمكن تعديل نوع العملية ({type}) في الوقت الحالي. يمكن تعديل عمليات التحصيل والدفع والتظهير فقط.',
@@ -3505,7 +3505,7 @@ const Map<String, String> arCeviriler = {
   'print.qr.default.note':
       'المستند: {{invoice_no}}\nالتاريخ: {{date}} {{time}}\nالإجمالي: {{grand_total_rounded}} {{currency}}',
   'print.qr.default.plain_text':
-      'Lot Yazilim\nLot POS\nنظام إدارة البيع بالتجزئة والأعمال\nالمستند: {{invoice_no}}\nالتاريخ: {{date}} {{time}}\nالإجمالي: {{grand_total_rounded}} {{currency}}',
+      'LosSoft\nlospos\nنظام إدارة البيع بالتجزئة والأعمال\nالمستند: {{invoice_no}}\nالتاريخ: {{date}} {{time}}\nالإجمالي: {{grand_total_rounded}} {{currency}}',
   'print.qr.default.email_body':
       'المستند: {{invoice_no}}\nالتاريخ: {{date}} {{time}}\nالإجمالي: {{grand_total_rounded}} {{currency}}',
   'print.qr.placeholder_help':

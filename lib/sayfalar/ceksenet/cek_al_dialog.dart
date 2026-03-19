@@ -15,7 +15,7 @@ import '../../servisler/ayarlar_veritabani_servisi.dart';
 import '../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../../yardimcilar/format_yardimcisi.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 
 class CekAlDialog extends StatefulWidget {
   const CekAlDialog({super.key, this.cek, this.initialCekNo});
@@ -796,7 +796,7 @@ class _CekAlDialogState extends State<CekAlDialog> {
               ],
             ),
             const SizedBox(height: 4),
-            PatisyoRawAutocomplete<CariHesapModel>(
+            LosposRawAutocomplete<CariHesapModel>(
               focusNode: _cariKodFocusNode,
               textEditingController: _cariKodController,
               displayStringForOption: (option) => option.kodNo,
@@ -978,7 +978,7 @@ class _CekAlDialogState extends State<CekAlDialog> {
             const SizedBox(height: 12),
             CompositedTransformTarget(
               link: _bankLayerLink,
-              child: PatisyoRawAutocomplete<String>(
+              child: LosposRawAutocomplete<String>(
                 textEditingController: _bankaController,
                 focusNode: _bankaFocusNode,
                 optionsBuilder: (TextEditingValue textEditingValue) {

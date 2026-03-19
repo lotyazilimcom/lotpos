@@ -984,10 +984,10 @@ CREATE TABLE public.bank_transactions_2024 (
 ALTER TABLE public.bank_transactions_2024 OWNER TO neondb_owner;
 
 --
--- Name: bank_transactions_2025; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.bank_transactions_2025 (
+CREATE TABLE public.bank_transactions_2026 (
     id integer DEFAULT nextval('public.bank_transactions_id_seq'::regclass) NOT NULL,
     company_id text,
     bank_id integer,
@@ -1004,7 +1004,7 @@ CREATE TABLE public.bank_transactions_2025 (
 );
 
 
-ALTER TABLE public.bank_transactions_2025 OWNER TO neondb_owner;
+ALTER TABLE public.bank_transactions_2026 OWNER TO neondb_owner;
 
 --
 -- Name: bank_transactions_2026; Type: TABLE; Schema: public; Owner: neondb_owner
@@ -1285,10 +1285,10 @@ CREATE TABLE public.cash_register_transactions_2024 (
 ALTER TABLE public.cash_register_transactions_2024 OWNER TO neondb_owner;
 
 --
--- Name: cash_register_transactions_2025; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.cash_register_transactions_2025 (
+CREATE TABLE public.cash_register_transactions_2026 (
     id integer DEFAULT nextval('public.cash_register_transactions_id_seq'::regclass) NOT NULL,
     company_id text,
     cash_register_id integer,
@@ -1305,7 +1305,7 @@ CREATE TABLE public.cash_register_transactions_2025 (
 );
 
 
-ALTER TABLE public.cash_register_transactions_2025 OWNER TO neondb_owner;
+ALTER TABLE public.cash_register_transactions_2026 OWNER TO neondb_owner;
 
 --
 -- Name: cash_register_transactions_2026; Type: TABLE; Schema: public; Owner: neondb_owner
@@ -1867,10 +1867,10 @@ CREATE TABLE public.credit_card_transactions_2024 (
 ALTER TABLE public.credit_card_transactions_2024 OWNER TO neondb_owner;
 
 --
--- Name: credit_card_transactions_2025; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.credit_card_transactions_2025 (
+CREATE TABLE public.credit_card_transactions_2026 (
     id integer DEFAULT nextval('public.credit_card_transactions_id_seq'::regclass) NOT NULL,
     company_id text,
     credit_card_id integer,
@@ -1887,7 +1887,7 @@ CREATE TABLE public.credit_card_transactions_2025 (
 );
 
 
-ALTER TABLE public.credit_card_transactions_2025 OWNER TO neondb_owner;
+ALTER TABLE public.credit_card_transactions_2026 OWNER TO neondb_owner;
 
 --
 -- Name: credit_card_transactions_2026; Type: TABLE; Schema: public; Owner: neondb_owner
@@ -3013,10 +3013,10 @@ CREATE TABLE public.production_stock_movements_2024 (
 ALTER TABLE public.production_stock_movements_2024 OWNER TO neondb_owner;
 
 --
--- Name: production_stock_movements_2025; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.production_stock_movements_2025 (
+CREATE TABLE public.production_stock_movements_2026 (
     id integer DEFAULT nextval('public.production_stock_movements_id_seq'::regclass) NOT NULL,
     production_id integer NOT NULL,
     warehouse_id integer NOT NULL,
@@ -3034,7 +3034,7 @@ CREATE TABLE public.production_stock_movements_2025 (
 );
 
 
-ALTER TABLE public.production_stock_movements_2025 OWNER TO neondb_owner;
+ALTER TABLE public.production_stock_movements_2026 OWNER TO neondb_owner;
 
 --
 -- Name: production_stock_movements_2026; Type: TABLE; Schema: public; Owner: neondb_owner
@@ -3869,10 +3869,10 @@ ALTER SEQUENCE public.stock_movements_id_seq OWNED BY public.stock_movements.id;
 
 
 --
--- Name: stock_movements_2025; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.stock_movements_2025 (
+CREATE TABLE public.stock_movements_2026 (
     id integer DEFAULT nextval('public.stock_movements_id_seq'::regclass) NOT NULL,
     product_id integer,
     warehouse_id integer,
@@ -3894,7 +3894,7 @@ CREATE TABLE public.stock_movements_2025 (
 );
 
 
-ALTER TABLE public.stock_movements_2025 OWNER TO neondb_owner;
+ALTER TABLE public.stock_movements_2026 OWNER TO neondb_owner;
 
 --
 -- Name: stock_movements_2026; Type: TABLE; Schema: public; Owner: neondb_owner
@@ -4183,10 +4183,10 @@ CREATE TABLE public.user_transactions_2024 (
 ALTER TABLE public.user_transactions_2024 OWNER TO neondb_owner;
 
 --
--- Name: user_transactions_2025; Type: TABLE; Schema: public; Owner: neondb_owner
+-- Name: user_transactions_2026; Type: TABLE; Schema: public; Owner: neondb_owner
 --
 
-CREATE TABLE public.user_transactions_2025 (
+CREATE TABLE public.user_transactions_2026 (
     id text NOT NULL,
     company_id text,
     user_id text,
@@ -4198,7 +4198,7 @@ CREATE TABLE public.user_transactions_2025 (
 );
 
 
-ALTER TABLE public.user_transactions_2025 OWNER TO neondb_owner;
+ALTER TABLE public.user_transactions_2026 OWNER TO neondb_owner;
 
 --
 -- Name: user_transactions_2026; Type: TABLE; Schema: public; Owner: neondb_owner
@@ -4374,14 +4374,14 @@ ALTER TABLE public.warehouse_stocks OWNER TO neondb_owner;
 -- Name: bank_transactions_2024; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.bank_transactions ATTACH PARTITION public.bank_transactions_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY public.bank_transactions ATTACH PARTITION public.bank_transactions_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: bank_transactions_2025; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.bank_transactions ATTACH PARTITION public.bank_transactions_2025 FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY public.bank_transactions ATTACH PARTITION public.bank_transactions_2026 FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -4437,14 +4437,14 @@ ALTER TABLE ONLY public.bank_transactions ATTACH PARTITION public.bank_transacti
 -- Name: cash_register_transactions_2024; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.cash_register_transactions ATTACH PARTITION public.cash_register_transactions_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY public.cash_register_transactions ATTACH PARTITION public.cash_register_transactions_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: cash_register_transactions_2025; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.cash_register_transactions ATTACH PARTITION public.cash_register_transactions_2025 FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY public.cash_register_transactions ATTACH PARTITION public.cash_register_transactions_2026 FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -4514,14 +4514,14 @@ ALTER TABLE ONLY public.current_account_transactions ATTACH PARTITION public.cat
 -- Name: credit_card_transactions_2024; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.credit_card_transactions ATTACH PARTITION public.credit_card_transactions_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY public.credit_card_transactions ATTACH PARTITION public.credit_card_transactions_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: credit_card_transactions_2025; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.credit_card_transactions ATTACH PARTITION public.credit_card_transactions_2025 FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY public.credit_card_transactions ATTACH PARTITION public.credit_card_transactions_2026 FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -4633,14 +4633,14 @@ ALTER TABLE ONLY public.production_stock_movements ATTACH PARTITION public.produ
 -- Name: production_stock_movements_2024; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.production_stock_movements ATTACH PARTITION public.production_stock_movements_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY public.production_stock_movements ATTACH PARTITION public.production_stock_movements_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: production_stock_movements_2025; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.production_stock_movements ATTACH PARTITION public.production_stock_movements_2025 FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY public.production_stock_movements ATTACH PARTITION public.production_stock_movements_2026 FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -4749,10 +4749,10 @@ ALTER TABLE ONLY public.quotes ATTACH PARTITION public.quotes_y2026_m03 FOR VALU
 
 
 --
--- Name: stock_movements_2025; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.stock_movements ATTACH PARTITION public.stock_movements_2025 FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY public.stock_movements ATTACH PARTITION public.stock_movements_2026 FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -4808,14 +4808,14 @@ ALTER TABLE ONLY public.stock_movements ATTACH PARTITION public.stock_movements_
 -- Name: user_transactions_2024; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.user_transactions ATTACH PARTITION public.user_transactions_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY public.user_transactions ATTACH PARTITION public.user_transactions_2024 FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: user_transactions_2025; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
+-- Name: user_transactions_2026; Type: TABLE ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.user_transactions ATTACH PARTITION public.user_transactions_2025 FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY public.user_transactions ATTACH PARTITION public.user_transactions_2026 FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -5115,10 +5115,10 @@ COPY public.bank_transactions_2024 (id, company_id, bank_id, date, description, 
 
 
 --
--- Data for Name: bank_transactions_2025; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: bank_transactions_2026; Type: TABLE DATA; Schema: public; Owner: neondb_owner
 --
 
-COPY public.bank_transactions_2025 (id, company_id, bank_id, date, description, amount, type, location, location_code, location_name, user_name, integration_ref, created_at) FROM stdin;
+COPY public.bank_transactions_2026 (id, company_id, bank_id, date, description, amount, type, location, location_code, location_name, user_name, integration_ref, created_at) FROM stdin;
 \.
 
 
@@ -5195,10 +5195,10 @@ COPY public.cash_register_transactions_2024 (id, company_id, cash_register_id, d
 
 
 --
--- Data for Name: cash_register_transactions_2025; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: cash_register_transactions_2026; Type: TABLE DATA; Schema: public; Owner: neondb_owner
 --
 
-COPY public.cash_register_transactions_2025 (id, company_id, cash_register_id, date, description, amount, type, location, location_code, location_name, user_name, integration_ref, created_at) FROM stdin;
+COPY public.cash_register_transactions_2026 (id, company_id, cash_register_id, date, description, amount, type, location, location_code, location_name, user_name, integration_ref, created_at) FROM stdin;
 \.
 
 
@@ -5316,10 +5316,10 @@ COPY public.credit_card_transactions_2024 (id, company_id, credit_card_id, date,
 
 
 --
--- Data for Name: credit_card_transactions_2025; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: credit_card_transactions_2026; Type: TABLE DATA; Schema: public; Owner: neondb_owner
 --
 
-COPY public.credit_card_transactions_2025 (id, company_id, credit_card_id, date, description, amount, type, location, location_code, location_name, user_name, integration_ref, created_at) FROM stdin;
+COPY public.credit_card_transactions_2026 (id, company_id, credit_card_id, date, description, amount, type, location, location_code, location_name, user_name, integration_ref, created_at) FROM stdin;
 \.
 
 
@@ -5592,10 +5592,10 @@ COPY public.production_stock_movements_2024 (id, production_id, warehouse_id, qu
 
 
 --
--- Data for Name: production_stock_movements_2025; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: production_stock_movements_2026; Type: TABLE DATA; Schema: public; Owner: neondb_owner
 --
 
-COPY public.production_stock_movements_2025 (id, production_id, warehouse_id, quantity, unit_price, currency, vat_status, movement_date, description, movement_type, created_by, consumed_items, related_shipment_ids, created_at) FROM stdin;
+COPY public.production_stock_movements_2026 (id, production_id, warehouse_id, quantity, unit_price, currency, vat_status, movement_date, description, movement_type, created_by, consumed_items, related_shipment_ids, created_at) FROM stdin;
 \.
 
 
@@ -5796,10 +5796,10 @@ COPY public.shipments (id, source_warehouse_id, dest_warehouse_id, date, descrip
 
 
 --
--- Data for Name: stock_movements_2025; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: stock_movements_2026; Type: TABLE DATA; Schema: public; Owner: neondb_owner
 --
 
-COPY public.stock_movements_2025 (id, product_id, warehouse_id, shipment_id, quantity, is_giris, unit_price, currency_code, currency_rate, vat_status, movement_date, description, movement_type, created_by, integration_ref, running_cost, running_stock, created_at) FROM stdin;
+COPY public.stock_movements_2026 (id, product_id, warehouse_id, shipment_id, quantity, is_giris, unit_price, currency_code, currency_rate, vat_status, movement_date, description, movement_type, created_by, integration_ref, running_cost, running_stock, created_at) FROM stdin;
 \.
 
 
@@ -5884,10 +5884,10 @@ COPY public.user_transactions_2024 (id, company_id, user_id, date, description, 
 
 
 --
--- Data for Name: user_transactions_2025; Type: TABLE DATA; Schema: public; Owner: neondb_owner
+-- Data for Name: user_transactions_2026; Type: TABLE DATA; Schema: public; Owner: neondb_owner
 --
 
-COPY public.user_transactions_2025 (id, company_id, user_id, date, description, debt, credit, type) FROM stdin;
+COPY public.user_transactions_2026 (id, company_id, user_id, date, description, debt, credit, type) FROM stdin;
 \.
 
 
@@ -5952,7 +5952,7 @@ COPY public.user_transactions_default (id, company_id, user_id, date, descriptio
 --
 
 COPY public.users (id, username, name, surname, email, role, is_active, phone, profile_image, password, hire_date, "position", salary, salary_currency, address, info1, info2, balance_debt, balance_credit) FROM stdin;
-1	admin	Sistem	Yöneticisi	admin@patisyo.com	admin	1		\N	8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918	\N	\N	\N	\N	\N	\N	\N	0	0
+1	admin	Sistem	Yöneticisi	admin@lospos.com	admin	1		\N	8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918	\N	\N	\N	\N	\N	\N	\N	0	0
 \.
 
 
@@ -6220,11 +6220,11 @@ ALTER TABLE ONLY public.bank_transactions_2024
 
 
 --
--- Name: bank_transactions_2025 bank_transactions_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026 bank_transactions_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.bank_transactions_2025
-    ADD CONSTRAINT bank_transactions_2025_pkey PRIMARY KEY (id, date);
+ALTER TABLE ONLY public.bank_transactions_2026
+    ADD CONSTRAINT bank_transactions_2026_pkey PRIMARY KEY (id, date);
 
 
 --
@@ -6308,11 +6308,11 @@ ALTER TABLE ONLY public.cash_register_transactions_2024
 
 
 --
--- Name: cash_register_transactions_2025 cash_register_transactions_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026 cash_register_transactions_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.cash_register_transactions_2025
-    ADD CONSTRAINT cash_register_transactions_2025_pkey PRIMARY KEY (id, date);
+ALTER TABLE ONLY public.cash_register_transactions_2026
+    ADD CONSTRAINT cash_register_transactions_2026_pkey PRIMARY KEY (id, date);
 
 
 --
@@ -6444,11 +6444,11 @@ ALTER TABLE ONLY public.credit_card_transactions_2024
 
 
 --
--- Name: credit_card_transactions_2025 credit_card_transactions_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026 credit_card_transactions_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.credit_card_transactions_2025
-    ADD CONSTRAINT credit_card_transactions_2025_pkey PRIMARY KEY (id, date);
+ALTER TABLE ONLY public.credit_card_transactions_2026
+    ADD CONSTRAINT credit_card_transactions_2026_pkey PRIMARY KEY (id, date);
 
 
 --
@@ -6724,11 +6724,11 @@ ALTER TABLE ONLY public.production_stock_movements_2024
 
 
 --
--- Name: production_stock_movements_2025 production_stock_movements_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026 production_stock_movements_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.production_stock_movements_2025
-    ADD CONSTRAINT production_stock_movements_2025_pkey PRIMARY KEY (id, created_at);
+ALTER TABLE ONLY public.production_stock_movements_2026
+    ADD CONSTRAINT production_stock_movements_2026_pkey PRIMARY KEY (id, created_at);
 
 
 --
@@ -6948,11 +6948,11 @@ ALTER TABLE ONLY public.stock_movements
 
 
 --
--- Name: stock_movements_2025 stock_movements_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026 stock_movements_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.stock_movements_2025
-    ADD CONSTRAINT stock_movements_2025_pkey PRIMARY KEY (id, created_at);
+ALTER TABLE ONLY public.stock_movements_2026
+    ADD CONSTRAINT stock_movements_2026_pkey PRIMARY KEY (id, created_at);
 
 
 --
@@ -7052,11 +7052,11 @@ ALTER TABLE ONLY public.user_transactions_2024
 
 
 --
--- Name: user_transactions_2025 user_transactions_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
+-- Name: user_transactions_2026 user_transactions_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: neondb_owner
 --
 
-ALTER TABLE ONLY public.user_transactions_2025
-    ADD CONSTRAINT user_transactions_2025_pkey PRIMARY KEY (id, date);
+ALTER TABLE ONLY public.user_transactions_2026
+    ADD CONSTRAINT user_transactions_2026_pkey PRIMARY KEY (id, date);
 
 
 --
@@ -7216,45 +7216,45 @@ CREATE INDEX bank_transactions_2024_type_idx ON public.bank_transactions_2024 US
 
 
 --
--- Name: bank_transactions_2025_bank_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026_bank_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX bank_transactions_2025_bank_id_idx ON public.bank_transactions_2025 USING btree (bank_id);
-
-
---
--- Name: bank_transactions_2025_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX bank_transactions_2025_created_at_idx ON public.bank_transactions_2025 USING btree (created_at);
+CREATE INDEX bank_transactions_2026_bank_id_idx ON public.bank_transactions_2026 USING btree (bank_id);
 
 
 --
--- Name: bank_transactions_2025_created_at_idx1; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX bank_transactions_2025_created_at_idx1 ON public.bank_transactions_2025 USING brin (created_at) WITH (pages_per_range='128');
-
-
---
--- Name: bank_transactions_2025_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX bank_transactions_2025_date_idx ON public.bank_transactions_2025 USING btree (date);
+CREATE INDEX bank_transactions_2026_created_at_idx ON public.bank_transactions_2026 USING btree (created_at);
 
 
 --
--- Name: bank_transactions_2025_integration_ref_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026_created_at_idx1; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX bank_transactions_2025_integration_ref_idx ON public.bank_transactions_2025 USING btree (integration_ref);
+CREATE INDEX bank_transactions_2026_created_at_idx1 ON public.bank_transactions_2026 USING brin (created_at) WITH (pages_per_range='128');
 
 
 --
--- Name: bank_transactions_2025_type_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX bank_transactions_2025_type_idx ON public.bank_transactions_2025 USING btree (type);
+CREATE INDEX bank_transactions_2026_date_idx ON public.bank_transactions_2026 USING btree (date);
+
+
+--
+-- Name: bank_transactions_2026_integration_ref_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX bank_transactions_2026_integration_ref_idx ON public.bank_transactions_2026 USING btree (integration_ref);
+
+
+--
+-- Name: bank_transactions_2026_type_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX bank_transactions_2026_type_idx ON public.bank_transactions_2026 USING btree (type);
 
 
 --
@@ -7636,45 +7636,45 @@ CREATE INDEX cash_register_transactions_2024_type_idx ON public.cash_register_tr
 
 
 --
--- Name: cash_register_transactions_2025_cash_register_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026_cash_register_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX cash_register_transactions_2025_cash_register_id_idx ON public.cash_register_transactions_2025 USING btree (cash_register_id);
-
-
---
--- Name: cash_register_transactions_2025_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX cash_register_transactions_2025_created_at_idx ON public.cash_register_transactions_2025 USING btree (created_at);
+CREATE INDEX cash_register_transactions_2026_cash_register_id_idx ON public.cash_register_transactions_2026 USING btree (cash_register_id);
 
 
 --
--- Name: cash_register_transactions_2025_created_at_idx1; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX cash_register_transactions_2025_created_at_idx1 ON public.cash_register_transactions_2025 USING brin (created_at) WITH (pages_per_range='128');
-
-
---
--- Name: cash_register_transactions_2025_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX cash_register_transactions_2025_date_idx ON public.cash_register_transactions_2025 USING btree (date);
+CREATE INDEX cash_register_transactions_2026_created_at_idx ON public.cash_register_transactions_2026 USING btree (created_at);
 
 
 --
--- Name: cash_register_transactions_2025_integration_ref_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026_created_at_idx1; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX cash_register_transactions_2025_integration_ref_idx ON public.cash_register_transactions_2025 USING btree (integration_ref);
+CREATE INDEX cash_register_transactions_2026_created_at_idx1 ON public.cash_register_transactions_2026 USING brin (created_at) WITH (pages_per_range='128');
 
 
 --
--- Name: cash_register_transactions_2025_type_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX cash_register_transactions_2025_type_idx ON public.cash_register_transactions_2025 USING btree (type);
+CREATE INDEX cash_register_transactions_2026_date_idx ON public.cash_register_transactions_2026 USING btree (date);
+
+
+--
+-- Name: cash_register_transactions_2026_integration_ref_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX cash_register_transactions_2026_integration_ref_idx ON public.cash_register_transactions_2026 USING btree (integration_ref);
+
+
+--
+-- Name: cash_register_transactions_2026_type_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX cash_register_transactions_2026_type_idx ON public.cash_register_transactions_2026 USING btree (type);
 
 
 --
@@ -8126,38 +8126,38 @@ CREATE INDEX credit_card_transactions_2024_type_idx ON public.credit_card_transa
 
 
 --
--- Name: credit_card_transactions_2025_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX credit_card_transactions_2025_created_at_idx ON public.credit_card_transactions_2025 USING btree (created_at);
-
-
---
--- Name: credit_card_transactions_2025_credit_card_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX credit_card_transactions_2025_credit_card_id_idx ON public.credit_card_transactions_2025 USING btree (credit_card_id);
+CREATE INDEX credit_card_transactions_2026_created_at_idx ON public.credit_card_transactions_2026 USING btree (created_at);
 
 
 --
--- Name: credit_card_transactions_2025_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026_credit_card_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX credit_card_transactions_2025_date_idx ON public.credit_card_transactions_2025 USING btree (date);
-
-
---
--- Name: credit_card_transactions_2025_integration_ref_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX credit_card_transactions_2025_integration_ref_idx ON public.credit_card_transactions_2025 USING btree (integration_ref);
+CREATE INDEX credit_card_transactions_2026_credit_card_id_idx ON public.credit_card_transactions_2026 USING btree (credit_card_id);
 
 
 --
--- Name: credit_card_transactions_2025_type_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX credit_card_transactions_2025_type_idx ON public.credit_card_transactions_2025 USING btree (type);
+CREATE INDEX credit_card_transactions_2026_date_idx ON public.credit_card_transactions_2026 USING btree (date);
+
+
+--
+-- Name: credit_card_transactions_2026_integration_ref_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX credit_card_transactions_2026_integration_ref_idx ON public.credit_card_transactions_2026 USING btree (integration_ref);
+
+
+--
+-- Name: credit_card_transactions_2026_type_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX credit_card_transactions_2026_type_idx ON public.credit_card_transactions_2026 USING btree (type);
 
 
 --
@@ -8728,10 +8728,10 @@ CREATE INDEX idx_kasa_trans_2024_basic ON public.cash_register_transactions_2024
 
 
 --
--- Name: idx_kasa_trans_2025_basic; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: idx_kasa_trans_2026_basic; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX idx_kasa_trans_2025_basic ON public.cash_register_transactions_2025 USING btree (cash_register_id, date);
+CREATE INDEX idx_kasa_trans_2026_basic ON public.cash_register_transactions_2026 USING btree (cash_register_id, date);
 
 
 --
@@ -9491,38 +9491,38 @@ CREATE INDEX production_stock_movements_2024_warehouse_id_idx ON public.producti
 
 
 --
--- Name: production_stock_movements_2025_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX production_stock_movements_2025_created_at_idx ON public.production_stock_movements_2025 USING brin (created_at);
-
-
---
--- Name: production_stock_movements_2025_movement_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX production_stock_movements_2025_movement_date_idx ON public.production_stock_movements_2025 USING btree (movement_date);
+CREATE INDEX production_stock_movements_2026_created_at_idx ON public.production_stock_movements_2026 USING brin (created_at);
 
 
 --
--- Name: production_stock_movements_2025_production_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026_movement_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX production_stock_movements_2025_production_id_idx ON public.production_stock_movements_2025 USING btree (production_id);
-
-
---
--- Name: production_stock_movements_2025_related_shipment_ids_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX production_stock_movements_2025_related_shipment_ids_idx ON public.production_stock_movements_2025 USING gin (related_shipment_ids);
+CREATE INDEX production_stock_movements_2026_movement_date_idx ON public.production_stock_movements_2026 USING btree (movement_date);
 
 
 --
--- Name: production_stock_movements_2025_warehouse_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026_production_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX production_stock_movements_2025_warehouse_id_idx ON public.production_stock_movements_2025 USING btree (warehouse_id);
+CREATE INDEX production_stock_movements_2026_production_id_idx ON public.production_stock_movements_2026 USING btree (production_id);
+
+
+--
+-- Name: production_stock_movements_2026_related_shipment_ids_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX production_stock_movements_2026_related_shipment_ids_idx ON public.production_stock_movements_2026 USING gin (related_shipment_ids);
+
+
+--
+-- Name: production_stock_movements_2026_warehouse_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX production_stock_movements_2026_warehouse_id_idx ON public.production_stock_movements_2026 USING btree (warehouse_id);
 
 
 --
@@ -9988,52 +9988,52 @@ CREATE INDEX quotes_y2026_m03_tarih_idx ON public.quotes_y2026_m03 USING btree (
 
 
 --
--- Name: stock_movements_2025_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026_created_at_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX stock_movements_2025_created_at_idx ON public.stock_movements_2025 USING brin (created_at) WITH (pages_per_range='128');
-
-
---
--- Name: stock_movements_2025_integration_ref_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX stock_movements_2025_integration_ref_idx ON public.stock_movements_2025 USING btree (integration_ref);
+CREATE INDEX stock_movements_2026_created_at_idx ON public.stock_movements_2026 USING brin (created_at) WITH (pages_per_range='128');
 
 
 --
--- Name: stock_movements_2025_movement_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026_integration_ref_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX stock_movements_2025_movement_date_idx ON public.stock_movements_2025 USING btree (movement_date);
-
-
---
--- Name: stock_movements_2025_movement_date_idx1; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX stock_movements_2025_movement_date_idx1 ON public.stock_movements_2025 USING brin (movement_date) WITH (pages_per_range='128');
+CREATE INDEX stock_movements_2026_integration_ref_idx ON public.stock_movements_2026 USING btree (integration_ref);
 
 
 --
--- Name: stock_movements_2025_product_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026_movement_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX stock_movements_2025_product_id_idx ON public.stock_movements_2025 USING btree (product_id);
-
-
---
--- Name: stock_movements_2025_shipment_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX stock_movements_2025_shipment_id_idx ON public.stock_movements_2025 USING btree (shipment_id);
+CREATE INDEX stock_movements_2026_movement_date_idx ON public.stock_movements_2026 USING btree (movement_date);
 
 
 --
--- Name: stock_movements_2025_warehouse_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026_movement_date_idx1; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX stock_movements_2025_warehouse_id_idx ON public.stock_movements_2025 USING btree (warehouse_id);
+CREATE INDEX stock_movements_2026_movement_date_idx1 ON public.stock_movements_2026 USING brin (movement_date) WITH (pages_per_range='128');
+
+
+--
+-- Name: stock_movements_2026_product_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX stock_movements_2026_product_id_idx ON public.stock_movements_2026 USING btree (product_id);
+
+
+--
+-- Name: stock_movements_2026_shipment_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX stock_movements_2026_shipment_id_idx ON public.stock_movements_2026 USING btree (shipment_id);
+
+
+--
+-- Name: stock_movements_2026_warehouse_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX stock_movements_2026_warehouse_id_idx ON public.stock_movements_2026 USING btree (warehouse_id);
 
 
 --
@@ -10401,24 +10401,24 @@ CREATE INDEX user_transactions_2024_user_id_idx ON public.user_transactions_2024
 
 
 --
--- Name: user_transactions_2025_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: user_transactions_2026_date_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX user_transactions_2025_date_idx ON public.user_transactions_2025 USING brin (date) WITH (pages_per_range='128');
-
-
---
--- Name: user_transactions_2025_type_idx; Type: INDEX; Schema: public; Owner: neondb_owner
---
-
-CREATE INDEX user_transactions_2025_type_idx ON public.user_transactions_2025 USING btree (type);
+CREATE INDEX user_transactions_2026_date_idx ON public.user_transactions_2026 USING brin (date) WITH (pages_per_range='128');
 
 
 --
--- Name: user_transactions_2025_user_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+-- Name: user_transactions_2026_type_idx; Type: INDEX; Schema: public; Owner: neondb_owner
 --
 
-CREATE INDEX user_transactions_2025_user_id_idx ON public.user_transactions_2025 USING btree (user_id);
+CREATE INDEX user_transactions_2026_type_idx ON public.user_transactions_2026 USING btree (type);
+
+
+--
+-- Name: user_transactions_2026_user_id_idx; Type: INDEX; Schema: public; Owner: neondb_owner
+--
+
+CREATE INDEX user_transactions_2026_user_id_idx ON public.user_transactions_2026 USING btree (user_id);
 
 
 --
@@ -10618,52 +10618,52 @@ ALTER INDEX public.idx_bt_type ATTACH PARTITION public.bank_transactions_2024_ty
 
 
 --
--- Name: bank_transactions_2025_bank_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026_bank_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_bt_bank_id ATTACH PARTITION public.bank_transactions_2025_bank_id_idx;
-
-
---
--- Name: bank_transactions_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_bt_created_at ATTACH PARTITION public.bank_transactions_2025_created_at_idx;
+ALTER INDEX public.idx_bt_bank_id ATTACH PARTITION public.bank_transactions_2026_bank_id_idx;
 
 
 --
--- Name: bank_transactions_2025_created_at_idx1; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_bt_created_at_brin ATTACH PARTITION public.bank_transactions_2025_created_at_idx1;
-
-
---
--- Name: bank_transactions_2025_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_bt_date ATTACH PARTITION public.bank_transactions_2025_date_idx;
+ALTER INDEX public.idx_bt_created_at ATTACH PARTITION public.bank_transactions_2026_created_at_idx;
 
 
 --
--- Name: bank_transactions_2025_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026_created_at_idx1; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_bt_integration_ref ATTACH PARTITION public.bank_transactions_2025_integration_ref_idx;
-
-
---
--- Name: bank_transactions_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.bank_transactions_pkey ATTACH PARTITION public.bank_transactions_2025_pkey;
+ALTER INDEX public.idx_bt_created_at_brin ATTACH PARTITION public.bank_transactions_2026_created_at_idx1;
 
 
 --
--- Name: bank_transactions_2025_type_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: bank_transactions_2026_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_bt_type ATTACH PARTITION public.bank_transactions_2025_type_idx;
+ALTER INDEX public.idx_bt_date ATTACH PARTITION public.bank_transactions_2026_date_idx;
+
+
+--
+-- Name: bank_transactions_2026_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_bt_integration_ref ATTACH PARTITION public.bank_transactions_2026_integration_ref_idx;
+
+
+--
+-- Name: bank_transactions_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.bank_transactions_pkey ATTACH PARTITION public.bank_transactions_2026_pkey;
+
+
+--
+-- Name: bank_transactions_2026_type_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_bt_type ATTACH PARTITION public.bank_transactions_2026_type_idx;
 
 
 --
@@ -11059,52 +11059,52 @@ ALTER INDEX public.idx_crt_type ATTACH PARTITION public.cash_register_transactio
 
 
 --
--- Name: cash_register_transactions_2025_cash_register_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026_cash_register_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_crt_cash_register_id ATTACH PARTITION public.cash_register_transactions_2025_cash_register_id_idx;
-
-
---
--- Name: cash_register_transactions_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_crt_created_at ATTACH PARTITION public.cash_register_transactions_2025_created_at_idx;
+ALTER INDEX public.idx_crt_cash_register_id ATTACH PARTITION public.cash_register_transactions_2026_cash_register_id_idx;
 
 
 --
--- Name: cash_register_transactions_2025_created_at_idx1; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_crt_created_at_brin ATTACH PARTITION public.cash_register_transactions_2025_created_at_idx1;
-
-
---
--- Name: cash_register_transactions_2025_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_crt_date ATTACH PARTITION public.cash_register_transactions_2025_date_idx;
+ALTER INDEX public.idx_crt_created_at ATTACH PARTITION public.cash_register_transactions_2026_created_at_idx;
 
 
 --
--- Name: cash_register_transactions_2025_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026_created_at_idx1; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_crt_integration_ref ATTACH PARTITION public.cash_register_transactions_2025_integration_ref_idx;
-
-
---
--- Name: cash_register_transactions_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.cash_register_transactions_pkey ATTACH PARTITION public.cash_register_transactions_2025_pkey;
+ALTER INDEX public.idx_crt_created_at_brin ATTACH PARTITION public.cash_register_transactions_2026_created_at_idx1;
 
 
 --
--- Name: cash_register_transactions_2025_type_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: cash_register_transactions_2026_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_crt_type ATTACH PARTITION public.cash_register_transactions_2025_type_idx;
+ALTER INDEX public.idx_crt_date ATTACH PARTITION public.cash_register_transactions_2026_date_idx;
+
+
+--
+-- Name: cash_register_transactions_2026_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_crt_integration_ref ATTACH PARTITION public.cash_register_transactions_2026_integration_ref_idx;
+
+
+--
+-- Name: cash_register_transactions_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.cash_register_transactions_pkey ATTACH PARTITION public.cash_register_transactions_2026_pkey;
+
+
+--
+-- Name: cash_register_transactions_2026_type_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_crt_type ATTACH PARTITION public.cash_register_transactions_2026_type_idx;
 
 
 --
@@ -11563,45 +11563,45 @@ ALTER INDEX public.idx_cct_type ATTACH PARTITION public.credit_card_transactions
 
 
 --
--- Name: credit_card_transactions_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_cct_created_at ATTACH PARTITION public.credit_card_transactions_2025_created_at_idx;
-
-
---
--- Name: credit_card_transactions_2025_credit_card_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_cct_credit_card_id ATTACH PARTITION public.credit_card_transactions_2025_credit_card_id_idx;
+ALTER INDEX public.idx_cct_created_at ATTACH PARTITION public.credit_card_transactions_2026_created_at_idx;
 
 
 --
--- Name: credit_card_transactions_2025_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026_credit_card_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_cct_date ATTACH PARTITION public.credit_card_transactions_2025_date_idx;
-
-
---
--- Name: credit_card_transactions_2025_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_cct_integration_ref ATTACH PARTITION public.credit_card_transactions_2025_integration_ref_idx;
+ALTER INDEX public.idx_cct_credit_card_id ATTACH PARTITION public.credit_card_transactions_2026_credit_card_id_idx;
 
 
 --
--- Name: credit_card_transactions_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.credit_card_transactions_pkey ATTACH PARTITION public.credit_card_transactions_2025_pkey;
+ALTER INDEX public.idx_cct_date ATTACH PARTITION public.credit_card_transactions_2026_date_idx;
 
 
 --
--- Name: credit_card_transactions_2025_type_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: credit_card_transactions_2026_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_cct_type ATTACH PARTITION public.credit_card_transactions_2025_type_idx;
+ALTER INDEX public.idx_cct_integration_ref ATTACH PARTITION public.credit_card_transactions_2026_integration_ref_idx;
+
+
+--
+-- Name: credit_card_transactions_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.credit_card_transactions_pkey ATTACH PARTITION public.credit_card_transactions_2026_pkey;
+
+
+--
+-- Name: credit_card_transactions_2026_type_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_cct_type ATTACH PARTITION public.credit_card_transactions_2026_type_idx;
 
 
 --
@@ -12207,45 +12207,45 @@ ALTER INDEX public.idx_psm_warehouse_id ATTACH PARTITION public.production_stock
 
 
 --
--- Name: production_stock_movements_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_psm_created_at_brin ATTACH PARTITION public.production_stock_movements_2025_created_at_idx;
-
-
---
--- Name: production_stock_movements_2025_movement_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_psm_date ATTACH PARTITION public.production_stock_movements_2025_movement_date_idx;
+ALTER INDEX public.idx_psm_created_at_brin ATTACH PARTITION public.production_stock_movements_2026_created_at_idx;
 
 
 --
--- Name: production_stock_movements_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026_movement_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.production_stock_movements_pkey ATTACH PARTITION public.production_stock_movements_2025_pkey;
-
-
---
--- Name: production_stock_movements_2025_production_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_psm_production_id ATTACH PARTITION public.production_stock_movements_2025_production_id_idx;
+ALTER INDEX public.idx_psm_date ATTACH PARTITION public.production_stock_movements_2026_movement_date_idx;
 
 
 --
--- Name: production_stock_movements_2025_related_shipment_ids_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_psm_related_shipments_gin ATTACH PARTITION public.production_stock_movements_2025_related_shipment_ids_idx;
+ALTER INDEX public.production_stock_movements_pkey ATTACH PARTITION public.production_stock_movements_2026_pkey;
 
 
 --
--- Name: production_stock_movements_2025_warehouse_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: production_stock_movements_2026_production_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_psm_warehouse_id ATTACH PARTITION public.production_stock_movements_2025_warehouse_id_idx;
+ALTER INDEX public.idx_psm_production_id ATTACH PARTITION public.production_stock_movements_2026_production_id_idx;
+
+
+--
+-- Name: production_stock_movements_2026_related_shipment_ids_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_psm_related_shipments_gin ATTACH PARTITION public.production_stock_movements_2026_related_shipment_ids_idx;
+
+
+--
+-- Name: production_stock_movements_2026_warehouse_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_psm_warehouse_id ATTACH PARTITION public.production_stock_movements_2026_warehouse_id_idx;
 
 
 --
@@ -12816,59 +12816,59 @@ ALTER INDEX public.idx_quotes_tarih ATTACH PARTITION public.quotes_y2026_m03_tar
 
 
 --
--- Name: stock_movements_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_sm_created_at_brin ATTACH PARTITION public.stock_movements_2025_created_at_idx;
-
-
---
--- Name: stock_movements_2025_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_sm_ref ATTACH PARTITION public.stock_movements_2025_integration_ref_idx;
+ALTER INDEX public.idx_sm_created_at_brin ATTACH PARTITION public.stock_movements_2026_created_at_idx;
 
 
 --
--- Name: stock_movements_2025_movement_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_sm_date ATTACH PARTITION public.stock_movements_2025_movement_date_idx;
-
-
---
--- Name: stock_movements_2025_movement_date_idx1; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_sm_date_brin ATTACH PARTITION public.stock_movements_2025_movement_date_idx1;
+ALTER INDEX public.idx_sm_ref ATTACH PARTITION public.stock_movements_2026_integration_ref_idx;
 
 
 --
--- Name: stock_movements_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026_movement_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.stock_movements_pkey ATTACH PARTITION public.stock_movements_2025_pkey;
-
-
---
--- Name: stock_movements_2025_product_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.idx_sm_product_id ATTACH PARTITION public.stock_movements_2025_product_id_idx;
+ALTER INDEX public.idx_sm_date ATTACH PARTITION public.stock_movements_2026_movement_date_idx;
 
 
 --
--- Name: stock_movements_2025_shipment_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026_movement_date_idx1; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_sm_shipment_id ATTACH PARTITION public.stock_movements_2025_shipment_id_idx;
+ALTER INDEX public.idx_sm_date_brin ATTACH PARTITION public.stock_movements_2026_movement_date_idx1;
 
 
 --
--- Name: stock_movements_2025_warehouse_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: stock_movements_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_sm_warehouse_id ATTACH PARTITION public.stock_movements_2025_warehouse_id_idx;
+ALTER INDEX public.stock_movements_pkey ATTACH PARTITION public.stock_movements_2026_pkey;
+
+
+--
+-- Name: stock_movements_2026_product_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_sm_product_id ATTACH PARTITION public.stock_movements_2026_product_id_idx;
+
+
+--
+-- Name: stock_movements_2026_shipment_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_sm_shipment_id ATTACH PARTITION public.stock_movements_2026_shipment_id_idx;
+
+
+--
+-- Name: stock_movements_2026_warehouse_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_sm_warehouse_id ATTACH PARTITION public.stock_movements_2026_warehouse_id_idx;
 
 
 --
@@ -13292,31 +13292,31 @@ ALTER INDEX public.idx_ut_user_id ATTACH PARTITION public.user_transactions_2024
 
 
 --
--- Name: user_transactions_2025_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: user_transactions_2026_date_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_ut_date_brin ATTACH PARTITION public.user_transactions_2025_date_idx;
-
-
---
--- Name: user_transactions_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
---
-
-ALTER INDEX public.user_transactions_pkey ATTACH PARTITION public.user_transactions_2025_pkey;
+ALTER INDEX public.idx_ut_date_brin ATTACH PARTITION public.user_transactions_2026_date_idx;
 
 
 --
--- Name: user_transactions_2025_type_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: user_transactions_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_ut_type ATTACH PARTITION public.user_transactions_2025_type_idx;
+ALTER INDEX public.user_transactions_pkey ATTACH PARTITION public.user_transactions_2026_pkey;
 
 
 --
--- Name: user_transactions_2025_user_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+-- Name: user_transactions_2026_type_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
 --
 
-ALTER INDEX public.idx_ut_user_id ATTACH PARTITION public.user_transactions_2025_user_id_idx;
+ALTER INDEX public.idx_ut_type ATTACH PARTITION public.user_transactions_2026_type_idx;
+
+
+--
+-- Name: user_transactions_2026_user_id_idx; Type: INDEX ATTACH; Schema: public; Owner: neondb_owner
+--
+
+ALTER INDEX public.idx_ut_user_id ATTACH PARTITION public.user_transactions_2026_user_id_idx;
 
 
 --

@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:patisyov10/servisler/ayarlar_veritabani_servisi.dart';
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
-import 'package:patisyov10/bilesenler/onay_dialog.dart';
-import 'package:patisyov10/bilesenler/patisyo_raw_autocomplete.dart';
+import 'package:lospos/servisler/ayarlar_veritabani_servisi.dart';
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/bilesenler/onay_dialog.dart';
+import 'package:lospos/bilesenler/lospos_raw_autocomplete.dart';
 import 'dart:async';
 
 /// Akıllı Açıklama / Select Input Bileşeni
@@ -164,7 +164,7 @@ class _AkilliAciklamaInputState extends State<AkilliAciklamaInput> {
       builder: (context, constraints) {
         return CompositedTransformTarget(
           link: _layerLink,
-          child: PatisyoRawAutocomplete<String>(
+          child: LosposRawAutocomplete<String>(
             textEditingController: widget.controller,
             focusNode: effectiveFocusNode,
 

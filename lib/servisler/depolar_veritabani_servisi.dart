@@ -740,7 +740,7 @@ class DepolarVeritabaniServisi {
                 );
               }
 
-              // [2025 HYPER-ROBUST] Verify table existence before any background ALTER/INDEX operation
+              // [2026 HYPER-ROBUST] Verify table existence before any background ALTER/INDEX operation
               final smCheck = await _pool!.execute(
                 "SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = 'stock_movements'",
               );

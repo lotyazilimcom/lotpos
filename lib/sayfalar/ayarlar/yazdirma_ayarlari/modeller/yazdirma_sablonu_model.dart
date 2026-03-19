@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_grafik_model.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_kagit_modeli.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/qr_kod_icerik_model.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_grafik_model.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_kagit_modeli.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/modeller/qr_kod_icerik_model.dart';
 
 bool _boolFromDynamic(dynamic value) {
   if (value == null) return false;

@@ -26,7 +26,8 @@ class _LosPayKrediYukleDialog extends StatefulWidget {
   const _LosPayKrediYukleDialog();
 
   @override
-  State<_LosPayKrediYukleDialog> createState() => _LosPayKrediYukleDialogState();
+  State<_LosPayKrediYukleDialog> createState() =>
+      _LosPayKrediYukleDialogState();
 }
 
 class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
@@ -77,7 +78,8 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
   String get _odemeLocale => CeviriServisi().mevcutDil == 'tr' ? 'tr' : 'en';
 
   LosPayKrediProfili get _activeProfile =>
-      _paymentProfile ?? LosPayKrediServisi.varsayilanOdemeProfili(_odemeLocale);
+      _paymentProfile ??
+      LosPayKrediServisi.varsayilanOdemeProfili(_odemeLocale);
 
   LosPayKrediDialogMetinleri get _dialog => _activeProfile.dialog;
 
@@ -180,7 +182,10 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
   void _startProfileRefresh() {
     _profileRefreshTimer?.cancel();
     _profileRefreshTimer = Timer.periodic(const Duration(seconds: 8), (_) {
-      if (!mounted || _loading || _submitting || _step == _CreditStep.checkout) {
+      if (!mounted ||
+          _loading ||
+          _submitting ||
+          _step == _CreditStep.checkout) {
         return;
       }
       unawaited(_refreshPaymentProfile());
@@ -189,8 +194,9 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
 
   Future<void> _refreshPaymentProfile() async {
     try {
-      final profile =
-          await LosPayKrediServisi.odemeProfiliniGetir(locale: _odemeLocale);
+      final profile = await LosPayKrediServisi.odemeProfiliniGetir(
+        locale: _odemeLocale,
+      );
       if (!mounted) return;
       setState(() {
         _paymentProfile = profile;
@@ -394,13 +400,17 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
         return;
       }
 
-      final nextState =
-          status.odemeAlindi ? _CheckoutState.paymentReceived : _CheckoutState.waiting;
+      final nextState = status.odemeAlindi
+          ? _CheckoutState.paymentReceived
+          : _CheckoutState.waiting;
 
       setState(() {
         _checkoutState = nextState;
         _currentBalance = status.currentBalance;
-        _checkoutEventLabel = _formatCheckoutEvent(status.status, status.orderId);
+        _checkoutEventLabel = _formatCheckoutEvent(
+          status.status,
+          status.orderId,
+        );
         _checkoutEventAt = (status.completedAt ?? status.updatedAt)?.toLocal();
         if (nextState == _CheckoutState.paymentReceived) {
           _infoMessage = _paymentReceivedText;
@@ -511,8 +521,9 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
         locale: _odemeLocale,
       );
 
-      final opened =
-          await LosPayKrediServisi.odemeSayfasiniAc(checkout.checkoutUri);
+      final opened = await LosPayKrediServisi.odemeSayfasiniAc(
+        checkout.checkoutUri,
+      );
       if (!mounted) return;
 
       setState(() {
@@ -618,10 +629,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (banner != null) ...[
-                  banner,
-                  const SizedBox(height: 12),
-                ],
+                if (banner != null) ...[banner, const SizedBox(height: 12)],
                 if (_errorMessage != null) ...[
                   _buildBanner(
                     icon: Icons.error_outline_rounded,
@@ -700,7 +708,9 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
                 ),
               ),
               IconButton(
-                onPressed: _submitting ? null : () => Navigator.of(context).pop(false),
+                onPressed: _submitting
+                    ? null
+                    : () => Navigator.of(context).pop(false),
                 icon: const Icon(Icons.close_rounded, color: Colors.white70),
               ),
             ],
@@ -768,13 +778,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
     final sideCard = _buildSummaryCard(compact: compact);
 
     if (compact) {
-      return Column(
-        children: [
-          formCard,
-          const SizedBox(height: 12),
-          sideCard,
-        ],
-      );
+      return Column(children: [formCard, const SizedBox(height: 12), sideCard]);
     }
 
     return Row(
@@ -819,11 +823,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
 
     if (compact) {
       return Column(
-        children: [
-          statusCard,
-          const SizedBox(height: 12),
-          sideCard,
-        ],
+        children: [statusCard, const SizedBox(height: 12), sideCard],
       );
     }
 
@@ -982,11 +982,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
 
               if (stacked) {
                 return Column(
-                  children: [
-                    items[0],
-                    const SizedBox(height: 10),
-                    items[1],
-                  ],
+                  children: [items[0], const SizedBox(height: 10), items[1]],
                 );
               }
 
@@ -1099,8 +1095,9 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
             ),
           ),
           TextButton(
-            onPressed:
-                _submitting ? null : () => setState(() => _step = _CreditStep.amount),
+            onPressed: _submitting
+                ? null
+                : () => setState(() => _step = _CreditStep.amount),
             style: TextButton.styleFrom(
               foregroundColor: _textSecondary,
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -1291,10 +1288,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
               creditAmount: _creditAmount,
               totalAmount: _totalAmount,
             ),
-          ]) ...[
-            _buildFeatureLine(line),
-            const SizedBox(height: 8),
-          ],
+          ]) ...[_buildFeatureLine(line), const SizedBox(height: 8)],
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -1454,8 +1448,8 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
                     _checkoutState == _CheckoutState.completed
                         ? Icons.verified_rounded
                         : _checkoutState == _CheckoutState.paymentReceived
-                            ? Icons.fact_check_rounded
-                            : Icons.lock_rounded,
+                        ? Icons.fact_check_rounded
+                        : Icons.lock_rounded,
                     size: 17,
                     color: _checkoutState == _CheckoutState.completed
                         ? _success
@@ -1516,7 +1510,8 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
                         ),
                       ),
                       if (_checkoutEventLabel != null ||
-                          _formatCheckoutEventTime(_checkoutEventAt) != null) ...[
+                          _formatCheckoutEventTime(_checkoutEventAt) !=
+                              null) ...[
                         const SizedBox(height: 14),
                         Wrap(
                           spacing: 8,
@@ -1527,11 +1522,13 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
                                 icon: Icons.bolt_rounded,
                                 text: _checkoutEventLabel!,
                               ),
-                            if (_formatCheckoutEventTime(_checkoutEventAt) != null)
+                            if (_formatCheckoutEventTime(_checkoutEventAt) !=
+                                null)
                               _buildInfoChip(
                                 icon: Icons.schedule_rounded,
-                                text:
-                                    _formatCheckoutEventTime(_checkoutEventAt)!,
+                                text: _formatCheckoutEventTime(
+                                  _checkoutEventAt,
+                                )!,
                               ),
                           ],
                         ),
@@ -1551,10 +1548,11 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
                   title: _dialog.checkoutTimelineWaitingTitle,
                   subtitle:
                       _checkoutState == _CheckoutState.paymentReceived ||
-                              _checkoutState == _CheckoutState.completed
-                          ? _dialog.checkoutTimelineReceivedSubtitle
-                          : _dialog.checkoutTimelineWaitingSubtitle,
-                  done: _checkoutState == _CheckoutState.paymentReceived ||
+                          _checkoutState == _CheckoutState.completed
+                      ? _dialog.checkoutTimelineReceivedSubtitle
+                      : _dialog.checkoutTimelineWaitingSubtitle,
+                  done:
+                      _checkoutState == _CheckoutState.paymentReceived ||
                       _checkoutState == _CheckoutState.completed,
                   active: _checkoutState == _CheckoutState.waiting,
                 ),
@@ -1592,13 +1590,13 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
     final iconColor = done
         ? _success
         : active
-            ? _accentStrong
-            : _textMuted;
+        ? _accentStrong
+        : _textMuted;
     final iconBackground = done
         ? _success.withValues(alpha: 0.12)
         : active
-            ? _accentSoft
-            : _surface;
+        ? _accentSoft
+        : _surface;
 
     return Container(
       width: double.infinity,
@@ -1622,8 +1620,8 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
               done
                   ? Icons.check_rounded
                   : active
-                      ? Icons.timelapse_rounded
-                      : Icons.circle_outlined,
+                  ? Icons.timelapse_rounded
+                  : Icons.circle_outlined,
               size: 17,
               color: iconColor,
             ),
@@ -1661,12 +1659,14 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
 
   Widget _buildCheckoutActionPanel() {
     final title = switch (_checkoutState) {
-      _CheckoutState.paymentReceived => _dialog.checkoutTrackingPaymentReceivedTitle,
+      _CheckoutState.paymentReceived =>
+        _dialog.checkoutTrackingPaymentReceivedTitle,
       _CheckoutState.completed => _dialog.checkoutTrackingCompletedTitle,
       _ => _dialog.checkoutTrackingWaitingTitle,
     };
     final body = switch (_checkoutState) {
-      _CheckoutState.paymentReceived => _dialog.checkoutTrackingPaymentReceivedBody,
+      _CheckoutState.paymentReceived =>
+        _dialog.checkoutTrackingPaymentReceivedBody,
       _CheckoutState.completed => _dialog.checkoutTrackingCompletedBody,
       _ => _dialog.checkoutTrackingWaitingBody,
     };
@@ -1753,9 +1753,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
     return LayoutBuilder(
       builder: (context, constraints) {
         if (constraints.maxWidth < 560) {
-          return Column(
-            children: [left, const SizedBox(height: 10), right],
-          );
+          return Column(children: [left, const SizedBox(height: 10), right]);
         }
 
         return Row(
@@ -1803,8 +1801,10 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
             isDense: true,
             filled: true,
             fillColor: _surface,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 11,
+            ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: _border),
@@ -1913,12 +1913,12 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
       onPressed: _submitting
           ? null
           : _step == _CreditStep.checkout
-              ? checkoutWaiting
-                  ? () => setState(() => _step = _CreditStep.form)
-                  : () => Navigator.of(context).pop(false)
-              : _step == _CreditStep.form
-                  ? () => setState(() => _step = _CreditStep.amount)
-                  : () => Navigator.of(context).pop(false),
+          ? checkoutWaiting
+                ? () => setState(() => _step = _CreditStep.form)
+                : () => Navigator.of(context).pop(false)
+          : _step == _CreditStep.form
+          ? () => setState(() => _step = _CreditStep.amount)
+          : () => Navigator.of(context).pop(false),
       style: TextButton.styleFrom(
         foregroundColor: _textSecondary,
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -1931,8 +1931,8 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
         _step == _CreditStep.amount
             ? _dialog.cancelLabel
             : _step == _CreditStep.checkout && !checkoutWaiting
-                ? _dialog.cancelLabel
-                : _dialog.backLabel,
+            ? _dialog.cancelLabel
+            : _dialog.backLabel,
         style: const TextStyle(fontWeight: FontWeight.w700),
       ),
     );
@@ -1941,22 +1941,22 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
       onPressed: _submitting || _loading
           ? null
           : _step == _CreditStep.checkout
-              ? checkoutWaiting
-                  ? _openCheckoutAgain
-                  : _manualCheckoutRefresh
-              : _step == _CreditStep.form
-                  ? _submit
-                  : () {
-                      final creditError = _validateCreditAmount(_creditController.text);
-                      if (creditError != null) {
-                        setState(() => _errorMessage = creditError);
-                        return;
-                      }
-                      setState(() {
-                        _errorMessage = null;
-                        _step = _CreditStep.form;
-                      });
-                    },
+          ? checkoutWaiting
+                ? _openCheckoutAgain
+                : _manualCheckoutRefresh
+          : _step == _CreditStep.form
+          ? _submit
+          : () {
+              final creditError = _validateCreditAmount(_creditController.text);
+              if (creditError != null) {
+                setState(() => _errorMessage = creditError);
+                return;
+              }
+              setState(() {
+                _errorMessage = null;
+                _step = _CreditStep.form;
+              });
+            },
       style: FilledButton.styleFrom(
         backgroundColor: _cta,
         foregroundColor: Colors.white,
@@ -1976,10 +1976,10 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
               _step == _CreditStep.amount
                   ? _dialog.continueLabel
                   : _step == _CreditStep.form
-                      ? purchaseLabel
-                      : checkoutWaiting
-                          ? _dialog.checkoutOpenAgainLabel
-                          : _dialog.checkoutReloadLabel,
+                  ? purchaseLabel
+                  : checkoutWaiting
+                  ? _dialog.checkoutOpenAgainLabel
+                  : _dialog.checkoutReloadLabel,
               style: const TextStyle(fontWeight: FontWeight.w800),
             ),
     );
@@ -2041,18 +2041,18 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
     final bg = active
         ? Colors.white.withValues(alpha: 0.15)
         : done
-            ? _success.withValues(alpha: 0.15)
-            : Colors.white.withValues(alpha: 0.06);
+        ? _success.withValues(alpha: 0.15)
+        : Colors.white.withValues(alpha: 0.06);
     final borderColor = active
         ? _accentStrong.withValues(alpha: 0.5)
         : done
-            ? _success.withValues(alpha: 0.35)
-            : Colors.white.withValues(alpha: 0.12);
+        ? _success.withValues(alpha: 0.35)
+        : Colors.white.withValues(alpha: 0.12);
     final textColor = active
         ? _accentStrong
         : done
-            ? _success
-            : Colors.white.withValues(alpha: 0.55);
+        ? _success
+        : Colors.white.withValues(alpha: 0.55);
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -2067,7 +2067,11 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
           if (done)
             Padding(
               padding: const EdgeInsets.only(right: 6),
-              child: Icon(Icons.check_circle_rounded, size: 14, color: _success),
+              child: Icon(
+                Icons.check_circle_rounded,
+                size: 14,
+                color: _success,
+              ),
             ),
           Text(
             label,
@@ -2114,11 +2118,7 @@ class _LosPayKrediYukleDialogState extends State<_LosPayKrediYukleDialog> {
       children: [
         const Padding(
           padding: EdgeInsets.only(top: 2),
-          child: Icon(
-            Icons.check_circle_rounded,
-            size: 16,
-            color: _success,
-          ),
+          child: Icon(Icons.check_circle_rounded, size: 16, color: _success),
         ),
         const SizedBox(width: 8),
         Expanded(

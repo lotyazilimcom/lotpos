@@ -30,7 +30,7 @@ class CeklerVeritabaniServisi {
   String? _initializedDatabase;
   static const String _searchTagsVersionPrefix = 'v2';
 
-  static const String _defaultCompanyId = 'patisyo2025';
+  static const String _defaultCompanyId = 'lospos2026';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
 
   /// [2026 FIX] Türkçe karakterleri ASCII karşılıklarına normalize eder.
@@ -282,7 +282,8 @@ class CeklerVeritabaniServisi {
         final maxIdResult = await _pool!.execute(
           'SELECT COALESCE(MAX(id), 0) FROM cheque_transactions',
         );
-        final maxId = int.tryParse(maxIdResult.first[0]?.toString() ?? '0') ?? 0;
+        final maxId =
+            int.tryParse(maxIdResult.first[0]?.toString() ?? '0') ?? 0;
         if (maxId > 0) {
           await _pool!.execute(
             "SELECT setval(pg_get_serial_sequence('cheque_transactions', 'id'), $maxId)",
@@ -397,7 +398,7 @@ class CeklerVeritabaniServisi {
         'CREATE INDEX IF NOT EXISTS idx_cheque_transactions_cheque_id ON cheque_transactions (cheque_id)',
       );
 
-      // [2025 HYPERSCALE] BRIN Index for 10B rows (Range Scans)
+      // [2026 HYPERSCALE] BRIN Index for 10B rows (Range Scans)
       try {
         await _pool!.execute('''
           CREATE INDEX IF NOT EXISTS idx_cheques_issue_date_brin 
@@ -1467,7 +1468,7 @@ class CeklerVeritabaniServisi {
       // --- CARİ ENTEGRASYON DÜZELTME ---
       final cariServis = CariHesaplarVeritabaniServisi();
 
-      // [2025 SMART UPDATE] Ref Varsa ve Cari Değişmediyse -> Update
+      // [2026 SMART UPDATE] Ref Varsa ve Cari Değişmediyse -> Update
       if (oldCustomerCode == cek.cariKod && finalRef.isNotEmpty) {
         bool isBorc = cek.tur == 'Verilen Çek';
         await cariServis.cariIslemGuncelleByRef(
@@ -1659,12 +1660,12 @@ class CeklerVeritabaniServisi {
   /// 2. İlişkili tüm hareket kayıtlarını temizler
   /// 3. Ciro edilmişse, tedarikçinin bakiyesini de düzeltir (Ters Kayıt/Silme)
   /// Bu sayede "Hayalet Para" sorunu önlenir.
-  /// [2025 GUARD]: Çifte Silme Koruma - Aynı ref ile işlem yoksa erken çık
+  /// [2026 GUARD]: Çifte Silme Koruma - Aynı ref ile işlem yoksa erken çık
   Future<void> cekSilByRef(String ref, {TxSession? session}) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return;
 
-    // [2025 GUARD] Boş veya geçersiz referans kontrolü
+    // [2026 GUARD] Boş veya geçersiz referans kontrolü
     if (ref.isEmpty) {
       debugPrint('[GUARD] cekSilByRef: Boş ref ile çağrıldı, atlanıyor.');
       return;
@@ -1680,7 +1681,7 @@ class CeklerVeritabaniServisi {
       parameters: {'ref': ref, 'companyId': _companyId},
     );
 
-    // [2025 GUARD] Çifte silme veya olmayan işlem kontrolü
+    // [2026 GUARD] Çifte silme veya olmayan işlem kontrolü
     if (rows.isEmpty) {
       debugPrint(
         '[GUARD] cekSilByRef: ref=$ref için çek bulunamadı (zaten silinmiş veya hiç oluşturulmamış).',

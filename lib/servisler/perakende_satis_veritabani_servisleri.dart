@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:postgres/postgres.dart';
-import 'package:patisyov10/servisler/bankalar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/cari_hesaplar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/kasalar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/kredi_kartlari_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/lite_kisitlari.dart';
-import 'package:patisyov10/servisler/urunler_veritabani_servisi.dart';
+import 'package:lospos/servisler/bankalar_veritabani_servisi.dart';
+import 'package:lospos/servisler/cari_hesaplar_veritabani_servisi.dart';
+import 'package:lospos/servisler/kasalar_veritabani_servisi.dart';
+import 'package:lospos/servisler/kredi_kartlari_veritabani_servisi.dart';
+import 'package:lospos/servisler/lite_kisitlari.dart';
+import 'package:lospos/servisler/urunler_veritabani_servisi.dart';
 
 class PerakendeSonSatisKaydi {
   final String integrationRef;

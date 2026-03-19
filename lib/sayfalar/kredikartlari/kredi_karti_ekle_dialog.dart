@@ -79,7 +79,8 @@ class _KrediKartiEkleDialogState extends State<KrediKartiEkleDialog> {
     _aktifMi = krediKarti?.aktifMi ?? true;
     _varsayilan = krediKarti?.varsayilan ?? true;
 
-    final String defaultCurrency = (widget.varsayilanParaBirimi ?? 'TRY').trim();
+    final String defaultCurrency = (widget.varsayilanParaBirimi ?? 'TRY')
+        .trim();
     final List<String> settingsCurrencies = (widget.paraBirimleri ?? const [])
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
@@ -107,10 +108,8 @@ class _KrediKartiEkleDialogState extends State<KrediKartiEkleDialog> {
 
     final String initialCurrency =
         (existingCurrency != null && existingCurrency.isNotEmpty)
-            ? existingCurrency
-            : (defaultCurrency.isNotEmpty
-                ? defaultCurrency
-                : _paraBirimleri.first);
+        ? existingCurrency
+        : (defaultCurrency.isNotEmpty ? defaultCurrency : _paraBirimleri.first);
 
     _selectedParaBirimi = _paraBirimleri.contains(initialCurrency)
         ? initialCurrency
@@ -579,8 +578,9 @@ class _KrediKartiEkleDialogState extends State<KrediKartiEkleDialog> {
                                       value: 'inactive',
                                     ),
                                   ],
-                                  groupValue:
-                                      _varsayilan ? 'active' : 'inactive',
+                                  groupValue: _varsayilan
+                                      ? 'active'
+                                      : 'inactive',
                                   compact: isCompact,
                                   onChanged: (val) => setState(
                                     () => _varsayilan = val == 'active',
@@ -930,48 +930,52 @@ class _KrediKartiEkleDialogState extends State<KrediKartiEkleDialog> {
             final isSelected = groupValue == opt.value;
             return MouseRegion(
               cursor: SystemMouseCursors.click,
-              child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                onTap: () => onChanged(opt.value),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 20,
-                      height: 20,
-                      decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: isSelected
-                              ? _primaryColor
-                              : const Color(0xFF202124),
-                          width: 2,
+              child: MouseRegion(
+                cursor: SystemMouseCursors.click,
+                hitTestBehavior: HitTestBehavior.deferToChild,
+                child: GestureDetector(
+                  onTap: () => onChanged(opt.value),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: isSelected
+                                ? _primaryColor
+                                : const Color(0xFF202124),
+                            width: 2,
+                          ),
+                        ),
+                        child: isSelected
+                            ? Center(
+                                child: Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: const BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: _primaryColor,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        opt.label,
+                        style: TextStyle(
+                          fontSize: compact ? 14 : 15,
+                          fontWeight: FontWeight.w500,
+                          color: const Color(0xFF202124),
                         ),
                       ),
-                      child: isSelected
-                          ? Center(
-                              child: Container(
-                                width: 10,
-                                height: 10,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: _primaryColor,
-                                ),
-                              ),
-                            )
-                          : null,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      opt.label,
-                      style: TextStyle(
-                        fontSize: compact ? 14 : 15,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF202124),
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              )),
+              ),
             );
           }).toList(),
         ),

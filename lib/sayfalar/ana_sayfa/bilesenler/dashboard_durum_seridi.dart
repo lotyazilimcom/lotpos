@@ -30,9 +30,7 @@ class DashboardDurumSeridi extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: AppPalette.grey.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: AppPalette.grey.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
             color: AppPalette.slate.withValues(alpha: 0.04),
@@ -125,8 +123,8 @@ class DashboardDurumSeridi extends StatelessWidget {
             baglantiModu == 'cloud'
                 ? '☁ Bulut'
                 : baglantiModu == 'hybrid'
-                    ? '⇄ Karma'
-                    : '💻 Yerel',
+                ? '⇄ Karma'
+                : '💻 Yerel',
             style: TextStyle(
               fontFamily: 'Inter',
               fontSize: 11,
@@ -142,7 +140,8 @@ class DashboardDurumSeridi extends StatelessWidget {
   }
 
   Widget _buildSonYenilenme() {
-    final saat = '${sonYenilenme.hour.toString().padLeft(2, '0')}:'
+    final saat =
+        '${sonYenilenme.hour.toString().padLeft(2, '0')}:'
         '${sonYenilenme.minute.toString().padLeft(2, '0')}';
     return Row(
       mainAxisSize: MainAxisSize.min,

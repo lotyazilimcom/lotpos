@@ -155,7 +155,7 @@ DROP INDEX IF EXISTS "public"."idx_kasa_trans_2029_basic";
 DROP INDEX IF EXISTS "public"."idx_kasa_trans_2028_basic";
 DROP INDEX IF EXISTS "public"."idx_kasa_trans_2027_basic";
 DROP INDEX IF EXISTS "public"."idx_kasa_trans_2026_basic";
-DROP INDEX IF EXISTS "public"."idx_kasa_trans_2025_basic";
+DROP INDEX IF EXISTS "public"."idx_kasa_trans_2026_basic";
 DROP INDEX IF EXISTS "public"."idx_kasa_trans_2024_basic";
 DROP INDEX IF EXISTS "public"."idx_installments_ref";
 DROP INDEX IF EXISTS "public"."idx_installments_cari";
@@ -286,7 +286,7 @@ ALTER TABLE IF EXISTS ONLY "public"."user_transactions_2029" DROP CONSTRAINT IF 
 ALTER TABLE IF EXISTS ONLY "public"."user_transactions_2028" DROP CONSTRAINT IF EXISTS "user_transactions_2028_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."user_transactions_2027" DROP CONSTRAINT IF EXISTS "user_transactions_2027_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."user_transactions_2026" DROP CONSTRAINT IF EXISTS "user_transactions_2026_pkey";
-ALTER TABLE IF EXISTS ONLY "public"."user_transactions_2025" DROP CONSTRAINT IF EXISTS "user_transactions_2025_pkey";
+ALTER TABLE IF EXISTS ONLY "public"."user_transactions_2026" DROP CONSTRAINT IF EXISTS "user_transactions_2026_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."user_transactions_2024" DROP CONSTRAINT IF EXISTS "user_transactions_2024_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."user_transactions" DROP CONSTRAINT IF EXISTS "user_transactions_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."saved_descriptions" DROP CONSTRAINT IF EXISTS "unique_category_content";
@@ -299,7 +299,7 @@ ALTER TABLE IF EXISTS ONLY "public"."stock_movements_2029" DROP CONSTRAINT IF EX
 ALTER TABLE IF EXISTS ONLY "public"."stock_movements_2028" DROP CONSTRAINT IF EXISTS "stock_movements_2028_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."stock_movements_2027" DROP CONSTRAINT IF EXISTS "stock_movements_2027_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."stock_movements_2026" DROP CONSTRAINT IF EXISTS "stock_movements_2026_pkey";
-ALTER TABLE IF EXISTS ONLY "public"."stock_movements_2025" DROP CONSTRAINT IF EXISTS "stock_movements_2025_pkey";
+ALTER TABLE IF EXISTS ONLY "public"."stock_movements_2026" DROP CONSTRAINT IF EXISTS "stock_movements_2026_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."stock_movements" DROP CONSTRAINT IF EXISTS "stock_movements_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."shipments" DROP CONSTRAINT IF EXISTS "shipments_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."sequences" DROP CONSTRAINT IF EXISTS "sequences_pkey";
@@ -327,7 +327,7 @@ ALTER TABLE IF EXISTS ONLY "public"."production_stock_movements_2029" DROP CONST
 ALTER TABLE IF EXISTS ONLY "public"."production_stock_movements_2028" DROP CONSTRAINT IF EXISTS "production_stock_movements_2028_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."production_stock_movements_2027" DROP CONSTRAINT IF EXISTS "production_stock_movements_2027_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."production_stock_movements_2026" DROP CONSTRAINT IF EXISTS "production_stock_movements_2026_pkey";
-ALTER TABLE IF EXISTS ONLY "public"."production_stock_movements_2025" DROP CONSTRAINT IF EXISTS "production_stock_movements_2025_pkey";
+ALTER TABLE IF EXISTS ONLY "public"."production_stock_movements_2026" DROP CONSTRAINT IF EXISTS "production_stock_movements_2026_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."production_stock_movements_2024" DROP CONSTRAINT IF EXISTS "production_stock_movements_2024_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."production_stock_movements_2023" DROP CONSTRAINT IF EXISTS "production_stock_movements_2023_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."production_stock_movements_2022" DROP CONSTRAINT IF EXISTS "production_stock_movements_2022_pkey";
@@ -362,7 +362,7 @@ ALTER TABLE IF EXISTS ONLY "public"."credit_card_transactions_2029" DROP CONSTRA
 ALTER TABLE IF EXISTS ONLY "public"."credit_card_transactions_2028" DROP CONSTRAINT IF EXISTS "credit_card_transactions_2028_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."credit_card_transactions_2027" DROP CONSTRAINT IF EXISTS "credit_card_transactions_2027_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."credit_card_transactions_2026" DROP CONSTRAINT IF EXISTS "credit_card_transactions_2026_pkey";
-ALTER TABLE IF EXISTS ONLY "public"."credit_card_transactions_2025" DROP CONSTRAINT IF EXISTS "credit_card_transactions_2025_pkey";
+ALTER TABLE IF EXISTS ONLY "public"."credit_card_transactions_2026" DROP CONSTRAINT IF EXISTS "credit_card_transactions_2026_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."credit_card_transactions_2024" DROP CONSTRAINT IF EXISTS "credit_card_transactions_2024_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."credit_card_transactions" DROP CONSTRAINT IF EXISTS "credit_card_transactions_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."company_settings" DROP CONSTRAINT IF EXISTS "company_settings_pkey";
@@ -379,7 +379,7 @@ ALTER TABLE IF EXISTS ONLY "public"."cash_register_transactions_2029" DROP CONST
 ALTER TABLE IF EXISTS ONLY "public"."cash_register_transactions_2028" DROP CONSTRAINT IF EXISTS "cash_register_transactions_2028_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."cash_register_transactions_2027" DROP CONSTRAINT IF EXISTS "cash_register_transactions_2027_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."cash_register_transactions_2026" DROP CONSTRAINT IF EXISTS "cash_register_transactions_2026_pkey";
-ALTER TABLE IF EXISTS ONLY "public"."cash_register_transactions_2025" DROP CONSTRAINT IF EXISTS "cash_register_transactions_2025_pkey";
+ALTER TABLE IF EXISTS ONLY "public"."cash_register_transactions_2026" DROP CONSTRAINT IF EXISTS "cash_register_transactions_2026_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."cash_register_transactions_2024" DROP CONSTRAINT IF EXISTS "cash_register_transactions_2024_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."cash_register_transactions" DROP CONSTRAINT IF EXISTS "cash_register_transactions_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."banks" DROP CONSTRAINT IF EXISTS "banks_pkey";
@@ -390,7 +390,7 @@ ALTER TABLE IF EXISTS ONLY "public"."bank_transactions_2029" DROP CONSTRAINT IF 
 ALTER TABLE IF EXISTS ONLY "public"."bank_transactions_2028" DROP CONSTRAINT IF EXISTS "bank_transactions_2028_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."bank_transactions_2027" DROP CONSTRAINT IF EXISTS "bank_transactions_2027_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."bank_transactions_2026" DROP CONSTRAINT IF EXISTS "bank_transactions_2026_pkey";
-ALTER TABLE IF EXISTS ONLY "public"."bank_transactions_2025" DROP CONSTRAINT IF EXISTS "bank_transactions_2025_pkey";
+ALTER TABLE IF EXISTS ONLY "public"."bank_transactions_2026" DROP CONSTRAINT IF EXISTS "bank_transactions_2026_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."bank_transactions_2024" DROP CONSTRAINT IF EXISTS "bank_transactions_2024_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."bank_transactions" DROP CONSTRAINT IF EXISTS "bank_transactions_pkey";
 ALTER TABLE IF EXISTS ONLY "public"."account_metadata" DROP CONSTRAINT IF EXISTS "account_metadata_pkey";
@@ -477,7 +477,7 @@ DROP TABLE IF EXISTS "public"."user_transactions_2029";
 DROP TABLE IF EXISTS "public"."user_transactions_2028";
 DROP TABLE IF EXISTS "public"."user_transactions_2027";
 DROP TABLE IF EXISTS "public"."user_transactions_2026";
-DROP TABLE IF EXISTS "public"."user_transactions_2025";
+DROP TABLE IF EXISTS "public"."user_transactions_2026";
 DROP TABLE IF EXISTS "public"."user_transactions_2024";
 DROP TABLE IF EXISTS "public"."user_transactions";
 DROP TABLE IF EXISTS "public"."table_counts";
@@ -490,7 +490,7 @@ DROP TABLE IF EXISTS "public"."stock_movements_2029";
 DROP TABLE IF EXISTS "public"."stock_movements_2028";
 DROP TABLE IF EXISTS "public"."stock_movements_2027";
 DROP TABLE IF EXISTS "public"."stock_movements_2026";
-DROP TABLE IF EXISTS "public"."stock_movements_2025";
+DROP TABLE IF EXISTS "public"."stock_movements_2026";
 DROP SEQUENCE IF EXISTS "public"."stock_movements_id_seq";
 DROP TABLE IF EXISTS "public"."stock_movements";
 DROP SEQUENCE IF EXISTS "public"."shipments_id_seq";
@@ -526,7 +526,7 @@ DROP TABLE IF EXISTS "public"."production_stock_movements_2029";
 DROP TABLE IF EXISTS "public"."production_stock_movements_2028";
 DROP TABLE IF EXISTS "public"."production_stock_movements_2027";
 DROP TABLE IF EXISTS "public"."production_stock_movements_2026";
-DROP TABLE IF EXISTS "public"."production_stock_movements_2025";
+DROP TABLE IF EXISTS "public"."production_stock_movements_2026";
 DROP TABLE IF EXISTS "public"."production_stock_movements_2024";
 DROP TABLE IF EXISTS "public"."production_stock_movements_2023";
 DROP TABLE IF EXISTS "public"."production_stock_movements_2022";
@@ -575,7 +575,7 @@ DROP TABLE IF EXISTS "public"."credit_card_transactions_2029";
 DROP TABLE IF EXISTS "public"."credit_card_transactions_2028";
 DROP TABLE IF EXISTS "public"."credit_card_transactions_2027";
 DROP TABLE IF EXISTS "public"."credit_card_transactions_2026";
-DROP TABLE IF EXISTS "public"."credit_card_transactions_2025";
+DROP TABLE IF EXISTS "public"."credit_card_transactions_2026";
 DROP TABLE IF EXISTS "public"."credit_card_transactions_2024";
 DROP SEQUENCE IF EXISTS "public"."credit_card_transactions_id_seq";
 DROP TABLE IF EXISTS "public"."credit_card_transactions";
@@ -598,7 +598,7 @@ DROP TABLE IF EXISTS "public"."cash_register_transactions_2029";
 DROP TABLE IF EXISTS "public"."cash_register_transactions_2028";
 DROP TABLE IF EXISTS "public"."cash_register_transactions_2027";
 DROP TABLE IF EXISTS "public"."cash_register_transactions_2026";
-DROP TABLE IF EXISTS "public"."cash_register_transactions_2025";
+DROP TABLE IF EXISTS "public"."cash_register_transactions_2026";
 DROP TABLE IF EXISTS "public"."cash_register_transactions_2024";
 DROP SEQUENCE IF EXISTS "public"."cash_register_transactions_id_seq";
 DROP TABLE IF EXISTS "public"."cash_register_transactions";
@@ -611,7 +611,7 @@ DROP TABLE IF EXISTS "public"."bank_transactions_2029";
 DROP TABLE IF EXISTS "public"."bank_transactions_2028";
 DROP TABLE IF EXISTS "public"."bank_transactions_2027";
 DROP TABLE IF EXISTS "public"."bank_transactions_2026";
-DROP TABLE IF EXISTS "public"."bank_transactions_2025";
+DROP TABLE IF EXISTS "public"."bank_transactions_2026";
 DROP TABLE IF EXISTS "public"."bank_transactions_2024";
 DROP SEQUENCE IF EXISTS "public"."bank_transactions_id_seq";
 DROP TABLE IF EXISTS "public"."bank_transactions";
@@ -1259,7 +1259,7 @@ BEGIN
     IF EXISTS (
       SELECT FROM pg_extension
       WHERE extname = 'pg_net'
-      -- all versions in use on existing projects as of 2025-02-20
+      -- all versions in use on existing projects as of 2026-02-20
       -- version 0.12.0 onwards don't need these applied
       AND extversion IN ('0.2', '0.6', '0.7', '0.7.1', '0.8', '0.10.0', '0.11.0')
     ) THEN
@@ -4515,10 +4515,10 @@ CREATE TABLE "public"."bank_transactions_2024" (
 
 
 --
--- Name: bank_transactions_2025; Type: TABLE; Schema: public; Owner: -
+-- Name: bank_transactions_2026; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE "public"."bank_transactions_2025" (
+CREATE TABLE "public"."bank_transactions_2026" (
     "id" integer DEFAULT "nextval"('"public"."bank_transactions_id_seq"'::"regclass") NOT NULL,
     "company_id" "text",
     "bank_id" integer,
@@ -4790,10 +4790,10 @@ CREATE TABLE "public"."cash_register_transactions_2024" (
 
 
 --
--- Name: cash_register_transactions_2025; Type: TABLE; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE "public"."cash_register_transactions_2025" (
+CREATE TABLE "public"."cash_register_transactions_2026" (
     "id" integer DEFAULT "nextval"('"public"."cash_register_transactions_id_seq"'::"regclass") NOT NULL,
     "company_id" "text",
     "cash_register_id" integer,
@@ -5326,10 +5326,10 @@ CREATE TABLE "public"."credit_card_transactions_2024" (
 
 
 --
--- Name: credit_card_transactions_2025; Type: TABLE; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE "public"."credit_card_transactions_2025" (
+CREATE TABLE "public"."credit_card_transactions_2026" (
     "id" integer DEFAULT "nextval"('"public"."credit_card_transactions_id_seq"'::"regclass") NOT NULL,
     "company_id" "text",
     "credit_card_id" integer,
@@ -6374,10 +6374,10 @@ CREATE TABLE "public"."production_stock_movements_2024" (
 
 
 --
--- Name: production_stock_movements_2025; Type: TABLE; Schema: public; Owner: -
+-- Name: production_stock_movements_2026; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE "public"."production_stock_movements_2025" (
+CREATE TABLE "public"."production_stock_movements_2026" (
     "id" integer DEFAULT "nextval"('"public"."production_stock_movements_id_seq"'::"regclass") NOT NULL,
     "production_id" integer NOT NULL,
     "warehouse_id" integer NOT NULL,
@@ -7158,10 +7158,10 @@ ALTER SEQUENCE "public"."stock_movements_id_seq" OWNED BY "public"."stock_moveme
 
 
 --
--- Name: stock_movements_2025; Type: TABLE; Schema: public; Owner: -
+-- Name: stock_movements_2026; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE "public"."stock_movements_2025" (
+CREATE TABLE "public"."stock_movements_2026" (
     "id" integer DEFAULT "nextval"('"public"."stock_movements_id_seq"'::"regclass") NOT NULL,
     "product_id" integer,
     "warehouse_id" integer,
@@ -7446,10 +7446,10 @@ CREATE TABLE "public"."user_transactions_2024" (
 
 
 --
--- Name: user_transactions_2025; Type: TABLE; Schema: public; Owner: -
+-- Name: user_transactions_2026; Type: TABLE; Schema: public; Owner: -
 --
 
-CREATE TABLE "public"."user_transactions_2025" (
+CREATE TABLE "public"."user_transactions_2026" (
     "id" "text" NOT NULL,
     "company_id" "text",
     "user_id" "text",
@@ -7819,14 +7819,14 @@ CREATE TABLE "storage"."vector_indexes" (
 -- Name: bank_transactions_2024; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."bank_transactions" ATTACH PARTITION "public"."bank_transactions_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY "public"."bank_transactions" ATTACH PARTITION "public"."bank_transactions_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: bank_transactions_2025; Type: TABLE ATTACH; Schema: public; Owner: -
+-- Name: bank_transactions_2026; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."bank_transactions" ATTACH PARTITION "public"."bank_transactions_2025" FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY "public"."bank_transactions" ATTACH PARTITION "public"."bank_transactions_2026" FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -7882,14 +7882,14 @@ ALTER TABLE ONLY "public"."bank_transactions" ATTACH PARTITION "public"."bank_tr
 -- Name: cash_register_transactions_2024; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."cash_register_transactions" ATTACH PARTITION "public"."cash_register_transactions_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY "public"."cash_register_transactions" ATTACH PARTITION "public"."cash_register_transactions_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: cash_register_transactions_2025; Type: TABLE ATTACH; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."cash_register_transactions" ATTACH PARTITION "public"."cash_register_transactions_2025" FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY "public"."cash_register_transactions" ATTACH PARTITION "public"."cash_register_transactions_2026" FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -7959,14 +7959,14 @@ ALTER TABLE ONLY "public"."current_account_transactions" ATTACH PARTITION "publi
 -- Name: credit_card_transactions_2024; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."credit_card_transactions" ATTACH PARTITION "public"."credit_card_transactions_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY "public"."credit_card_transactions" ATTACH PARTITION "public"."credit_card_transactions_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: credit_card_transactions_2025; Type: TABLE ATTACH; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."credit_card_transactions" ATTACH PARTITION "public"."credit_card_transactions_2025" FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY "public"."credit_card_transactions" ATTACH PARTITION "public"."credit_card_transactions_2026" FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -8078,14 +8078,14 @@ ALTER TABLE ONLY "public"."production_stock_movements" ATTACH PARTITION "public"
 -- Name: production_stock_movements_2024; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."production_stock_movements" ATTACH PARTITION "public"."production_stock_movements_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY "public"."production_stock_movements" ATTACH PARTITION "public"."production_stock_movements_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: production_stock_movements_2025; Type: TABLE ATTACH; Schema: public; Owner: -
+-- Name: production_stock_movements_2026; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."production_stock_movements" ATTACH PARTITION "public"."production_stock_movements_2025" FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY "public"."production_stock_movements" ATTACH PARTITION "public"."production_stock_movements_2026" FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -8194,10 +8194,10 @@ ALTER TABLE ONLY "public"."quotes" ATTACH PARTITION "public"."quotes_y2026_m03" 
 
 
 --
--- Name: stock_movements_2025; Type: TABLE ATTACH; Schema: public; Owner: -
+-- Name: stock_movements_2026; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."stock_movements" ATTACH PARTITION "public"."stock_movements_2025" FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY "public"."stock_movements" ATTACH PARTITION "public"."stock_movements_2026" FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -8253,14 +8253,14 @@ ALTER TABLE ONLY "public"."stock_movements" ATTACH PARTITION "public"."stock_mov
 -- Name: user_transactions_2024; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."user_transactions" ATTACH PARTITION "public"."user_transactions_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2025-01-01 00:00:00');
+ALTER TABLE ONLY "public"."user_transactions" ATTACH PARTITION "public"."user_transactions_2024" FOR VALUES FROM ('2024-01-01 00:00:00') TO ('2026-01-01 00:00:00');
 
 
 --
--- Name: user_transactions_2025; Type: TABLE ATTACH; Schema: public; Owner: -
+-- Name: user_transactions_2026; Type: TABLE ATTACH; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."user_transactions" ATTACH PARTITION "public"."user_transactions_2025" FOR VALUES FROM ('2025-01-01 00:00:00') TO ('2026-01-01 00:00:00');
+ALTER TABLE ONLY "public"."user_transactions" ATTACH PARTITION "public"."user_transactions_2026" FOR VALUES FROM ('2026-01-01 00:00:00') TO ('2027-01-01 00:00:00');
 
 
 --
@@ -8736,17 +8736,17 @@ COPY "auth"."schema_migrations" ("version") FROM stdin;
 20240802193726
 20240806073726
 20241009103726
-20250717082212
-20250731150234
-20250804100000
-20250901200500
-20250903112500
-20250904133000
-20250925093508
-20251007112900
-20251104100000
-20251111201300
-20251201000000
+20260717082212
+20260731150234
+20260804100000
+20260901200500
+20260903112500
+20260904133000
+20260925093508
+20261007112900
+20261104100000
+20261111201300
+20261201000000
 20260115000000
 20260121000000
 \.
@@ -8801,10 +8801,10 @@ COPY "public"."bank_transactions_2024" ("id", "company_id", "bank_id", "date", "
 
 
 --
--- Data for Name: bank_transactions_2025; Type: TABLE DATA; Schema: public; Owner: -
+-- Data for Name: bank_transactions_2026; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY "public"."bank_transactions_2025" ("id", "company_id", "bank_id", "date", "description", "amount", "type", "location", "location_code", "location_name", "user_name", "integration_ref", "created_at") FROM stdin;
+COPY "public"."bank_transactions_2026" ("id", "company_id", "bank_id", "date", "description", "amount", "type", "location", "location_code", "location_name", "user_name", "integration_ref", "created_at") FROM stdin;
 \.
 
 
@@ -8881,10 +8881,10 @@ COPY "public"."cash_register_transactions_2024" ("id", "company_id", "cash_regis
 
 
 --
--- Data for Name: cash_register_transactions_2025; Type: TABLE DATA; Schema: public; Owner: -
+-- Data for Name: cash_register_transactions_2026; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY "public"."cash_register_transactions_2025" ("id", "company_id", "cash_register_id", "date", "description", "amount", "type", "location", "location_code", "location_name", "user_name", "integration_ref", "created_at") FROM stdin;
+COPY "public"."cash_register_transactions_2026" ("id", "company_id", "cash_register_id", "date", "description", "amount", "type", "location", "location_code", "location_name", "user_name", "integration_ref", "created_at") FROM stdin;
 \.
 
 
@@ -9002,10 +9002,10 @@ COPY "public"."credit_card_transactions_2024" ("id", "company_id", "credit_card_
 
 
 --
--- Data for Name: credit_card_transactions_2025; Type: TABLE DATA; Schema: public; Owner: -
+-- Data for Name: credit_card_transactions_2026; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY "public"."credit_card_transactions_2025" ("id", "company_id", "credit_card_id", "date", "description", "amount", "type", "location", "location_code", "location_name", "user_name", "integration_ref", "created_at") FROM stdin;
+COPY "public"."credit_card_transactions_2026" ("id", "company_id", "credit_card_id", "date", "description", "amount", "type", "location", "location_code", "location_name", "user_name", "integration_ref", "created_at") FROM stdin;
 \.
 
 
@@ -9283,10 +9283,10 @@ COPY "public"."production_stock_movements_2024" ("id", "production_id", "warehou
 
 
 --
--- Data for Name: production_stock_movements_2025; Type: TABLE DATA; Schema: public; Owner: -
+-- Data for Name: production_stock_movements_2026; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY "public"."production_stock_movements_2025" ("id", "production_id", "warehouse_id", "quantity", "unit_price", "currency", "vat_status", "movement_date", "description", "movement_type", "created_by", "consumed_items", "related_shipment_ids", "created_at") FROM stdin;
+COPY "public"."production_stock_movements_2026" ("id", "production_id", "warehouse_id", "quantity", "unit_price", "currency", "vat_status", "movement_date", "description", "movement_type", "created_by", "consumed_items", "related_shipment_ids", "created_at") FROM stdin;
 \.
 
 
@@ -9490,10 +9490,10 @@ COPY "public"."shipments" ("id", "source_warehouse_id", "dest_warehouse_id", "da
 
 
 --
--- Data for Name: stock_movements_2025; Type: TABLE DATA; Schema: public; Owner: -
+-- Data for Name: stock_movements_2026; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY "public"."stock_movements_2025" ("id", "product_id", "warehouse_id", "shipment_id", "quantity", "is_giris", "unit_price", "currency_code", "currency_rate", "vat_status", "movement_date", "description", "movement_type", "created_by", "integration_ref", "running_cost", "running_stock", "created_at") FROM stdin;
+COPY "public"."stock_movements_2026" ("id", "product_id", "warehouse_id", "shipment_id", "quantity", "is_giris", "unit_price", "currency_code", "currency_rate", "vat_status", "movement_date", "description", "movement_type", "created_by", "integration_ref", "running_cost", "running_stock", "created_at") FROM stdin;
 \.
 
 
@@ -9581,10 +9581,10 @@ COPY "public"."user_transactions_2024" ("id", "company_id", "user_id", "date", "
 
 
 --
--- Data for Name: user_transactions_2025; Type: TABLE DATA; Schema: public; Owner: -
+-- Data for Name: user_transactions_2026; Type: TABLE DATA; Schema: public; Owner: -
 --
 
-COPY "public"."user_transactions_2025" ("id", "company_id", "user_id", "date", "description", "debt", "credit", "type") FROM stdin;
+COPY "public"."user_transactions_2026" ("id", "company_id", "user_id", "date", "description", "debt", "credit", "type") FROM stdin;
 \.
 
 
@@ -9649,7 +9649,7 @@ COPY "public"."user_transactions_default" ("id", "company_id", "user_id", "date"
 --
 
 COPY "public"."users" ("id", "username", "name", "surname", "email", "role", "is_active", "phone", "profile_image", "password", "hire_date", "position", "salary", "salary_currency", "address", "info1", "info2", "balance_debt", "balance_credit") FROM stdin;
-1	admin	Sistem	Yöneticisi	admin@patisyo.com	admin	1		\N	8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918	\N	\N	\N	\N	\N	\N	\N	0	0
+1	admin	Sistem	Yöneticisi	admin@lospos.com	admin	1		\N	8c6976e5b5410415bde908bd4dee15dfb167a9c873fc4bb8a81f6f2ab448a918	\N	\N	\N	\N	\N	\N	\N	0	0
 \.
 
 
@@ -9723,17 +9723,17 @@ COPY "realtime"."schema_migrations" ("version", "inserted_at") FROM stdin;
 20241220035512	2026-02-14 07:08:17
 20241220123912	2026-02-14 07:08:18
 20241224161212	2026-02-14 07:08:18
-20250107150512	2026-02-14 07:08:18
-20250110162412	2026-02-14 07:08:18
-20250123174212	2026-02-14 07:08:18
-20250128220012	2026-02-14 07:08:18
-20250506224012	2026-02-14 07:08:18
-20250523164012	2026-02-14 07:08:18
-20250714121412	2026-02-14 07:08:19
-20250905041441	2026-02-14 07:08:19
-20251103001201	2026-02-14 07:08:19
-20251120212548	2026-02-14 07:08:19
-20251120215549	2026-02-14 07:08:19
+20260107150512	2026-02-14 07:08:18
+20260110162412	2026-02-14 07:08:18
+20260123174212	2026-02-14 07:08:18
+20260128220012	2026-02-14 07:08:18
+20260506224012	2026-02-14 07:08:18
+20260523164012	2026-02-14 07:08:18
+20260714121412	2026-02-14 07:08:19
+20260905041441	2026-02-14 07:08:19
+20261103001201	2026-02-14 07:08:19
+20261120212548	2026-02-14 07:08:19
+20261120215549	2026-02-14 07:08:19
 \.
 
 
@@ -9782,7 +9782,7 @@ COPY "storage"."migrations" ("id", "name", "hash", "executed_at") FROM stdin;
 5	add-size-functions	79e081a1455b63666c1294a440f8ad4b1e6a7f84	2026-02-14 07:06:14.330463
 6	change-column-name-in-get-size	ded78e2f1b5d7e616117897e6443a925965b30d2	2026-02-14 07:06:14.336301
 7	add-rls-to-buckets	e7e7f86adbc51049f341dfe8d30256c1abca17aa	2026-02-14 07:06:14.342854
-8	add-public-to-buckets	fd670db39ed65f9d08b01db09d6202503ca2bab3	2026-02-14 07:06:14.348752
+8	add-public-to-buckets	fd670db39ed65f9d08b01db09d6202603ca2bab3	2026-02-14 07:06:14.348752
 9	fix-search-function	af597a1b590c70519b464a4ab3be54490712796b	2026-02-14 07:06:14.35535
 10	search-files-search-function	b595f05e92f7e91211af1bbfe9c6a13bb3391e16	2026-02-14 07:06:14.361171
 11	add-trigger-to-auto-update-updated_at-column	7425bdb14366d1739fa8a18c83100636d74dcaa2	2026-02-14 07:06:14.368574
@@ -10376,11 +10376,11 @@ ALTER TABLE ONLY "public"."bank_transactions_2024"
 
 
 --
--- Name: bank_transactions_2025 bank_transactions_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: bank_transactions_2026 bank_transactions_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."bank_transactions_2025"
-    ADD CONSTRAINT "bank_transactions_2025_pkey" PRIMARY KEY ("id", "date");
+ALTER TABLE ONLY "public"."bank_transactions_2026"
+    ADD CONSTRAINT "bank_transactions_2026_pkey" PRIMARY KEY ("id", "date");
 
 
 --
@@ -10464,11 +10464,11 @@ ALTER TABLE ONLY "public"."cash_register_transactions_2024"
 
 
 --
--- Name: cash_register_transactions_2025 cash_register_transactions_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026 cash_register_transactions_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."cash_register_transactions_2025"
-    ADD CONSTRAINT "cash_register_transactions_2025_pkey" PRIMARY KEY ("id", "date");
+ALTER TABLE ONLY "public"."cash_register_transactions_2026"
+    ADD CONSTRAINT "cash_register_transactions_2026_pkey" PRIMARY KEY ("id", "date");
 
 
 --
@@ -10600,11 +10600,11 @@ ALTER TABLE ONLY "public"."credit_card_transactions_2024"
 
 
 --
--- Name: credit_card_transactions_2025 credit_card_transactions_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026 credit_card_transactions_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."credit_card_transactions_2025"
-    ADD CONSTRAINT "credit_card_transactions_2025_pkey" PRIMARY KEY ("id", "date");
+ALTER TABLE ONLY "public"."credit_card_transactions_2026"
+    ADD CONSTRAINT "credit_card_transactions_2026_pkey" PRIMARY KEY ("id", "date");
 
 
 --
@@ -10880,11 +10880,11 @@ ALTER TABLE ONLY "public"."production_stock_movements_2024"
 
 
 --
--- Name: production_stock_movements_2025 production_stock_movements_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: production_stock_movements_2026 production_stock_movements_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."production_stock_movements_2025"
-    ADD CONSTRAINT "production_stock_movements_2025_pkey" PRIMARY KEY ("id", "created_at");
+ALTER TABLE ONLY "public"."production_stock_movements_2026"
+    ADD CONSTRAINT "production_stock_movements_2026_pkey" PRIMARY KEY ("id", "created_at");
 
 
 --
@@ -11104,11 +11104,11 @@ ALTER TABLE ONLY "public"."stock_movements"
 
 
 --
--- Name: stock_movements_2025 stock_movements_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: stock_movements_2026 stock_movements_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."stock_movements_2025"
-    ADD CONSTRAINT "stock_movements_2025_pkey" PRIMARY KEY ("id", "created_at");
+ALTER TABLE ONLY "public"."stock_movements_2026"
+    ADD CONSTRAINT "stock_movements_2026_pkey" PRIMARY KEY ("id", "created_at");
 
 
 --
@@ -11208,11 +11208,11 @@ ALTER TABLE ONLY "public"."user_transactions_2024"
 
 
 --
--- Name: user_transactions_2025 user_transactions_2025_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+-- Name: user_transactions_2026 user_transactions_2026_pkey; Type: CONSTRAINT; Schema: public; Owner: -
 --
 
-ALTER TABLE ONLY "public"."user_transactions_2025"
-    ADD CONSTRAINT "user_transactions_2025_pkey" PRIMARY KEY ("id", "date");
+ALTER TABLE ONLY "public"."user_transactions_2026"
+    ADD CONSTRAINT "user_transactions_2026_pkey" PRIMARY KEY ("id", "date");
 
 
 --
@@ -11804,45 +11804,45 @@ CREATE INDEX "bank_transactions_2024_type_idx" ON "public"."bank_transactions_20
 
 
 --
--- Name: bank_transactions_2025_bank_id_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: bank_transactions_2026_bank_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "bank_transactions_2025_bank_id_idx" ON "public"."bank_transactions_2025" USING "btree" ("bank_id");
-
-
---
--- Name: bank_transactions_2025_created_at_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "bank_transactions_2025_created_at_idx" ON "public"."bank_transactions_2025" USING "btree" ("created_at");
+CREATE INDEX "bank_transactions_2026_bank_id_idx" ON "public"."bank_transactions_2026" USING "btree" ("bank_id");
 
 
 --
--- Name: bank_transactions_2025_created_at_idx1; Type: INDEX; Schema: public; Owner: -
+-- Name: bank_transactions_2026_created_at_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "bank_transactions_2025_created_at_idx1" ON "public"."bank_transactions_2025" USING "brin" ("created_at") WITH ("pages_per_range"='128');
-
-
---
--- Name: bank_transactions_2025_date_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "bank_transactions_2025_date_idx" ON "public"."bank_transactions_2025" USING "btree" ("date");
+CREATE INDEX "bank_transactions_2026_created_at_idx" ON "public"."bank_transactions_2026" USING "btree" ("created_at");
 
 
 --
--- Name: bank_transactions_2025_integration_ref_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: bank_transactions_2026_created_at_idx1; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "bank_transactions_2025_integration_ref_idx" ON "public"."bank_transactions_2025" USING "btree" ("integration_ref");
+CREATE INDEX "bank_transactions_2026_created_at_idx1" ON "public"."bank_transactions_2026" USING "brin" ("created_at") WITH ("pages_per_range"='128');
 
 
 --
--- Name: bank_transactions_2025_type_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: bank_transactions_2026_date_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "bank_transactions_2025_type_idx" ON "public"."bank_transactions_2025" USING "btree" ("type");
+CREATE INDEX "bank_transactions_2026_date_idx" ON "public"."bank_transactions_2026" USING "btree" ("date");
+
+
+--
+-- Name: bank_transactions_2026_integration_ref_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "bank_transactions_2026_integration_ref_idx" ON "public"."bank_transactions_2026" USING "btree" ("integration_ref");
+
+
+--
+-- Name: bank_transactions_2026_type_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "bank_transactions_2026_type_idx" ON "public"."bank_transactions_2026" USING "btree" ("type");
 
 
 --
@@ -12224,45 +12224,45 @@ CREATE INDEX "cash_register_transactions_2024_type_idx" ON "public"."cash_regist
 
 
 --
--- Name: cash_register_transactions_2025_cash_register_id_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026_cash_register_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "cash_register_transactions_2025_cash_register_id_idx" ON "public"."cash_register_transactions_2025" USING "btree" ("cash_register_id");
-
-
---
--- Name: cash_register_transactions_2025_created_at_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "cash_register_transactions_2025_created_at_idx" ON "public"."cash_register_transactions_2025" USING "btree" ("created_at");
+CREATE INDEX "cash_register_transactions_2026_cash_register_id_idx" ON "public"."cash_register_transactions_2026" USING "btree" ("cash_register_id");
 
 
 --
--- Name: cash_register_transactions_2025_created_at_idx1; Type: INDEX; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026_created_at_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "cash_register_transactions_2025_created_at_idx1" ON "public"."cash_register_transactions_2025" USING "brin" ("created_at") WITH ("pages_per_range"='128');
-
-
---
--- Name: cash_register_transactions_2025_date_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "cash_register_transactions_2025_date_idx" ON "public"."cash_register_transactions_2025" USING "btree" ("date");
+CREATE INDEX "cash_register_transactions_2026_created_at_idx" ON "public"."cash_register_transactions_2026" USING "btree" ("created_at");
 
 
 --
--- Name: cash_register_transactions_2025_integration_ref_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026_created_at_idx1; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "cash_register_transactions_2025_integration_ref_idx" ON "public"."cash_register_transactions_2025" USING "btree" ("integration_ref");
+CREATE INDEX "cash_register_transactions_2026_created_at_idx1" ON "public"."cash_register_transactions_2026" USING "brin" ("created_at") WITH ("pages_per_range"='128');
 
 
 --
--- Name: cash_register_transactions_2025_type_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026_date_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "cash_register_transactions_2025_type_idx" ON "public"."cash_register_transactions_2025" USING "btree" ("type");
+CREATE INDEX "cash_register_transactions_2026_date_idx" ON "public"."cash_register_transactions_2026" USING "btree" ("date");
+
+
+--
+-- Name: cash_register_transactions_2026_integration_ref_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "cash_register_transactions_2026_integration_ref_idx" ON "public"."cash_register_transactions_2026" USING "btree" ("integration_ref");
+
+
+--
+-- Name: cash_register_transactions_2026_type_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "cash_register_transactions_2026_type_idx" ON "public"."cash_register_transactions_2026" USING "btree" ("type");
 
 
 --
@@ -12714,38 +12714,38 @@ CREATE INDEX "credit_card_transactions_2024_type_idx" ON "public"."credit_card_t
 
 
 --
--- Name: credit_card_transactions_2025_created_at_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026_created_at_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "credit_card_transactions_2025_created_at_idx" ON "public"."credit_card_transactions_2025" USING "btree" ("created_at");
-
-
---
--- Name: credit_card_transactions_2025_credit_card_id_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "credit_card_transactions_2025_credit_card_id_idx" ON "public"."credit_card_transactions_2025" USING "btree" ("credit_card_id");
+CREATE INDEX "credit_card_transactions_2026_created_at_idx" ON "public"."credit_card_transactions_2026" USING "btree" ("created_at");
 
 
 --
--- Name: credit_card_transactions_2025_date_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026_credit_card_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "credit_card_transactions_2025_date_idx" ON "public"."credit_card_transactions_2025" USING "btree" ("date");
-
-
---
--- Name: credit_card_transactions_2025_integration_ref_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "credit_card_transactions_2025_integration_ref_idx" ON "public"."credit_card_transactions_2025" USING "btree" ("integration_ref");
+CREATE INDEX "credit_card_transactions_2026_credit_card_id_idx" ON "public"."credit_card_transactions_2026" USING "btree" ("credit_card_id");
 
 
 --
--- Name: credit_card_transactions_2025_type_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026_date_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "credit_card_transactions_2025_type_idx" ON "public"."credit_card_transactions_2025" USING "btree" ("type");
+CREATE INDEX "credit_card_transactions_2026_date_idx" ON "public"."credit_card_transactions_2026" USING "btree" ("date");
+
+
+--
+-- Name: credit_card_transactions_2026_integration_ref_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "credit_card_transactions_2026_integration_ref_idx" ON "public"."credit_card_transactions_2026" USING "btree" ("integration_ref");
+
+
+--
+-- Name: credit_card_transactions_2026_type_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "credit_card_transactions_2026_type_idx" ON "public"."credit_card_transactions_2026" USING "btree" ("type");
 
 
 --
@@ -13316,10 +13316,10 @@ CREATE INDEX "idx_kasa_trans_2024_basic" ON "public"."cash_register_transactions
 
 
 --
--- Name: idx_kasa_trans_2025_basic; Type: INDEX; Schema: public; Owner: -
+-- Name: idx_kasa_trans_2026_basic; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "idx_kasa_trans_2025_basic" ON "public"."cash_register_transactions_2025" USING "btree" ("cash_register_id", "date");
+CREATE INDEX "idx_kasa_trans_2026_basic" ON "public"."cash_register_transactions_2026" USING "btree" ("cash_register_id", "date");
 
 
 --
@@ -14079,38 +14079,38 @@ CREATE INDEX "production_stock_movements_2024_warehouse_id_idx" ON "public"."pro
 
 
 --
--- Name: production_stock_movements_2025_created_at_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: production_stock_movements_2026_created_at_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "production_stock_movements_2025_created_at_idx" ON "public"."production_stock_movements_2025" USING "brin" ("created_at");
-
-
---
--- Name: production_stock_movements_2025_movement_date_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "production_stock_movements_2025_movement_date_idx" ON "public"."production_stock_movements_2025" USING "btree" ("movement_date");
+CREATE INDEX "production_stock_movements_2026_created_at_idx" ON "public"."production_stock_movements_2026" USING "brin" ("created_at");
 
 
 --
--- Name: production_stock_movements_2025_production_id_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: production_stock_movements_2026_movement_date_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "production_stock_movements_2025_production_id_idx" ON "public"."production_stock_movements_2025" USING "btree" ("production_id");
-
-
---
--- Name: production_stock_movements_2025_related_shipment_ids_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "production_stock_movements_2025_related_shipment_ids_idx" ON "public"."production_stock_movements_2025" USING "gin" ("related_shipment_ids");
+CREATE INDEX "production_stock_movements_2026_movement_date_idx" ON "public"."production_stock_movements_2026" USING "btree" ("movement_date");
 
 
 --
--- Name: production_stock_movements_2025_warehouse_id_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: production_stock_movements_2026_production_id_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "production_stock_movements_2025_warehouse_id_idx" ON "public"."production_stock_movements_2025" USING "btree" ("warehouse_id");
+CREATE INDEX "production_stock_movements_2026_production_id_idx" ON "public"."production_stock_movements_2026" USING "btree" ("production_id");
+
+
+--
+-- Name: production_stock_movements_2026_related_shipment_ids_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "production_stock_movements_2026_related_shipment_ids_idx" ON "public"."production_stock_movements_2026" USING "gin" ("related_shipment_ids");
+
+
+--
+-- Name: production_stock_movements_2026_warehouse_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "production_stock_movements_2026_warehouse_id_idx" ON "public"."production_stock_movements_2026" USING "btree" ("warehouse_id");
 
 
 --
@@ -14576,52 +14576,52 @@ CREATE INDEX "quotes_y2026_m03_tarih_idx" ON "public"."quotes_y2026_m03" USING "
 
 
 --
--- Name: stock_movements_2025_created_at_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: stock_movements_2026_created_at_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "stock_movements_2025_created_at_idx" ON "public"."stock_movements_2025" USING "brin" ("created_at") WITH ("pages_per_range"='128');
-
-
---
--- Name: stock_movements_2025_integration_ref_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "stock_movements_2025_integration_ref_idx" ON "public"."stock_movements_2025" USING "btree" ("integration_ref");
+CREATE INDEX "stock_movements_2026_created_at_idx" ON "public"."stock_movements_2026" USING "brin" ("created_at") WITH ("pages_per_range"='128');
 
 
 --
--- Name: stock_movements_2025_movement_date_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: stock_movements_2026_integration_ref_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "stock_movements_2025_movement_date_idx" ON "public"."stock_movements_2025" USING "btree" ("movement_date");
-
-
---
--- Name: stock_movements_2025_movement_date_idx1; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "stock_movements_2025_movement_date_idx1" ON "public"."stock_movements_2025" USING "brin" ("movement_date") WITH ("pages_per_range"='128');
+CREATE INDEX "stock_movements_2026_integration_ref_idx" ON "public"."stock_movements_2026" USING "btree" ("integration_ref");
 
 
 --
--- Name: stock_movements_2025_product_id_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: stock_movements_2026_movement_date_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "stock_movements_2025_product_id_idx" ON "public"."stock_movements_2025" USING "btree" ("product_id");
-
-
---
--- Name: stock_movements_2025_shipment_id_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "stock_movements_2025_shipment_id_idx" ON "public"."stock_movements_2025" USING "btree" ("shipment_id");
+CREATE INDEX "stock_movements_2026_movement_date_idx" ON "public"."stock_movements_2026" USING "btree" ("movement_date");
 
 
 --
--- Name: stock_movements_2025_warehouse_id_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: stock_movements_2026_movement_date_idx1; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "stock_movements_2025_warehouse_id_idx" ON "public"."stock_movements_2025" USING "btree" ("warehouse_id");
+CREATE INDEX "stock_movements_2026_movement_date_idx1" ON "public"."stock_movements_2026" USING "brin" ("movement_date") WITH ("pages_per_range"='128');
+
+
+--
+-- Name: stock_movements_2026_product_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "stock_movements_2026_product_id_idx" ON "public"."stock_movements_2026" USING "btree" ("product_id");
+
+
+--
+-- Name: stock_movements_2026_shipment_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "stock_movements_2026_shipment_id_idx" ON "public"."stock_movements_2026" USING "btree" ("shipment_id");
+
+
+--
+-- Name: stock_movements_2026_warehouse_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "stock_movements_2026_warehouse_id_idx" ON "public"."stock_movements_2026" USING "btree" ("warehouse_id");
 
 
 --
@@ -14989,24 +14989,24 @@ CREATE INDEX "user_transactions_2024_user_id_idx" ON "public"."user_transactions
 
 
 --
--- Name: user_transactions_2025_date_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: user_transactions_2026_date_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "user_transactions_2025_date_idx" ON "public"."user_transactions_2025" USING "brin" ("date") WITH ("pages_per_range"='128');
-
-
---
--- Name: user_transactions_2025_type_idx; Type: INDEX; Schema: public; Owner: -
---
-
-CREATE INDEX "user_transactions_2025_type_idx" ON "public"."user_transactions_2025" USING "btree" ("type");
+CREATE INDEX "user_transactions_2026_date_idx" ON "public"."user_transactions_2026" USING "brin" ("date") WITH ("pages_per_range"='128');
 
 
 --
--- Name: user_transactions_2025_user_id_idx; Type: INDEX; Schema: public; Owner: -
+-- Name: user_transactions_2026_type_idx; Type: INDEX; Schema: public; Owner: -
 --
 
-CREATE INDEX "user_transactions_2025_user_id_idx" ON "public"."user_transactions_2025" USING "btree" ("user_id");
+CREATE INDEX "user_transactions_2026_type_idx" ON "public"."user_transactions_2026" USING "btree" ("type");
+
+
+--
+-- Name: user_transactions_2026_user_id_idx; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX "user_transactions_2026_user_id_idx" ON "public"."user_transactions_2026" USING "btree" ("user_id");
 
 
 --
@@ -15283,52 +15283,52 @@ ALTER INDEX "public"."idx_bt_type" ATTACH PARTITION "public"."bank_transactions_
 
 
 --
--- Name: bank_transactions_2025_bank_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: bank_transactions_2026_bank_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_bt_bank_id" ATTACH PARTITION "public"."bank_transactions_2025_bank_id_idx";
-
-
---
--- Name: bank_transactions_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_bt_created_at" ATTACH PARTITION "public"."bank_transactions_2025_created_at_idx";
+ALTER INDEX "public"."idx_bt_bank_id" ATTACH PARTITION "public"."bank_transactions_2026_bank_id_idx";
 
 
 --
--- Name: bank_transactions_2025_created_at_idx1; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: bank_transactions_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_bt_created_at_brin" ATTACH PARTITION "public"."bank_transactions_2025_created_at_idx1";
-
-
---
--- Name: bank_transactions_2025_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_bt_date" ATTACH PARTITION "public"."bank_transactions_2025_date_idx";
+ALTER INDEX "public"."idx_bt_created_at" ATTACH PARTITION "public"."bank_transactions_2026_created_at_idx";
 
 
 --
--- Name: bank_transactions_2025_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: bank_transactions_2026_created_at_idx1; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_bt_integration_ref" ATTACH PARTITION "public"."bank_transactions_2025_integration_ref_idx";
-
-
---
--- Name: bank_transactions_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."bank_transactions_pkey" ATTACH PARTITION "public"."bank_transactions_2025_pkey";
+ALTER INDEX "public"."idx_bt_created_at_brin" ATTACH PARTITION "public"."bank_transactions_2026_created_at_idx1";
 
 
 --
--- Name: bank_transactions_2025_type_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: bank_transactions_2026_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_bt_type" ATTACH PARTITION "public"."bank_transactions_2025_type_idx";
+ALTER INDEX "public"."idx_bt_date" ATTACH PARTITION "public"."bank_transactions_2026_date_idx";
+
+
+--
+-- Name: bank_transactions_2026_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_bt_integration_ref" ATTACH PARTITION "public"."bank_transactions_2026_integration_ref_idx";
+
+
+--
+-- Name: bank_transactions_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."bank_transactions_pkey" ATTACH PARTITION "public"."bank_transactions_2026_pkey";
+
+
+--
+-- Name: bank_transactions_2026_type_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_bt_type" ATTACH PARTITION "public"."bank_transactions_2026_type_idx";
 
 
 --
@@ -15724,52 +15724,52 @@ ALTER INDEX "public"."idx_crt_type" ATTACH PARTITION "public"."cash_register_tra
 
 
 --
--- Name: cash_register_transactions_2025_cash_register_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026_cash_register_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_crt_cash_register_id" ATTACH PARTITION "public"."cash_register_transactions_2025_cash_register_id_idx";
-
-
---
--- Name: cash_register_transactions_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_crt_created_at" ATTACH PARTITION "public"."cash_register_transactions_2025_created_at_idx";
+ALTER INDEX "public"."idx_crt_cash_register_id" ATTACH PARTITION "public"."cash_register_transactions_2026_cash_register_id_idx";
 
 
 --
--- Name: cash_register_transactions_2025_created_at_idx1; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_crt_created_at_brin" ATTACH PARTITION "public"."cash_register_transactions_2025_created_at_idx1";
-
-
---
--- Name: cash_register_transactions_2025_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_crt_date" ATTACH PARTITION "public"."cash_register_transactions_2025_date_idx";
+ALTER INDEX "public"."idx_crt_created_at" ATTACH PARTITION "public"."cash_register_transactions_2026_created_at_idx";
 
 
 --
--- Name: cash_register_transactions_2025_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026_created_at_idx1; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_crt_integration_ref" ATTACH PARTITION "public"."cash_register_transactions_2025_integration_ref_idx";
-
-
---
--- Name: cash_register_transactions_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."cash_register_transactions_pkey" ATTACH PARTITION "public"."cash_register_transactions_2025_pkey";
+ALTER INDEX "public"."idx_crt_created_at_brin" ATTACH PARTITION "public"."cash_register_transactions_2026_created_at_idx1";
 
 
 --
--- Name: cash_register_transactions_2025_type_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: cash_register_transactions_2026_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_crt_type" ATTACH PARTITION "public"."cash_register_transactions_2025_type_idx";
+ALTER INDEX "public"."idx_crt_date" ATTACH PARTITION "public"."cash_register_transactions_2026_date_idx";
+
+
+--
+-- Name: cash_register_transactions_2026_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_crt_integration_ref" ATTACH PARTITION "public"."cash_register_transactions_2026_integration_ref_idx";
+
+
+--
+-- Name: cash_register_transactions_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."cash_register_transactions_pkey" ATTACH PARTITION "public"."cash_register_transactions_2026_pkey";
+
+
+--
+-- Name: cash_register_transactions_2026_type_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_crt_type" ATTACH PARTITION "public"."cash_register_transactions_2026_type_idx";
 
 
 --
@@ -16228,45 +16228,45 @@ ALTER INDEX "public"."idx_cct_type" ATTACH PARTITION "public"."credit_card_trans
 
 
 --
--- Name: credit_card_transactions_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_cct_created_at" ATTACH PARTITION "public"."credit_card_transactions_2025_created_at_idx";
-
-
---
--- Name: credit_card_transactions_2025_credit_card_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_cct_credit_card_id" ATTACH PARTITION "public"."credit_card_transactions_2025_credit_card_id_idx";
+ALTER INDEX "public"."idx_cct_created_at" ATTACH PARTITION "public"."credit_card_transactions_2026_created_at_idx";
 
 
 --
--- Name: credit_card_transactions_2025_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026_credit_card_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_cct_date" ATTACH PARTITION "public"."credit_card_transactions_2025_date_idx";
-
-
---
--- Name: credit_card_transactions_2025_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_cct_integration_ref" ATTACH PARTITION "public"."credit_card_transactions_2025_integration_ref_idx";
+ALTER INDEX "public"."idx_cct_credit_card_id" ATTACH PARTITION "public"."credit_card_transactions_2026_credit_card_id_idx";
 
 
 --
--- Name: credit_card_transactions_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."credit_card_transactions_pkey" ATTACH PARTITION "public"."credit_card_transactions_2025_pkey";
+ALTER INDEX "public"."idx_cct_date" ATTACH PARTITION "public"."credit_card_transactions_2026_date_idx";
 
 
 --
--- Name: credit_card_transactions_2025_type_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: credit_card_transactions_2026_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_cct_type" ATTACH PARTITION "public"."credit_card_transactions_2025_type_idx";
+ALTER INDEX "public"."idx_cct_integration_ref" ATTACH PARTITION "public"."credit_card_transactions_2026_integration_ref_idx";
+
+
+--
+-- Name: credit_card_transactions_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."credit_card_transactions_pkey" ATTACH PARTITION "public"."credit_card_transactions_2026_pkey";
+
+
+--
+-- Name: credit_card_transactions_2026_type_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_cct_type" ATTACH PARTITION "public"."credit_card_transactions_2026_type_idx";
 
 
 --
@@ -16872,45 +16872,45 @@ ALTER INDEX "public"."idx_psm_warehouse_id" ATTACH PARTITION "public"."productio
 
 
 --
--- Name: production_stock_movements_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: production_stock_movements_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_psm_created_at_brin" ATTACH PARTITION "public"."production_stock_movements_2025_created_at_idx";
-
-
---
--- Name: production_stock_movements_2025_movement_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_psm_date" ATTACH PARTITION "public"."production_stock_movements_2025_movement_date_idx";
+ALTER INDEX "public"."idx_psm_created_at_brin" ATTACH PARTITION "public"."production_stock_movements_2026_created_at_idx";
 
 
 --
--- Name: production_stock_movements_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: production_stock_movements_2026_movement_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."production_stock_movements_pkey" ATTACH PARTITION "public"."production_stock_movements_2025_pkey";
-
-
---
--- Name: production_stock_movements_2025_production_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_psm_production_id" ATTACH PARTITION "public"."production_stock_movements_2025_production_id_idx";
+ALTER INDEX "public"."idx_psm_date" ATTACH PARTITION "public"."production_stock_movements_2026_movement_date_idx";
 
 
 --
--- Name: production_stock_movements_2025_related_shipment_ids_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: production_stock_movements_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_psm_related_shipments_gin" ATTACH PARTITION "public"."production_stock_movements_2025_related_shipment_ids_idx";
+ALTER INDEX "public"."production_stock_movements_pkey" ATTACH PARTITION "public"."production_stock_movements_2026_pkey";
 
 
 --
--- Name: production_stock_movements_2025_warehouse_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: production_stock_movements_2026_production_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_psm_warehouse_id" ATTACH PARTITION "public"."production_stock_movements_2025_warehouse_id_idx";
+ALTER INDEX "public"."idx_psm_production_id" ATTACH PARTITION "public"."production_stock_movements_2026_production_id_idx";
+
+
+--
+-- Name: production_stock_movements_2026_related_shipment_ids_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_psm_related_shipments_gin" ATTACH PARTITION "public"."production_stock_movements_2026_related_shipment_ids_idx";
+
+
+--
+-- Name: production_stock_movements_2026_warehouse_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_psm_warehouse_id" ATTACH PARTITION "public"."production_stock_movements_2026_warehouse_id_idx";
 
 
 --
@@ -17481,59 +17481,59 @@ ALTER INDEX "public"."idx_quotes_tarih" ATTACH PARTITION "public"."quotes_y2026_
 
 
 --
--- Name: stock_movements_2025_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: stock_movements_2026_created_at_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_sm_created_at_brin" ATTACH PARTITION "public"."stock_movements_2025_created_at_idx";
-
-
---
--- Name: stock_movements_2025_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_sm_ref" ATTACH PARTITION "public"."stock_movements_2025_integration_ref_idx";
+ALTER INDEX "public"."idx_sm_created_at_brin" ATTACH PARTITION "public"."stock_movements_2026_created_at_idx";
 
 
 --
--- Name: stock_movements_2025_movement_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: stock_movements_2026_integration_ref_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_sm_date" ATTACH PARTITION "public"."stock_movements_2025_movement_date_idx";
-
-
---
--- Name: stock_movements_2025_movement_date_idx1; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_sm_date_brin" ATTACH PARTITION "public"."stock_movements_2025_movement_date_idx1";
+ALTER INDEX "public"."idx_sm_ref" ATTACH PARTITION "public"."stock_movements_2026_integration_ref_idx";
 
 
 --
--- Name: stock_movements_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: stock_movements_2026_movement_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."stock_movements_pkey" ATTACH PARTITION "public"."stock_movements_2025_pkey";
-
-
---
--- Name: stock_movements_2025_product_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."idx_sm_product_id" ATTACH PARTITION "public"."stock_movements_2025_product_id_idx";
+ALTER INDEX "public"."idx_sm_date" ATTACH PARTITION "public"."stock_movements_2026_movement_date_idx";
 
 
 --
--- Name: stock_movements_2025_shipment_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: stock_movements_2026_movement_date_idx1; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_sm_shipment_id" ATTACH PARTITION "public"."stock_movements_2025_shipment_id_idx";
+ALTER INDEX "public"."idx_sm_date_brin" ATTACH PARTITION "public"."stock_movements_2026_movement_date_idx1";
 
 
 --
--- Name: stock_movements_2025_warehouse_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: stock_movements_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_sm_warehouse_id" ATTACH PARTITION "public"."stock_movements_2025_warehouse_id_idx";
+ALTER INDEX "public"."stock_movements_pkey" ATTACH PARTITION "public"."stock_movements_2026_pkey";
+
+
+--
+-- Name: stock_movements_2026_product_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_sm_product_id" ATTACH PARTITION "public"."stock_movements_2026_product_id_idx";
+
+
+--
+-- Name: stock_movements_2026_shipment_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_sm_shipment_id" ATTACH PARTITION "public"."stock_movements_2026_shipment_id_idx";
+
+
+--
+-- Name: stock_movements_2026_warehouse_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_sm_warehouse_id" ATTACH PARTITION "public"."stock_movements_2026_warehouse_id_idx";
 
 
 --
@@ -17957,31 +17957,31 @@ ALTER INDEX "public"."idx_ut_user_id" ATTACH PARTITION "public"."user_transactio
 
 
 --
--- Name: user_transactions_2025_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: user_transactions_2026_date_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_ut_date_brin" ATTACH PARTITION "public"."user_transactions_2025_date_idx";
-
-
---
--- Name: user_transactions_2025_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
---
-
-ALTER INDEX "public"."user_transactions_pkey" ATTACH PARTITION "public"."user_transactions_2025_pkey";
+ALTER INDEX "public"."idx_ut_date_brin" ATTACH PARTITION "public"."user_transactions_2026_date_idx";
 
 
 --
--- Name: user_transactions_2025_type_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: user_transactions_2026_pkey; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_ut_type" ATTACH PARTITION "public"."user_transactions_2025_type_idx";
+ALTER INDEX "public"."user_transactions_pkey" ATTACH PARTITION "public"."user_transactions_2026_pkey";
 
 
 --
--- Name: user_transactions_2025_user_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+-- Name: user_transactions_2026_type_idx; Type: INDEX ATTACH; Schema: public; Owner: -
 --
 
-ALTER INDEX "public"."idx_ut_user_id" ATTACH PARTITION "public"."user_transactions_2025_user_id_idx";
+ALTER INDEX "public"."idx_ut_type" ATTACH PARTITION "public"."user_transactions_2026_type_idx";
+
+
+--
+-- Name: user_transactions_2026_user_id_idx; Type: INDEX ATTACH; Schema: public; Owner: -
+--
+
+ALTER INDEX "public"."idx_ut_user_id" ATTACH PARTITION "public"."user_transactions_2026_user_id_idx";
 
 
 --

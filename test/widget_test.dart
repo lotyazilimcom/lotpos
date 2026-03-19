@@ -1,10 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
-import 'package:patisyov10/yardimcilar/ceviri/tr.dart';
-import 'package:patisyov10/yardimcilar/ceviri/en.dart';
-import 'package:patisyov10/yardimcilar/ceviri/ar.dart';
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/yardimcilar/ceviri/tr.dart';
+import 'package:lospos/yardimcilar/ceviri/en.dart';
+import 'package:lospos/yardimcilar/ceviri/ar.dart';
 
 void main() {
   test('tr() core çevirileri döner', () {

@@ -40,7 +40,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
   BaglantiYoneticisi._internal();
 
   static bool _supabaseInitDone = false;
-  static const String _prefExpectedClusterIdKey = 'patisyo_expected_cluster_id';
+  static const String _prefExpectedClusterIdKey = 'lospos_expected_cluster_id';
 
   BaglantiDurumu _durum = BaglantiDurumu.baslangic;
   BaglantiDurumu get durum => _durum;
@@ -87,6 +87,14 @@ class BaglantiYoneticisi extends ChangeNotifier {
 
       // 1. Temel yapılandırmayı yükle (Zaten main'de yüklendi ama burada garantiye alıyoruz)
       await VeritabaniYapilandirma.loadPersistedConfig();
+      final mode = VeritabaniYapilandirma.connectionMode;
+      final savedHost = VeritabaniYapilandirma.discoveredHost;
+      final uzakYerelSunucu =
+          (mode == 'local' || mode == 'hybrid') &&
+          !VeritabaniYapilandirma.yerelAnaSunucuHostMu(savedHost);
+      if (!uzakYerelSunucu) {
+        OturumServisi().uzakSunucuBaglantiBilgisiniTemizle();
+      }
 
       // 2. Platform kontrolü
       if (kIsWeb) {
@@ -108,7 +116,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     final kurulumTamamlandi =
         prefs.getBool('mobil_kurulum_tamamlandi') ?? false;
-    final hasSavedConnectionMode = prefs.containsKey('patisyo_connection_mode');
+    final hasSavedConnectionMode = prefs.containsKey('lospos_connection_mode');
 
     // İlk kurulum tamamlanmadıysa kullanıcıyı mutlaka kurulum ekranına yönlendir.
     // Eski sürümden gelen cihazlarda bağlantı tercihi zaten varsa bir kez normalize ediyoruz.
@@ -152,6 +160,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
       );
       if (bagli) {
         _oncedenDogrulanmisHost = hedefHost;
+        await _yerelSunucuMetasiniUygulaBestEffort(hedefHost);
       }
 
       if (!bagli) {
@@ -292,6 +301,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
       );
       if (bagli) {
         _oncedenDogrulanmisHost = savedHost;
+        await _yerelSunucuMetasiniUygulaBestEffort(savedHost);
       }
 
       if (!bagli) {
@@ -550,11 +560,39 @@ class BaglantiYoneticisi extends ChangeNotifier {
   Future<void> _mdnsLisansBilgisiniUygula(Service service) async {
     try {
       final txt = service.txt;
-      if (txt == null || txt['isPro'] == null) return;
-      final inherited = utf8.decode(txt['isPro']!) == 'true';
-      await LisansServisi().setInheritedPro(inherited);
+      if (txt != null && txt['isPro'] != null) {
+        final inherited = utf8.decode(txt['isPro']!) == 'true';
+        await LisansServisi().setInheritedPro(inherited);
+      }
+
+      final meta = LocalNetworkDiscoveryService.serviceMetasiniCoz(service);
+      if (meta.hasAdvertisedData) {
+        OturumServisi().uzakSunucuBaglantiBilgisiniGuncelle(
+          aktifVeritabaniAdi: meta.activeDatabaseName,
+          aktifSirketKodu: meta.activeCompanyCode,
+          aktifSirketAdi: meta.activeCompanyName,
+          veritabaniEtiketi: meta.databaseLabel,
+        );
+      }
     } catch (e) {
       debugPrint('BaglantiYoneticisi: mDNS lisans bilgisi çözümlenemedi: $e');
+    }
+  }
+
+  Future<void> _yerelSunucuMetasiniUygulaBestEffort(String host) async {
+    final normalizedHost = host.trim();
+    if (normalizedHost.isEmpty) return;
+    try {
+      final service = await LocalNetworkDiscoveryService().sunucuMetasiniGetir(
+        normalizedHost,
+      );
+      if (service != null) {
+        await _mdnsLisansBilgisiniUygula(service);
+      }
+    } catch (e) {
+      debugPrint(
+        'BaglantiYoneticisi: Yerel sunucu metası alınamadı ($normalizedHost): $e',
+      );
     }
   }
 

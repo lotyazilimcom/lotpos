@@ -14,7 +14,7 @@ import '../../servisler/senetler_veritabani_servisi.dart';
 import '../../bilesenler/tek_tarih_secici_dialog.dart';
 import '../carihesaplar/modeller/cari_hesap_model.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 
 class SenetCiroSayfasi extends StatefulWidget {
   final SenetModel senet;
@@ -853,7 +853,7 @@ class _SenetCiroSayfasiState extends State<SenetCiroSayfasi> {
           ],
         ),
         const SizedBox(height: 4),
-        PatisyoRawAutocomplete<Map<String, String>>(
+        LosposRawAutocomplete<Map<String, String>>(
           focusNode: focusNode,
           textEditingController: controller,
           optionsBuilder: (TextEditingValue textEditingValue) async {

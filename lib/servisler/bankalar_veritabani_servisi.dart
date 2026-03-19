@@ -33,7 +33,7 @@ class BankalarVeritabaniServisi {
   Completer<void>? _initCompleter;
   int _initToken = 0;
 
-  static const String _defaultCompanyId = 'patisyo2025';
+  static const String _defaultCompanyId = 'lospos2026';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
 
   /// [2026 FIX] Türkçe karakterleri ASCII karşılıklarına normalize eder.
@@ -415,7 +415,7 @@ class BankalarVeritabaniServisi {
         ''');
     } catch (_) {}
 
-    // [2025 HYPERSCALE] Create Bank Transactions Table - Native Partitioning Support
+    // [2026 HYPERSCALE] Create Bank Transactions Table - Native Partitioning Support
 
     try {
       // 1. Ana tablonun durumunu kontrol et
@@ -620,7 +620,7 @@ class BankalarVeritabaniServisi {
       rethrow;
     }
 
-    // [2025 JET] Kritik olmayan tüm işlemler arka plana
+    // [2026 JET] Kritik olmayan tüm işlemler arka plana
     if (_config.allowBackgroundDbMaintenance) {
       unawaited(() async {
         try {
@@ -1924,7 +1924,7 @@ class BankalarVeritabaniServisi {
     if (!_isInitialized) await baslat();
     if (_pool == null) return [];
 
-    // [2025 HYBRID PAGINATION] Keyser cursor for 10B rows
+    // [2026 HYBRID PAGINATION] Keyser cursor for 10B rows
     String query =
         "SELECT t.*, b.code as banka_kodu, b.name as banka_adi, b.currency as para_birimi FROM bank_transactions t LEFT JOIN banks b ON t.bank_id = b.id WHERE t.bank_id = @bankaId AND COALESCE(t.company_id, '$_defaultCompanyId') = @companyId";
     Map<String, dynamic> params = {'bankaId': bankaId, 'companyId': _companyId};
@@ -2583,7 +2583,7 @@ class BankalarVeritabaniServisi {
       // 0. VALIDATION: Eksi Bakiye Kontrolü (Ayarlara Bağlı)
       if (islemTuru != 'Tahsilat') {
         try {
-          // Session'ı ÇIKAR, çünkü ayarlar farklı veritabanında (patisyosettings)
+          // Session'ı ÇIKAR, çünkü ayarlar farklı veritabanında (lospossettings)
           final genelAyarlar = await AyarlarVeritabaniServisi()
               .genelAyarlariGetir();
           if (genelAyarlar.eksiBakiyeKontrol) {
@@ -2872,7 +2872,7 @@ class BankalarVeritabaniServisi {
     return yeniIslemId;
   }
 
-  /// [2025 SMART UPDATE] Banka İşlemi Güncelleme (Silmeden)
+  /// [2026 SMART UPDATE] Banka İşlemi Güncelleme (Silmeden)
   Future<void> bankaIslemGuncelleByRef({
     required String ref,
     required double tutar,
@@ -3217,7 +3217,7 @@ class BankalarVeritabaniServisi {
           newCariId = await cariServis.cariIdGetir(cariKodu, session: s);
         }
 
-        // [2025 SMART UPDATE] Cari Değişmediyse ve Ref Varsa -> Update
+        // [2026 SMART UPDATE] Cari Değişmediyse ve Ref Varsa -> Update
         if (oldCariId != null &&
             newCariId != null &&
             oldCariId == newCariId &&

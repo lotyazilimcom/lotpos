@@ -4,7 +4,7 @@ import 'dart:async';
 
 import 'package:intl/intl.dart';
 import '../../../bilesenler/tek_tarih_secici_dialog.dart';
-import '../../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../../bilesenler/lospos_raw_autocomplete.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../servisler/depolar_veritabani_servisi.dart';
 import '../../../servisler/urunler_veritabani_servisi.dart';
@@ -1275,7 +1275,7 @@ class _SevkiyatOlusturSayfasiState extends State<SevkiyatOlusturSayfasi> {
         SizedBox(height: compact ? 8 : 10),
         LayoutBuilder(
           builder: (context, constraints) {
-            return PatisyoRawAutocomplete<UrunModel>(
+            return LosposRawAutocomplete<UrunModel>(
               focusNode: focusNode,
               textEditingController: controller,
               optionsBuilder: (TextEditingValue textEditingValue) async {
@@ -1805,7 +1805,9 @@ class _SevkiyatOlusturSayfasiState extends State<SevkiyatOlusturSayfasi> {
               focusNode: focusNode,
               autofocus: autoFocus,
               readOnly: readOnly,
-              mouseCursor: ((readOnly) && ((onTap) != null)) ? SystemMouseCursors.click : SystemMouseCursors.text,
+              mouseCursor: ((readOnly) && ((onTap) != null))
+                  ? SystemMouseCursors.click
+                  : SystemMouseCursors.text,
               onTap: onTap,
               onFieldSubmitted: onSubmitted,
               keyboardType: isNumeric

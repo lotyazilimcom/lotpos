@@ -273,15 +273,20 @@ class _CeviriDuzenleDialogState extends State<CeviriDuzenleDialog> {
                                       ),
                                       MouseRegion(
                                         cursor: SystemMouseCursors.click,
-                                        child: MouseRegion(cursor: SystemMouseCursors.click, hitTestBehavior: HitTestBehavior.deferToChild, child: GestureDetector(
-                                          onTap: () =>
-                                              _removeTranslation(index),
-                                          child: const Icon(
-                                            Icons.close,
-                                            size: 18,
-                                            color: Color(0xFF5F6368),
+                                        child: MouseRegion(
+                                          cursor: SystemMouseCursors.click,
+                                          hitTestBehavior:
+                                              HitTestBehavior.deferToChild,
+                                          child: GestureDetector(
+                                            onTap: () =>
+                                                _removeTranslation(index),
+                                            child: const Icon(
+                                              Icons.close,
+                                              size: 18,
+                                              color: Color(0xFF5F6368),
+                                            ),
                                           ),
-                                        )),
+                                        ),
                                       ),
                                     ],
                                   ),

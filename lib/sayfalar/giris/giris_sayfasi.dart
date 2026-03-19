@@ -23,8 +23,11 @@ import '../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../ayarlar/sirketayarlari/modeller/sirket_ayarlari_model.dart';
 import '../ayarlar/kullanicilar/modeller/kullanici_model.dart';
 import '../../main.dart';
+import '../../servisler/lisans_servisi.dart';
+import '../../servisler/local_network_discovery_service.dart';
 import '../../servisler/oturum_servisi.dart';
 import '../../servisler/senetler_veritabani_servisi.dart';
+import '../../servisler/sirket_veritabani_kimligi.dart';
 import '../../servisler/veritabani_aktarim_servisi.dart';
 import '../../servisler/veritabani_baglanti_sifirlayici.dart';
 import '../../servisler/veritabani_yapilandirma.dart';
@@ -72,7 +75,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     final cfg = VeritabaniYapilandirma();
     final mode = VeritabaniYapilandirma.connectionMode;
     // Host/port + DB adı ile bağlamı ayırt et (tek cihazda farklı DB'ler).
-    return 'patisyo_warmup_done_${mode}_${cfg.host}_${cfg.port}_${OturumServisi().aktifVeritabaniAdi}';
+    return 'lospos_warmup_done_${mode}_${cfg.host}_${cfg.port}_${OturumServisi().aktifVeritabaniAdi}';
   }
 
   Future<_YerelDbProbeSonucu> _yerelDbHazirMi(String dbName) async {
@@ -111,10 +114,116 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   }
 
   String _yerelSirketVeritabaniAdi(SirketAyarlariModel sirket) {
-    final kod = sirket.kod.trim();
-    if (kod == 'patisyo2025') return 'patisyo2025';
-    final safeCode = kod.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
-    return 'patisyo_$safeCode';
+    return SirketVeritabaniKimligi.databaseNameFromCompanyCode(sirket.kod);
+  }
+
+  Future<void> _uzakSunucuMetasiniYenileBestEffort() async {
+    final mode = VeritabaniYapilandirma.connectionMode;
+    if (mode != 'local' && mode != 'hybrid') return;
+
+    final host = (VeritabaniYapilandirma.discoveredHost ?? '').trim();
+    if (host.isEmpty || VeritabaniYapilandirma.yerelAnaSunucuHostMu(host)) {
+      return;
+    }
+
+    try {
+      final service = await LocalNetworkDiscoveryService().sunucuMetasiniGetir(
+        host,
+      );
+      if (service == null) return;
+
+      final meta = LocalNetworkDiscoveryService.serviceMetasiniCoz(service);
+      if (meta.hasAdvertisedData) {
+        OturumServisi().uzakSunucuBaglantiBilgisiniGuncelle(
+          aktifVeritabaniAdi: meta.activeDatabaseName,
+          aktifSirketKodu: meta.activeCompanyCode,
+          aktifSirketAdi: meta.activeCompanyName,
+          veritabaniEtiketi: meta.databaseLabel,
+        );
+      }
+
+      final inherited = LocalNetworkDiscoveryService.txtBool(
+        service.txt,
+        'isPro',
+      );
+      if (inherited != null) {
+        await LisansServisi().setInheritedPro(inherited);
+      }
+    } catch (e) {
+      debugPrint('GirisSayfasi: Uzak sunucu metası yenilenemedi: $e');
+    }
+  }
+
+  SirketAyarlariModel? _uzakSunucuyaGoreSirketBul(
+    List<SirketAyarlariModel> sirketler,
+  ) {
+    final oturum = OturumServisi();
+    final remoteCode = (oturum.uzakSunucuAktifSirketKodu ?? '').trim();
+    final remoteDb = (oturum.uzakSunucuAktifVeritabaniAdi ?? '').trim();
+    final remoteName = (oturum.uzakSunucuAktifSirketAdi ?? '').trim();
+
+    if (remoteCode.isNotEmpty) {
+      for (final sirket in sirketler) {
+        if (sirket.kod.trim() == remoteCode) {
+          return sirket;
+        }
+      }
+    }
+
+    if (remoteDb.isNotEmpty) {
+      for (final sirket in sirketler) {
+        if (_yerelSirketVeritabaniAdi(sirket).trim() == remoteDb) {
+          return sirket;
+        }
+      }
+    }
+
+    if (!oturum.uzakSunucuAktifSirketKilidiVar) return null;
+    if (remoteCode.isEmpty && remoteDb.isEmpty && remoteName.isEmpty) {
+      return null;
+    }
+
+    return SirketAyarlariModel(
+      kod: remoteCode.isNotEmpty ? remoteCode : remoteDb,
+      ad: remoteName.isNotEmpty ? remoteName : remoteDb,
+      basliklar: const [],
+      logolar: const [],
+      aktifMi: true,
+      varsayilanMi: true,
+      duzenlenebilirMi: false,
+    );
+  }
+
+  String _veritabaniModEtiketi() {
+    final mode = VeritabaniYapilandirma.connectionMode;
+    final remoteDb = (OturumServisi().uzakSunucuAktifVeritabaniAdi ?? '')
+        .trim();
+
+    String localDb() {
+      if (OturumServisi().uzakSunucuAktifSirketKilidiVar &&
+          remoteDb.isNotEmpty) {
+        return remoteDb;
+      }
+      final selected = _seciliSirket;
+      if (selected != null) {
+        return _yerelSirketVeritabaniAdi(selected);
+      }
+      return 'YerelDb';
+    }
+
+    if (mode == 'cloud') {
+      return 'BulutDb';
+    }
+    if (mode == 'hybrid') {
+      return '${localDb()} + BulutDb';
+    }
+    return localDb();
+  }
+
+  void _anaSunucuYayininiTazeleBestEffort() {
+    if (!VeritabaniYapilandirma.masaustuAnaServerSecili) return;
+    if (VeritabaniYapilandirma.connectionMode == 'cloud') return;
+    unawaited(LocalNetworkDiscoveryService().yayiniBaslat());
   }
 
   Future<bool> _mobilYerelSirketVeritabaniniDogrula() async {
@@ -133,7 +242,19 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     final sirket = _seciliSirket;
     if (sirket == null) return false;
 
-    final dbName = _yerelSirketVeritabaniAdi(sirket);
+    final remoteDb = (OturumServisi().uzakSunucuAktifVeritabaniAdi ?? '')
+        .trim();
+    final remoteSirket = _uzakSunucuyaGoreSirketBul(_sirketler);
+    if (remoteSirket != null && remoteSirket.kod != sirket.kod) {
+      if (mounted) {
+        setState(() => _seciliSirket = remoteSirket);
+      }
+      OturumServisi().aktifSirket = remoteSirket;
+    }
+
+    final dbName = remoteDb.isNotEmpty
+        ? remoteDb
+        : _yerelSirketVeritabaniAdi(remoteSirket ?? sirket);
     final probe = await _yerelDbHazirMi(dbName);
 
     if (probe == _YerelDbProbeSonucu.ok) return true;
@@ -149,34 +270,6 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     }
 
     if (probe == _YerelDbProbeSonucu.databaseMissing) {
-      // Seçili şirket DB'si yoksa, geçerli ilk şirketi otomatik seçmeye çalış.
-      final List<SirketAyarlariModel> candidates = [
-        ..._sirketler.where((s) => s.kod.trim() == 'patisyo2025'),
-        ..._sirketler.where((s) => s.kod.trim() != 'patisyo2025'),
-      ];
-
-      for (final cand in candidates) {
-        if (cand.kod.trim() == sirket.kod.trim()) continue;
-        final candDb = _yerelSirketVeritabaniAdi(cand);
-        final candProbe = await _yerelDbHazirMi(candDb);
-        if (candProbe == _YerelDbProbeSonucu.ok) {
-          if (mounted) {
-            setState(() => _seciliSirket = cand);
-          }
-          OturumServisi().aktifSirket = cand;
-          return true;
-        }
-        if (candProbe == _YerelDbProbeSonucu.serverUnreachable) {
-          if (mounted) {
-            MesajYardimcisi.hataGoster(
-              context,
-              tr('setup.local.server_not_found_open_app'),
-            );
-          }
-          return false;
-        }
-      }
-
       if (mounted) {
         MesajYardimcisi.hataGoster(
           context,
@@ -230,10 +323,8 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   }) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (context) => HomePage(
-          currentUser: kullanici,
-          currentCompany: sirket,
-        ),
+        builder: (context) =>
+            HomePage(currentUser: kullanici, currentCompany: sirket),
       ),
     );
   }
@@ -271,12 +362,17 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   void initState() {
     super.initState();
     _kayitliBilgileriYukle();
-    _varsayilanSirketiYukle();
+    unawaited(_girisHazirliginiYukle());
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       unawaited(_bekleyenVeritabaniAktariminiKontrolEt());
     });
+  }
+
+  Future<void> _girisHazirliginiYukle() async {
+    await _uzakSunucuMetasiniYenileBestEffort();
+    await _varsayilanSirketiYukle();
   }
 
   @override
@@ -300,16 +396,23 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   Future<void> _varsayilanSirketiYukle() async {
     setState(() => _sirketlerYukleniyor = true);
     try {
-      final sirketler = await AyarlarVeritabaniServisi().sirketleriGetir(
+      final gelenSirketler = await AyarlarVeritabaniServisi().sirketleriGetir(
         sayfa: 1,
         sayfaBasinaKayit: 100,
       );
+      final sirketler = <SirketAyarlariModel>[...gelenSirketler];
+      final uzakSirket = _uzakSunucuyaGoreSirketBul(gelenSirketler);
+      if (uzakSirket != null &&
+          !sirketler.any((s) => s.kod.trim() == uzakSirket.kod.trim())) {
+        sirketler.insert(0, uzakSirket);
+      }
 
       if (mounted) {
         setState(() {
           _sirketler = sirketler;
-          if (sirketler.isNotEmpty) {
-            // Varsayılan şirketi bul, yoksa ilkini seç
+          if (uzakSirket != null) {
+            _seciliSirket = uzakSirket;
+          } else if (sirketler.isNotEmpty) {
             try {
               _seciliSirket = sirketler.firstWhere((s) => s.varsayilanMi);
             } catch (_) {
@@ -864,6 +967,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
 
           // Oturum Servisine Aktif Şirketi Bildir
           OturumServisi().aktifSirket = _seciliSirket;
+          _anaSunucuYayininiTazeleBestEffort();
 
           // Mobil/Tablet + Yerel: Seçili şirket DB yoksa (3D000) modüllerde her sayfada hata basmasın.
           // Bu kontrol login sırasında yapılıp uygun şirkete otomatik düşer veya kullanıcıyı uyarır.
@@ -933,6 +1037,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   }
 
   void _sirketSeciminiAc() {
+    if (OturumServisi().uzakSunucuAktifSirketKilidiVar) return;
     setState(() {
       _sirketSecimiAcik = true;
     });
@@ -941,11 +1046,7 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
   @override
   Widget build(BuildContext context) {
     final isDesktop = MediaQuery.of(context).size.width > 900;
-    final mode = VeritabaniYapilandirma.connectionMode;
-    final dbModeLabel =
-        (mode == 'cloud' || mode == VeritabaniYapilandirma.cloudPendingMode)
-        ? 'Bulut'
-        : 'Yerel';
+    final dbModeLabel = _veritabaniModEtiketi();
 
     return CallbackShortcuts(
       bindings: {
@@ -1180,8 +1281,11 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
                                           DropdownButtonFormField<
                                             SirketAyarlariModel
                                           >(
-                                            mouseCursor: WidgetStateMouseCursor.clickable,
-                                            dropdownMenuItemMouseCursor: WidgetStateMouseCursor.clickable,
+                                            mouseCursor: WidgetStateMouseCursor
+                                                .clickable,
+                                            dropdownMenuItemMouseCursor:
+                                                WidgetStateMouseCursor
+                                                    .clickable,
                                             // ignore: deprecated_member_use
                                             value: _seciliSirket,
                                             decoration: InputDecoration(
@@ -1207,7 +1311,9 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
                                                 child: Text(sirket.ad),
                                               );
                                             }).toList(),
-                                            onChanged: _sirketlerYukleniyor
+                                            onChanged: _sirketlerYukleniyor ||
+                                                    OturumServisi()
+                                                        .uzakSunucuAktifSirketKilidiVar
                                                 ? null
                                                 : (val) {
                                                     setState(

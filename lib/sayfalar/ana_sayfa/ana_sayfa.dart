@@ -17,7 +17,7 @@ import 'bilesenler/dashboard_finans_karti.dart';
 import 'bilesenler/dashboard_hizli_islemler.dart';
 import 'bilesenler/dashboard_son_islemler.dart';
 
-/// Lot Pos V1.0 — Ana Sayfa (Master Dashboard)
+/// lospos V1.0 — Ana Sayfa (Master Dashboard)
 /// Operasyon Kontrol Merkezi — Kullanıcının anlık ticari sağlığını
 /// görebileceği, şeffaf, canlı ve rol bazlı bir kontrol paneli.
 class AnaSayfa extends StatefulWidget {
@@ -83,9 +83,8 @@ class _AnaSayfaState extends State<AnaSayfa> {
     final talepEdilenFiltre = _tarihFiltresi;
 
     try {
-      final DashboardOzet hizliOzet = await servis.dashboardHizliVerileriniGetir(
-        tarihFiltresi: talepEdilenFiltre,
-      );
+      final DashboardOzet hizliOzet = await servis
+          .dashboardHizliVerileriniGetir(tarihFiltresi: talepEdilenFiltre);
       if (!mounted || talepEdilenFiltre != _tarihFiltresi) return;
       setState(() {
         _ozet = hizliOzet;
@@ -139,9 +138,7 @@ class _AnaSayfaState extends State<AnaSayfa> {
     final cacheliOzet = servis.cacheliDashboardVerisiniGetir(
       tarihFiltresi: filtre,
     );
-    final cacheZamani = servis.cacheZamaniniGetir(
-      tarihFiltresi: filtre,
-    );
+    final cacheZamani = servis.cacheZamaniniGetir(tarihFiltresi: filtre);
 
     setState(() {
       _tarihFiltresi = filtre;
@@ -205,7 +202,7 @@ class _AnaSayfaState extends State<AnaSayfa> {
             children: [
               // ─── 1. Durum Şeridi ───
               DashboardDurumSeridi(
-                sirketAdi: OturumServisi().aktifSirket?.ad ?? 'Lot Pos V1.0',
+                sirketAdi: OturumServisi().aktifSirket?.ad ?? 'lospos V1.0',
                 baglantiModu: VeritabaniYapilandirma.connectionMode,
                 sonYenilenme: _sonYenilenme,
                 seciliFiltre: _tarihFiltresi,
@@ -414,9 +411,7 @@ class _AnaSayfaState extends State<AnaSayfa> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: AppPalette.grey.withValues(alpha: 0.15),
-        ),
+        border: Border.all(color: AppPalette.grey.withValues(alpha: 0.15)),
         boxShadow: [
           BoxShadow(
             color: AppPalette.slate.withValues(alpha: 0.06),

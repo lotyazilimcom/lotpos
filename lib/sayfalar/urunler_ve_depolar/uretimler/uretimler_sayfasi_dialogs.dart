@@ -6,7 +6,7 @@ import '../../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../../yardimcilar/format_yardimcisi.dart';
 import '../../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
-import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import 'package:lospos/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../../ortak/genisletilebilir_print_preview_screen.dart';
 
 // --- PRODUCTION RECIPE DIALOG (Same as WarehouseStockDialog) ---

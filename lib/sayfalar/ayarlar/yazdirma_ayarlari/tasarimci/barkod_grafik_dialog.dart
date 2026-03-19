@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:patisyov10/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_grafik_model.dart';
-import 'package:patisyov10/yardimcilar/ceviri/ceviri_servisi.dart';
+import 'package:lospos/sayfalar/ayarlar/yazdirma_ayarlari/modeller/barkod_grafik_model.dart';
+import 'package:lospos/yardimcilar/ceviri/ceviri_servisi.dart';
 
 class BarkodGrafikDialog extends StatefulWidget {
   final BarkodGrafikModel? initialValue;

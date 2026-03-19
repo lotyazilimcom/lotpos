@@ -26,7 +26,7 @@ class AnaSayfaServisi {
   factory AnaSayfaServisi() => _instance;
   AnaSayfaServisi._internal();
 
-  static const String _defaultCompanyId = 'patisyo2025';
+  static const String _defaultCompanyId = 'lospos2026';
   static const String _prefsCachePrefix = 'dashboard_cache_v3::';
   static final Map<String, Future<void>> _hazirlikFutureleri =
       <String, Future<void>>{};
@@ -66,7 +66,7 @@ class AnaSayfaServisi {
       final DashboardOzet ozet = DashboardOzet.fromMap(ozetMap);
       final DateTime yuklenmeAni =
           DateTime.tryParse(payload['yuklenmeAni']?.toString() ?? '') ??
-              DateTime.now();
+          DateTime.now();
 
       _dashboardCache[cacheAnahtari] = _DashboardCacheKaydi(
         ozet: ozet,
@@ -477,9 +477,23 @@ class AnaSayfaServisi {
     try {
       return await islem();
     } catch (e) {
+      if (_ilkKurulumdaBeklenenSorguHatasiMi(e)) {
+        return fallback;
+      }
       debugPrint('AnaSayfaServisi: $etiket sorgu uyarisi: $e');
       return fallback;
     }
+  }
+
+  bool _ilkKurulumdaBeklenenSorguHatasiMi(Object error) {
+    if (error is ServerException && error.code == '42P01') {
+      return true;
+    }
+
+    final raw = error.toString().toLowerCase();
+    return raw.contains('42p01') &&
+        raw.contains('relation') &&
+        raw.contains('does not exist');
   }
 
   Future<_DashboardMetrik> _kasaMetrikleriniGetir({

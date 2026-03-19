@@ -148,7 +148,7 @@ class UrunModel {
     // followed by UTF-8 JSON text.
     if (bytes[0] == 1 && bytes.length > 1) {
       final b1 = bytes[1];
-      if (b1 == 91 /* [ */ || b1 == 123 /* { */) {
+      if (b1 == 91 /* [ */ || b1 == 123 /* { */ ) {
         return bytes.sublist(1);
       }
     }

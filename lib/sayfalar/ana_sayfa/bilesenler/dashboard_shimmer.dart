@@ -19,8 +19,8 @@ class DashboardShimmer extends StatelessWidget {
             final crossCount = width >= 1200
                 ? 4
                 : width >= 800
-                    ? 2
-                    : 1;
+                ? 2
+                : 1;
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -71,8 +71,8 @@ class DashboardShimmer extends StatelessWidget {
         final itemWidth = crossCount == 1
             ? double.infinity
             : crossCount == 2
-                ? 300.0
-                : 200.0;
+            ? 300.0
+            : 200.0;
         return SizedBox(
           width: crossCount == 1 ? double.infinity : itemWidth,
           child: Container(

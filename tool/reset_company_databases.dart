@@ -13,7 +13,7 @@ import 'package:postgres/postgres.dart';
 ///
 /// NOTLAR:
 /// - Sadece PostgreSQL sunucusundaki verileri sıfırlar.
-/// - `patisyosettings` ayar veritabanına DOKUNMAZ.
+/// - `lospossettings` ayar veritabanına DOKUNMAZ.
 /// - `company_settings` tablosundaki tüm şirket kodlarını okur,
 ///   her biri için ilgili şirket veritabanını bulur ve şu tabloları temizler:
 ///     - products (ürünler)
@@ -26,12 +26,12 @@ import 'package:postgres/postgres.dart';
 ///     - shipments (sevkiyatlar)
 ///     - sequences (kod/barkod sayaçları)
 Future<void> main() async {
-  final String host = Platform.environment['PATISYO_PG_HOST'] ?? 'localhost';
+  final String host = Platform.environment['LOSPOS_PG_HOST'] ?? 'localhost';
   final int port =
-      int.tryParse(Platform.environment['PATISYO_PG_PORT'] ?? '') ?? 5432;
-  final String username = Platform.environment['PATISYO_PG_USER'] ?? 'patisyo';
-  final String password = Platform.environment['PATISYO_PG_PASSWORD'] ?? '';
-  const String settingsDb = 'patisyosettings';
+      int.tryParse(Platform.environment['LOSPOS_PG_PORT'] ?? '') ?? 5432;
+  final String username = Platform.environment['LOSPOS_PG_USER'] ?? 'lospos';
+  final String password = Platform.environment['LOSPOS_PG_PASSWORD'] ?? '';
+  const String settingsDb = 'lospossettings';
 
   print('--- Şirket veritabanı reset scripti başlıyor ---');
 
@@ -51,8 +51,9 @@ Future<void> main() async {
       settings: const ConnectionSettings(sslMode: SslMode.disable),
     );
 
-    final result =
-        await settingsConn.execute('SELECT kod FROM company_settings');
+    final result = await settingsConn.execute(
+      'SELECT kod FROM company_settings',
+    );
 
     if (result.isEmpty) {
       print(
@@ -72,12 +73,12 @@ Future<void> main() async {
     }
   } on ServerException catch (e) {
     print(
-      'patisyosettings veritabanına bağlanırken hata (ServerException): ${e.code} ${e.message}',
+      'lospossettings veritabanına bağlanırken hata (ServerException): ${e.code} ${e.message}',
     );
     await settingsConn?.close();
     return;
   } catch (e) {
-    print('patisyosettings veritabanına bağlanırken hata: $e');
+    print('lospossettings veritabanına bağlanırken hata: $e');
     await settingsConn?.close();
     return;
   } finally {
@@ -117,17 +118,18 @@ Future<void> main() async {
 }
 
 /// OturumServisi.aktifVeritabaniAdi ile aynı mantık:
-/// - Kod `patisyo2025` ise -> `patisyo2025`
-/// - Diğer kodlar için -> `patisyo_<safeCode>`
+/// - Kod `lospos2026` ise -> `lospos2026`
+/// - Diğer kodlar için -> `lospos_<safeCode>`
 String _veritabaniAdiHesapla(String kod) {
   final trimmed = kod.trim();
-  if (trimmed == 'patisyo2025') {
-    return 'patisyo2025';
+  if (trimmed == 'lospos2026') {
+    return 'lospos2026';
   }
 
-  final safeCode =
-      trimmed.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
-  return 'patisyo_$safeCode';
+  final safeCode = trimmed
+      .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
+      .toLowerCase();
+  return 'lospos_$safeCode';
 }
 
 Future<void> _resetSirketVeritabani({
@@ -181,9 +183,7 @@ Future<void> _resetSirketVeritabani({
 
 Future<void> _safeTruncate(Connection conn, String tableName) async {
   try {
-    await conn.execute(
-      'TRUNCATE TABLE $tableName RESTART IDENTITY CASCADE',
-    );
+    await conn.execute('TRUNCATE TABLE $tableName RESTART IDENTITY CASCADE');
     print('  - TRUNCATE OK: $tableName');
   } on ServerException catch (e) {
     // 42P01: undefined_table -> tablo yoksa atla
@@ -191,12 +191,8 @@ Future<void> _safeTruncate(Connection conn, String tableName) async {
       print('  - Tablo yok, atlanıyor: $tableName');
       return;
     }
-    print(
-      '  - TRUNCATE hata ($tableName): ${e.code} ${e.message}',
-    );
+    print('  - TRUNCATE hata ($tableName): ${e.code} ${e.message}');
   } catch (e) {
-    print(
-      '  - TRUNCATE beklenmeyen hata ($tableName): $e',
-    );
+    print('  - TRUNCATE beklenmeyen hata ($tableName): $e');
   }
 }

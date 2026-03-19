@@ -17,7 +17,7 @@ import '../../kasalar/modeller/kasa_model.dart';
 import '../../bankalar/modeller/banka_model.dart';
 import '../../kredikartlari/modeller/kredi_karti_model.dart';
 import '../../../../bilesenler/akilli_aciklama_input.dart';
-import '../../../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../../../bilesenler/lospos_raw_autocomplete.dart';
 import '../../../servisler/personel_islemleri_veritabani_servisi.dart';
 
 class KullaniciOdemeYapSayfasi extends StatefulWidget {
@@ -935,7 +935,7 @@ class _KullaniciOdemeYapSayfasiState extends State<KullaniciOdemeYapSayfasi> {
           ],
         ),
         const SizedBox(height: 4),
-        PatisyoRawAutocomplete<Map<String, String>>(
+        LosposRawAutocomplete<Map<String, String>>(
           focusNode: focusNode,
           textEditingController: controller,
           optionsBuilder: (TextEditingValue textEditingValue) async {

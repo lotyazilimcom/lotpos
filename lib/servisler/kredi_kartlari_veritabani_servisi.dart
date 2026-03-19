@@ -33,7 +33,7 @@ class KrediKartlariVeritabaniServisi {
   Completer<void>? _initCompleter;
   int _initToken = 0;
 
-  static const String _defaultCompanyId = 'patisyo2025';
+  static const String _defaultCompanyId = 'lospos2026';
   String get _companyId => OturumServisi().aktifVeritabaniAdi;
 
   /// [2026 FIX] Türkçe karakterleri ASCII karşılıklarına normalize eder.
@@ -526,7 +526,7 @@ class KrediKartlariVeritabaniServisi {
       )
     ''');
 
-    // [2025 HYPERSCALE] Create Credit Card Transactions Table - Native Partitioning Support
+    // [2026 HYPERSCALE] Create Credit Card Transactions Table - Native Partitioning Support
     try {
       // 1. Ana tablonun durumunu kontrol et
       final tableCheck = await _pool!.execute(
@@ -735,7 +735,7 @@ class KrediKartlariVeritabaniServisi {
       rethrow;
     }
 
-    // [2025 JET] Kritik olmayan tüm işlemler arka plana
+    // [2026 JET] Kritik olmayan tüm işlemler arka plana
     if (_config.allowBackgroundDbMaintenance) {
       unawaited(() async {
         try {
@@ -971,10 +971,17 @@ class KrediKartlariVeritabaniServisi {
           }
         } catch (e) {
           if (e is LisansYazmaEngelliHatasi) return;
+          if (_isConcurrentTupleUpdateError(e)) return;
           debugPrint('Kredi kartı arka plan ek kurulum hatası: $e');
         }
       }());
     }
+  }
+
+  bool _isConcurrentTupleUpdateError(Object error) {
+    return error.toString().toLowerCase().contains(
+      'tuple concurrently updated',
+    );
   }
 
   Future<void> _backfillCreditCardTransactionSearchTags({
@@ -3163,7 +3170,7 @@ class KrediKartlariVeritabaniServisi {
           newCariId = await cariServis.cariIdGetir(cariKodu, session: s);
         }
 
-        // 2. [2025 SMART UPDATE] Eğer Cari Değişmediyse ve Ref Varsa -> Update (Silme Yok)
+        // 2. [2026 SMART UPDATE] Eğer Cari Değişmediyse ve Ref Varsa -> Update (Silme Yok)
         if (oldCariId != null &&
             newCariId != null &&
             oldCariId == newCariId &&

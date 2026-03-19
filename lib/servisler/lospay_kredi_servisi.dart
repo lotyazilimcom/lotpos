@@ -193,10 +193,7 @@ class LosPayKrediDialogMetinleri {
         'minimumCreditsNote',
         fallback.minimumCreditsNote,
       ),
-      minimumChargeNote: read(
-        'minimumChargeNote',
-        fallback.minimumChargeNote,
-      ),
+      minimumChargeNote: read('minimumChargeNote', fallback.minimumChargeNote),
       summaryTitle: read('summaryTitle', fallback.summaryTitle),
       summaryBody: read('summaryBody', fallback.summaryBody),
       summaryCreditsLabel: read(
@@ -239,10 +236,7 @@ class LosPayKrediDialogMetinleri {
         fallback.purchaseButtonTemplate,
       ),
       loadingText: read('loadingText', fallback.loadingText),
-      requiredFieldText: read(
-        'requiredFieldText',
-        fallback.requiredFieldText,
-      ),
+      requiredFieldText: read('requiredFieldText', fallback.requiredFieldText),
       invalidEmailText: read('invalidEmailText', fallback.invalidEmailText),
       creditAmountRequiredText: read(
         'creditAmountRequiredText',
@@ -415,33 +409,36 @@ class LosPayKrediAyarlari {
     final maxCredits = (json['maxCredits'] as num?)?.toInt();
     final defaultCredits = (json['defaultCredits'] as num?)?.toInt();
     final stepCredits = (json['stepCredits'] as num?)?.toInt();
-    final minimumChargeAmount =
-        (json['minimumChargeAmount'] as num?)?.toDouble();
+    final minimumChargeAmount = (json['minimumChargeAmount'] as num?)
+        ?.toDouble();
 
     return LosPayKrediAyarlari(
       variantId: (json['variantId'] ?? fallback.variantId).toString().trim(),
-      variantName:
-          (json['variantName'] ?? fallback.variantName).toString().trim(),
-      productName:
-          (json['productName'] ?? fallback.productName).toString().trim(),
-      pricePerCredit:
-          pricePerCredit != null && pricePerCredit > 0
-              ? pricePerCredit
-              : fallback.pricePerCredit,
-      minCredits:
-          minCredits != null && minCredits > 0 ? minCredits : fallback.minCredits,
-      maxCredits:
-          maxCredits != null && maxCredits > 0 ? maxCredits : fallback.maxCredits,
-      defaultCredits:
-          defaultCredits != null && defaultCredits > 0
-              ? defaultCredits
-              : fallback.defaultCredits,
-      stepCredits:
-          stepCredits != null && stepCredits > 0 ? stepCredits : fallback.stepCredits,
+      variantName: (json['variantName'] ?? fallback.variantName)
+          .toString()
+          .trim(),
+      productName: (json['productName'] ?? fallback.productName)
+          .toString()
+          .trim(),
+      pricePerCredit: pricePerCredit != null && pricePerCredit > 0
+          ? pricePerCredit
+          : fallback.pricePerCredit,
+      minCredits: minCredits != null && minCredits > 0
+          ? minCredits
+          : fallback.minCredits,
+      maxCredits: maxCredits != null && maxCredits > 0
+          ? maxCredits
+          : fallback.maxCredits,
+      defaultCredits: defaultCredits != null && defaultCredits > 0
+          ? defaultCredits
+          : fallback.defaultCredits,
+      stepCredits: stepCredits != null && stepCredits > 0
+          ? stepCredits
+          : fallback.stepCredits,
       minimumChargeAmount:
           minimumChargeAmount != null && minimumChargeAmount > 0
-              ? minimumChargeAmount
-              : fallback.minimumChargeAmount,
+          ? minimumChargeAmount
+          : fallback.minimumChargeAmount,
     );
   }
 }
@@ -631,8 +628,7 @@ class LosPayKrediServisi {
             'Webhook ve veritabanı dinleme akışı siparişi izliyor.',
         checkoutTimelineReceivedSubtitle:
             'Ödeme bildirimi alındı ve kredi yükleme akışı başladı.',
-        checkoutTimelineActivationTitle:
-            'LosPay kredisi otomatik yüklenecek',
+        checkoutTimelineActivationTitle: 'LosPay kredisi otomatik yüklenecek',
         checkoutTimelineActivationSubtitle:
             'Ödeme tamamlandığında bu pencere kendini kapatır.',
         checkoutTimelineCompletedSubtitle:
@@ -792,13 +788,14 @@ class LosPayKrediServisi {
     final normalizedLocale = ProSatinAlmaServisi.odemeProfiliLocale(locale);
     final fallback = varsayilanOdemeProfili(normalizedLocale);
     final endpoint =
-        Uri.parse('${LisansServisi.u}/functions/v1/get-lospay-credit-profile')
-            .replace(
-      queryParameters: {
-        'locale': normalizedLocale,
-        'ts': DateTime.now().millisecondsSinceEpoch.toString(),
-      },
-    );
+        Uri.parse(
+          '${LisansServisi.u}/functions/v1/get-lospay-credit-profile',
+        ).replace(
+          queryParameters: {
+            'locale': normalizedLocale,
+            'ts': DateTime.now().millisecondsSinceEpoch.toString(),
+          },
+        );
 
     try {
       final response = await http.get(
@@ -824,13 +821,13 @@ class LosPayKrediServisi {
             : (payload['locale'] ?? fallback.locale).toString().trim(),
         currencyCode:
             (payload['currencyCode'] ?? fallback.currencyCode)
-                    .toString()
-                    .trim()
-                    .isEmpty
-                ? fallback.currencyCode
-                : (payload['currencyCode'] ?? fallback.currencyCode)
-                    .toString()
-                    .trim(),
+                .toString()
+                .trim()
+                .isEmpty
+            ? fallback.currencyCode
+            : (payload['currencyCode'] ?? fallback.currencyCode)
+                  .toString()
+                  .trim(),
         configured: payload['configured'] == true,
         dialog: LosPayKrediDialogMetinleri.fromJson(
           Map<String, dynamic>.from(
@@ -911,13 +908,16 @@ class LosPayKrediServisi {
     } catch (_) {}
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      final rawMessage = [
-        payload['error'],
-        payload['message'],
-        payload['details'] is Map ? (payload['details'] as Map)['error'] : null,
-      ]
-          .map((value) => (value ?? '').toString().trim())
-          .firstWhere((value) => value.isNotEmpty, orElse: () => '');
+      final rawMessage =
+          [
+                payload['error'],
+                payload['message'],
+                payload['details'] is Map
+                    ? (payload['details'] as Map)['error']
+                    : null,
+              ]
+              .map((value) => (value ?? '').toString().trim())
+              .firstWhere((value) => value.isNotEmpty, orElse: () => '');
 
       throw LosPayKrediHatasi(
         rawMessage.isNotEmpty
@@ -999,8 +999,9 @@ class LosPayKrediServisi {
             .from('customers')
             .select('lospay_credit')
             .eq('hardware_id', hardwareId.trim().toUpperCase());
-        final customerRows =
-            List<Map<String, dynamic>>.from(customerRowsRaw as List);
+        final customerRows = List<Map<String, dynamic>>.from(
+          customerRowsRaw as List,
+        );
         for (final row in customerRows) {
           final value = (row['lospay_credit'] as num?)?.toDouble() ?? 0;
           if (value > currentBalance) {
@@ -1027,8 +1028,9 @@ class LosPayKrediServisi {
 
     final status = (loadRow['status'] ?? '').toString().trim().toLowerCase();
     final orderId = (loadRow['lemon_order_id'] ?? '').toString().trim();
-    final orderIdentifier =
-        (loadRow['lemon_order_identifier'] ?? '').toString().trim();
+    final orderIdentifier = (loadRow['lemon_order_identifier'] ?? '')
+        .toString()
+        .trim();
     final updatedAtRaw = (loadRow['updated_at'] ?? '').toString().trim();
     final completedAtRaw = (loadRow['completed_at'] ?? '').toString().trim();
 

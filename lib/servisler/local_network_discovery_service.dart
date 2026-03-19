@@ -6,6 +6,7 @@ import 'package:nsd/nsd.dart';
 import 'package:postgres/postgres.dart';
 import 'veritabani_yapilandirma.dart';
 import 'lisans_servisi.dart';
+import 'oturum_servisi.dart';
 
 /// Yerel Ağ Keşif Servisi (Zero-Config mDNS)
 ///
@@ -17,12 +18,18 @@ class LocalNetworkDiscoveryService {
   factory LocalNetworkDiscoveryService() => _instance;
   LocalNetworkDiscoveryService._internal();
 
-  static const String _serviceType = '_patisyo-pos._tcp';
-  static const String _serviceName = 'Patisyo POS Server';
+  static const String _serviceType = '_lospos-pos._tcp';
+  static const String _serviceName = 'Lospos POS Server';
   static const int _localDefaultPort = 5432;
-  static const String _localDefaultDatabase = 'patisyosettings';
-  static const String _localDefaultUsername = 'patisyo';
+  static const String _localDefaultDatabase = 'lospossettings';
+  static const String _localDefaultUsername = 'lospos';
   static const String _localLegacyPassword = '5828486';
+  static const String _txtIsProKey = 'isPro';
+  static const String _txtConnectionModeKey = 'mode';
+  static const String _txtActiveDatabaseKey = 'activeDb';
+  static const String _txtActiveCompanyCodeKey = 'activeCompanyCode';
+  static const String _txtActiveCompanyNameKey = 'activeCompanyName';
+  static const String _txtDbLabelKey = 'dbLabel';
 
   Registration? _registration;
 
@@ -34,21 +41,34 @@ class LocalNetworkDiscoveryService {
 
     try {
       final config = VeritabaniYapilandirma();
-      // Veritabanı portunu ve lisans durumunu yayınlıyoruz.
+      final meta = aktifServisMetasi();
+      await yayiniDurdur();
+
+      final txt = <String, Uint8List>{
+        _txtIsProKey: _txtEncode(meta.isPro ? 'true' : 'false'),
+      };
+      _txtPut(txt, _txtConnectionModeKey, meta.connectionMode);
+      _txtPut(txt, _txtActiveDatabaseKey, meta.activeDatabaseName);
+      _txtPut(txt, _txtActiveCompanyCodeKey, meta.activeCompanyCode);
+      _txtPut(txt, _txtActiveCompanyNameKey, meta.activeCompanyName);
+      _txtPut(txt, _txtDbLabelKey, meta.databaseLabel);
+
+      // Veritabanı portunu, lisans durumunu ve aktif şirket/DB bilgisini yayınlıyoruz.
       _registration = await register(
         Service(
           name: _serviceName,
           type: _serviceType,
           port: config.port,
-          txt: {
-            'isPro': Uint8List.fromList(
-              utf8.encode(LisansServisi().isLicensed ? 'true' : 'false'),
-            ),
-          },
+          txt: txt,
         ),
       );
       debugPrint(
-        'mDNS: Sunucu yayını başlatıldı: $_serviceName ($_serviceType) Port: ${config.port}, Pro: ${LisansServisi().isLicensed}',
+        'mDNS: Sunucu yayını başlatıldı: '
+        '$_serviceName ($_serviceType) '
+        'Port: ${config.port}, '
+        'Pro: ${meta.isPro}, '
+        'AktifDB: ${meta.activeDatabaseName ?? '-'}, '
+        'Etiket: ${meta.databaseLabel ?? '-'}',
       );
     } catch (e) {
       debugPrint('mDNS Yayını başlatılamadı: $e');
@@ -165,6 +185,71 @@ class LocalNetworkDiscoveryService {
       return await _portVeDbTaramaIleIlkSunucuBul(timeout: timeout);
     }
 
+    return null;
+  }
+
+  Future<Service?> sunucuMetasiniGetir(
+    String host, {
+    Duration timeout = const Duration(milliseconds: 900),
+  }) async {
+    final normalized = (await _canonicalHostBestEffort(
+      host: host,
+      addresses: null,
+    )).trim();
+    if (normalized.isEmpty) return null;
+
+    final services = await _mdnsSunuculariBul(timeout: timeout);
+    for (final service in services) {
+      final serviceHost = (service.host ?? '').trim();
+      if (serviceHost == normalized) {
+        return service;
+      }
+    }
+    return null;
+  }
+
+  static YerelSunucuServisMetasi aktifServisMetasi() {
+    final oturum = OturumServisi();
+    return YerelSunucuServisMetasi(
+      isPro: LisansServisi().isLicensed,
+      connectionMode: VeritabaniYapilandirma.connectionMode,
+      activeDatabaseName: oturum.aktifVeritabaniAdi,
+      activeCompanyCode: oturum.aktifSirket?.kod,
+      activeCompanyName: oturum.aktifSirket?.ad,
+      databaseLabel: oturum.gorunenVeritabaniEtiketi,
+    );
+  }
+
+  static YerelSunucuServisMetasi serviceMetasiniCoz(Service? service) {
+    final txt = service?.txt;
+    return YerelSunucuServisMetasi(
+      hasAdvertisedData: txt != null,
+      isPro: txtBool(txt, _txtIsProKey) ?? false,
+      connectionMode: txtString(txt, _txtConnectionModeKey),
+      activeDatabaseName: txtString(txt, _txtActiveDatabaseKey),
+      activeCompanyCode: txtString(txt, _txtActiveCompanyCodeKey),
+      activeCompanyName: txtString(txt, _txtActiveCompanyNameKey),
+      databaseLabel: txtString(txt, _txtDbLabelKey),
+    );
+  }
+
+  static String? txtString(Map<String, Uint8List?>? txt, String key) {
+    if (txt == null) return null;
+    final raw = txt[key];
+    if (raw == null) return null;
+    try {
+      final decoded = utf8.decode(raw).trim();
+      return decoded.isEmpty ? null : decoded;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  static bool? txtBool(Map<String, Uint8List?>? txt, String key) {
+    final value = txtString(txt, key)?.toLowerCase();
+    if (value == null) return null;
+    if (value == 'true' || value == '1' || value == 'yes') return true;
+    if (value == 'false' || value == '0' || value == 'no') return false;
     return null;
   }
 
@@ -292,7 +377,7 @@ class LocalNetworkDiscoveryService {
             final open = await _tcpPortAcikMi(ip, port, timeout: socketTimeout);
             if (!open) continue;
 
-            final serverMi = await _patisyoServerMi(
+            final serverMi = await _losposServerMi(
               ip,
               port,
               connectTimeout: dbTimeout,
@@ -502,7 +587,7 @@ class LocalNetworkDiscoveryService {
             final open = await _tcpPortAcikMi(ip, port, timeout: socketTimeout);
             if (!open) continue;
 
-            final serverMi = await _patisyoServerMi(
+            final serverMi = await _losposServerMi(
               ip,
               port,
               connectTimeout: dbTimeout,
@@ -576,7 +661,7 @@ class LocalNetworkDiscoveryService {
     }
   }
 
-  Future<bool> _patisyoServerMi(
+  Future<bool> _losposServerMi(
     String host,
     int port, {
     required Duration connectTimeout,
@@ -665,6 +750,20 @@ class LocalNetworkDiscoveryService {
       return null;
     }
   }
+
+  static Uint8List _txtEncode(String value) {
+    return Uint8List.fromList(utf8.encode(value));
+  }
+
+  static void _txtPut(
+    Map<String, Uint8List> txt,
+    String key,
+    String? value,
+  ) {
+    final normalized = (value ?? '').trim();
+    if (normalized.isEmpty) return;
+    txt[key] = _txtEncode(normalized);
+  }
 }
 
 class _DbCred {
@@ -673,4 +772,24 @@ class _DbCred {
   final String password;
 
   const _DbCred(this.database, this.username, this.password);
+}
+
+class YerelSunucuServisMetasi {
+  final bool hasAdvertisedData;
+  final bool isPro;
+  final String? connectionMode;
+  final String? activeDatabaseName;
+  final String? activeCompanyCode;
+  final String? activeCompanyName;
+  final String? databaseLabel;
+
+  const YerelSunucuServisMetasi({
+    this.hasAdvertisedData = false,
+    required this.isPro,
+    this.connectionMode,
+    this.activeDatabaseName,
+    this.activeCompanyCode,
+    this.activeCompanyName,
+    this.databaseLabel,
+  });
 }

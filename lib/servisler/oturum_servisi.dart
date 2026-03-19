@@ -16,6 +16,7 @@ import 'siparisler_veritabani_servisi.dart';
 import 'teklifler_veritabani_servisi.dart';
 import 'uretimler_veritabani_servisi.dart';
 import 'urunler_veritabani_servisi.dart';
+import 'sirket_veritabani_kimligi.dart';
 import 'veritabani_yapilandirma.dart';
 
 class OturumServisi {
@@ -25,8 +26,46 @@ class OturumServisi {
 
   SirketAyarlariModel? _aktifSirket;
   String? _sonVeritabaniAdi;
+  String? _uzakSunucuAktifVeritabaniAdi;
+  String? _uzakSunucuAktifSirketKodu;
+  String? _uzakSunucuAktifSirketAdi;
+  String? _uzakSunucuVeritabaniEtiketi;
 
   SirketAyarlariModel? get aktifSirket => _aktifSirket;
+  String? get uzakSunucuAktifVeritabaniAdi =>
+      _normalize(_uzakSunucuAktifVeritabaniAdi);
+  String? get uzakSunucuAktifSirketKodu => _normalize(_uzakSunucuAktifSirketKodu);
+  String? get uzakSunucuAktifSirketAdi => _normalize(_uzakSunucuAktifSirketAdi);
+  String? get uzakSunucuVeritabaniEtiketi =>
+      _normalize(_uzakSunucuVeritabaniEtiketi);
+  String? get gorunenSirketAdi {
+    final remoteName = uzakSunucuAktifSirketAdi;
+    if (remoteName != null) return remoteName;
+
+    final activeName = _normalize(_aktifSirket?.ad);
+    if (VeritabaniYapilandirma.connectionMode == 'cloud') {
+      final cloudDb = _normalize(VeritabaniYapilandirma().database);
+      if (activeName == null || activeName == cloudDb) {
+        return 'BulutDb';
+      }
+    }
+
+    return activeName;
+  }
+
+  bool get uzakYerelSunucuBaglantisiAktif {
+    final mode = VeritabaniYapilandirma.connectionMode;
+    if (mode != 'local' && mode != 'hybrid') return false;
+    return !VeritabaniYapilandirma.yerelAnaSunucuHostMu(
+      VeritabaniYapilandirma.discoveredHost,
+    );
+  }
+
+  bool get uzakSunucuAktifSirketKilidiVar {
+    if (!uzakYerelSunucuBaglantisiAktif) return false;
+    return uzakSunucuAktifVeritabaniAdi != null ||
+        uzakSunucuAktifSirketKodu != null;
+  }
 
   set aktifSirket(SirketAyarlariModel? sirket) {
     final oncekiDb = aktifVeritabaniAdi;
@@ -52,25 +91,69 @@ class OturumServisi {
     }
   }
 
+  void uzakSunucuBaglantiBilgisiniGuncelle({
+    String? aktifVeritabaniAdi,
+    String? aktifSirketKodu,
+    String? aktifSirketAdi,
+    String? veritabaniEtiketi,
+  }) {
+    _uzakSunucuAktifVeritabaniAdi = _normalize(aktifVeritabaniAdi);
+    _uzakSunucuAktifSirketKodu = _normalize(aktifSirketKodu);
+    _uzakSunucuAktifSirketAdi = _normalize(aktifSirketAdi);
+    _uzakSunucuVeritabaniEtiketi = _normalize(veritabaniEtiketi);
+  }
+
+  void uzakSunucuBaglantiBilgisiniTemizle() {
+    _uzakSunucuAktifVeritabaniAdi = null;
+    _uzakSunucuAktifSirketKodu = null;
+    _uzakSunucuAktifSirketAdi = null;
+    _uzakSunucuVeritabaniEtiketi = null;
+  }
+
   String get aktifVeritabaniAdi {
     // Cloud modda tek veritabanı var, doğrudan onu kullan
     if (VeritabaniYapilandirma.connectionMode == 'cloud') {
       return VeritabaniYapilandirma().database;
     }
 
-    if (_aktifSirket != null && _aktifSirket!.kod.isNotEmpty) {
-      // Özel durum: Varsayılan şirket kodu 'patisyo2025' ise, eski veritabanını kullan
-      if (_aktifSirket!.kod == 'patisyo2025') {
-        return 'patisyo2025';
-      }
-
-      // Şirket kodunu güvenli dosya/db ismine çevir (sadece harf ve rakam)
-      final safeCode = _aktifSirket!.kod
-          .replaceAll(RegExp(r'[^a-zA-Z0-9]'), '')
-          .toLowerCase();
-      return 'patisyo_$safeCode';
+    final uzakDb = uzakSunucuAktifVeritabaniAdi;
+    if (uzakYerelSunucuBaglantisiAktif && uzakDb != null) {
+      return uzakDb;
     }
-    return 'patisyo2025'; // Varsayılan DB
+
+    if (_aktifSirket != null && _aktifSirket!.kod.isNotEmpty) {
+      return SirketVeritabaniKimligi.databaseNameFromCompanyCode(
+        _aktifSirket!.kod,
+      );
+    }
+    return SirketVeritabaniKimligi.legacyDefaultDatabaseName;
+  }
+
+  String get gorunenVeritabaniEtiketi {
+    final mode = VeritabaniYapilandirma.connectionMode;
+    final aktifDb = aktifVeritabaniAdi.trim();
+
+    if (mode == 'cloud') {
+      return 'BulutDb';
+    }
+
+    if (mode == 'hybrid') {
+      return aktifDb.isEmpty ? 'BulutDb' : '$aktifDb + BulutDb';
+    }
+
+    final uzakEtiket = uzakSunucuVeritabaniEtiketi;
+    if (uzakYerelSunucuBaglantisiAktif && uzakEtiket != null) {
+      return uzakEtiket;
+    }
+
+    return aktifDb.isEmpty
+        ? SirketVeritabaniKimligi.legacyDefaultDatabaseName
+        : aktifDb;
+  }
+
+  String? _normalize(String? value) {
+    final normalized = (value ?? '').trim();
+    return normalized.isEmpty ? null : normalized;
   }
 
   Future<void> _servisleriYenidenBaslat() async {

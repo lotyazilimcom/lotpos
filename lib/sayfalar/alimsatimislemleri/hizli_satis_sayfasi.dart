@@ -12,7 +12,7 @@ import '../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../../yardimcilar/format_yardimcisi.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../yardimcilar/responsive_yardimcisi.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 import '../ayarlar/genel_ayarlar/modeller/doviz_kuru_model.dart';
 import '../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
 import '../urunler_ve_depolar/depolar/modeller/depo_model.dart';
@@ -363,9 +363,8 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
   Future<void> _openProductSearchDialog({String initialQuery = ''}) async {
     final selected = await showDialog<dynamic>(
       context: context,
-      builder: (context) => _HizliSatisUrunSearchDialog(
-        initialQuery: initialQuery,
-      ),
+      builder: (context) =>
+          _HizliSatisUrunSearchDialog(initialQuery: initialQuery),
     );
     if (!mounted || selected == null) return;
 
@@ -969,7 +968,8 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        if (ResponsiveYardimcisi.tabletMi(context) || constraints.maxWidth < 900) {
+        if (ResponsiveYardimcisi.tabletMi(context) ||
+            constraints.maxWidth < 900) {
           return _buildMobileLayout(totals);
         }
         return Scaffold(
@@ -1632,10 +1632,7 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
           const double priceGroupWidth = 116;
           const double controlGap = 12;
           final double reservedControlsWidth =
-              currencyWidth +
-              vatWidth +
-              priceGroupWidth +
-              (controlGap * 3);
+              currencyWidth + vatWidth + priceGroupWidth + (controlGap * 3);
           final double quickSearchWidth = (contentWidth - reservedControlsWidth)
               .clamp(280, 940)
               .toDouble();
@@ -1790,7 +1787,7 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
           ),
         ),
         const SizedBox(height: 6),
-        PatisyoRawAutocomplete<_UrunSecenek>(
+        LosposRawAutocomplete<_UrunSecenek>(
           focusNode: _quickSearchFocusNode,
           textEditingController: _quickSearchController,
           displayStringForOption: (option) => option.product.ad,
@@ -2578,7 +2575,7 @@ class _HizliSatisSayfasiState extends State<HizliSatisSayfasi> {
   }
 
   Widget _productSearchCell(_HizliSatisSatir row, {required bool dense}) {
-    return PatisyoRawAutocomplete<_UrunSecenek>(
+    return LosposRawAutocomplete<_UrunSecenek>(
       focusNode: row.productFocusNode,
       textEditingController: row.productSearchController,
       displayStringForOption: (option) => option.product.ad,
@@ -3399,7 +3396,8 @@ class _HizliSatisUrunSearchDialog extends StatefulWidget {
       _HizliSatisUrunSearchDialogState();
 }
 
-class _HizliSatisUrunSearchDialogState extends State<_HizliSatisUrunSearchDialog> {
+class _HizliSatisUrunSearchDialogState
+    extends State<_HizliSatisUrunSearchDialog> {
   final TextEditingController _searchController = TextEditingController();
   final FocusNode _searchFocusNode = FocusNode();
   List<dynamic> _items = [];
@@ -3596,91 +3594,91 @@ class _HizliSatisUrunSearchDialogState extends State<_HizliSatisUrunSearchDialog
               child: _isLoading
                   ? const Center(child: CircularProgressIndicator())
                   : _items.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              const Icon(
-                                Icons.inventory_2_outlined,
-                                size: 48,
-                                color: Color(0xFFE0E0E0),
-                              ),
-                              const SizedBox(height: 16),
-                              Text(
-                                tr('products.no_products_found'),
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Color(0xFF606368),
-                                ),
-                              ),
-                            ],
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.inventory_2_outlined,
+                            size: 48,
+                            color: Color(0xFFE0E0E0),
                           ),
-                        )
-                      : ListView.separated(
-                          padding: EdgeInsets.zero,
-                          itemCount: _items.length,
-                          separatorBuilder: (context, index) => const Divider(
-                            height: 1,
-                            thickness: 1,
-                            color: Color(0xFFEFEFEF),
+                          const SizedBox(height: 16),
+                          Text(
+                            tr('products.no_products_found'),
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF606368),
+                            ),
                           ),
-                          itemBuilder: (context, index) {
-                            final p = _items[index];
-                            return InkWell(
-                              mouseCursor: WidgetStateMouseCursor.clickable,
-                              onTap: () => Navigator.of(context).pop(p),
-                              child: Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 12,
-                                  horizontal: 6,
+                        ],
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: EdgeInsets.zero,
+                      itemCount: _items.length,
+                      separatorBuilder: (context, index) => const Divider(
+                        height: 1,
+                        thickness: 1,
+                        color: Color(0xFFEFEFEF),
+                      ),
+                      itemBuilder: (context, index) {
+                        final p = _items[index];
+                        return InkWell(
+                          mouseCursor: WidgetStateMouseCursor.clickable,
+                          onTap: () => Navigator.of(context).pop(p),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 6,
+                            ),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Expanded(
+                                  flex: 2,
+                                  child: Text(
+                                    (p as dynamic).kod,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w700,
+                                      color: Color(0xFF202124),
+                                    ),
+                                  ),
                                 ),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.end,
-                                  children: [
-                                    Expanded(
-                                      flex: 2,
-                                      child: Text(
-                                        (p as dynamic).kod,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700,
-                                          color: Color(0xFF202124),
-                                        ),
-                                      ),
+                                Expanded(
+                                  flex: 5,
+                                  child: Text(
+                                    (p as dynamic).ad,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Color(0xFF202124),
                                     ),
-                                    Expanded(
-                                      flex: 5,
-                                      child: Text(
-                                        (p as dynamic).ad,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600,
-                                          color: Color(0xFF202124),
-                                        ),
-                                      ),
-                                    ),
-                                    Expanded(
-                                      flex: 3,
-                                      child: Text(
-                                        (p as dynamic).barkod,
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        textAlign: TextAlign.right,
-                                        style: const TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                          color: Color(0xFF606368),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
+                                  ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
+                                Expanded(
+                                  flex: 3,
+                                  child: Text(
+                                    (p as dynamic).barkod,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    textAlign: TextAlign.right,
+                                    style: const TextStyle(
+                                      fontSize: 13,
+                                      fontWeight: FontWeight.w500,
+                                      color: Color(0xFF606368),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
             ),
           ],
         ),

@@ -1,22 +1,22 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
-import 'package:patisyov10/servisler/ayarlar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/bankalar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/cari_hesaplar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/depolar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/kasalar_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/kredi_kartlari_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/urunler_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/cekler_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/senetler_veritabani_servisi.dart';
-import 'package:patisyov10/sayfalar/ceksenet/modeller/cek_model.dart';
-import 'package:patisyov10/sayfalar/ceksenet/modeller/senet_model.dart';
-import 'package:patisyov10/servisler/teklifler_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/siparisler_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/maliyet_hesaplama_servisi.dart';
-import 'package:patisyov10/servisler/taksit_veritabani_servisi.dart';
-import 'package:patisyov10/servisler/lite_kisitlari.dart';
+import 'package:lospos/servisler/ayarlar_veritabani_servisi.dart';
+import 'package:lospos/servisler/bankalar_veritabani_servisi.dart';
+import 'package:lospos/servisler/cari_hesaplar_veritabani_servisi.dart';
+import 'package:lospos/servisler/depolar_veritabani_servisi.dart';
+import 'package:lospos/servisler/kasalar_veritabani_servisi.dart';
+import 'package:lospos/servisler/kredi_kartlari_veritabani_servisi.dart';
+import 'package:lospos/servisler/urunler_veritabani_servisi.dart';
+import 'package:lospos/servisler/cekler_veritabani_servisi.dart';
+import 'package:lospos/servisler/senetler_veritabani_servisi.dart';
+import 'package:lospos/sayfalar/ceksenet/modeller/cek_model.dart';
+import 'package:lospos/sayfalar/ceksenet/modeller/senet_model.dart';
+import 'package:lospos/servisler/teklifler_veritabani_servisi.dart';
+import 'package:lospos/servisler/siparisler_veritabani_servisi.dart';
+import 'package:lospos/servisler/maliyet_hesaplama_servisi.dart';
+import 'package:lospos/servisler/taksit_veritabani_servisi.dart';
+import 'package:lospos/servisler/lite_kisitlari.dart';
 import 'package:intl/intl.dart';
 
 /// Satış yap işlemleriyle ilgili Entegre Veritabanı Servisi
@@ -223,14 +223,16 @@ class SatisYapVeritabaniServisi {
       // 3. ADIM: TAHSİLAT KONTROLÜ
       if (alinanTutar > 0) {
         // Taksitli satışta, girilen tutar peşinat kabul edilir ve açıklama buna göre zenginleştirilir.
-        String odemeAciklama =
-            odemeAciklamaSecimi.isNotEmpty ? odemeAciklamaSecimi : '';
+        String odemeAciklama = odemeAciklamaSecimi.isNotEmpty
+            ? odemeAciklamaSecimi
+            : '';
         if (taksitlerList != null && taksitlerList.isNotEmpty) {
           final String purpose = faturaNo.trim().isNotEmpty
               ? 'Taksitli Satış Peşinatı (Fatura: $faturaNo)'
               : 'Taksitli Satış Peşinatı';
-          odemeAciklama =
-              odemeAciklama.isNotEmpty ? '$odemeAciklama - $purpose' : purpose;
+          odemeAciklama = odemeAciklama.isNotEmpty
+              ? '$odemeAciklama - $purpose'
+              : purpose;
         }
 
         await _tahsilatIsle(
@@ -409,7 +411,7 @@ class SatisYapVeritabaniServisi {
     required String cariKodu,
     required String aciklama,
   }) {
-    // Patisyo V10 Update:
+    // Lospos V10 Update:
     // Otomatik açıklama (prefix) oluşturma kapatıldı.
     // Sadece kullanıcının girdiği açıklama kaydedilecek.
 

@@ -752,7 +752,7 @@ class UrunlerVeritabaniServisi {
         ''');
       }
 
-      // [2025 ROBUST] Partitions MUST be checked every time, individually.
+      // [2026 ROBUST] Partitions MUST be checked every time, individually.
       // 1. Default Partition
       try {
         await _pool!.execute('''
@@ -869,7 +869,7 @@ class UrunlerVeritabaniServisi {
     }
 
     try {
-      // [2025 HYPER-ROBUST] Verify table existence before any ALTER/INDEX operation
+      // [2026 HYPER-ROBUST] Verify table existence before any ALTER/INDEX operation
       final smCheck = await _pool!.execute(
         "SELECT relkind::text FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = 'stock_movements'",
       );
@@ -1135,7 +1135,7 @@ class UrunlerVeritabaniServisi {
 
       debugPrint('🚀 Ürünler Performans Modu: GIN ve B-Tree indeksleri hazır.');
 
-      // [2025 HYPERSCALE] BRIN Index for 10B rows
+      // [2026 HYPERSCALE] BRIN Index for 10B rows
       await _executeCreateIndexSafe('''
         CREATE INDEX IF NOT EXISTS idx_sm_created_at_brin 
         ON stock_movements USING BRIN (created_at) 
@@ -1475,7 +1475,7 @@ class UrunlerVeritabaniServisi {
       '''
         : null;
 
-    // [2025 HYBRID PAGINATION]
+    // [2026 HYBRID PAGINATION]
     // UI'dan gelen 'lastId' ile cursor değerini sunucuda oluştur.
     dynamic lastSortValue;
     if (lastId != null && lastId > 0 && sortColumn != 'id') {
@@ -1696,7 +1696,7 @@ class UrunlerVeritabaniServisi {
     }
 
     // Optimized Query Construction
-    // [2025 KEYSET PAGINATION LOGIC]
+    // [2026 KEYSET PAGINATION LOGIC]
     if (lastId != null && lastId > 0) {
       final String op = direction == 'ASC' ? '>' : '<';
 
@@ -3701,7 +3701,7 @@ class UrunlerVeritabaniServisi {
     }
   }
 
-  /// [FINANCE ENGINE 2025] Hareketli Ortalama Maliyeti Yeniden Hesapla
+  /// [FINANCE ENGINE 2026] Hareketli Ortalama Maliyeti Yeniden Hesapla
   /// Geçmişe dönük silme veya düzenlemelerde stok ve maliyet dengesini otomatik düzeltir.
   Future<void> recalculateAverageCosts(int urunId, {TxSession? session}) async {
     final executor = session ?? _pool!;
@@ -4309,12 +4309,12 @@ class UrunlerVeritabaniServisi {
 
   /// Entegrasyon referansına göre stok hareketlerini siler ve stokları geri alır.
   /// [OPTIMIZATION]: Batch Update (N+1 Query Killer)
-  /// [2025 GUARD]: Çifte Silme Koruma - Aynı ref ile işlem yoksa erken çık
+  /// [2026 GUARD]: Çifte Silme Koruma - Aynı ref ile işlem yoksa erken çık
   Future<void> stokIslemiSilByRef(String ref, {TxSession? session}) async {
     if (!_isInitialized) await baslat();
     if (_pool == null) return;
 
-    // [2025 GUARD] Boş veya geçersiz referans kontrolü
+    // [2026 GUARD] Boş veya geçersiz referans kontrolü
     if (ref.isEmpty) {
       debugPrint(
         '[GUARD] stokIslemiSilByRef: Boş ref ile çağrıldı, atlanıyor.',
@@ -4325,7 +4325,7 @@ class UrunlerVeritabaniServisi {
     final executor = session ?? _pool!;
 
     // 1. Verileri Topla (Join ile Code'u da al) - Tek Sorgu
-    // [2025 GUARD]: Bu sorgu boş dönerse = Zaten silinmiş veya hiç oluşturulmamış
+    // [2026 GUARD]: Bu sorgu boş dönerse = Zaten silinmiş veya hiç oluşturulmamış
     final rows = await executor.execute(
       Sql.named('''
         SELECT sm.product_id, sm.warehouse_id, sm.quantity, sm.is_giris, p.kod 
@@ -4336,7 +4336,7 @@ class UrunlerVeritabaniServisi {
       parameters: {'ref': ref},
     );
 
-    // [2025 GUARD] Çifte silme veya olmayan işlem kontrolü
+    // [2026 GUARD] Çifte silme veya olmayan işlem kontrolü
     if (rows.isEmpty) {
       debugPrint(
         '[GUARD] stokIslemiSilByRef: ref=$ref için stock_movements bulunamadı. Shipments (üretim kodları dahil) temizliği denenecek.',
@@ -4520,7 +4520,7 @@ class UrunlerVeritabaniServisi {
     }
   }
 
-  /// [2025 SMART UPDATE] Stok Hareketini (Miktar/Ürün/Depo değişmediyse) güncelle
+  /// [2026 SMART UPDATE] Stok Hareketini (Miktar/Ürün/Depo değişmediyse) güncelle
   /// Eğer kritik alanlar değiştiyse, çağıran servis delete-insert yapmalıdır.
   /// Bu metod sadece description, date, price, currency güncellemesi içindir.
   Future<void> stokIslemiGuncelleByRef({

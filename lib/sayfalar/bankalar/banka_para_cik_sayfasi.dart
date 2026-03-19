@@ -18,7 +18,7 @@ import '../carihesaplar/modeller/cari_hesap_model.dart';
 import '../kasalar/modeller/kasa_model.dart';
 import '../kredikartlari/modeller/kredi_karti_model.dart';
 import '../../bilesenler/akilli_aciklama_input.dart';
-import '../../bilesenler/patisyo_raw_autocomplete.dart';
+import '../../bilesenler/lospos_raw_autocomplete.dart';
 import '../ayarlar/kullanicilar/modeller/kullanici_model.dart';
 import '../../servisler/sayfa_senkronizasyon_servisi.dart';
 
@@ -1176,7 +1176,7 @@ class _BankaParaCikSayfasiState extends State<BankaParaCikSayfasi> {
           ],
         ),
         const SizedBox(height: 4),
-        PatisyoRawAutocomplete<Map<String, String>>(
+        LosposRawAutocomplete<Map<String, String>>(
           focusNode: focusNode,
           textEditingController: controller,
           optionsBuilder: (TextEditingValue textEditingValue) async {

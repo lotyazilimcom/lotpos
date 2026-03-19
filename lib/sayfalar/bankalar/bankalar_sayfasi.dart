@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/services.dart';
 import 'package:flutter/material.dart';
-import 'package:patisyov10/bilesenler/klavye_kisayol_rozeti.dart';
+import 'package:lospos/bilesenler/klavye_kisayol_rozeti.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../bilesenler/tab_acici_scope.dart';
@@ -25,7 +25,7 @@ import '../../servisler/bankalar_veritabani_servisi.dart';
 import '../../servisler/urunler_veritabani_servisi.dart';
 import '../../yardimcilar/mesaj_yardimcisi.dart';
 import '../../yardimcilar/yazdirma/genisletilebilir_print_service.dart';
-import 'package:patisyov10/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
+import 'package:lospos/yardimcilar/yazdirma/yazdirma_erisim_kontrolu.dart';
 import '../ortak/genisletilebilir_print_preview_screen.dart';
 import '../../bilesenler/highlight_text.dart';
 import '../ayarlar/genel_ayarlar/modeller/genel_ayarlar_model.dart';
@@ -4012,7 +4012,7 @@ class _BankalarSayfasiState extends State<BankalarSayfasi> {
                           }
                         }
 
-                        // [2025 FIX] Determine display name based on transaction source (Check/Note/Bank/etc)
+                        // [2026 FIX] Determine display name based on transaction source (Check/Note/Bank/etc)
                         String displayName = isIncoming
                             ? 'Para Alındı'
                             : 'Para Verildi';

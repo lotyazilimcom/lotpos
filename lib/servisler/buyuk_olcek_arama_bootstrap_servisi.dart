@@ -87,6 +87,7 @@ class BuyukOlcekAramaBootstrapServisi {
     required bool includeHeavyIndexes,
   }) async {
     final filter = onlyTables;
+    final existingTables = await _loadExistingTables(pool);
 
     try {
       await PgEklentiler.ensurePgTrgm(pool);
@@ -98,6 +99,7 @@ class BuyukOlcekAramaBootstrapServisi {
 
     for (final table in BuyukOlcekAramaBootstrapSpec.searchTables) {
       if (filter != null && !filter.contains(table)) continue;
+      if (!existingTables.contains(table)) continue;
       try {
         await PgEklentiler.ensureSearchTagsNotNullDefault(pool, table);
         await PgEklentiler.ensureSearchTagsTrgmIndex(
@@ -125,6 +127,7 @@ class BuyukOlcekAramaBootstrapServisi {
 
     for (final spec in BuyukOlcekAramaBootstrapSpec.brinSpecs) {
       if (filter != null && !filter.contains(spec.table)) continue;
+      if (!existingTables.contains(spec.table)) continue;
       try {
         await PgEklentiler.ensureBrinIndex(
           pool,
@@ -143,6 +146,7 @@ class BuyukOlcekAramaBootstrapServisi {
 
     for (final spec in BuyukOlcekAramaBootstrapSpec.compositeSpecs) {
       if (filter != null && !filter.contains(spec.table)) continue;
+      if (!existingTables.contains(spec.table)) continue;
       try {
         await PgEklentiler.ensureCompositeIndex(
           pool,
@@ -157,6 +161,25 @@ class BuyukOlcekAramaBootstrapServisi {
           );
         }
       }
+    }
+  }
+
+  Future<Set<String>> _loadExistingTables(Session pool) async {
+    try {
+      final rows = await pool.execute('''
+        SELECT c.relname
+        FROM pg_class c
+        INNER JOIN pg_namespace n ON n.oid = c.relnamespace
+        WHERE n.nspname = 'public'
+          AND c.relkind IN ('r', 'p')
+      ''');
+      return rows
+          .map((row) => (row[0] as String?)?.trim())
+          .whereType<String>()
+          .where((name) => name.isNotEmpty)
+          .toSet();
+    } catch (_) {
+      return <String>{};
     }
   }
 }

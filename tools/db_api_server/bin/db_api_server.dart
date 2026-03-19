@@ -52,41 +52,43 @@ final class ApiConfig {
   });
 
   factory ApiConfig.fromEnv() {
-    final port = _Env.getInt('PATISYO_API_PORT', fallback: 8080).clamp(1, 65535);
-    final bindHost = _Env.get('PATISYO_API_BIND_HOST', fallback: '0.0.0.0');
-    final token = _Env.get('PATISYO_API_TOKEN');
-    final allowAnon = _Env.getBool('PATISYO_API_ALLOW_ANON', fallback: false);
+    final port = _Env.getInt('LOSPOS_API_PORT', fallback: 8080).clamp(1, 65535);
+    final bindHost = _Env.get('LOSPOS_API_BIND_HOST', fallback: '0.0.0.0');
+    final token = _Env.get('LOSPOS_API_TOKEN');
+    final allowAnon = _Env.getBool('LOSPOS_API_ALLOW_ANON', fallback: false);
 
     final timeoutMs = _Env.getInt(
-      'PATISYO_API_TIMEOUT_MS',
+      'LOSPOS_API_TIMEOUT_MS',
       fallback: 15000,
     ).clamp(250, 120000);
 
-    final txTtlSec = _Env.getInt('PATISYO_API_TX_TTL_SEC', fallback: 90).clamp(
-      10,
-      3600,
-    );
+    final txTtlSec = _Env.getInt(
+      'LOSPOS_API_TX_TTL_SEC',
+      fallback: 90,
+    ).clamp(10, 3600);
 
-    final maxActiveTx = _Env.getInt('PATISYO_API_MAX_ACTIVE_TX', fallback: 64)
-        .clamp(1, 2000);
+    final maxActiveTx = _Env.getInt(
+      'LOSPOS_API_MAX_ACTIVE_TX',
+      fallback: 64,
+    ).clamp(1, 2000);
 
     final cacheTtlMs = _Env.getInt(
-      'PATISYO_API_CACHE_TTL_MS',
+      'LOSPOS_API_CACHE_TTL_MS',
       fallback: 0,
     ).clamp(0, 600000);
 
     final cacheMaxEntries = _Env.getInt(
-      'PATISYO_API_CACHE_MAX_ENTRIES',
+      'LOSPOS_API_CACHE_MAX_ENTRIES',
       fallback: 2000,
     ).clamp(0, 500000);
 
     final cacheMaxRows = _Env.getInt(
-      'PATISYO_API_CACHE_MAX_ROWS',
+      'LOSPOS_API_CACHE_MAX_ROWS',
       fallback: 500,
     ).clamp(0, 100000);
 
     final maxBodyBytes = _Env.getInt(
-      'PATISYO_API_MAX_BODY_BYTES',
+      'LOSPOS_API_MAX_BODY_BYTES',
       fallback: 2 * 1024 * 1024,
     ).clamp(1024, 128 * 1024 * 1024);
 
@@ -128,13 +130,13 @@ final class DbConfig {
   });
 
   factory DbConfig.fromEnv() {
-    final rawHost = _Env.get('PATISYO_DB_HOST', fallback: '127.0.0.1');
+    final rawHost = _Env.get('LOSPOS_DB_HOST', fallback: '127.0.0.1');
     final host = _cloudPoolerHost(rawHost);
-    final port = _Env.getInt('PATISYO_DB_PORT', fallback: 5432);
-    final username = _Env.get('PATISYO_DB_USER', fallback: 'patisyo');
-    final password = _Env.get('PATISYO_DB_PASSWORD');
+    final port = _Env.getInt('LOSPOS_DB_PORT', fallback: 5432);
+    final username = _Env.get('LOSPOS_DB_USER', fallback: 'lospos');
+    final password = _Env.get('LOSPOS_DB_PASSWORD');
 
-    final sslRaw = _Env.get('PATISYO_DB_SSLMODE').toLowerCase();
+    final sslRaw = _Env.get('LOSPOS_DB_SSLMODE').toLowerCase();
     final sslMode = switch (sslRaw) {
       'require' => SslMode.require,
       'disable' => SslMode.disable,
@@ -145,22 +147,22 @@ final class DbConfig {
       _ => SslMode.require,
     };
 
-    final envQueryMode = _Env.get('PATISYO_DB_QUERY_MODE').toLowerCase();
+    final envQueryMode = _Env.get('LOSPOS_DB_QUERY_MODE').toLowerCase();
     if (envQueryMode == 'simple') {
       throw StateError(
-        'PATISYO_DB_QUERY_MODE=simple desteklenmiyor. '
-        'LotPOS parametreli sorgular kullandığı için EXTENDED zorunludur.',
+        'LOSPOS_DB_QUERY_MODE=simple desteklenmiyor. '
+        'lospos parametreli sorgular kullandığı için EXTENDED zorunludur.',
       );
     }
     const QueryMode queryMode = QueryMode.extended;
 
     final maxConnections = _Env.getInt(
-      'PATISYO_DB_MAX_CONNECTIONS',
+      'LOSPOS_DB_MAX_CONNECTIONS',
       fallback: 20,
     ).clamp(1, 1000);
 
     final requirePooler = _Env.getBool(
-      'PATISYO_DB_REQUIRE_PGBOUNCER',
+      'LOSPOS_DB_REQUIRE_PGBOUNCER',
       fallback: true,
     );
 
@@ -172,9 +174,9 @@ final class DbConfig {
       final looksLikePoolerPort = port == 6543 || port == 6432;
       if (!looksLikePooler && !looksLikePoolerPort) {
         throw StateError(
-          'PgBouncer zorunlu (PATISYO_DB_REQUIRE_PGBOUNCER=true) ama host/port pooler gibi görünmüyor. '
+          'PgBouncer zorunlu (LOSPOS_DB_REQUIRE_PGBOUNCER=true) ama host/port pooler gibi görünmüyor. '
           'Host="$host", Port=$port. '
-          'Pooler endpoint kullanın veya PATISYO_DB_REQUIRE_PGBOUNCER=false yapın (önerilmez).',
+          'Pooler endpoint kullanın veya LOSPOS_DB_REQUIRE_PGBOUNCER=false yapın (önerilmez).',
         );
       }
     }
@@ -192,7 +194,7 @@ final class DbConfig {
   }
 
   static String _cloudPoolerHost(String rawHost) {
-    final envPoolerHost = _Env.get('PATISYO_DB_POOLER_HOST');
+    final envPoolerHost = _Env.get('LOSPOS_DB_POOLER_HOST');
     if (envPoolerHost.isNotEmpty) return envPoolerHost;
 
     final h = rawHost.trim();
@@ -320,10 +322,16 @@ Object _wireToQuery(Map<String, Object?> wire) {
   final mode = (wire['mode'] as String?)?.toLowerCase().trim() ?? 'none';
   final subst = (wire['substitution'] as String?)?.trim();
   if (mode == 'named') {
-    return Sql.named(sql, substitution: (subst?.isNotEmpty ?? false) ? subst! : '@');
+    return Sql.named(
+      sql,
+      substitution: (subst?.isNotEmpty ?? false) ? subst! : '@',
+    );
   }
   if (mode == 'indexed') {
-    return Sql.indexed(sql, substitution: (subst?.isNotEmpty ?? false) ? subst! : '@');
+    return Sql.indexed(
+      sql,
+      substitution: (subst?.isNotEmpty ?? false) ? subst! : '@',
+    );
   }
   return sql;
 }
@@ -335,7 +343,8 @@ Object _wireToQuery(Map<String, Object?> wire) {
 final class DbPoolManager {
   final DbConfig cfg;
   final Map<String, Pool<void>> _pools = <String, Pool<void>>{};
-  final Map<String, Future<Pool<void>>> _inFlight = <String, Future<Pool<void>>>{};
+  final Map<String, Future<Pool<void>>> _inFlight =
+      <String, Future<Pool<void>>>{};
 
   DbPoolManager(this.cfg);
 
@@ -438,18 +447,20 @@ final class TxContext {
     lastUsedAt = DateTime.now();
 
     final c = Completer<Result>();
-    _tail = _tail.then((_) async {
-      if (_closed) throw StateError('Transaction kapalı');
-      final res = await conn.execute(
-        query,
-        parameters: parameters,
-        ignoreRows: ignoreRows,
-        timeout: timeout,
-      );
-      c.complete(res);
-    }).catchError((e, st) {
-      if (!c.isCompleted) c.completeError(e, st);
-    });
+    _tail = _tail
+        .then((_) async {
+          if (_closed) throw StateError('Transaction kapalı');
+          final res = await conn.execute(
+            query,
+            parameters: parameters,
+            ignoreRows: ignoreRows,
+            timeout: timeout,
+          );
+          c.complete(res);
+        })
+        .catchError((e, st) {
+          if (!c.isCompleted) c.completeError(e, st);
+        });
 
     return c.future;
   }
@@ -518,7 +529,9 @@ final class TxManager {
     TransactionSettings? settings,
   }) async {
     if (_tx.length >= api.maxActiveTx) {
-      throw StateError('Maksimum aktif transaction aşıldı (${api.maxActiveTx}).');
+      throw StateError(
+        'Maksimum aktif transaction aşıldı (${api.maxActiveTx}).',
+      );
     }
 
     final conn = await Connection.open(
@@ -573,30 +586,24 @@ final class TxManager {
     if (settings == null) return 'BEGIN';
     final parts = <String>['BEGIN'];
     if (settings.isolationLevel != null) {
-      parts.add(
-        switch (settings.isolationLevel!) {
-          IsolationLevel.readCommitted => 'ISOLATION LEVEL READ COMMITTED',
-          IsolationLevel.repeatableRead => 'ISOLATION LEVEL REPEATABLE READ',
-          IsolationLevel.serializable => 'ISOLATION LEVEL SERIALIZABLE',
-          IsolationLevel.readUncommitted => 'ISOLATION LEVEL READ UNCOMMITTED',
-        },
-      );
+      parts.add(switch (settings.isolationLevel!) {
+        IsolationLevel.readCommitted => 'ISOLATION LEVEL READ COMMITTED',
+        IsolationLevel.repeatableRead => 'ISOLATION LEVEL REPEATABLE READ',
+        IsolationLevel.serializable => 'ISOLATION LEVEL SERIALIZABLE',
+        IsolationLevel.readUncommitted => 'ISOLATION LEVEL READ UNCOMMITTED',
+      });
     }
     if (settings.accessMode != null) {
-      parts.add(
-        switch (settings.accessMode!) {
-          AccessMode.readWrite => 'READ WRITE',
-          AccessMode.readOnly => 'READ ONLY',
-        },
-      );
+      parts.add(switch (settings.accessMode!) {
+        AccessMode.readWrite => 'READ WRITE',
+        AccessMode.readOnly => 'READ ONLY',
+      });
     }
     if (settings.deferrable != null) {
-      parts.add(
-        switch (settings.deferrable!) {
-          DeferrableMode.deferrable => 'DEFERRABLE',
-          DeferrableMode.notDeferrable => 'NOT DEFERRABLE',
-        },
-      );
+      parts.add(switch (settings.deferrable!) {
+        DeferrableMode.deferrable => 'DEFERRABLE',
+        DeferrableMode.notDeferrable => 'NOT DEFERRABLE',
+      });
     }
     return parts.join(' ');
   }
@@ -688,7 +695,10 @@ bool _looksLikeSelect(String sql) {
 // HTTP
 // ─────────────────────────────────────────────────────────────────────────────
 
-Future<Map<String, Object?>> _readJsonBody(HttpRequest req, {required int maxBytes}) async {
+Future<Map<String, Object?>> _readJsonBody(
+  HttpRequest req, {
+  required int maxBytes,
+}) async {
   final bytes = <int>[];
   await for (final chunk in req) {
     bytes.addAll(chunk);
@@ -719,7 +729,8 @@ Future<void> _writeJson(
 }
 
 String _authTokenFromRequest(HttpRequest req) {
-  final auth = (req.headers.value(HttpHeaders.authorizationHeader) ?? '').trim();
+  final auth = (req.headers.value(HttpHeaders.authorizationHeader) ?? '')
+      .trim();
   if (auth.isNotEmpty) {
     final lower = auth.toLowerCase();
     if (lower.startsWith('bearer ')) return auth.substring(7).trim();
@@ -759,7 +770,7 @@ Future<void> main(List<String> args) async {
     ..addFlag('verbose', abbr: 'v', negatable: false);
   final parsed = parser.parse(args);
   if (parsed['help'] == true) {
-    stdout.writeln('LotPOS DB API Server');
+    stdout.writeln('lospos DB API Server');
     stdout.writeln(parser.usage);
     return;
   }
@@ -767,7 +778,9 @@ Future<void> main(List<String> args) async {
 
   final apiCfg = ApiConfig.fromEnv();
   if (!apiCfg.allowAnon && apiCfg.token.trim().isEmpty) {
-    stderr.writeln('PATISYO_API_TOKEN zorunludur (veya PATISYO_API_ALLOW_ANON=true).');
+    stderr.writeln(
+      'LOSPOS_API_TOKEN zorunludur (veya LOSPOS_API_ALLOW_ANON=true).',
+    );
     exitCode = 64;
     return;
   }
@@ -775,7 +788,10 @@ Future<void> main(List<String> args) async {
   final dbCfg = DbConfig.fromEnv();
   final poolMgr = DbPoolManager(dbCfg);
   final txMgr = TxManager(cfg: dbCfg, api: apiCfg)..startGc();
-  final cache = QueryCache(ttl: apiCfg.cacheTtl, maxEntries: apiCfg.cacheMaxEntries);
+  final cache = QueryCache(
+    ttl: apiCfg.cacheTtl,
+    maxEntries: apiCfg.cacheMaxEntries,
+  );
 
   ProcessSignal.sigint.watch().listen((_) async {
     if (verbose) stdout.writeln('SIGINT: shutting down...');
@@ -784,9 +800,15 @@ Future<void> main(List<String> args) async {
     exit(0);
   });
 
-  final server = await HttpServer.bind(apiCfg.bindHost, apiCfg.port, shared: true);
+  final server = await HttpServer.bind(
+    apiCfg.bindHost,
+    apiCfg.port,
+    shared: true,
+  );
   if (verbose) {
-    stdout.writeln('DB API listening on http://${apiCfg.bindHost}:${apiCfg.port}');
+    stdout.writeln(
+      'DB API listening on http://${apiCfg.bindHost}:${apiCfg.port}',
+    );
   }
 
   await for (final req in server) {
@@ -794,7 +816,9 @@ Future<void> main(List<String> args) async {
       final res = req.response;
       try {
         if (!_isAuthorized(req, apiCfg)) {
-          await _writeJson(res, 401, <String, Object?>{'error': 'unauthorized'});
+          await _writeJson(res, 401, <String, Object?>{
+            'error': 'unauthorized',
+          });
           return;
         }
 
@@ -808,30 +832,41 @@ Future<void> main(List<String> args) async {
         }
 
         if (req.method != 'POST') {
-          await _writeJson(res, 405, <String, Object?>{'error': 'method_not_allowed'});
+          await _writeJson(res, 405, <String, Object?>{
+            'error': 'method_not_allowed',
+          });
           return;
         }
 
-        final body = await _readJsonBody(req, maxBytes: apiCfg.maxBodyBytes)
-            .timeout(apiCfg.requestTimeout);
+        final body = await _readJsonBody(
+          req,
+          maxBytes: apiCfg.maxBodyBytes,
+        ).timeout(apiCfg.requestTimeout);
 
         if (path == '/v1/execute') {
           final db = (body['database'] as String? ?? '').trim();
           final qWire = body['query'];
           if (db.isEmpty || qWire is! Map) {
-            await _writeJson(res, 400, <String, Object?>{'error': 'bad_request'});
+            await _writeJson(res, 400, <String, Object?>{
+              'error': 'bad_request',
+            });
             return;
           }
-          final query = _wireToQuery(qWire.map((k, v) => MapEntry(k.toString(), v as Object?)));
+          final query = _wireToQuery(
+            qWire.map((k, v) => MapEntry(k.toString(), v as Object?)),
+          );
           final paramsRaw = body['parameters'];
           final params = (paramsRaw == null) ? null : _decodeValue(paramsRaw);
           final ignoreRows = body['ignoreRows'] == true;
           final timeoutMs = (body['timeoutMs'] as num?)?.toInt();
-          final timeout = timeoutMs == null ? null : Duration(milliseconds: timeoutMs.clamp(1, 600000));
+          final timeout = timeoutMs == null
+              ? null
+              : Duration(milliseconds: timeoutMs.clamp(1, 600000));
 
           final wireQuery = qWire.map((k, v) => MapEntry(k.toString(), v));
           final sqlForCache = (wireQuery['sql'] as String?) ?? '';
-          final shouldCache = apiCfg.cacheTtl > Duration.zero &&
+          final shouldCache =
+              apiCfg.cacheTtl > Duration.zero &&
               apiCfg.cacheMaxEntries > 0 &&
               apiCfg.cacheMaxRows > 0 &&
               _looksLikeSelect(sqlForCache);
@@ -842,7 +877,11 @@ Future<void> main(List<String> args) async {
           }
 
           final cacheKey = shouldCache
-              ? jsonEncode(<String, Object?>{'db': db, 'q': wireQuery, 'p': _encodeValue(params)})
+              ? jsonEncode(<String, Object?>{
+                  'db': db,
+                  'q': wireQuery,
+                  'p': _encodeValue(params),
+                })
               : null;
 
           if (cacheKey != null) {
@@ -872,22 +911,31 @@ Future<void> main(List<String> args) async {
         if (path == '/v1/tx/begin') {
           final db = (body['database'] as String? ?? '').trim();
           if (db.isEmpty) {
-            await _writeJson(res, 400, <String, Object?>{'error': 'bad_request'});
+            await _writeJson(res, 400, <String, Object?>{
+              'error': 'bad_request',
+            });
             return;
           }
 
           TransactionSettings? settings;
           final sRaw = body['settings'];
           if (sRaw is Map) {
-            final iso = (sRaw['isolationLevel'] as String?)?.trim().toLowerCase();
-            final access = (sRaw['accessMode'] as String?)?.trim().toLowerCase();
+            final iso = (sRaw['isolationLevel'] as String?)
+                ?.trim()
+                .toLowerCase();
+            final access = (sRaw['accessMode'] as String?)
+                ?.trim()
+                .toLowerCase();
             final def = (sRaw['deferrable'] as String?)?.trim().toLowerCase();
             settings = TransactionSettings(
               isolationLevel: switch (iso) {
                 'serializable' => IsolationLevel.serializable,
-                'repeatableread' || 'repeatable_read' => IsolationLevel.repeatableRead,
-                'readcommitted' || 'read_committed' => IsolationLevel.readCommitted,
-                'readuncommitted' || 'read_uncommitted' => IsolationLevel.readUncommitted,
+                'repeatableread' ||
+                'repeatable_read' => IsolationLevel.repeatableRead,
+                'readcommitted' ||
+                'read_committed' => IsolationLevel.readCommitted,
+                'readuncommitted' ||
+                'read_uncommitted' => IsolationLevel.readUncommitted,
                 _ => null,
               },
               accessMode: switch (access) {
@@ -897,7 +945,8 @@ Future<void> main(List<String> args) async {
               },
               deferrable: switch (def) {
                 'deferrable' => DeferrableMode.deferrable,
-                'notdeferrable' || 'not_deferrable' => DeferrableMode.notDeferrable,
+                'notdeferrable' ||
+                'not_deferrable' => DeferrableMode.notDeferrable,
                 _ => null,
               },
             );
@@ -912,20 +961,28 @@ Future<void> main(List<String> args) async {
           final txId = (body['txId'] as String? ?? '').trim();
           final qWire = body['query'];
           if (txId.isEmpty || qWire is! Map) {
-            await _writeJson(res, 400, <String, Object?>{'error': 'bad_request'});
+            await _writeJson(res, 400, <String, Object?>{
+              'error': 'bad_request',
+            });
             return;
           }
           final ctx = txMgr.get(txId);
           if (ctx == null) {
-            await _writeJson(res, 404, <String, Object?>{'error': 'tx_not_found'});
+            await _writeJson(res, 404, <String, Object?>{
+              'error': 'tx_not_found',
+            });
             return;
           }
-          final query = _wireToQuery(qWire.map((k, v) => MapEntry(k.toString(), v as Object?)));
+          final query = _wireToQuery(
+            qWire.map((k, v) => MapEntry(k.toString(), v as Object?)),
+          );
           final paramsRaw = body['parameters'];
           final params = (paramsRaw == null) ? null : _decodeValue(paramsRaw);
           final ignoreRows = body['ignoreRows'] == true;
           final timeoutMs = (body['timeoutMs'] as num?)?.toInt();
-          final timeout = timeoutMs == null ? null : Duration(milliseconds: timeoutMs.clamp(1, 600000));
+          final timeout = timeoutMs == null
+              ? null
+              : Duration(milliseconds: timeoutMs.clamp(1, 600000));
 
           final result = await ctx.execute(
             query,
@@ -940,7 +997,9 @@ Future<void> main(List<String> args) async {
         if (path == '/v1/tx/commit') {
           final txId = (body['txId'] as String? ?? '').trim();
           if (txId.isEmpty) {
-            await _writeJson(res, 400, <String, Object?>{'error': 'bad_request'});
+            await _writeJson(res, 400, <String, Object?>{
+              'error': 'bad_request',
+            });
             return;
           }
           await txMgr.commit(txId);
@@ -951,7 +1010,9 @@ Future<void> main(List<String> args) async {
         if (path == '/v1/tx/rollback') {
           final txId = (body['txId'] as String? ?? '').trim();
           if (txId.isEmpty) {
-            await _writeJson(res, 400, <String, Object?>{'error': 'bad_request'});
+            await _writeJson(res, 400, <String, Object?>{
+              'error': 'bad_request',
+            });
             return;
           }
           await txMgr.rollback(txId);
@@ -965,7 +1026,9 @@ Future<void> main(List<String> args) async {
           stderr.writeln('Request failed: $e');
         }
         try {
-          await _writeJson(res, 500, <String, Object?>{'error': 'internal_error'});
+          await _writeJson(res, 500, <String, Object?>{
+            'error': 'internal_error',
+          });
         } catch (_) {}
       }
     }());

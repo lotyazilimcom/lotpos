@@ -26,11 +26,11 @@ import 'servisler/oturum_servisi.dart';
 import 'sayfalar/alimsatimislemleri/modeller/transaction_item.dart';
 import 'sayfalar/ayarlar/kullanicilar/modeller/kullanici_model.dart';
 import 'sayfalar/ayarlar/sirketayarlari/modeller/sirket_ayarlari_model.dart';
-import 'package:patisyov10/sayfalar/urunler_ve_depolar/depolar/depolar_sayfasi.dart';
-import 'package:patisyov10/sayfalar/alimsatimislemleri/alis_yap_sayfasi.dart';
-import 'package:patisyov10/sayfalar/alimsatimislemleri/satis_yap_sayfasi.dart';
-import 'package:patisyov10/sayfalar/alimsatimislemleri/perakende_satis_sayfasi.dart';
-import 'package:patisyov10/sayfalar/alimsatimislemleri/hizli_satis_sayfasi.dart';
+import 'package:lospos/sayfalar/urunler_ve_depolar/depolar/depolar_sayfasi.dart';
+import 'package:lospos/sayfalar/alimsatimislemleri/alis_yap_sayfasi.dart';
+import 'package:lospos/sayfalar/alimsatimislemleri/satis_yap_sayfasi.dart';
+import 'package:lospos/sayfalar/alimsatimislemleri/perakende_satis_sayfasi.dart';
+import 'package:lospos/sayfalar/alimsatimislemleri/hizli_satis_sayfasi.dart';
 import 'sayfalar/urunler_ve_depolar/urunler/urunler_sayfasi.dart';
 import 'sayfalar/urunler_ve_depolar/uretimler/uretimler_sayfasi.dart';
 import 'bilesenler/veritabani_aktarim_secim_dialog.dart';
@@ -97,7 +97,7 @@ void main() async {
       center: usesMacOsNativeFirstLaunchFrame ? null : true,
       backgroundColor: desktopWindowBackgroundColor,
       skipTaskbar: false,
-      title: Platform.isWindows ? 'Patisyo' : null,
+      title: Platform.isWindows ? 'Lospos' : null,
       titleBarStyle: TitleBarStyle.normal,
     );
 
