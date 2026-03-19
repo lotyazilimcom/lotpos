@@ -210,6 +210,125 @@ class UrunlerVeritabaniServisi {
     } catch (_) {}
   }
 
+  DateTime _normalizeDateStart(DateTime date) =>
+      DateTime(date.year, date.month, date.day);
+
+  DateTime _normalizeDateEndInclusive(DateTime date) =>
+      DateTime(date.year, date.month, date.day, 23, 59, 59, 999);
+
+  String? _buildProductMovementTypeCondition({
+    required String alias,
+    required String type,
+  }) {
+    final normalizedType = type.trim();
+    if (normalizedType.isEmpty) return null;
+
+    switch (normalizedType) {
+      case 'Açılış Stoğu (Girdi)':
+        return "$alias.movement_type = 'giris' AND ($alias.integration_ref = 'opening_stock' OR COALESCE($alias.description, '') ILIKE '%Açılış%')";
+      case 'Devir Girdi':
+        return "$alias.movement_type = 'giris' AND NOT ($alias.integration_ref = 'opening_stock' OR COALESCE($alias.description, '') ILIKE '%Açılış%') AND NOT (COALESCE($alias.integration_ref, '') LIKE 'PURCHASE-%' OR $alias.movement_type = 'Alış Faturası' OR COALESCE($alias.description, '') ILIKE 'Alış%' OR COALESCE($alias.description, '') ILIKE 'Alis%')";
+      case 'Devir Çıktı':
+        return "$alias.movement_type = 'cikis' AND NOT ($alias.integration_ref = 'production_output' OR COALESCE($alias.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE($alias.integration_ref, '') LIKE 'SALE-%' OR COALESCE($alias.integration_ref, '') LIKE 'RETAIL-%') OR $alias.movement_type = 'Satış Faturası' OR COALESCE($alias.description, '') ILIKE 'Satış%' OR COALESCE($alias.description, '') ILIKE 'Satis%') AND $alias.shipment_id IN (SELECT s.id FROM shipments s WHERE s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL)";
+      case 'Sevkiyat':
+        return "$alias.movement_type = 'transfer_giris'";
+      case 'Satış Yapıldı':
+      case 'Satış Faturası':
+        return "((COALESCE($alias.integration_ref, '') LIKE 'SALE-%' OR COALESCE($alias.integration_ref, '') LIKE 'RETAIL-%') OR $alias.movement_type = 'Satış Faturası' OR COALESCE($alias.description, '') ILIKE 'Satış%' OR COALESCE($alias.description, '') ILIKE 'Satis%')";
+      case 'Alış Yapıldı':
+      case 'Alış Faturası':
+        return "(COALESCE($alias.integration_ref, '') LIKE 'PURCHASE-%' OR $alias.movement_type = 'Alış Faturası' OR COALESCE($alias.description, '') ILIKE 'Alış%' OR COALESCE($alias.description, '') ILIKE 'Alis%')";
+      case 'Üretim Girişi':
+      case 'Üretim (Girdi)':
+        return "$alias.movement_type = 'uretim_giris'";
+      case 'Üretim Çıkışı':
+      case 'Üretim (Çıktı)':
+        return "$alias.movement_type = 'cikis' AND ($alias.integration_ref = 'production_output' OR COALESCE($alias.description, '') ILIKE '%Üretim (Çıktı)%')";
+    }
+
+    return null;
+  }
+
+  String? _buildProductDateOrMovementCondition({
+    required String productIdExpr,
+    required String productCreatedAtExpr,
+    required Map<String, dynamic> params,
+    DateTime? baslangicTarihi,
+    DateTime? bitisTarihi,
+    String? islemTuru,
+    String? kullanici,
+    String movementAlias = 'sm',
+    bool includeCreatedAtFallback = true,
+  }) {
+    final String? trimmedUser = kullanici?.trim();
+    final String? trimmedType = islemTuru?.trim();
+    final bool hasDate = baslangicTarihi != null || bitisTarihi != null;
+    final bool hasMovementSpecificFilter =
+        (trimmedUser != null && trimmedUser.isNotEmpty) ||
+        (trimmedType != null && trimmedType.isNotEmpty);
+
+    if (!hasDate && !hasMovementSpecificFilter) {
+      return null;
+    }
+
+    if (baslangicTarihi != null) {
+      params['startDate'] =
+          _normalizeDateStart(baslangicTarihi).toIso8601String();
+    }
+    if (bitisTarihi != null) {
+      params['endDate'] =
+          _normalizeDateEndInclusive(bitisTarihi).toIso8601String();
+    }
+
+    final List<String> movementConds = <String>[];
+    if (baslangicTarihi != null) {
+      movementConds.add('$movementAlias.movement_date >= @startDate');
+    }
+    if (bitisTarihi != null) {
+      movementConds.add('$movementAlias.movement_date <= @endDate');
+    }
+    if (trimmedUser != null && trimmedUser.isNotEmpty) {
+      movementConds.add(
+        "COALESCE($movementAlias.created_by, '') = @movementUser",
+      );
+      params['movementUser'] = trimmedUser;
+    }
+    if (trimmedType != null && trimmedType.isNotEmpty) {
+      final typeCondition = _buildProductMovementTypeCondition(
+        alias: movementAlias,
+        type: trimmedType,
+      );
+      if (typeCondition != null && typeCondition.isNotEmpty) {
+        movementConds.add(typeCondition);
+      }
+    }
+
+    final String movementExists = '''
+      $productIdExpr IN (
+        SELECT DISTINCT $movementAlias.product_id FROM stock_movements $movementAlias
+        WHERE ${movementConds.join(' AND ')}
+      )
+    ''';
+
+    if (!hasDate || hasMovementSpecificFilter || !includeCreatedAtFallback) {
+      return movementExists;
+    }
+
+    final List<String> createdAtConds = <String>[];
+    if (baslangicTarihi != null) {
+      createdAtConds.add('$productCreatedAtExpr >= @startDate');
+    }
+    if (bitisTarihi != null) {
+      createdAtConds.add('$productCreatedAtExpr <= @endDate');
+    }
+
+    if (createdAtConds.isEmpty) {
+      return movementExists;
+    }
+
+    return '((${createdAtConds.join(' AND ')}) OR $movementExists)';
+  }
+
   /// Bakım Modu: İndeksleri manuel tetikler (Performans için manuel)
   Future<void> bakimModuCalistir() async {
     await _verileriIndeksle();
@@ -1599,83 +1718,18 @@ class UrunlerVeritabaniServisi {
       params['idArray'] = sadeceIdler;
     }
 
-    // Tarih / İşlem Türü / Kullanıcı filtresi (stock_movements üzerinden)
-    if (baslangicTarihi != null ||
-        bitisTarihi != null ||
-        islemTuru != null ||
-        kullanici != null) {
-      String existsQuery = '''
-        products.id IN (
-          SELECT DISTINCT sm.product_id FROM stock_movements sm
-      ''';
-
-      existsQuery += ' WHERE TRUE';
-
-      if (baslangicTarihi != null) {
-        existsQuery += ' AND sm.movement_date >= @startDate';
-        params['startDate'] = baslangicTarihi.toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        existsQuery += ' AND sm.movement_date <= @endDate';
-        final eDate = bitisTarihi;
-        final endOfDay = DateTime(
-          eDate.year,
-          eDate.month,
-          eDate.day,
-          23,
-          59,
-          59,
-          999,
-        );
-        params['endDate'] = endOfDay.toIso8601String();
-      }
-
-      if (kullanici != null && kullanici.trim().isNotEmpty) {
-        existsQuery += ' AND COALESCE(sm.created_by, \'\') = @movementUser';
-        params['movementUser'] = kullanici.trim();
-      }
-
-      if (islemTuru != null && islemTuru.trim().isNotEmpty) {
-        switch (islemTuru.trim()) {
-          case 'Açılış Stoğu (Girdi)':
-            existsQuery +=
-                " AND sm.movement_type = 'giris' AND (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%')";
-            break;
-          case 'Devir Girdi':
-            existsQuery +=
-                " AND sm.movement_type = 'giris' AND NOT (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%') AND NOT (COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%' OR sm.movement_type = 'Alış Faturası' OR COALESCE(sm.description, '') ILIKE 'Alış%' OR COALESCE(sm.description, '') ILIKE 'Alis%')";
-            break;
-          case 'Devir Çıktı':
-            existsQuery +=
-                " AND sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND sm.shipment_id IN (SELECT s.id FROM shipments s WHERE s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL)";
-            break;
-          case 'Sevkiyat':
-            existsQuery += " AND sm.movement_type = 'transfer_giris'";
-            break;
-          case 'Satış Yapıldı':
-          case 'Satış Faturası':
-            existsQuery +=
-                " AND ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%')";
-            break;
-          case 'Alış Yapıldı':
-          case 'Alış Faturası':
-            existsQuery +=
-                " AND (COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%' OR sm.movement_type = 'Alış Faturası' OR COALESCE(sm.description, '') ILIKE 'Alış%' OR COALESCE(sm.description, '') ILIKE 'Alis%')";
-            break;
-          case 'Üretim Girişi':
-          case 'Üretim (Girdi)':
-            existsQuery += " AND sm.movement_type = 'uretim_giris'";
-            break;
-          case 'Üretim Çıkışı':
-          case 'Üretim (Çıktı)':
-            existsQuery +=
-                " AND sm.movement_type = 'cikis' AND (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%')";
-            break;
-        }
-      }
-
-      existsQuery += ' GROUP BY sm.product_id)';
-      whereConditions.add(existsQuery);
+    final productHistoryCondition = _buildProductDateOrMovementCondition(
+      productIdExpr: 'products.id',
+      productCreatedAtExpr: 'products.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemTuru: islemTuru,
+      kullanici: kullanici,
+    );
+    if (productHistoryCondition != null &&
+        productHistoryCondition.trim().isNotEmpty) {
+      whereConditions.add(productHistoryCondition);
     }
 
     String joinClause = '';
@@ -1888,73 +1942,18 @@ class UrunlerVeritabaniServisi {
       params['kdvOrani'] = kdvOrani;
     }
 
-    // Tarih / İşlem Türü / Kullanıcı filtresi (stock_movements üzerinden)
-    if (baslangicTarihi != null ||
-        bitisTarihi != null ||
-        islemTuru != null ||
-        kullanici != null) {
-      String existsQuery = '''
-        products.id IN (
-          SELECT DISTINCT sm.product_id FROM stock_movements sm
-      ''';
-
-      existsQuery += ' WHERE TRUE';
-
-      if (baslangicTarihi != null) {
-        existsQuery += ' AND sm.movement_date >= @startDate';
-        params['startDate'] = baslangicTarihi.toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        existsQuery += ' AND sm.movement_date <= @endDate';
-        params['endDate'] = bitisTarihi.toIso8601String();
-      }
-
-      if (kullanici != null && kullanici.trim().isNotEmpty) {
-        existsQuery += ' AND COALESCE(sm.created_by, \'\') = @movementUser';
-        params['movementUser'] = kullanici.trim();
-      }
-
-      if (islemTuru != null && islemTuru.trim().isNotEmpty) {
-        switch (islemTuru.trim()) {
-          case 'Açılış Stoğu (Girdi)':
-            existsQuery +=
-                " AND sm.movement_type = 'giris' AND (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%')";
-            break;
-          case 'Devir Girdi':
-            existsQuery +=
-                " AND sm.movement_type = 'giris' AND NOT (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%') AND NOT (COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%' OR sm.movement_type = 'Alış Faturası' OR COALESCE(sm.description, '') ILIKE 'Alış%' OR COALESCE(sm.description, '') ILIKE 'Alis%')";
-            break;
-          case 'Devir Çıktı':
-            existsQuery +=
-                " AND sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND sm.shipment_id IN (SELECT s.id FROM shipments s WHERE s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL)";
-            break;
-          case 'Sevkiyat':
-            existsQuery += " AND sm.movement_type = 'transfer_giris'";
-            break;
-          case 'Satış Yapıldı':
-          case 'Satış Faturası':
-            existsQuery +=
-                " AND ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%')";
-            break;
-          case 'Alış Yapıldı':
-          case 'Alış Faturası':
-            existsQuery +=
-                " AND (COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%' OR sm.movement_type = 'Alış Faturası' OR COALESCE(sm.description, '') ILIKE 'Alış%' OR COALESCE(sm.description, '') ILIKE 'Alis%')";
-            break;
-          case 'Üretim Girişi':
-          case 'Üretim (Girdi)':
-            existsQuery += " AND sm.movement_type = 'uretim_giris'";
-            break;
-          case 'Üretim Çıkışı':
-          case 'Üretim (Çıktı)':
-            existsQuery +=
-                " AND sm.movement_type = 'cikis' AND (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%')";
-            break;
-        }
-      }
-
-      existsQuery += ' GROUP BY sm.product_id)';
-      whereConditions.add(existsQuery);
+    final productHistoryCondition = _buildProductDateOrMovementCondition(
+      productIdExpr: 'products.id',
+      productCreatedAtExpr: 'products.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemTuru: islemTuru,
+      kullanici: kullanici,
+    );
+    if (productHistoryCondition != null &&
+        productHistoryCondition.trim().isNotEmpty) {
+      whereConditions.add(productHistoryCondition);
     }
 
     if (whereConditions.isNotEmpty) {
@@ -2129,27 +2128,7 @@ class UrunlerVeritabaniServisi {
     }
 
     String? buildMovementTypeCondition({required String type}) {
-      switch (type) {
-        case 'Açılış Stoğu (Girdi)':
-          return "sm.movement_type = 'giris' AND (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%')";
-        case 'Devir Girdi':
-          return "sm.movement_type = 'giris' AND NOT (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%') AND NOT (COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%' OR sm.movement_type = 'Alış Faturası' OR COALESCE(sm.description, '') ILIKE 'Alış%' OR COALESCE(sm.description, '') ILIKE 'Alis%')";
-        case 'Devir Çıktı':
-          return "sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND sm.shipment_id IN (SELECT s.id FROM shipments s WHERE s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL)";
-        case 'Sevkiyat':
-          return "sm.movement_type = 'transfer_giris'";
-        case 'Üretim Girişi':
-          return "sm.movement_type = 'uretim_giris'";
-        case 'Üretim Çıkışı':
-          return "sm.movement_type = 'cikis' AND (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%')";
-        case 'Satış Yapıldı':
-        case 'Satış Faturası':
-          return "((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%')";
-        case 'Alış Yapıldı':
-        case 'Alış Faturası':
-          return "(COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%' OR sm.movement_type = 'Alış Faturası' OR COALESCE(sm.description, '') ILIKE 'Alış%' OR COALESCE(sm.description, '') ILIKE 'Alis%')";
-      }
-      return null;
+      return _buildProductMovementTypeCondition(alias: 'sm', type: type);
     }
 
     String buildMovementExists({
@@ -2159,45 +2138,17 @@ class UrunlerVeritabaniServisi {
       String? type,
       String? user,
     }) {
-      final String? trimmedUser = user?.trim();
-      final String? trimmedType = type?.trim();
-
-      if (start == null &&
-          end == null &&
-          (trimmedUser == null || trimmedUser.isEmpty) &&
-          (trimmedType == null || trimmedType.isEmpty)) {
-        return '';
-      }
-
-      final List<String> movementConds = <String>[];
-
-      if (start != null) {
-        movementConds.add('sm.movement_date >= @startDate');
-        params['startDate'] = start.toIso8601String();
-      }
-      if (end != null) {
-        movementConds.add('sm.movement_date <= @endDate');
-        params['endDate'] = endOfDay(end)!.toIso8601String();
-      }
-
-      if (trimmedUser != null && trimmedUser.isNotEmpty) {
-        movementConds.add("COALESCE(sm.created_by, '') = @movementUser");
-        params['movementUser'] = trimmedUser;
-      }
-
-      if (trimmedType != null && trimmedType.isNotEmpty) {
-        final typeCond = buildMovementTypeCondition(type: trimmedType);
-        if (typeCond != null && typeCond.isNotEmpty) {
-          movementConds.add(typeCond);
-        }
-      }
-
-      return '''
-        products.id IN (
-          SELECT DISTINCT sm.product_id FROM stock_movements sm
-          WHERE ${movementConds.join(' AND ')}
-        )
-      ''';
+      return _buildProductDateOrMovementCondition(
+            productIdExpr: 'products.id',
+            productCreatedAtExpr: 'products.created_at',
+            params: params,
+            baslangicTarihi: start,
+            bitisTarihi: end,
+            islemTuru: type,
+            kullanici: user,
+            movementAlias: 'sm',
+          ) ??
+          '';
     }
 
     // 0) Genel toplam (arama + tarih) - diğer tüm facet seçimleri hariç
@@ -2592,72 +2543,18 @@ class UrunlerVeritabaniServisi {
       params['kdvOrani'] = kdvOrani;
     }
 
-    if (baslangicTarihi != null ||
-        bitisTarihi != null ||
-        islemTuru != null ||
-        kullanici != null) {
-      String existsQuery = '''
-          products.id IN (
-            SELECT DISTINCT sm.product_id FROM stock_movements sm
-        ''';
-
-      existsQuery += ' WHERE TRUE';
-
-      if (baslangicTarihi != null) {
-        existsQuery += ' AND sm.movement_date >= @startDate';
-        params['startDate'] = baslangicTarihi.toIso8601String();
-      }
-      if (bitisTarihi != null) {
-        existsQuery += ' AND sm.movement_date <= @endDate';
-        params['endDate'] = bitisTarihi.toIso8601String();
-      }
-
-      if (kullanici != null && kullanici.trim().isNotEmpty) {
-        existsQuery += ' AND COALESCE(sm.created_by, \'\') = @movementUser';
-        params['movementUser'] = kullanici.trim();
-      }
-
-      if (islemTuru != null && islemTuru.trim().isNotEmpty) {
-        switch (islemTuru.trim()) {
-          case 'Açılış Stoğu (Girdi)':
-            existsQuery +=
-                " AND sm.movement_type = 'giris' AND (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%')";
-            break;
-          case 'Devir Girdi':
-            existsQuery +=
-                " AND sm.movement_type = 'giris' AND NOT (sm.integration_ref = 'opening_stock' OR COALESCE(sm.description, '') ILIKE '%Açılış%') AND NOT (COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%' OR sm.movement_type = 'Alış Faturası' OR COALESCE(sm.description, '') ILIKE 'Alış%' OR COALESCE(sm.description, '') ILIKE 'Alis%')";
-            break;
-          case 'Devir Çıktı':
-            existsQuery +=
-                " AND sm.movement_type = 'cikis' AND NOT (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%') AND NOT ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%') AND sm.shipment_id IN (SELECT s.id FROM shipments s WHERE s.source_warehouse_id IS NOT NULL AND s.dest_warehouse_id IS NULL)";
-            break;
-          case 'Sevkiyat':
-            existsQuery += " AND sm.movement_type = 'transfer_giris'";
-            break;
-          case 'Satış Yapıldı':
-          case 'Satış Faturası':
-            existsQuery +=
-                " AND ((COALESCE(sm.integration_ref, '') LIKE 'SALE-%' OR COALESCE(sm.integration_ref, '') LIKE 'RETAIL-%') OR sm.movement_type = 'Satış Faturası' OR COALESCE(sm.description, '') ILIKE 'Satış%' OR COALESCE(sm.description, '') ILIKE 'Satis%')";
-            break;
-          case 'Alış Yapıldı':
-          case 'Alış Faturası':
-            existsQuery +=
-                " AND (COALESCE(sm.integration_ref, '') LIKE 'PURCHASE-%' OR sm.movement_type = 'Alış Faturası' OR COALESCE(sm.description, '') ILIKE 'Alış%' OR COALESCE(sm.description, '') ILIKE 'Alis%')";
-            break;
-          case 'Üretim Girişi':
-          case 'Üretim (Girdi)':
-            existsQuery += " AND sm.movement_type = 'uretim_giris'";
-            break;
-          case 'Üretim Çıkışı':
-          case 'Üretim (Çıktı)':
-            existsQuery +=
-                " AND sm.movement_type = 'cikis' AND (sm.integration_ref = 'production_output' OR COALESCE(sm.description, '') ILIKE '%Üretim (Çıktı)%')";
-            break;
-        }
-      }
-
-      existsQuery += ')';
-      whereConditions.add(existsQuery);
+    final productHistoryCondition = _buildProductDateOrMovementCondition(
+      productIdExpr: 'products.id',
+      productCreatedAtExpr: 'products.created_at',
+      params: params,
+      baslangicTarihi: baslangicTarihi,
+      bitisTarihi: bitisTarihi,
+      islemTuru: islemTuru,
+      kullanici: kullanici,
+    );
+    if (productHistoryCondition != null &&
+        productHistoryCondition.trim().isNotEmpty) {
+      whereConditions.add(productHistoryCondition);
     }
 
     if (depoIds != null && depoIds.isNotEmpty) {

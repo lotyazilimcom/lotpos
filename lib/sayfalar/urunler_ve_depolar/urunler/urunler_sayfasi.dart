@@ -563,11 +563,11 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
         _ => 'root_id:$dir',
       };
 
+      final bool hasDateFilter = _startDate != null || _endDate != null;
       final bool hasTxFilters =
           (_selectedTransactionType ?? '').trim().isNotEmpty ||
           (_selectedUser ?? '').trim().isNotEmpty ||
-          _startDate != null ||
-          _endDate != null;
+          hasDateFilter;
 
       final List<String> indexTables =
           (_searchQuery.trim().isNotEmpty || hasTxFilters || depoIds != null)
@@ -617,7 +617,11 @@ class _UrunlerSayfasiState extends State<UrunlerSayfasi> {
           ? null
           : prevCursorRaw.trim();
 
-      final bool usePrimarySearch = _searchQuery.trim().length >= 2;
+      // Tarih filtreli ürün listesinde "oluşturulan veya hareket gören" birleşik
+      // mantık kullanılıyor. Bu mantık DB sorgusunda doğru, index-first yolda
+      // ise yalnız hareket bazlı daralmaya düşebildiği için tarih varken DB yolunu seçiyoruz.
+      final bool usePrimarySearch =
+          _searchQuery.trim().length >= 2 && !hasDateFilter;
 
       if (usePrimarySearch) {
         final primary = await AramaPrimaryPath.fetchPageIndexFirst<UrunModel>(
