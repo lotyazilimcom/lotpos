@@ -175,25 +175,13 @@ class LisansServisi extends ChangeNotifier {
       }
       _losPayBalance = prefs.getDouble(_prefsLosPayBalanceKey) ?? 0;
 
-      // Lite başlangıç ayarlarını ilk doğrulamadan önce canlıdan çek.
-      // Böylece ilk kurulum hediyesi ilk cihaz kaydına doğru yansır.
+      // Önce cache'den yükle; canlı senkronu kritik yolu bloklamasın.
       await LiteAyarlarServisi().baslat();
-      await LiteAyarlarServisi().senkronizeBestEffort(force: true);
 
       // Açılışta lisansı doğrula:
       // - Online erişilebiliyorsa: sadece online kayıt belirleyicidir (yerel lisansa bakılmaz).
       // - Online erişilemiyorsa: yerel lisans (vault/prefs) ile devam edilir.
-      await dogrula(onlineTimeout: const Duration(seconds: 4));
-
-      // İlk kurulumda cihaz kaydı ve başlangıç LosPay bakiyesi UI açılmadan hazır olsun.
-      await _ensureProgramDenemeRowExistsBestEffort(
-        forceLiteSettingsSync: true,
-      );
-      await _syncOnlineRecoveryBestEffort(
-        forceLiteSettingsSync: true,
-        refreshGeo: true,
-        forceStatusPush: true,
-      );
+      await dogrula(onlineTimeout: const Duration(milliseconds: 1200));
 
       _startKasasiDokunmaTimer();
       unawaited(_persistKasasiBestEffort());

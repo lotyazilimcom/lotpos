@@ -281,8 +281,8 @@ class SenetlerVeritabaniServisi {
         final maxIdResult = await _pool!.execute(
           'SELECT COALESCE(MAX(id), 0) FROM note_transactions',
         );
-        final maxId = maxIdResult.first[0];
-        if (maxId != null) {
+        final maxId = int.tryParse(maxIdResult.first[0]?.toString() ?? '0') ?? 0;
+        if (maxId > 0) {
           await _pool!.execute(
             "SELECT setval(pg_get_serial_sequence('note_transactions', 'id'), $maxId)",
           );

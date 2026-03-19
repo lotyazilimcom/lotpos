@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'dart:io';
@@ -139,8 +140,10 @@ class AyarlarVeritabaniServisi {
           'AyarlarVeritabaniServisi: Bulut şema hazır, tablo kurulumu atlandı.',
         );
       }
-      await _ayarlarAramaAltyapisiniHazirla();
       _isInitialized = true;
+
+      // Arama/index bootstrap'i kritik yol olmamalı.
+      unawaited(_ayarlarAramaAltyapisiniHazirla());
 
       // Varsayılan verileri ekle (Bu da önemli ama tablolar hazırsa uygulama açılabilir)
       try {
@@ -1957,7 +1960,7 @@ class AyarlarVeritabaniServisi {
           '$_searchTagsVersionPrefix ' ||
           COALESCE(NEW.id, '') || ' ' ||
           COALESCE(NEW.user_id, '') || ' ' ||
-          COALESCE(TO_CHAR(NEW.date, 'DD.MM.YYYY HH24:MI'), '') || ' ' ||
+          COALESCE(CAST(NEW.date AS TEXT), '') || ' ' ||
           COALESCE(NEW.description, '') || ' ' ||
           COALESCE(NEW.type, '') || ' ' ||
           COALESCE(CAST(NEW.debt AS TEXT), '') || ' ' ||
@@ -2198,7 +2201,7 @@ class AyarlarVeritabaniServisi {
             '$_searchTagsVersionPrefix ' ||
             COALESCE(ut.id, '') || ' ' ||
             COALESCE(ut.user_id, '') || ' ' ||
-            COALESCE(TO_CHAR(ut.date, 'DD.MM.YYYY HH24:MI'), '') || ' ' ||
+            COALESCE(CAST(ut.date AS TEXT), '') || ' ' ||
             COALESCE(ut.description, '') || ' ' ||
             COALESCE(ut.type, '') || ' ' ||
             COALESCE(CAST(ut.debt AS TEXT), '') || ' ' ||
@@ -3104,9 +3107,9 @@ class AyarlarVeritabaniServisi {
           );
         }
 
-        // Şirket veritabanlarını kontrol et (sadece lokal modda)
+        // Şirket veritabanı bakım kontrolü kullanıcıyı bekletmemeli.
         if (!bulut) {
-          await _sirketVeritabanlariniKontrolEt();
+          unawaited(_sirketVeritabanlariniKontrolEt());
         }
       }
     } catch (e) {

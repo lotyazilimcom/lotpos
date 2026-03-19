@@ -148,21 +148,6 @@ class BuyukOlcekAramaBootstrapSpec {
         ),
         (
           table: 'cash_registers',
-          indexName: 'idx_cash_registers_address_id_keyset',
-          expressions: <String>['COALESCE(address, \'\') ASC', 'id ASC'],
-        ),
-        (
-          table: 'cash_registers',
-          indexName: 'idx_cash_registers_responsible_id_keyset',
-          expressions: <String>['COALESCE(responsible, \'\') ASC', 'id ASC'],
-        ),
-        (
-          table: 'cash_registers',
-          indexName: 'idx_cash_registers_phone_id_keyset',
-          expressions: <String>['COALESCE(phone, \'\') ASC', 'id ASC'],
-        ),
-        (
-          table: 'cash_registers',
           indexName: 'idx_cash_registers_is_active_id_keyset',
           expressions: <String>['COALESCE(is_active, 0) ASC', 'id ASC'],
         ),
@@ -180,21 +165,6 @@ class BuyukOlcekAramaBootstrapSpec {
           table: 'credit_cards',
           indexName: 'idx_credit_cards_code_id_keyset',
           expressions: <String>['code ASC', 'id ASC'],
-        ),
-        (
-          table: 'credit_cards',
-          indexName: 'idx_credit_cards_address_id_keyset',
-          expressions: <String>['COALESCE(address, \'\') ASC', 'id ASC'],
-        ),
-        (
-          table: 'credit_cards',
-          indexName: 'idx_credit_cards_responsible_id_keyset',
-          expressions: <String>['COALESCE(responsible, \'\') ASC', 'id ASC'],
-        ),
-        (
-          table: 'credit_cards',
-          indexName: 'idx_credit_cards_phone_id_keyset',
-          expressions: <String>['COALESCE(phone, \'\') ASC', 'id ASC'],
         ),
         (
           table: 'credit_cards',

@@ -21,6 +21,7 @@ import '../../servisler/siparisler_veritabani_servisi.dart';
 import '../../servisler/teklifler_veritabani_servisi.dart';
 import '../../yardimcilar/ceviri/ceviri_servisi.dart';
 import '../ayarlar/sirketayarlari/modeller/sirket_ayarlari_model.dart';
+import '../ayarlar/kullanicilar/modeller/kullanici_model.dart';
 import '../../main.dart';
 import '../../servisler/oturum_servisi.dart';
 import '../../servisler/senetler_veritabani_servisi.dart';
@@ -221,6 +222,20 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
     await step(() => PersonelIslemleriVeritabaniServisi().baslat());
     await step(() => SiparislerVeritabaniServisi().baslat());
     await step(() => TekliflerVeritabaniServisi().baslat());
+  }
+
+  void _anaSayfayaGit({
+    required KullaniciModel kullanici,
+    required SirketAyarlariModel sirket,
+  }) {
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => HomePage(
+          currentUser: kullanici,
+          currentCompany: sirket,
+        ),
+      ),
+    );
   }
 
   Future<void> _veritabaniSeciminiAc() async {
@@ -886,22 +901,19 @@ class _GirisSayfasiState extends State<GirisSayfasi> {
             await _servisleriIsit(background: false);
             await prefs.setBool(warmKey, true);
           } else {
-            // Desktop ve/veya local: mevcut stabil davranış (bekleyerek init)
-            await _servisleriIsit(background: false);
+            // Desktop ve/veya local: kullanıcıyı hemen içeri al, servisleri arka planda ısıt.
+            // Ana sayfa kendi kritik servislerini zaten güvenli şekilde başlatıyor.
+            if (!mounted) return;
+            _anaSayfayaGit(kullanici: kullanici, sirket: _seciliSirket!);
+            unawaited(_servisleriIsit(background: true));
+            return;
           }
 
           if (!mounted) return;
 
           // Ana sayfaya yönlendir
           if (mounted) {
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => HomePage(
-                  currentUser: kullanici,
-                  currentCompany: _seciliSirket!,
-                ),
-              ),
-            );
+            _anaSayfayaGit(kullanici: kullanici, sirket: _seciliSirket!);
           }
         } else {
           setState(() => _yukleniyor = false);

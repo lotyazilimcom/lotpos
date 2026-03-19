@@ -47,6 +47,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
 
   String? _hataMesaji;
   String? get hataMesaji => _hataMesaji;
+  String? _oncedenDogrulanmisHost;
 
   bool _clusterUyumsuz = false;
   String? _beklenenClusterId;
@@ -74,6 +75,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
   /// Tüm sistemi başlatan ana döngü
   Future<void> sistemiBaslat() async {
     _durum = BaglantiDurumu.baglaniyor;
+    _oncedenDogrulanmisHost = null;
     notifyListeners();
 
     try {
@@ -148,6 +150,9 @@ class BaglantiYoneticisi extends ChangeNotifier {
         hedefHost,
         timeout: const Duration(milliseconds: 900),
       );
+      if (bagli) {
+        _oncedenDogrulanmisHost = hedefHost;
+      }
 
       if (!bagli) {
         // C. Auto-Heal: IP değişmiş olabilir, yeniden tara (Scenario B - Attempt 2)
@@ -182,6 +187,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
             yeniHost,
           );
           VeritabaniYapilandirma.setDiscoveredHost(yeniHost);
+          _oncedenDogrulanmisHost = yeniHost;
           await _mdnsLisansBilgisiniUygula(service);
         } else {
           debugPrint('BaglantiYoneticisi: Sunucu ağda bulunamadı.');
@@ -284,6 +290,9 @@ class BaglantiYoneticisi extends ChangeNotifier {
         savedHost,
         timeout: const Duration(milliseconds: 900),
       );
+      if (bagli) {
+        _oncedenDogrulanmisHost = savedHost;
+      }
 
       if (!bagli) {
         debugPrint(
@@ -318,6 +327,7 @@ class BaglantiYoneticisi extends ChangeNotifier {
             yeniHost,
           );
           VeritabaniYapilandirma.setDiscoveredHost(yeniHost);
+          _oncedenDogrulanmisHost = yeniHost;
           await _mdnsLisansBilgisiniUygula(service);
         } else {
           debugPrint(
@@ -403,10 +413,14 @@ class BaglantiYoneticisi extends ChangeNotifier {
       final isLocalHost =
           host == '127.0.0.1' || host == 'localhost' || host == '::1';
       if (!isLocalHost) {
-        final portOk = await _baglantiTestEt(
-          cfg.host,
-          timeout: const Duration(milliseconds: 1200),
-        );
+        final alreadyVerified =
+            (_oncedenDogrulanmisHost ?? '').trim().toLowerCase() == host;
+        final portOk = alreadyVerified
+            ? true
+            : await _baglantiTestEt(
+                cfg.host,
+                timeout: const Duration(milliseconds: 1200),
+              );
         if (!portOk) {
           _hataMesaji = tr('setup.local.server_not_found_open_app');
           _durum = BaglantiDurumu.hata;

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import '../../bilesenler/tab_acici_scope.dart';
 import '../../servisler/oturum_servisi.dart';
@@ -28,6 +30,7 @@ class AnaSayfa extends StatefulWidget {
 class _AnaSayfaState extends State<AnaSayfa> {
   DashboardOzet? _ozet;
   bool _yukleniyor = true;
+  bool _detaylarYukleniyor = false;
   String _tarihFiltresi = 'bugun';
   DateTime _sonYenilenme = DateTime.now();
 
@@ -46,9 +49,55 @@ class _AnaSayfaState extends State<AnaSayfa> {
       _ozet = cacheliOzet;
       _yukleniyor = false;
       _sonYenilenme = cacheZamani ?? _sonYenilenme;
+      _detaylarYukleniyor = false;
+      _verileriYukle(arkaPlanda: true);
+      return;
     }
 
-    _verileriYukle(arkaPlanda: cacheliOzet != null);
+    unawaited(_diskOnbellektenYukle());
+    unawaited(_verileriKademeliYukle());
+  }
+
+  Future<void> _diskOnbellektenYukle() async {
+    final servis = AnaSayfaServisi();
+    final cacheliOzet = await servis.diskCacheliDashboardVerisiniGetir(
+      tarihFiltresi: _tarihFiltresi,
+    );
+    if (!mounted || cacheliOzet == null || _ozet != null) return;
+
+    setState(() {
+      _ozet = cacheliOzet;
+      _yukleniyor = false;
+      _detaylarYukleniyor = false;
+      _sonYenilenme =
+          servis.cacheZamaniniGetir(tarihFiltresi: _tarihFiltresi) ??
+          DateTime.now();
+    });
+
+    unawaited(_verileriYukle(arkaPlanda: true));
+  }
+
+  Future<void> _verileriKademeliYukle() async {
+    if (!mounted) return;
+    final servis = AnaSayfaServisi();
+    final talepEdilenFiltre = _tarihFiltresi;
+
+    try {
+      final DashboardOzet hizliOzet = await servis.dashboardHizliVerileriniGetir(
+        tarihFiltresi: talepEdilenFiltre,
+      );
+      if (!mounted || talepEdilenFiltre != _tarihFiltresi) return;
+      setState(() {
+        _ozet = hizliOzet;
+        _yukleniyor = false;
+        _detaylarYukleniyor = true;
+        _sonYenilenme = DateTime.now();
+      });
+      unawaited(_verileriYukle(arkaPlanda: true));
+    } catch (e) {
+      if (!mounted || talepEdilenFiltre != _tarihFiltresi) return;
+      await _verileriYukle(arkaPlanda: false);
+    }
   }
 
   Future<void> _verileriYukle({bool arkaPlanda = false}) async {
@@ -69,15 +118,49 @@ class _AnaSayfaState extends State<AnaSayfa> {
       setState(() {
         _ozet = ozet;
         _yukleniyor = false;
+        _detaylarYukleniyor = false;
         _sonYenilenme =
             servis.cacheZamaniniGetir(tarihFiltresi: talepEdilenFiltre) ??
             DateTime.now();
       });
     } catch (e) {
       if (!mounted) return;
-      if (_ozet == null) {
-        setState(() => _yukleniyor = false);
+      setState(() {
+        if (_ozet == null) {
+          _yukleniyor = false;
+        }
+        _detaylarYukleniyor = false;
+      });
+    }
+  }
+
+  Future<void> _filtreyiUygula(String filtre) async {
+    final servis = AnaSayfaServisi();
+    final cacheliOzet = servis.cacheliDashboardVerisiniGetir(
+      tarihFiltresi: filtre,
+    );
+    final cacheZamani = servis.cacheZamaniniGetir(
+      tarihFiltresi: filtre,
+    );
+
+    setState(() {
+      _tarihFiltresi = filtre;
+      if (cacheliOzet != null) {
+        _ozet = cacheliOzet;
+        _yukleniyor = false;
+        _detaylarYukleniyor = false;
+        _sonYenilenme = cacheZamani ?? _sonYenilenme;
+      } else {
+        _ozet = null;
+        _yukleniyor = true;
+        _detaylarYukleniyor = false;
       }
+    });
+
+    if (cacheliOzet != null) {
+      unawaited(_verileriYukle(arkaPlanda: true));
+    } else {
+      unawaited(_verileriKademeliYukle());
     }
   }
 
@@ -126,29 +209,7 @@ class _AnaSayfaState extends State<AnaSayfa> {
                 baglantiModu: VeritabaniYapilandirma.connectionMode,
                 sonYenilenme: _sonYenilenme,
                 seciliFiltre: _tarihFiltresi,
-                onFiltreSecildi: (filtre) {
-                  final servis = AnaSayfaServisi();
-                  final cacheliOzet = servis.cacheliDashboardVerisiniGetir(
-                    tarihFiltresi: filtre,
-                  );
-                  final cacheZamani = servis.cacheZamaniniGetir(
-                    tarihFiltresi: filtre,
-                  );
-
-                  setState(() {
-                    _tarihFiltresi = filtre;
-                    if (cacheliOzet != null) {
-                      _ozet = cacheliOzet;
-                      _yukleniyor = false;
-                      _sonYenilenme = cacheZamani ?? _sonYenilenme;
-                    } else {
-                      _ozet = null;
-                      _yukleniyor = true;
-                    }
-                  });
-
-                  _verileriYukle(arkaPlanda: cacheliOzet != null);
-                },
+                onFiltreSecildi: (filtre) => _filtreyiUygula(filtre),
                 onYenile: () => _verileriYukle(arkaPlanda: _ozet != null),
               ),
               const SizedBox(height: 20),
@@ -158,7 +219,9 @@ class _AnaSayfaState extends State<AnaSayfa> {
               const SizedBox(height: 24),
 
               // ─── 3. Analitik + Risk Merkezi ───
-              _buildAnaliticRow(ozet, isWide),
+              _detaylarYukleniyor
+                  ? _buildAnaliticPlaceholder(isWide)
+                  : _buildAnaliticRow(ozet, isWide),
               const SizedBox(height: 24),
 
               // ─── 4. Orta Bant Finansal Kartlar ───
@@ -170,10 +233,12 @@ class _AnaSayfaState extends State<AnaSayfa> {
               const SizedBox(height: 24),
 
               // ─── 6. Son İşlemler Akışı ───
-              DashboardSonIslemler(
-                islemler: ozet.sonIslemler,
-                onIslemTap: _tabAc,
-              ),
+              _detaylarYukleniyor
+                  ? _buildSonIslemlerPlaceholder()
+                  : DashboardSonIslemler(
+                      islemler: ozet.sonIslemler,
+                      onIslemTap: _tabAc,
+                    ),
               const SizedBox(height: 20),
             ],
           ),
@@ -265,6 +330,24 @@ class _AnaSayfaState extends State<AnaSayfa> {
     return Column(children: [grafik, const SizedBox(height: 16), uyari]);
   }
 
+  Widget _buildAnaliticPlaceholder(bool isWide) {
+    final grafik = _placeholderKart(height: 300);
+    final uyari = _placeholderKart(height: 300);
+
+    if (isWide) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(flex: 3, child: grafik),
+          const SizedBox(width: 16),
+          Expanded(flex: 2, child: uyari),
+        ],
+      );
+    }
+
+    return Column(children: [grafik, const SizedBox(height: 16), uyari]);
+  }
+
   /// Orta Bant Finansal Kartlar Grid
   Widget _buildFinansGrid(DashboardOzet ozet, int crossCount) {
     final kartlar = [
@@ -319,6 +402,42 @@ class _AnaSayfaState extends State<AnaSayfa> {
     ];
 
     return _responsiveGrid(kartlar, crossCount);
+  }
+
+  Widget _buildSonIslemlerPlaceholder() {
+    return _placeholderKart(height: 420);
+  }
+
+  Widget _placeholderKart({required double height}) {
+    return Container(
+      height: height,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: AppPalette.grey.withValues(alpha: 0.15),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: AppPalette.slate.withValues(alpha: 0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+          BoxShadow(
+            color: AppPalette.slate.withValues(alpha: 0.03),
+            blurRadius: 4,
+            offset: const Offset(0, 1),
+          ),
+        ],
+      ),
+      child: const Center(
+        child: SizedBox(
+          width: 24,
+          height: 24,
+          child: CircularProgressIndicator(strokeWidth: 2.4),
+        ),
+      ),
+    );
   }
 
   /// Responsive grid oluşturucu

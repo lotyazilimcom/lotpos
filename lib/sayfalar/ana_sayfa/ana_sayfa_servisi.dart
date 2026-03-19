@@ -1,5 +1,9 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:postgres/postgres.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../servisler/bankalar_veritabani_servisi.dart';
 import '../../servisler/cari_hesaplar_veritabani_servisi.dart';
@@ -23,6 +27,7 @@ class AnaSayfaServisi {
   AnaSayfaServisi._internal();
 
   static const String _defaultCompanyId = 'patisyo2025';
+  static const String _prefsCachePrefix = 'dashboard_cache_v3::';
   static final Map<String, Future<void>> _hazirlikFutureleri =
       <String, Future<void>>{};
   static final Map<String, _DashboardCacheKaydi> _dashboardCache =
@@ -36,6 +41,174 @@ class AnaSayfaServisi {
 
   DateTime? cacheZamaniniGetir({String tarihFiltresi = 'bugun'}) {
     return _dashboardCache[_aktifCacheAnahtari(tarihFiltresi)]?.yuklenmeAni;
+  }
+
+  Future<DashboardOzet?> diskCacheliDashboardVerisiniGetir({
+    String tarihFiltresi = 'bugun',
+  }) async {
+    final String cacheAnahtari = _aktifCacheAnahtari(tarihFiltresi);
+    final _DashboardCacheKaydi? bellekKaydi = _dashboardCache[cacheAnahtari];
+    if (bellekKaydi != null) {
+      return bellekKaydi.ozet;
+    }
+
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      final String? raw = prefs.getString('$_prefsCachePrefix$cacheAnahtari');
+      if (raw == null || raw.trim().isEmpty) return null;
+
+      final Map<String, dynamic> payload = Map<String, dynamic>.from(
+        jsonDecode(raw) as Map,
+      );
+      final Map<String, dynamic> ozetMap = Map<String, dynamic>.from(
+        (payload['ozet'] as Map?) ?? payload,
+      );
+      final DashboardOzet ozet = DashboardOzet.fromMap(ozetMap);
+      final DateTime yuklenmeAni =
+          DateTime.tryParse(payload['yuklenmeAni']?.toString() ?? '') ??
+              DateTime.now();
+
+      _dashboardCache[cacheAnahtari] = _DashboardCacheKaydi(
+        ozet: ozet,
+        yuklenmeAni: yuklenmeAni,
+      );
+      return ozet;
+    } catch (e) {
+      debugPrint('AnaSayfaServisi: disk cache okuma uyarisi: $e');
+      return null;
+    }
+  }
+
+  void hazirliklariArkaPlandaBaslat() {
+    unawaited(_hazirliklariYap());
+  }
+
+  Future<DashboardOzet> dashboardHizliVerileriniGetir({
+    String tarihFiltresi = 'bugun',
+  }) async {
+    hazirliklariArkaPlandaBaslat();
+
+    final String aktifVeritabani = OturumServisi().aktifVeritabaniAdi;
+    final String companyId = aktifVeritabani.trim().isEmpty
+        ? _defaultCompanyId
+        : aktifVeritabani;
+    final Pool pool = await VeritabaniHavuzu().havuzAl(
+      database: aktifVeritabani,
+    );
+
+    final DateTime now = DateTime.now();
+    final _PeriyotPenceresi seciliPeriyot = _periyotPenceresiOlustur(
+      now,
+      tarihFiltresi,
+    );
+    final _PeriyotPenceresi oncekiPeriyot = _oncekiPeriyot(seciliPeriyot);
+    final _PeriyotPenceresi bosSparklinePeriyodu = _PeriyotPenceresi(
+      baslangic: DateTime.fromMillisecondsSinceEpoch(0),
+      bitis: DateTime.fromMillisecondsSinceEpoch(0),
+    );
+
+    final List<dynamic> sonuc = await Future.wait<dynamic>([
+      _guvenliGetir<_DashboardMetrik>(
+        etiket: 'hizli kasa metrikleri',
+        fallback: const _DashboardMetrik(),
+        islem: () => _kasaMetrikleriniGetir(
+          pool: pool,
+          companyId: companyId,
+          seciliPeriyot: seciliPeriyot,
+          sparklinePeriyodu: bosSparklinePeriyodu,
+          includeSparkline: false,
+        ),
+      ),
+      _guvenliGetir<_DashboardMetrik>(
+        etiket: 'hizli banka metrikleri',
+        fallback: const _DashboardMetrik(),
+        islem: () => _bankaMetrikleriniGetir(
+          pool: pool,
+          companyId: companyId,
+          seciliPeriyot: seciliPeriyot,
+          sparklinePeriyodu: bosSparklinePeriyodu,
+          includeSparkline: false,
+        ),
+      ),
+      _guvenliGetir<_DashboardMetrik>(
+        etiket: 'hizli stok metrikleri',
+        fallback: const _DashboardMetrik(),
+        islem: () => _stokMetrikleriniGetir(
+          pool: pool,
+          seciliPeriyot: seciliPeriyot,
+          sparklinePeriyodu: bosSparklinePeriyodu,
+          includeSparkline: false,
+        ),
+      ),
+      _guvenliGetir<_DashboardMetrik>(
+        etiket: 'hizli cari metrikleri',
+        fallback: const _DashboardMetrik(),
+        islem: () => _cariMetrikleriniGetir(
+          pool: pool,
+          seciliPeriyot: seciliPeriyot,
+          sparklinePeriyodu: bosSparklinePeriyodu,
+          includeSparkline: false,
+        ),
+      ),
+      _guvenliGetir<_DashboardMetrik>(
+        etiket: 'hizli satis metrikleri',
+        fallback: const _DashboardMetrik(),
+        islem: () => _satisMetrikleriniGetir(
+          pool: pool,
+          seciliPeriyot: seciliPeriyot,
+          oncekiPeriyot: oncekiPeriyot,
+          sparklinePeriyodu: bosSparklinePeriyodu,
+          includeSparkline: false,
+        ),
+      ),
+      _guvenliGetir<_FinansOzet>(
+        etiket: 'hizli finans ozeti',
+        fallback: const _FinansOzet(),
+        islem: () =>
+            _finansOzetiniGetir(pool: pool, companyId: companyId, now: now),
+      ),
+    ]);
+
+    final _DashboardMetrik kasa = sonuc[0] as _DashboardMetrik;
+    final _DashboardMetrik banka = sonuc[1] as _DashboardMetrik;
+    final _DashboardMetrik stok = sonuc[2] as _DashboardMetrik;
+    final _DashboardMetrik cari = sonuc[3] as _DashboardMetrik;
+    final _DashboardMetrik satis = sonuc[4] as _DashboardMetrik;
+    final _FinansOzet finans = sonuc[5] as _FinansOzet;
+
+    return DashboardOzet(
+      toplamKasa: kasa.mevcutDeger,
+      toplamBanka: banka.mevcutDeger,
+      toplamStokDegeri: stok.mevcutDeger,
+      netCariBakiye: cari.mevcutDeger,
+      bugunNetSatis: satis.mevcutDeger,
+      krediKartiBakiyesi: finans.krediKartiBakiyesi,
+      bekleyenCekler: finans.bekleyenCekler,
+      bekleyenSenetler: finans.bekleyenSenetler,
+      aktifSiparisler: finans.aktifSiparisler,
+      aktifTeklifler: finans.aktifTeklifler,
+      buAykiGiderler: finans.buAykiGiderler,
+      kasaDegisimYuzde: _degisimYuzdesi(
+        mevcut: kasa.mevcutDeger,
+        onceki: kasa.oncekiDeger,
+      ),
+      bankaDegisimYuzde: _degisimYuzdesi(
+        mevcut: banka.mevcutDeger,
+        onceki: banka.oncekiDeger,
+      ),
+      stokDegisimYuzde: _degisimYuzdesi(
+        mevcut: stok.mevcutDeger,
+        onceki: stok.oncekiDeger,
+      ),
+      cariDegisimYuzde: _degisimYuzdesi(
+        mevcut: cari.mevcutDeger,
+        onceki: cari.oncekiDeger,
+      ),
+      satisDegisimYuzde: _degisimYuzdesi(
+        mevcut: satis.mevcutDeger,
+        onceki: satis.oncekiDeger,
+      ),
+    );
   }
 
   Future<DashboardOzet> dashboardVerileriniGetir({
@@ -216,8 +389,13 @@ class AnaSayfaServisi {
       sonIslemler: sonIslemler,
     );
 
-    _dashboardCache[_cacheAnahtari(aktifVeritabani, tarihFiltresi)] =
-        _DashboardCacheKaydi(ozet: ozet, yuklenmeAni: DateTime.now());
+    final _DashboardCacheKaydi kayit = _DashboardCacheKaydi(
+      ozet: ozet,
+      yuklenmeAni: DateTime.now(),
+    );
+    final String cacheAnahtari = _cacheAnahtari(aktifVeritabani, tarihFiltresi);
+    _dashboardCache[cacheAnahtari] = kayit;
+    unawaited(_cacheyiDiskeKaydet(cacheAnahtari, kayit));
 
     return ozet;
   }
@@ -249,6 +427,24 @@ class AnaSayfaServisi {
       _baslatGuvenli('teklifler', () => TekliflerVeritabaniServisi().baslat()),
       _baslatGuvenli('giderler', () => GiderlerVeritabaniServisi().baslat()),
     ]));
+  }
+
+  Future<void> _cacheyiDiskeKaydet(
+    String cacheAnahtari,
+    _DashboardCacheKaydi kayit,
+  ) async {
+    try {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(
+        '$_prefsCachePrefix$cacheAnahtari',
+        jsonEncode(<String, dynamic>{
+          'yuklenmeAni': kayit.yuklenmeAni.toIso8601String(),
+          'ozet': kayit.ozet.toMap(),
+        }),
+      );
+    } catch (e) {
+      debugPrint('AnaSayfaServisi: disk cache yazma uyarisi: $e');
+    }
   }
 
   String _aktifCacheAnahtari(String tarihFiltresi) {
@@ -291,8 +487,9 @@ class AnaSayfaServisi {
     required String companyId,
     required _PeriyotPenceresi seciliPeriyot,
     required _PeriyotPenceresi sparklinePeriyodu,
+    bool includeSparkline = true,
   }) async {
-    final double mevcutToplam = await _tekDegerGetir(
+    final Future<double> mevcutToplamFuture = _tekDegerGetir(
       pool,
       '''
         SELECT COALESCE(SUM(COALESCE(balance, 0)), 0)
@@ -303,7 +500,7 @@ class AnaSayfaServisi {
       {'companyId': companyId},
     );
 
-    final double seciliNet = await _tekDegerGetir(
+    final Future<double> seciliNetFuture = _tekDegerGetir(
       pool,
       '''
         SELECT COALESCE(SUM(
@@ -325,29 +522,48 @@ class AnaSayfaServisi {
       },
     );
 
-    final Map<DateTime, double> gunlukNetler = await _gunlukToplamHaritasi(
-      pool,
-      '''
-        SELECT DATE(date) AS gun,
-               COALESCE(SUM(
-                 CASE
-                   WHEN LOWER(COALESCE(type, '')) IN ('tahsilat', 'giriş', 'giris')
-                     THEN COALESCE(amount, 0)
-                   ELSE -COALESCE(amount, 0)
-                 END
-               ), 0) AS toplam
-        FROM cash_register_transactions
-        WHERE COALESCE(company_id, '$_defaultCompanyId') = @companyId
-          AND date >= @start
-          AND date < @end
-        GROUP BY DATE(date)
-      ''',
-      {
-        'companyId': companyId,
-        'start': _ts(sparklinePeriyodu.baslangic),
-        'end': _ts(sparklinePeriyodu.bitis),
-      },
-    );
+    final Future<Map<DateTime, double>> gunlukNetlerFuture = includeSparkline
+        ? _gunlukToplamHaritasi(
+            pool,
+            '''
+              SELECT DATE(date) AS gun,
+                     COALESCE(SUM(
+                       CASE
+                         WHEN LOWER(COALESCE(type, '')) IN ('tahsilat', 'giriş', 'giris')
+                           THEN COALESCE(amount, 0)
+                         ELSE -COALESCE(amount, 0)
+                       END
+                     ), 0) AS toplam
+              FROM cash_register_transactions
+              WHERE COALESCE(company_id, '$_defaultCompanyId') = @companyId
+                AND date >= @start
+                AND date < @end
+              GROUP BY DATE(date)
+            ''',
+            {
+              'companyId': companyId,
+              'start': _ts(sparklinePeriyodu.baslangic),
+              'end': _ts(sparklinePeriyodu.bitis),
+            },
+          )
+        : Future.value(const <DateTime, double>{});
+
+    final List<dynamic> sonuc = await Future.wait<dynamic>([
+      mevcutToplamFuture,
+      seciliNetFuture,
+      gunlukNetlerFuture,
+    ]);
+    final double mevcutToplam = sonuc[0] as double;
+    final double seciliNet = sonuc[1] as double;
+    final Map<DateTime, double> gunlukNetler =
+        sonuc[2] as Map<DateTime, double>;
+
+    if (!includeSparkline) {
+      return _DashboardMetrik(
+        mevcutDeger: mevcutToplam,
+        oncekiDeger: mevcutToplam - seciliNet,
+      );
+    }
 
     return _kumulatifMetrikOlustur(
       mevcutDeger: mevcutToplam,
@@ -362,8 +578,9 @@ class AnaSayfaServisi {
     required String companyId,
     required _PeriyotPenceresi seciliPeriyot,
     required _PeriyotPenceresi sparklinePeriyodu,
+    bool includeSparkline = true,
   }) async {
-    final double mevcutToplam = await _tekDegerGetir(
+    final Future<double> mevcutToplamFuture = _tekDegerGetir(
       pool,
       '''
         SELECT COALESCE(SUM(COALESCE(balance, 0)), 0)
@@ -374,7 +591,7 @@ class AnaSayfaServisi {
       {'companyId': companyId},
     );
 
-    final double seciliNet = await _tekDegerGetir(
+    final Future<double> seciliNetFuture = _tekDegerGetir(
       pool,
       '''
         SELECT COALESCE(SUM(
@@ -396,29 +613,48 @@ class AnaSayfaServisi {
       },
     );
 
-    final Map<DateTime, double> gunlukNetler = await _gunlukToplamHaritasi(
-      pool,
-      '''
-        SELECT DATE(date) AS gun,
-               COALESCE(SUM(
-                 CASE
-                   WHEN LOWER(COALESCE(type, '')) IN ('tahsilat', 'giriş', 'giris')
-                     THEN COALESCE(amount, 0)
-                   ELSE -COALESCE(amount, 0)
-                 END
-               ), 0) AS toplam
-        FROM bank_transactions
-        WHERE COALESCE(company_id, '$_defaultCompanyId') = @companyId
-          AND date >= @start
-          AND date < @end
-        GROUP BY DATE(date)
-      ''',
-      {
-        'companyId': companyId,
-        'start': _ts(sparklinePeriyodu.baslangic),
-        'end': _ts(sparklinePeriyodu.bitis),
-      },
-    );
+    final Future<Map<DateTime, double>> gunlukNetlerFuture = includeSparkline
+        ? _gunlukToplamHaritasi(
+            pool,
+            '''
+              SELECT DATE(date) AS gun,
+                     COALESCE(SUM(
+                       CASE
+                         WHEN LOWER(COALESCE(type, '')) IN ('tahsilat', 'giriş', 'giris')
+                           THEN COALESCE(amount, 0)
+                         ELSE -COALESCE(amount, 0)
+                       END
+                     ), 0) AS toplam
+              FROM bank_transactions
+              WHERE COALESCE(company_id, '$_defaultCompanyId') = @companyId
+                AND date >= @start
+                AND date < @end
+              GROUP BY DATE(date)
+            ''',
+            {
+              'companyId': companyId,
+              'start': _ts(sparklinePeriyodu.baslangic),
+              'end': _ts(sparklinePeriyodu.bitis),
+            },
+          )
+        : Future.value(const <DateTime, double>{});
+
+    final List<dynamic> sonuc = await Future.wait<dynamic>([
+      mevcutToplamFuture,
+      seciliNetFuture,
+      gunlukNetlerFuture,
+    ]);
+    final double mevcutToplam = sonuc[0] as double;
+    final double seciliNet = sonuc[1] as double;
+    final Map<DateTime, double> gunlukNetler =
+        sonuc[2] as Map<DateTime, double>;
+
+    if (!includeSparkline) {
+      return _DashboardMetrik(
+        mevcutDeger: mevcutToplam,
+        oncekiDeger: mevcutToplam - seciliNet,
+      );
+    }
 
     return _kumulatifMetrikOlustur(
       mevcutDeger: mevcutToplam,
@@ -432,8 +668,9 @@ class AnaSayfaServisi {
     required Pool pool,
     required _PeriyotPenceresi seciliPeriyot,
     required _PeriyotPenceresi sparklinePeriyodu,
+    bool includeSparkline = true,
   }) async {
-    final double mevcutToplam = await _tekDegerGetir(pool, '''
+    final Future<double> mevcutToplamFuture = _tekDegerGetir(pool, '''
         SELECT COALESCE(
           SUM(COALESCE(stok, 0) * COALESCE(alis_fiyati, 0)),
           0
@@ -442,7 +679,7 @@ class AnaSayfaServisi {
         WHERE COALESCE(aktif_mi, 1) = 1
       ''');
 
-    final double seciliNet = await _tekDegerGetir(
+    final Future<double> seciliNetFuture = _tekDegerGetir(
       pool,
       '''
         SELECT COALESCE(SUM(
@@ -459,27 +696,46 @@ class AnaSayfaServisi {
       {'start': _ts(seciliPeriyot.baslangic), 'end': _ts(seciliPeriyot.bitis)},
     );
 
-    final Map<DateTime, double> gunlukNetler = await _gunlukToplamHaritasi(
-      pool,
-      '''
-        SELECT DATE(movement_date) AS gun,
-               COALESCE(SUM(
-                 CASE
-                   WHEN COALESCE(is_giris, true)
-                     THEN COALESCE(quantity, 0) * COALESCE(unit_price, 0) * COALESCE(NULLIF(currency_rate, 0), 1)
-                   ELSE -COALESCE(quantity, 0) * COALESCE(unit_price, 0) * COALESCE(NULLIF(currency_rate, 0), 1)
-                 END
-               ), 0) AS toplam
-        FROM stock_movements
-        WHERE movement_date >= @start
-          AND movement_date < @end
-        GROUP BY DATE(movement_date)
-      ''',
-      {
-        'start': _ts(sparklinePeriyodu.baslangic),
-        'end': _ts(sparklinePeriyodu.bitis),
-      },
-    );
+    final Future<Map<DateTime, double>> gunlukNetlerFuture = includeSparkline
+        ? _gunlukToplamHaritasi(
+            pool,
+            '''
+              SELECT DATE(movement_date) AS gun,
+                     COALESCE(SUM(
+                       CASE
+                         WHEN COALESCE(is_giris, true)
+                           THEN COALESCE(quantity, 0) * COALESCE(unit_price, 0) * COALESCE(NULLIF(currency_rate, 0), 1)
+                         ELSE -COALESCE(quantity, 0) * COALESCE(unit_price, 0) * COALESCE(NULLIF(currency_rate, 0), 1)
+                       END
+                     ), 0) AS toplam
+              FROM stock_movements
+              WHERE movement_date >= @start
+                AND movement_date < @end
+              GROUP BY DATE(movement_date)
+            ''',
+            {
+              'start': _ts(sparklinePeriyodu.baslangic),
+              'end': _ts(sparklinePeriyodu.bitis),
+            },
+          )
+        : Future.value(const <DateTime, double>{});
+
+    final List<dynamic> sonuc = await Future.wait<dynamic>([
+      mevcutToplamFuture,
+      seciliNetFuture,
+      gunlukNetlerFuture,
+    ]);
+    final double mevcutToplam = sonuc[0] as double;
+    final double seciliNet = sonuc[1] as double;
+    final Map<DateTime, double> gunlukNetler =
+        sonuc[2] as Map<DateTime, double>;
+
+    if (!includeSparkline) {
+      return _DashboardMetrik(
+        mevcutDeger: mevcutToplam,
+        oncekiDeger: mevcutToplam - seciliNet,
+      );
+    }
 
     return _kumulatifMetrikOlustur(
       mevcutDeger: mevcutToplam,
@@ -493,8 +749,9 @@ class AnaSayfaServisi {
     required Pool pool,
     required _PeriyotPenceresi seciliPeriyot,
     required _PeriyotPenceresi sparklinePeriyodu,
+    bool includeSparkline = true,
   }) async {
-    final double mevcutToplam = await _tekDegerGetir(pool, '''
+    final Future<double> mevcutToplamFuture = _tekDegerGetir(pool, '''
         SELECT COALESCE(
           SUM(COALESCE(bakiye_alacak, 0) - COALESCE(bakiye_borc, 0)),
           0
@@ -503,7 +760,7 @@ class AnaSayfaServisi {
         WHERE COALESCE(aktif_mi, 1) = 1
       ''');
 
-    final double seciliNet = await _tekDegerGetir(
+    final Future<double> seciliNetFuture = _tekDegerGetir(
       pool,
       '''
         SELECT COALESCE(SUM(
@@ -520,27 +777,46 @@ class AnaSayfaServisi {
       {'start': _ts(seciliPeriyot.baslangic), 'end': _ts(seciliPeriyot.bitis)},
     );
 
-    final Map<DateTime, double> gunlukNetler = await _gunlukToplamHaritasi(
-      pool,
-      '''
-        SELECT DATE(date) AS gun,
-               COALESCE(SUM(
-                 CASE
-                   WHEN type = 'Alacak'
-                     THEN COALESCE(amount, 0) * COALESCE(NULLIF(kur, 0), 1)
-                   ELSE -COALESCE(amount, 0) * COALESCE(NULLIF(kur, 0), 1)
-                 END
-               ), 0) AS toplam
-        FROM current_account_transactions
-        WHERE date >= @start
-          AND date < @end
-        GROUP BY DATE(date)
-      ''',
-      {
-        'start': _ts(sparklinePeriyodu.baslangic),
-        'end': _ts(sparklinePeriyodu.bitis),
-      },
-    );
+    final Future<Map<DateTime, double>> gunlukNetlerFuture = includeSparkline
+        ? _gunlukToplamHaritasi(
+            pool,
+            '''
+              SELECT DATE(date) AS gun,
+                     COALESCE(SUM(
+                       CASE
+                         WHEN type = 'Alacak'
+                           THEN COALESCE(amount, 0) * COALESCE(NULLIF(kur, 0), 1)
+                         ELSE -COALESCE(amount, 0) * COALESCE(NULLIF(kur, 0), 1)
+                       END
+                     ), 0) AS toplam
+              FROM current_account_transactions
+              WHERE date >= @start
+                AND date < @end
+              GROUP BY DATE(date)
+            ''',
+            {
+              'start': _ts(sparklinePeriyodu.baslangic),
+              'end': _ts(sparklinePeriyodu.bitis),
+            },
+          )
+        : Future.value(const <DateTime, double>{});
+
+    final List<dynamic> sonuc = await Future.wait<dynamic>([
+      mevcutToplamFuture,
+      seciliNetFuture,
+      gunlukNetlerFuture,
+    ]);
+    final double mevcutToplam = sonuc[0] as double;
+    final double seciliNet = sonuc[1] as double;
+    final Map<DateTime, double> gunlukNetler =
+        sonuc[2] as Map<DateTime, double>;
+
+    if (!includeSparkline) {
+      return _DashboardMetrik(
+        mevcutDeger: mevcutToplam,
+        oncekiDeger: mevcutToplam - seciliNet,
+      );
+    }
 
     return _kumulatifMetrikOlustur(
       mevcutDeger: mevcutToplam,
@@ -555,8 +831,9 @@ class AnaSayfaServisi {
     required _PeriyotPenceresi seciliPeriyot,
     required _PeriyotPenceresi oncekiPeriyot,
     required _PeriyotPenceresi sparklinePeriyodu,
+    bool includeSparkline = true,
   }) async {
-    final double mevcutToplam = await _tekDegerGetir(
+    final Future<double> mevcutToplamFuture = _tekDegerGetir(
       pool,
       '''
         SELECT COALESCE(SUM(COALESCE(amount, 0) * COALESCE(NULLIF(kur, 0), 1)), 0)
@@ -578,7 +855,7 @@ class AnaSayfaServisi {
       {'start': _ts(seciliPeriyot.baslangic), 'end': _ts(seciliPeriyot.bitis)},
     );
 
-    final double oncekiToplam = await _tekDegerGetir(
+    final Future<double> oncekiToplamFuture = _tekDegerGetir(
       pool,
       '''
         SELECT COALESCE(SUM(COALESCE(amount, 0) * COALESCE(NULLIF(kur, 0), 1)), 0)
@@ -600,32 +877,51 @@ class AnaSayfaServisi {
       {'start': _ts(oncekiPeriyot.baslangic), 'end': _ts(oncekiPeriyot.bitis)},
     );
 
-    final Map<DateTime, double> gunlukToplamlar = await _gunlukToplamHaritasi(
-      pool,
-      '''
-        SELECT DATE(date) AS gun,
-               COALESCE(SUM(COALESCE(amount, 0) * COALESCE(NULLIF(kur, 0), 1)), 0) AS toplam
-        FROM current_account_transactions
-        WHERE date >= @start
-          AND date < @end
-          AND type = 'Borç'
-          AND (
-            COALESCE(integration_ref, '') LIKE 'SALE-%'
-            OR COALESCE(integration_ref, '') LIKE 'RETAIL-%'
-            OR LOWER(TRIM(COALESCE(source_type, ''))) IN (
-              'satış yapıldı',
-              'satis yapildi',
-              'perakende satış',
-              'perakende satis'
-            )
+    final Future<Map<DateTime, double>> gunlukToplamlarFuture = includeSparkline
+        ? _gunlukToplamHaritasi(
+            pool,
+            '''
+              SELECT DATE(date) AS gun,
+                     COALESCE(SUM(COALESCE(amount, 0) * COALESCE(NULLIF(kur, 0), 1)), 0) AS toplam
+              FROM current_account_transactions
+              WHERE date >= @start
+                AND date < @end
+                AND type = 'Borç'
+                AND (
+                  COALESCE(integration_ref, '') LIKE 'SALE-%'
+                  OR COALESCE(integration_ref, '') LIKE 'RETAIL-%'
+                  OR LOWER(TRIM(COALESCE(source_type, ''))) IN (
+                    'satış yapıldı',
+                    'satis yapildi',
+                    'perakende satış',
+                    'perakende satis'
+                  )
+                )
+              GROUP BY DATE(date)
+            ''',
+            {
+              'start': _ts(sparklinePeriyodu.baslangic),
+              'end': _ts(sparklinePeriyodu.bitis),
+            },
           )
-        GROUP BY DATE(date)
-      ''',
-      {
-        'start': _ts(sparklinePeriyodu.baslangic),
-        'end': _ts(sparklinePeriyodu.bitis),
-      },
-    );
+        : Future.value(const <DateTime, double>{});
+
+    final List<dynamic> sonuc = await Future.wait<dynamic>([
+      mevcutToplamFuture,
+      oncekiToplamFuture,
+      gunlukToplamlarFuture,
+    ]);
+    final double mevcutToplam = sonuc[0] as double;
+    final double oncekiToplam = sonuc[1] as double;
+    final Map<DateTime, double> gunlukToplamlar =
+        sonuc[2] as Map<DateTime, double>;
+
+    if (!includeSparkline) {
+      return _DashboardMetrik(
+        mevcutDeger: mevcutToplam,
+        oncekiDeger: oncekiToplam,
+      );
+    }
 
     final List<double> sparkline = _gunAraligi(
       sparklinePeriyodu,
@@ -725,7 +1021,10 @@ class AnaSayfaServisi {
     required Pool pool,
     required String companyId,
   }) async {
-    final List<List<dynamic>> stokRows = await pool.execute(
+    final DateTime bugun = _gunBaslangici(DateTime.now());
+    final DateTime otuzGunSonra = bugun.add(const Duration(days: 31));
+
+    final Future<List<List<dynamic>>> stokRowsFuture = pool.execute(
       Sql.named('''
           SELECT id, ad, COALESCE(stok, 0), COALESCE(birim, 'Adet')
           FROM products
@@ -736,23 +1035,7 @@ class AnaSayfaServisi {
         '''),
     );
 
-    final List<KritikStokItem> kritikStoklar = stokRows
-        .map(
-          (row) => KritikStokItem(
-            id: _sayiyaCevir(row[0]).toInt(),
-            urunAdi: row[1]?.toString() ?? '',
-            mevcutStok: _sayiyaCevir(row[2]),
-            birim: ((row[3]?.toString() ?? '').trim().isEmpty)
-                ? 'Adet'
-                : row[3].toString(),
-          ),
-        )
-        .toList();
-
-    final DateTime bugun = _gunBaslangici(DateTime.now());
-    final DateTime otuzGunSonra = bugun.add(const Duration(days: 31));
-
-    final List<List<dynamic>> vadeRows = await pool.execute(
+    final Future<List<List<dynamic>>> vadeRowsFuture = pool.execute(
       Sql.named('''
           SELECT *
           FROM (
@@ -809,6 +1092,26 @@ class AnaSayfaServisi {
         'end': _ts(otuzGunSonra),
       },
     );
+
+    final List<dynamic> sonuc = await Future.wait<dynamic>([
+      stokRowsFuture,
+      vadeRowsFuture,
+    ]);
+    final List<List<dynamic>> stokRows = sonuc[0] as List<List<dynamic>>;
+    final List<List<dynamic>> vadeRows = sonuc[1] as List<List<dynamic>>;
+
+    final List<KritikStokItem> kritikStoklar = stokRows
+        .map(
+          (row) => KritikStokItem(
+            id: _sayiyaCevir(row[0]).toInt(),
+            urunAdi: row[1]?.toString() ?? '',
+            mevcutStok: _sayiyaCevir(row[2]),
+            birim: ((row[3]?.toString() ?? '').trim().isEmpty)
+                ? 'Adet'
+                : row[3].toString(),
+          ),
+        )
+        .toList();
 
     final List<YaklasanVade> yaklasanVadeler = vadeRows
         .map(

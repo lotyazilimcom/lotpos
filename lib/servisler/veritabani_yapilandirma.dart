@@ -1398,7 +1398,19 @@ COMMIT;
       final lookedUp = await InternetAddress.lookup(
         cleaned,
         type: InternetAddressType.IPv4,
-      ).timeout(const Duration(milliseconds: 600));
+      ).timeout(const Duration(milliseconds: 1200));
+      for (final address in lookedUp) {
+        final ip = _temizHost(address.address);
+        if (ip != null && _isIpv4Literal(ip)) {
+          return ip;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      final lookedUp = await InternetAddress.lookup(
+        cleaned,
+      ).timeout(const Duration(milliseconds: 1200));
       for (final address in lookedUp) {
         final ip = _temizHost(address.address);
         if (ip != null && _isIpv4Literal(ip)) {

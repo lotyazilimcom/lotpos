@@ -69,6 +69,80 @@ class DashboardOzet {
     this.cariDegisimYuzde = 0,
     this.satisDegisimYuzde = 0,
   });
+
+  Map<String, dynamic> toMap() {
+    return <String, dynamic>{
+      'toplamKasa': toplamKasa,
+      'toplamBanka': toplamBanka,
+      'toplamStokDegeri': toplamStokDegeri,
+      'netCariBakiye': netCariBakiye,
+      'bugunNetSatis': bugunNetSatis,
+      'kasaSparkline': kasaSparkline,
+      'bankaSparkline': bankaSparkline,
+      'stokSparkline': stokSparkline,
+      'cariSparkline': cariSparkline,
+      'satisSparkline': satisSparkline,
+      'satis30Gun': satis30Gun.map((e) => e.toMap()).toList(),
+      'alis30Gun': alis30Gun.map((e) => e.toMap()).toList(),
+      'kritikStoklar': kritikStoklar.map((e) => e.toMap()).toList(),
+      'yaklasanVadeler': yaklasanVadeler.map((e) => e.toMap()).toList(),
+      'krediKartiBakiyesi': krediKartiBakiyesi,
+      'bekleyenCekler': bekleyenCekler,
+      'bekleyenSenetler': bekleyenSenetler,
+      'aktifSiparisler': aktifSiparisler,
+      'aktifTeklifler': aktifTeklifler,
+      'buAykiGiderler': buAykiGiderler,
+      'sonIslemler': sonIslemler.map((e) => e.toMap()).toList(),
+      'kasaDegisimYuzde': kasaDegisimYuzde,
+      'bankaDegisimYuzde': bankaDegisimYuzde,
+      'stokDegisimYuzde': stokDegisimYuzde,
+      'cariDegisimYuzde': cariDegisimYuzde,
+      'satisDegisimYuzde': satisDegisimYuzde,
+    };
+  }
+
+  factory DashboardOzet.fromMap(Map<String, dynamic> map) {
+    return DashboardOzet(
+      toplamKasa: _toDouble(map['toplamKasa']),
+      toplamBanka: _toDouble(map['toplamBanka']),
+      toplamStokDegeri: _toDouble(map['toplamStokDegeri']),
+      netCariBakiye: _toDouble(map['netCariBakiye']),
+      bugunNetSatis: _toDouble(map['bugunNetSatis']),
+      kasaSparkline: _toDoubleList(map['kasaSparkline']),
+      bankaSparkline: _toDoubleList(map['bankaSparkline']),
+      stokSparkline: _toDoubleList(map['stokSparkline']),
+      cariSparkline: _toDoubleList(map['cariSparkline']),
+      satisSparkline: _toDoubleList(map['satisSparkline']),
+      satis30Gun: _toModelList<GunlukTutar>(
+        map['satis30Gun'],
+        GunlukTutar.fromMap,
+      ),
+      alis30Gun: _toModelList<GunlukTutar>(
+        map['alis30Gun'],
+        GunlukTutar.fromMap,
+      ),
+      kritikStoklar: _toModelList<KritikStokItem>(
+        map['kritikStoklar'],
+        KritikStokItem.fromMap,
+      ),
+      yaklasanVadeler: _toModelList<YaklasanVade>(
+        map['yaklasanVadeler'],
+        YaklasanVade.fromMap,
+      ),
+      krediKartiBakiyesi: _toDouble(map['krediKartiBakiyesi']),
+      bekleyenCekler: _toDouble(map['bekleyenCekler']),
+      bekleyenSenetler: _toDouble(map['bekleyenSenetler']),
+      aktifSiparisler: _toInt(map['aktifSiparisler']),
+      aktifTeklifler: _toInt(map['aktifTeklifler']),
+      buAykiGiderler: _toDouble(map['buAykiGiderler']),
+      sonIslemler: _toModelList<SonIslem>(map['sonIslemler'], SonIslem.fromMap),
+      kasaDegisimYuzde: _toDouble(map['kasaDegisimYuzde']),
+      bankaDegisimYuzde: _toDouble(map['bankaDegisimYuzde']),
+      stokDegisimYuzde: _toDouble(map['stokDegisimYuzde']),
+      cariDegisimYuzde: _toDouble(map['cariDegisimYuzde']),
+      satisDegisimYuzde: _toDouble(map['satisDegisimYuzde']),
+    );
+  }
 }
 
 /// 30 günlük grafik verisi
@@ -77,6 +151,17 @@ class GunlukTutar {
   final double tutar;
 
   const GunlukTutar({required this.tarih, required this.tutar});
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'tarih': tarih.toIso8601String(),
+        'tutar': tutar,
+      };
+
+  factory GunlukTutar.fromMap(Map<String, dynamic> map) => GunlukTutar(
+        tarih:
+            DateTime.tryParse(map['tarih']?.toString() ?? '') ?? DateTime.now(),
+        tutar: _toDouble(map['tutar']),
+      );
 }
 
 /// Kritik stok uyarısı
@@ -92,6 +177,22 @@ class KritikStokItem {
     required this.mevcutStok,
     this.birim = 'Adet',
   });
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'id': id,
+        'urunAdi': urunAdi,
+        'mevcutStok': mevcutStok,
+        'birim': birim,
+      };
+
+  factory KritikStokItem.fromMap(Map<String, dynamic> map) => KritikStokItem(
+        id: _toInt(map['id']),
+        urunAdi: map['urunAdi']?.toString() ?? '',
+        mevcutStok: _toDouble(map['mevcutStok']),
+        birim: (map['birim']?.toString() ?? '').trim().isEmpty
+            ? 'Adet'
+            : map['birim'].toString(),
+      );
 }
 
 /// Yaklaşan vade (Çek/Senet)
@@ -111,6 +212,25 @@ class YaklasanVade {
     required this.vadeTarihi,
     this.cariAdi = '',
   });
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'id': id,
+        'tur': tur,
+        'aciklama': aciklama,
+        'tutar': tutar,
+        'vadeTarihi': vadeTarihi.toIso8601String(),
+        'cariAdi': cariAdi,
+      };
+
+  factory YaklasanVade.fromMap(Map<String, dynamic> map) => YaklasanVade(
+        id: _toInt(map['id']),
+        tur: map['tur']?.toString() ?? '',
+        aciklama: map['aciklama']?.toString() ?? '',
+        tutar: _toDouble(map['tutar']),
+        vadeTarihi: DateTime.tryParse(map['vadeTarihi']?.toString() ?? '') ??
+            DateTime.now(),
+        cariAdi: map['cariAdi']?.toString() ?? '',
+      );
 }
 
 /// Son işlem kaydı
@@ -130,4 +250,50 @@ class SonIslem {
     required this.tarih,
     this.cariAdi = '',
   });
+
+  Map<String, dynamic> toMap() => <String, dynamic>{
+        'id': id,
+        'tur': tur,
+        'aciklama': aciklama,
+        'tutar': tutar,
+        'tarih': tarih.toIso8601String(),
+        'cariAdi': cariAdi,
+      };
+
+  factory SonIslem.fromMap(Map<String, dynamic> map) => SonIslem(
+        id: _toInt(map['id']),
+        tur: map['tur']?.toString() ?? 'tahsilat',
+        aciklama: map['aciklama']?.toString() ?? '',
+        tutar: _toDouble(map['tutar']),
+        tarih:
+            DateTime.tryParse(map['tarih']?.toString() ?? '') ?? DateTime.now(),
+        cariAdi: map['cariAdi']?.toString() ?? '',
+      );
+}
+
+double _toDouble(dynamic value) {
+  if (value is num) return value.toDouble();
+  return double.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+int _toInt(dynamic value) {
+  if (value is int) return value;
+  if (value is num) return value.toInt();
+  return int.tryParse(value?.toString() ?? '') ?? 0;
+}
+
+List<double> _toDoubleList(dynamic raw) {
+  if (raw is! List) return const <double>[];
+  return raw.map(_toDouble).toList(growable: false);
+}
+
+List<T> _toModelList<T>(
+  dynamic raw,
+  T Function(Map<String, dynamic> map) factory,
+) {
+  if (raw is! List) return List<T>.empty(growable: false);
+  return raw
+      .whereType<Map>()
+      .map((item) => factory(Map<String, dynamic>.from(item)))
+      .toList(growable: false);
 }
